@@ -35,7 +35,7 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
             <div>
               <h3 className="font-bold text-lg">Early Bird Pricing</h3>
               <p className="text-sm text-muted-foreground">
-                Lock in forever pricing as a founding member
+                Current early pricing for individuals and families
               </p>
             </div>
           </div>
@@ -49,7 +49,7 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
               <span className="font-semibold">Individual Plan (Patient)</span>
             </div>
             <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              Founding pricing
+              Early pricing
             </Badge>
           </div>
           <div className="flex items-baseline gap-2 mb-3">
@@ -73,7 +73,7 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
               <span className="font-semibold">Family Plan</span>
             </div>
             <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              Founding pricing
+              Early pricing
             </Badge>
           </div>
           <div className="flex items-baseline gap-2 mb-3">
@@ -92,7 +92,7 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-emerald-500" />
-            <span>Founding member pricing — sign up now to lock in forever</span>
+            <span>Early pricing in USD — cancel anytime from your account</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-emerald-500" />

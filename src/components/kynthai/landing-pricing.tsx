@@ -28,7 +28,7 @@ export function LandingPricing({ onGetStarted }: { onGetStarted: () => void }) {
     {
       name: 'Free',
       price: formatPrice(0, currency),
-      cadence: 'forever',
+      cadence: 'plan',
       features: ['1 member profile', '3 medications', '3 AI chats / day', 'All smart reminders'],
       cta: 'Start Free',
       onClick: onGetStarted,

@@ -72,10 +72,10 @@ export function LandingPage({
               Founder pricing
             </Badge>
             <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
-              Lock in <span className="text-emerald-600">early pricing</span> forever
+              Simple <span className="text-emerald-600">early pricing</span>
             </h2>
             <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
-              Join now and keep our lowest pricing for life. Limited founding member spots available.
+              Start free, or choose Individual or Family. Prices shown in USD. Subject to change with notice.
             </p>
           </div>
           <div className="mx-auto max-w-3xl">

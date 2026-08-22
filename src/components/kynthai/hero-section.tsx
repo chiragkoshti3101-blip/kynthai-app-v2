@@ -95,7 +95,15 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
           <p className="mt-2 max-w-xl text-pretty text-sm leading-relaxed text-foreground/75 sm:mt-3 sm:text-base lg:text-lg">
             Missed doses, confusing labels, scheduling headaches — Kynthai brings smart reminders,
             AI-guided medication information, verified consults, and home diagnostic tests together.
-            Built in the US, for US families, in USD, with Privacy-first safeguards.
+            Built for US families, in USD, with privacy-first safeguards.
+          </p>
+          <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+            Kynthai is a health management tool — not a doctor, hospital, or emergency service.
+            It does not provide medical advice or diagnosis.{' '}
+            <a href="/medical-disclaimer" className="underline underline-offset-2 hover:text-foreground">
+              Medical disclaimer
+            </a>
+            .
           </p>
 
           {/* CTA buttons */}

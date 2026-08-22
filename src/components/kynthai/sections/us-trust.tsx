@@ -17,21 +17,21 @@ function USTrust() {
     },
     {
       icon: ShieldPlus,
-      label: 'Encrypted Storage',
-      sub: 'Industry-standard encryption',
-      description: 'Encryption at rest and in transit',
+      label: 'Encrypted Uploads',
+      sub: 'AES-256-GCM for documents',
+      description: 'Prescription images & files encrypted at rest',
     },
     {
       icon: Server,
       label: 'Secure Infrastructure',
       sub: 'Protected cloud hosting',
-      description: 'Data on secure US-based servers',
+      description: 'Hosted with major cloud providers',
     },
     {
       icon: Globe,
-      label: 'US-Hosted Data',
-      sub: 'Supabase Cloud (US region)',
-      description: 'All data stored on US soil',
+      label: 'US-Focused Product',
+      sub: 'Built for US families',
+      description: 'USD pricing · US-oriented workflows',
     },
   ];
 
@@ -52,7 +52,7 @@ function USTrust() {
             Your data is safe, <span className="text-emerald-600">by design</span>.
           </h3>
           <p className="mt-2 text-sm text-muted-foreground">
-            Encryption at rest and in transit · US-hosted servers · Privacy-first architecture
+            TLS in transit · Document encryption at rest · Privacy-first architecture
           </p>
         </div>
 

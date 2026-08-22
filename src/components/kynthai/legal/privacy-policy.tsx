@@ -39,10 +39,10 @@ export function LegalLayout({ title, subtitle, updated, children }: { title: str
           <CardContent className="prose prose-sm max-w-none space-y-6 p-6 text-foreground sm:p-8 [&_h2]:mt-6 [&_h2]:text-xl [&_h2]:font-semibold [&_h3]:mt-4 [&_h3]:font-semibold [&_li]:ml-4 [&_li]:list-disc [&_p]:leading-relaxed">{children}</CardContent>
         </Card>
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 bg-muted/30 p-4 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-emerald-600" />Encrypted at rest and in transit</span>
+          <span className="inline-flex items-center gap-1.5"><Lock className="h-3.5 w-3.5 text-emerald-600" />TLS in transit · documents encrypted at rest</span>
           <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />Privacy-first</span>
           <span className="inline-flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-emerald-600" /><ContactEmailText address={PRIVACY_OFFICER_EMAIL} /></span>
-          <span className="inline-flex items-center gap-1.5 text-muted-foreground">Kynthai Health Technologies · United States</span>
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">Kynthai · Contact: privacy@kynthai.app</span>
         </div>
       </div>
     </div>
@@ -446,7 +446,7 @@ export function PrivacyPolicy() {
         unresolved complaints may be referred to the HHS Office for Civil Rights (OCR).
       </p>
       <p>
-        Correspondence is handled primarily via email at <ContactEmailText address="privacy@kynthai.app" />. Physical correspondence may be directed to the registered US address in the Terms of Service.
+        Correspondence is handled primarily via email at <ContactEmailText address="privacy@kynthai.app" />. We do not publish a physical mailing address; please use email for all legal and privacy correspondence.
       </p>
     </LegalLayout>
   )
@@ -977,7 +977,7 @@ export function TermsOfService() {
       <SectionTitle icon={Mail}>23. Contact</SectionTitle>
       <p>
         <strong>Kynthai Health Technologies</strong><br />
-        Registered: United States (please email <ContactEmailText address="privacy@kynthai.app" /> for legal/privacy correspondence)<br />
+        Email only (no public street address yet). Write to <ContactEmailText address="privacy@kynthai.app" /> for legal/privacy correspondence.<br />
         Email:{' '}
         <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />
         <br />
@@ -1091,21 +1091,21 @@ export function AccessibilityStatement() {
         <p className="text-sm">
           Kynthai is committed to making our platform accessible to all users,
           including people with disabilities. We are actively working toward
-          WCAG 2.1 Level AA conformance and continuously improving the
+          accessibility best practices and continuously improving the
           accessibility of our application.
         </p>
       </div>
 
       <SectionTitle icon={FileText}>1. Conformance target</SectionTitle>
       <p>
-        We aim to conform to the Web Content Accessibility Guidelines (WCAG)
+        We aim to follow the Web Content Accessibility Guidelines (WCAG)
         2.1 at Level AA. These guidelines explain how to make web content more
         accessible for people with disabilities and user agents.
       </p>
 
       <SectionTitle icon={FileText}>2. Current status</SectionTitle>
       <p>
-        Kynthai is partially conformant with WCAG 2.1 Level AA. Some content may
+        Kynthai is working toward WCAG 2.1 Level AA. Some content may
         not yet fully conform due to third-party components or legacy features
         under active remediation. We commit to remediating known accessibility
         issues within 45 days of identification; critical issues (screen-reader
@@ -1117,7 +1117,7 @@ export function AccessibilityStatement() {
       <ul>
         <li><strong>Screen reader support:</strong> Semantic HTML, ARIA labels, and alt text for meaningful images.</li>
         <li><strong>Keyboard navigation:</strong> All interactive elements are keyboard-focusable with visible focus indicators.</li>
-        <li><strong>Color contrast:</strong> Text and interactive elements meet or exceed WCAG 2.1 AA contrast ratios.</li>
+        <li><strong>Color contrast:</strong> We target WCAG 2.1 AA contrast ratios for text and interactive elements where practical.</li>
         <li><strong>Resizable text:</strong> Content is legible at 200% zoom without loss of content or functionality.</li>
         <li><strong>Forms:</strong> Form fields have accessible labels, error messages, and instructions.</li>
       </ul>
@@ -1135,7 +1135,7 @@ export function AccessibilityStatement() {
         <li><strong>United States:</strong> Americans with Disabilities Act (ADA) Title III, Section 508 of the Rehabilitation Act</li>
         <li><strong>EU:</strong> RPwD Act 2016 (Directive 2019/882) — effective June 2025</li>
         <li><strong>UK:</strong> Equality Act 2010</li>
-        <li><strong>Global:</strong> WCAG 2.1 Level AA (W3C)</li>
+        <li><strong>Reference:</strong> WCAG 2.1 (W3C) — ongoing effort, not a certified audit claim</li>
       </ul>
 
       <SectionTitle icon={FileText}>6. Assessment methodology</SectionTitle>

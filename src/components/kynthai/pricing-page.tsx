@@ -69,7 +69,7 @@ const TIERS: Tier[] = [
   {
     id: 'free',
     name: 'Free',
-    tagline: 'Start your health journey — free forever',
+    tagline: 'Start your health journey — free plan available',
     icon: Heart,
     accent: 'from-emerald-500 to-emerald-600',
     cta: 'Start Free',
@@ -82,7 +82,7 @@ const TIERS: Tier[] = [
       'Prescription scanning (1 / day)',
       'Book doctor consults',
       'Order medicines & lab tests',
-      'CCPA and CPRA compliant',
+      'CCPA/CPRA-oriented privacy controls',
     ],
   },
   {
@@ -205,7 +205,7 @@ export function PricingPage() {
     return null; // professional / enterprise
   }
 
-  /** Subtle USD subtitle, e.g. "$9/mo · cancel anytime". */
+  /** Subtle USD subtitle, e.g. "$9.99/mo · cancel anytime". */
   function inrSubtitle(tierId: string, billingCycle: 'monthly' | 'yearly'): string {
     const price = tierPrice(tierId) ?? 0;
     if (billingCycle === 'yearly' && tierId !== 'free') {

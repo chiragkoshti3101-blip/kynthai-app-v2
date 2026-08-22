@@ -32,7 +32,7 @@ function PricingTeaser({
     {
       name: 'Free',
       price: '$0',
-      cadence: 'forever',
+      cadence: 'plan',
       features: [
         '1 member profile',
         'Up to 10 medications',

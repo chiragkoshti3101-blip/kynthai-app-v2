@@ -42,7 +42,7 @@ export default function RootPage({ children }: RootPageProps) {
       {
         '@type': 'MedicalOrganization',
         '@id': BASE + '/#organization',
-        name: 'Kynthai Health Technologies',
+        name: 'Kynthai',
         url: BASE,
         logo: BASE + '/logo.png',
         description:
@@ -63,12 +63,8 @@ export default function RootPage({ children }: RootPageProps) {
             email: 'privacy@kynthai.app',
           },
         ],
-        sameAs: [
-          'https://twitter.com/kynthai_health',
-          'https://www.instagram.com/kynthai_health',
-          'https://www.linkedin.com/company/kynthai-health',
-          'https://www.youtube.com/@kynthai_health',
-        ],
+        // sameAs omitted until official social profiles are live
+
         knowsAbout: [
           'Medication Adherence',
           'Family Health Management',
@@ -85,7 +81,7 @@ export default function RootPage({ children }: RootPageProps) {
         url: BASE,
         name: "Kynthai - America's AI Health Companion for Families",
         description:
-          'AI-powered medicine reminders, doctor video consultations, lab tests and family health management for American households. Free to start, Privacy-first, encrypted.',
+          'AI-powered medicine reminders, doctor video consultations, lab tests and family health management for American households. Free to start. Privacy-first. Documents encrypted at rest; all traffic uses TLS.',
         isPartOf: { '@id': BASE + '/#website' },
         about: { '@id': BASE + '/#organization' },
         inLanguage: 'en-US',

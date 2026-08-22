@@ -70,7 +70,7 @@ export function LandingFinalCTA({ onGetStarted }: { onGetStarted: () => void }) 
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Lock className="h-3 w-3" />
-              Data encrypted
+              Privacy-first
             </span>
           </div>
         </div>

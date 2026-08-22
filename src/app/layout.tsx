@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     template: '%s | Kynthai US',
   },
   description:
-    'AI-powered medicine reminders, doctor consults, lab tests & family health management — built for the US. Free to start, Privacy-first, secure and compliant.',
+    'AI-powered medicine reminders, doctor consults, lab tests & family health management — built for families in the US. Free to start. Privacy-first.',
   keywords: [
     'Kynthai',
     'AI health US',
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     'health tech US',
     'family medication management',
   ],
-  authors: [{ name: 'Kynthai Health Technologies' }],
+  authors: [{ name: 'Kynthai' }],
   manifest: '/manifest.json',
   openGraph: {
     title: 'Kynthai — AI Health & Medication Manager for American Families',
@@ -76,8 +76,6 @@ export const metadata: Metadata = {
   other: {
     'geo.region': 'US',
     'geo.placename': 'United States',
-    'geo.position': '37.0902,-95.7129',
-    ICBM: '37.0902, -95.7129',
     // Verification codes: add after Google Search Console & Bing Webmaster Tools setup
   },
   icons: {

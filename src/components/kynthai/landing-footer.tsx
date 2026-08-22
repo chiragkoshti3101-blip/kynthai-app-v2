@@ -11,12 +11,9 @@ import { Mail, ShieldCheck, HeartPulse, Twitter, Instagram, Linkedin, Youtube } 
 /* LandingFooter — site footer with navigation links (client island)  */
 /* ------------------------------------------------------------------ */
 export function LandingFooter() {
-  const socials = [
-    { label: 'Twitter / X', icon: Twitter, href: 'https://twitter.com/kynthai' },
-    { label: 'Instagram', icon: Instagram, href: 'https://instagram.com/kynthai' },
-    { label: 'LinkedIn', icon: Linkedin, href: 'https://linkedin.com/company/kynthai' },
-    { label: 'YouTube', icon: Youtube, href: 'https://youtube.com/@kynthai' },
-  ];
+  const socials: Array<{ label: string; icon: typeof Twitter; href: string }> = [
+  // Add official profiles here when accounts are live
+];
 
   return (
     <footer className="border-t border-border/60 bg-muted/30">
@@ -26,13 +23,17 @@ export function LandingFooter() {
           <div className="border-b border-border/40 pb-6 md:border-0 md:pb-0">
             <KynthaiBrand />
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              Health management for families, patients, doctors and labs — in one beautiful app.
-              Built for America, by founders who care.
+              Health management for families, patients, doctors and labs — in one app.
+              Built for families in the US.
             </p>
             <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
               Privacy-first · Secure billing
             </div>
+            <p className="mt-2 max-w-xs text-[11px] leading-relaxed text-muted-foreground">
+              Early-stage product. Not a licensed medical provider. Email{' '}
+              <ContactEmailText address="hello@kynthai.app" /> for support.
+            </p>
             <span className="mt-3 inline-flex min-h-11 min-w-11 items-center gap-1.5 py-2 -my-2 text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700">
               <Mail className="h-3.5 w-3.5" />
               <ContactEmail address="privacy@kynthai.app" />
@@ -65,7 +66,7 @@ export function LandingFooter() {
               { label: 'Family Portal', href: '/login' },
               { label: 'Doctor Portal', href: '/login' },
               { label: 'Lab Portal', href: '/login' },
-              { label: 'Reviews', href: '/#faq' },
+              { label: 'Medical disclaimer', href: '/medical-disclaimer' },
             ]}
           />
 

@@ -16,13 +16,8 @@ const KYNETHA_CONTACT = {
   email: 'privacy@kynthai.app',
 } as const;
 
-const SOCIAL_PROFILES = [
-  'https://twitter.com/kynthai_health',
-  'https://www.linkedin.com/company/kynthai-health',
-  'https://www.instagram.com/kynthai_health',
-  'https://www.youtube.com/@kynthai_health',
-  'https://github.com/kynthai-health',
-] as const;
+// Only list profiles that actually exist. Empty until social accounts are live.
+const SOCIAL_PROFILES = [] as const;
 
 const WEBAPP_SCHEMA = {
   '@context': 'https://schema.org',
@@ -58,7 +53,7 @@ const WEBAPP_SCHEMA = {
   author: {
     '@type': 'Organization',
     '@id': 'https://kynthai.app/#organization',
-    name: 'Kynthai Health Technologies',
+    name: 'Kynthai',
   },
   publisher: { '@id': 'https://kynthai.app/#organization' },
 } as const;
@@ -67,13 +62,13 @@ const MEDICAL_ORG_SCHEMA = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   '@id': 'https://kynthai.app/#medicalorganization',
-  name: 'Kynthai Health Technologies',
+  name: 'Kynthai',
   description:
     'AI-powered health management platform for patients, families, doctors, and labs in the United States.',
   url: 'https://kynthai.app',
   ...KYNETHA_CONTACT,
   foundingDate: '2025',
-  sameAs: [...SOCIAL_PROFILES],
+  ...(SOCIAL_PROFILES.length ? { sameAs: [...SOCIAL_PROFILES] } : {}),
   areaServed: { '@type': 'Country', name: 'United States' },
 } as const;
 
@@ -81,13 +76,13 @@ const ORG_SCHEMA = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   '@id': 'https://kynthai.app/#organization',
-  name: 'Kynthai Health Technologies',
+  name: 'Kynthai',
   description:
     'AI-powered health management platform for patients, families, doctors, and labs in the United States.',
   url: 'https://kynthai.app',
   ...KYNETHA_CONTACT,
   foundingDate: '2025',
-  sameAs: [...SOCIAL_PROFILES],
+  ...(SOCIAL_PROFILES.length ? { sameAs: [...SOCIAL_PROFILES] } : {}),
   areaServed: { '@type': 'Country', name: 'United States' },
 } as const;
 
@@ -120,7 +115,7 @@ const WEBPAGE_SCHEMA = {
   url: 'https://kynthai.app',
   inLanguage: 'en-US',
   isAccessibleForFree: true,
-  accessibilitySummary: 'WCAG 2.1 AA compliant. Keyboard navigable and screen-reader friendly.',
+  accessibilitySummary: 'Designed for keyboard navigation and screen readers; accessibility is an ongoing effort.',
 } as const;
 
 const FAQ_SCHEMA = {
@@ -157,7 +152,7 @@ const FAQ_SCHEMA = {
       name: 'Where is my data stored?',
       acceptedAnswer: {
         '@type': 'Answer' as const,
-        text: 'Kynthai is US-hosted on Supabase Cloud. Your health data never leaves American soil for processing.',
+        text: 'Application data is stored with cloud providers in US regions where configured. Contact privacy@kynthai.app with data-location questions.',
       },
     },
   ],

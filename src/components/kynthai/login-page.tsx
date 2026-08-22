@@ -905,7 +905,7 @@ export function LoginPage({
 
                 <div className="mt-5 flex items-center justify-center gap-2 text-xs text-muted-foreground">
                   <Lock className="h-3 w-3" />
-                  Data encrypted in transit &amp; at rest · Privacy-first
+                  TLS in transit · document encryption at rest · Privacy-first
                 </div>
               </CardContent>
             </Card>
