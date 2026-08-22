@@ -299,7 +299,16 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   // Authenticated users who haven't completed onboarding see the
   // Welcome → role → consent flow before their portal, on any app route
   // (including `/` and portal paths, which used to skip it entirely).
-  if (user && hydrated && !onboardingComplete && !isDemoMode) {
+  // First-time only. If the account already accepted consent (server) or this
+  // device finished onboarding, skip Welcome — returning sign-ins go to the app.
+  const needsOnboarding =
+    !!user &&
+    hydrated &&
+    !isDemoMode &&
+    !onboardingComplete &&
+    user.consentAccepted !== true;
+
+  if (needsOnboarding) {
     return (
       <ErrorBoundary>
         <Onboarding
@@ -307,6 +316,16 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
           onComplete={role => {
             completeOnboarding(role);
             setLoginPortal(role);
+            // Keep consent flags on the client user so a refresh still skips tour
+            if (user) {
+              login({
+                ...user,
+                consentAccepted: true,
+                dataProcessingConsent: true,
+                aiTrainingConsent: true,
+                role: role === 'admin' ? user.role : role,
+              });
+            }
             router.push('/');
           }}
         />

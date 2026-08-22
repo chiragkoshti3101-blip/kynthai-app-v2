@@ -369,10 +369,16 @@ export function LoginPage({
         phone: data.phone,
         subscriptionTier: data.subscriptionTier,
         isDemo: data.isDemo,
-        // COMPLIANCE: include runtime flag from login response (undefined = false for older accounts)
         isUserMinor: Boolean((data as { isUserMinor?: boolean }).isUserMinor),
+        consentAccepted: Boolean((data as { consentAccepted?: boolean }).consentAccepted),
+        dataProcessingConsent: Boolean((data as { dataProcessingConsent?: boolean }).dataProcessingConsent),
+        aiTrainingConsent: Boolean((data as { aiTrainingConsent?: boolean }).aiTrainingConsent),
       };
       login(user);
+      // First-time only: Welcome tour. Returning users with consent go straight in.
+      if (user.consentAccepted) {
+        useAppStore.getState().completeOnboarding(user.role);
+      }
 
       if (mode === 'signin') {
         setInvitesLoading(true);

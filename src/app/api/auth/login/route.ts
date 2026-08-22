@@ -241,6 +241,10 @@ export async function POST(req: NextRequest) {
       subscriptionTier: user.subscriptionTier,
       isDemo: user.isDemo,
       isUserMinor,
+      // Server truth for post-login routing (skip Welcome tour if already consented)
+      consentAccepted: !!user.consentAccepted,
+      dataProcessingConsent: !!user.dataProcessingConsent,
+      aiTrainingConsent: !!user.aiTrainingConsent,
     };
     const res = jsonOk(responseBody);
     // Set session cookie (Supabase cookies if available, otherwise local session)

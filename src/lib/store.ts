@@ -137,8 +137,15 @@ export const useAppStore = create<AppState>()(
         }),
       setOnboardingRole: onboardingRole => set({ onboardingRole }),
       login: user =>
-        set({
+        set((s) => ({
           user,
+          // Returning users who already accepted consent on the server skip Welcome
+          onboardingComplete:
+            user.consentAccepted === true ? true : s.onboardingComplete,
+          onboardingRole:
+            user.consentAccepted === true
+              ? (user.role as AppState['onboardingRole'])
+              : s.onboardingRole,
           screen:
             user.role === 'patient'
               ? 'patient'
@@ -149,7 +156,7 @@ export const useAppStore = create<AppState>()(
                   : user.role === 'admin'
                     ? 'admin'
                     : 'caretaker',
-        }),
+        })),
       logout: () => set({ user: null, screen: 'login', loginPortal: 'caretaker' }),
       setHydrated: v => set({ _hydrated: v }),
       toggleAlarm: () => set(s => ({ alarmEnabled: !s.alarmEnabled })),
@@ -169,23 +176,22 @@ export const useAppStore = create<AppState>()(
         alarmEnabled: state.alarmEnabled,
         alarmMode: state.alarmMode,
       }),
-      version: 4,
+      version: 5,
       // Merge persisted state with safe defaults — never wipe existing data.
       // Only reset fields that are known to be stale from older versions.
-      // v4: reset onboardingComplete so returning sessions (whose flag was
-      // persisted as `true` by pre-routing-fix code that auto-completed
-      // onboarding) re-run the Welcome → role → consent flow once.
+      // v5: stop forcing onboardingComplete=false (v4 forced a one-time re-tour).
+      // Preserve completion so returning users never see Welcome again on this device.
       migrate: (state: unknown) => {
         const prev = (state as Partial<AppState>) || {};
         return {
           ...prev,
-          screen: 'landing' as AppScreen,
+          screen: (prev.screen ?? 'landing') as AppScreen,
           loginPortal: (prev.loginPortal ?? 'caretaker') as LoginPortal,
-          checkoutTier: 'plus' as 'plus' | 'family_pro',
-          onboardingComplete: false,
-          onboardingRole: 'patient',
-          currency: 'USD' as Currency,
-          language: 'en' as Locale,
+          checkoutTier: (prev.checkoutTier ?? 'plus') as 'plus' | 'family_pro',
+          onboardingComplete: prev.onboardingComplete === true,
+          onboardingRole: (prev.onboardingRole ?? 'patient') as AppState['onboardingRole'],
+          currency: (prev.currency ?? 'USD') as Currency,
+          language: (prev.language ?? 'en') as Locale,
         } as Partial<AppState>;
       },
       onRehydrateStorage: () => state => {
