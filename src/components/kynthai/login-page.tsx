@@ -478,7 +478,7 @@ export function LoginPage({
                   onClick={() => setLoginPortal(p.id)}
                   aria-current={loginPortal === p.id ? 'page' : undefined}
                   className={cn(
-                    'flex flex-col items-center gap-3 rounded-2xl border p-4 text-center transition-all',
+                    'flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-2xl border p-4 text-center transition-all active:scale-[0.98]',
                     loginPortal === p.id
                       ? 'border-emerald-500 shadow-lg shadow-emerald-500/10'
                       : 'border-border hover:border-emerald-500/50'
@@ -555,7 +555,7 @@ export function LoginPage({
                               });
                             }
                           }}
-                          className="shrink-0 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-600"
+                          className="shrink-0 min-h-11 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white hover:bg-emerald-600"
                         >
                           Accept
                         </button>
@@ -616,7 +616,7 @@ export function LoginPage({
                         }
                         setDemoBusy(false);
                       }}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-700 transition-colors hover:bg-emerald-500/15 dark:text-emerald-300 disabled:opacity-60 disabled:pointer-events-none"
+                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/15 dark:text-emerald-300 disabled:opacity-60 disabled:pointer-events-none"
                     >
                       <Sparkles className="h-4 w-4" />
                       Try the {active.label} demo — explore instantly
@@ -666,7 +666,9 @@ export function LoginPage({
                             setAgeGateDismissed(true);
                             setAgeGateOpen(false);
                           }}
-                          className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow hover:from-emerald-600 hover:to-teal-700"
+                          variant="brand"
+                          size="cta"
+                          className="w-full"
                         >
                           I am 18 or older — proceed
                         </Button>

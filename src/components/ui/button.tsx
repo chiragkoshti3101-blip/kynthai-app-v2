@@ -31,15 +31,15 @@ const buttonVariants = cva(
           "bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-600/20 hover:from-emerald-600 hover:to-teal-700",
       },
       size: {
-        default: "h-10 min-h-10 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-9 min-h-9 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-11 min-h-11 rounded-md px-6 has-[>svg]:px-4",
+        default: "h-11 min-h-11 px-4 py-2 has-[>svg]:px-3 rounded-xl",
+        sm: "h-9 min-h-9 rounded-lg gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-12 min-h-12 rounded-xl px-6 text-base has-[>svg]:px-4",
         /** Primary marketing CTA — 48px, full-width friendly */
         cta: "h-12 min-h-12 rounded-full px-7 text-base font-semibold has-[>svg]:px-6",
         /** Secondary marketing CTA — 44px */
         ctaSecondary:
           "h-11 min-h-11 rounded-full px-6 text-sm font-semibold sm:text-base has-[>svg]:px-5",
-        icon: "size-10 min-h-10 min-w-10",
+        icon: "size-11 min-h-11 min-w-11 rounded-xl",
         iconLg: "size-11 min-h-11 min-w-11",
       },
     },
