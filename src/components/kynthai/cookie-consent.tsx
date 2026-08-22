@@ -153,8 +153,16 @@ export function CookieConsent() {
 
   if (!visible) return null
 
+  const isPortal = /^\/(patient|doctor|lab|caretaker|family|admin)(\/|$)/.test(pathname || '')
+
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[60] p-3 sm:p-6 animate-in slide-in-from-bottom-4 duration-300">
+    <div
+      className={
+        isPortal
+          ? 'fixed inset-x-0 z-40 p-3 sm:p-6 animate-in slide-in-from-bottom-4 duration-300 bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))]'
+          : 'fixed inset-x-0 bottom-0 z-[60] p-3 sm:p-6 animate-in slide-in-from-bottom-4 duration-300'
+      }
+    >
       <Card className="mx-auto max-w-3xl border-emerald-500/30 shadow-2xl">
         <CardContent className="p-3 sm:p-4">
           <div className="flex items-start gap-3">
