@@ -1271,7 +1271,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
         </div>
       </header>
 
-      <main id="main-content" className="mx-auto max-w-3xl w-full flex-1 px-4 pb-20 pt-4">
+      <main id="main-content" className="mx-auto max-w-3xl w-full flex-1 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
         <AnimatePresence mode="wait">
           {tab === 'home' && (
             <FadeIn key="home">

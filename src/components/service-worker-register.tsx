@@ -110,12 +110,12 @@ export function ServiceWorkerRegister() {
         if (!authRes.ok) return
         const authData = await authRes.json()
         if (!authData?.user) return
+        // Only re-sync an already-granted subscription — never prompt on every load
         const { enablePush, pushSupported, permissionState } = await import(
           '@/lib/push'
         )
         if (!pushSupported()) return
-        const perm = permissionState()
-        if (perm === 'granted' || perm === 'default') {
+        if (permissionState() === 'granted') {
           await enablePush()
         }
       } catch {

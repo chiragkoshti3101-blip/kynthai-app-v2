@@ -45,6 +45,7 @@ import { useTheme } from 'next-themes';
 import { useAppStore } from '@/lib/store';
 import { useToast } from '@/hooks/use-toast';
 import { KynthaiBrand } from '@/components/kynthai/logo';
+import { PushNotificationToggle } from '@/components/kynthai/push-notification-toggle';
 
 export default function SettingsClient() {
   const router = useRouter();
@@ -92,10 +93,19 @@ export default function SettingsClient() {
   // Data export
   const [exporting, setExporting] = React.useState(false);
 
+  React.useEffect(() => {
+    if (!user) {
+      const t = window.setTimeout(() => {
+        if (!useAppStore.getState().user) router.replace('/login');
+      }, 2500);
+      return () => window.clearTimeout(t);
+    }
+  }, [user, router]);
+
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
+      <div className="flex min-h-[50vh] items-center justify-center px-4 pb-safe">
+        <p className="text-sm text-muted-foreground">Loading your settings…</p>
       </div>
     );
   }
@@ -164,8 +174,8 @@ export default function SettingsClient() {
       toast({ title: 'Passwords do not match', variant: 'destructive' });
       return;
     }
-    if (newPassword.length < 8) {
-      toast({ title: 'Password must be at least 8 characters', variant: 'destructive' });
+    if (newPassword.length < 12) {
+      toast({ title: 'Password must be at least 12 characters', variant: 'destructive' });
       return;
     }
     setPwSaving(true);
@@ -173,11 +183,11 @@ export default function SettingsClient() {
       const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
       const { token: csrfToken } = await csrfRes.json();
 
-      const res = await fetch('/api/auth/reset-password', {
+      const res = await fetch('/api/auth/update-password', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
-        body: JSON.stringify({ password: newPassword }),
+        body: JSON.stringify({ currentPassword, newPassword }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -294,7 +304,7 @@ export default function SettingsClient() {
 
   return (
     <ErrorBoundary>
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-safe">
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-border/40 bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-4">
@@ -439,6 +449,10 @@ export default function SettingsClient() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">This device</p>
+              <PushNotificationToggle />
+            </div>
             {[
               { key: 'reminders', label: 'Medication reminders', desc: 'Take-your-med alerts' },
               { key: 'labResults', label: 'Lab results', desc: 'When results are ready' },

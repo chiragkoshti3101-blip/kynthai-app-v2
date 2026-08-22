@@ -763,7 +763,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         </div>
       )}
 
-      <main className="mx-auto max-w-3xl w-full flex-1 px-4 pb-20 pt-4 space-y-5">
+      <main className="mx-auto max-w-3xl w-full flex-1 px-4 pt-4 space-y-5 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
         {/* API error banner */}
         {apiError && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-center gap-3">

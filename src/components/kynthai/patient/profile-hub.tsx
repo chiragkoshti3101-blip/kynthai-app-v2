@@ -659,7 +659,10 @@ export function ProfileHub({
         </h3>
         <Card>
           <CardContent className="p-0 divide-y divide-border/60">
-            <PushNotificationToggle />
+            <div className="w-full space-y-1">
+              <p className="text-xs text-muted-foreground">Push on this device</p>
+              <PushNotificationToggle />
+            </div>
           </CardContent>
         </Card>
       </div>
