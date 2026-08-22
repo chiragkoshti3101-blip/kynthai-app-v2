@@ -56,6 +56,7 @@ import { useAppStore, type AuthUser } from '@/lib/store';
 import { KynthaiBrand } from '@/components/kynthai/logo';
 import { useRouter } from 'next/navigation';
 import { isDemoUser } from '@/lib/demo-mode';
+import { useGreeting } from '@/lib/greeting';
 import { AchievementCelebration } from '@/components/kynthai/achievement-celebration';
 import { useToast } from '@/hooks/use-toast';
 import { playProfessionalRingtone, stopAllRingtones } from '@/lib/alarm';
