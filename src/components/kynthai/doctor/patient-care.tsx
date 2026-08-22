@@ -92,7 +92,7 @@ interface PrescribeResult {
 // Component
 // ---------------------------------------------------------------------------
 
-export function PatientCare({ onPatientClick }: { onPatientClick?: (patient: PatientAdherence) => void } = {}) {
+export function PatientCare({ onPatientClick, isDemo = false }: { onPatientClick?: (patient: PatientAdherence) => void; isDemo?: boolean } = {}) {
   const { toast } = useToast()
   React.useEffect(() => { initLanguage() }, [])
   const [patients, setPatients] = React.useState<PatientAdherence[]>([])
@@ -102,6 +102,15 @@ export function PatientCare({ onPatientClick }: { onPatientClick?: (patient: Pat
 
   const load = React.useCallback(async () => {
     setLoading(true)
+    if (isDemo) {
+      setPatients([
+        { id: 'dp1', name: 'Alex Johnson', email: 'alex@example.com', medications: 2, todayReminders: 3, takenToday: 2, weekReminders: 21, takenWeek: 18, adherence: 86, inviteLink: '/invite?t=demo' },
+        { id: 'dp2', name: 'Jordan Smith', email: 'jordan@example.com', medications: 1, todayReminders: 1, takenToday: 0, weekReminders: 7, takenWeek: 5, adherence: 71 },
+        { id: 'dp3', name: 'Casey Lee', email: 'casey@example.com', medications: 3, todayReminders: 4, takenToday: 4, weekReminders: 28, takenWeek: 27, adherence: 96 },
+      ])
+      setLoading(false)
+      return
+    }
     try {
       const res = await fetch('/api/doctors/patients/adherence', { cache: 'no-store' })
       if (!res.ok) throw new Error('Failed to load')
@@ -113,7 +122,7 @@ export function PatientCare({ onPatientClick }: { onPatientClick?: (patient: Pat
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isDemo])
 
   React.useEffect(() => {
     void load()
@@ -121,6 +130,13 @@ export function PatientCare({ onPatientClick }: { onPatientClick?: (patient: Pat
 
   const handleNudge = React.useCallback(
     async (p: PatientAdherence) => {
+      if (isDemo || p.id.startsWith('dp')) {
+        toast({
+          title: t('nudge_sent'),
+          description: `${p.name.split(' ')[0]} ${t('has_been_notified')}`,
+        })
+        return
+      }
       try {
         const res = await fetch('/api/doctors/nudge', {
           method: 'POST',
@@ -140,7 +156,7 @@ export function PatientCare({ onPatientClick }: { onPatientClick?: (patient: Pat
         toast({ title: t('could_not_nudge'), description: t('try_again_later'), variant: 'destructive' })
       }
     },
-    [toast],
+    [toast, isDemo],
   )
 
   const copyInvite = React.useCallback(

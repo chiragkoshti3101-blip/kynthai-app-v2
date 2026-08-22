@@ -147,7 +147,7 @@ export function MedicationsList({
           },
         ],
         fm3: [
-          // Daughter
+          // Child
           {
             id: 'dm7',
             name: 'Cetirizine',
@@ -166,6 +166,7 @@ export function MedicationsList({
       const memberKey = familyMemberId || 'fm1';
       setMeds(demoMeds[memberKey] ?? demoMeds.fm1 ?? []);
       setLoading(false);
+      onLoaded?.();
       return;
     }
     try {
@@ -299,9 +300,11 @@ const medList = Array.isArray(meds) ? meds : [];
             </SheetHeader>
             <div className="mt-4">
               <AddMedication
-                onAdded={load}
+                onAdded={isDemo ? undefined : load}
+                onCreated={isDemo ? (m) => setMeds(prev => [...prev, m]) : undefined}
                 onClose={() => setSheetOpen(false)}
                 familyMemberId={familyMemberId}
+                isDemo={isDemo}
               />
             </div>
           </SheetContent>

@@ -55,7 +55,7 @@ import { cn } from '@/lib/utils';
 import { useAppStore, type AuthUser } from '@/lib/store';
 import { KynthaiBrand } from '@/components/kynthai/logo';
 import { useRouter } from 'next/navigation';
-import { useGreeting } from '@/lib/greeting'
+import { isDemoUser } from '@/lib/demo-mode';
 import { AchievementCelebration } from '@/components/kynthai/achievement-celebration';
 import { useToast } from '@/hooks/use-toast';
 import { playProfessionalRingtone, stopAllRingtones } from '@/lib/alarm';
@@ -745,7 +745,7 @@ function AiTab({ onNavigate }: { onNavigate: (t: Tab) => void }) {
 function JournalTab() {
   const { toast } = useToast();
   const { user } = useAppStore();
-  const isDemo = !!user?.isDemo;
+  const isDemo = isDemoUser(user);
   const [entries, setEntries] = React.useState<JournalEntry[]>(isDemo ? DEMO_JOURNAL : []);
   const [open, setOpen] = React.useState(false);
 
@@ -1111,7 +1111,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
   // Fire-and-forget — the API marks reminders escalated so this runs once
   // per overdue dose, never repeatedly for the same reminder.
   React.useEffect(() => {
-    if (user?.isDemo) return;
+    if (isDemoUser(user)) return;
     let cancelled = false;
     fetch('/api/auth/csrf', { credentials: 'include' })
       .then((r) => r.json())
@@ -1134,13 +1134,13 @@ export function PatientApp({ user }: { user: AuthUser }) {
     return () => {
       cancelled = true;
     };
-  }, [user?.isDemo]);
+  }, [user]);
 
   // ── Global reminder alert: notify on ANY tab when a reminder is due ──
   // TodayView's alarm only fires when the Meds tab is mounted. This effect
   // ensures the user is reminded even when browsing Home / Care / AI etc.
   React.useEffect(() => {
-    if (user?.isDemo) return;
+    if (isDemoUser(user)) return;
     let cancelled = false;
     let seen = new Set<string>();
 
@@ -1194,7 +1194,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
     check();
     const interval = setInterval(check, 60_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [user?.isDemo, toast, setTab]);
+  }, [user, toast, setTab]);
 
   const handleCancelAppointment = React.useCallback(
     async (appointmentId: string) => {
@@ -1225,7 +1225,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
   );
 
   const isFree = (user?.subscriptionTier ?? 'free') === 'free';
-  const isDemo = !!user?.isDemo;
+  const isDemo = isDemoUser(user);
   const initial = isDemo ? 'K' : (user?.name?.[0] ?? 'U').toUpperCase();
 
   const handleLogout = React.useCallback(async () => {

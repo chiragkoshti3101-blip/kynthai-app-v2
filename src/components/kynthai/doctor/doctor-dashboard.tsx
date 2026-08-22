@@ -1520,6 +1520,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
             {/* Patient Care — full prescribe + adherence + nudge + invite flow */}
             <div className="pt-2">
               <PatientCare
+                isDemo={isDemo}
                 onPatientClick={p =>
                   setSelectedPatient({
                     id: p.id,

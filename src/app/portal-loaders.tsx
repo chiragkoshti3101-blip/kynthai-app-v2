@@ -82,7 +82,9 @@ export function loadPortal(
         default: m.CaretakerApp,
       })),
     family: () =>
-      import('@/components/kynthai/family/family-portal').then(m => ({ default: m.FamilyPortal })),
+      import('@/components/kynthai/caretaker/caretaker-app').then(m => ({
+        default: m.CaretakerApp,
+      })),
     admin: () =>
       import('@/components/kynthai/admin/admin-dashboard').then(m => ({
         default: m.AdminDashboard,

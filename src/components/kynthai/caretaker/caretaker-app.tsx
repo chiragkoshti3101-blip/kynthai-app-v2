@@ -90,31 +90,31 @@ interface FamilyMember {
 const SAMPLE_FAMILY: FamilyMember[] = [
   {
     id: 'fm1',
-    name: 'James Carter',
+    name: 'Robert Wilson',
     relation: 'Father',
-    email: 'james@example.com',
+    email: 'robert@example.com',
     phone: '+1 (555) 012-3456',
-    adherence: 88,
-    pending: 2,
+    adherence: 85,
+    pending: 1,
     lowStock: 1,
     age: 62,
   },
   {
     id: 'fm2',
-    name: 'Emily Carter',
+    name: 'Emma Wilson',
     relation: 'Mother',
-    email: 'emily@example.com',
+    email: 'emma@example.com',
     phone: '+1 (555) 012-3457',
-    adherence: 95,
-    pending: 0,
+    adherence: 78,
+    pending: 1,
     lowStock: 0,
     age: 58,
   },
   {
     id: 'fm3',
-    name: 'Mia Carter',
-    relation: 'Daughter',
-    email: 'mia@example.com',
+    name: 'Noah Wilson',
+    relation: 'Child',
+    email: 'noah@example.com',
     phone: '+1 (555) 012-3458',
     adherence: 72,
     pending: 3,
@@ -136,7 +136,7 @@ const SAMPLE_ALERTS: EscalatedAlert[] = [
   {
     id: 'a1',
     memberId: 'fm1',
-    memberName: 'James Carter',
+    memberName: 'Robert Wilson',
     message: 'Missed Lisinopril (morning dose)',
     severity: 'high',
     time: '2h ago',
@@ -144,7 +144,7 @@ const SAMPLE_ALERTS: EscalatedAlert[] = [
   {
     id: 'a2',
     memberId: 'fm3',
-    memberName: 'Mia Carter',
+    memberName: 'Noah Wilson',
     message: 'Albuterol inhaler running low (3 doses left)',
     severity: 'medium',
     time: '5h ago',
@@ -385,7 +385,14 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
             credentials: 'include',
           });
           if (remRes.ok) {
-            const reminders = await remRes.json();
+            const raw = await remRes.json();
+            const reminders = Array.isArray(raw)
+              ? raw
+              : Array.isArray(raw?.data)
+                ? raw.data
+                : Array.isArray(raw?.reminders)
+                  ? raw.reminders
+                  : [];
             const meds = reminders.map(
               (r: {
                 id: string;

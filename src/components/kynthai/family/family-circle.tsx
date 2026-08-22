@@ -253,16 +253,6 @@ export function FamilyCircle({ members, loading }: FamilyCircleProps) {
             member={m}
             index={i}
             onClick={() => {
-              // ponytail: in demo mode, member IDs are synthetic (fm1/fm2/fm3)
-              // and don't exist in the DB — navigating to /family/members/fm1
-              // returns 404. Show a toast instead.
-              if (isDemoMode) {
-                // Dynamic import to avoid adding toast to the module scope
-                import('@/hooks/use-toast').then(({ toast }) => {
-                  toast({ title: 'Demo mode', description: 'Member details are available in the live version.' })
-                })
-                return
-              }
               router.push(`/family/members/${m.memberId}`)
             }}
           />

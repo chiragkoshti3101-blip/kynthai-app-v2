@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useAppStore, type AuthUser } from '@/lib/store'
+import { type AuthUser } from '@/lib/store'
 import { KynthaiBrand } from '@/components/kynthai/logo'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +17,8 @@ import { OfflineIndicator } from '@/components/kynthai/offline-indicator'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { LAB_BASE_FEE_PCT } from '@/lib/commission'
+import { useRouter } from 'next/navigation'
+import { ProfileHub } from '@/components/kynthai/patient/profile-hub'
 import { LoadingState } from '@/components/kynthai/loading-state'
 
 type LabTab = 'overview' | 'bookings' | 'results'
@@ -88,9 +90,11 @@ const DEMO_BOOKINGS: BookingRow[] = [
 ]
 
 export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
+  const router = useRouter()
   const [labOnline, setLabOnline] = React.useState(true)
   const [tab, setTab] = React.useState<LabTab>('overview')
   const [profileOpen, setProfileOpen] = React.useState(false)
+  const [hubOpen, setHubOpen] = React.useState(false)
   const profileRef = React.useRef<HTMLDivElement>(null)
 
   const [stats, setStats] = React.useState<{bookingsTotal:number;pending:number;completed:number;revenue:number}|null>(null)
@@ -151,6 +155,11 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
   }, [])
 
   const updateBookingStatus = async (id: string, status: string) => {
+    if (id.startsWith('demo-') || user.isDemo || user.email?.endsWith('@kynthai.app')) {
+      setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b))
+      toast({title: 'Updated to ' + ((STATUS_CFG[status]?.label ?? status))})
+      return
+    }
     try {
       const res = await fetch('/api/lab-bookings/' + id, {
         method: 'PATCH',
@@ -241,7 +250,9 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                       <p className="text-xs text-muted-foreground mt-0.5">{profile.city}</p>
                     </div>
                     <div className="p-1">
-                      <button className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                      <button
+                        onClick={() => { setProfileOpen(false); setHubOpen(true) }}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
                         <User className="h-4 w-4" /> Profile Hub
                       </button>
                       <button onClick={onLogout}
@@ -356,7 +367,55 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
         {/* BOOKINGS */}
         {tab === 'bookings' && (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Bookings module available.</p>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-semibold">Bookings</h2>
+              <Badge variant="secondary" className="text-[10px]">{bookings.length} total</Badge>
+            </div>
+            {loading ? (
+              <LoadingState label="Loading bookings…" fullPage={false} />
+            ) : bookings.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border/60 bg-card p-8 text-center">
+                <CalendarCheck className="h-10 w-10 mx-auto mb-3 text-muted-foreground/40" />
+                <p className="text-sm font-medium">No bookings yet</p>
+                <p className="text-xs text-muted-foreground mt-1">New patient bookings will show up here.</p>
+              </div>
+            ) : (
+              bookings.map(b => {
+                const cfg = (STATUS_CFG[b.status] as any) ?? STATUS_CFG['pending']
+                const SIcon = cfg.icon
+                const advance = canAdvance(b.status)
+                return (
+                  <div key={b.id} className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold truncate">{b.patientName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(b.tests ?? []).map((t: any) => t?.name).filter(Boolean).join(', ') || 'No tests listed'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {fmtDate(b.scheduledAt)}
+                          {b.homeCollection ? ' · Home collection' : ' · In-lab'}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0 space-y-1">
+                        <p className="text-sm font-semibold">{fmtMoney(b.price)}</p>
+                        <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium', cfg.bg, cfg.color)}>
+                          <SIcon className="h-3 w-3" /> {cfg.label}
+                        </span>
+                      </div>
+                    </div>
+                    {advance && (
+                      <button
+                        onClick={() => updateBookingStatus(b.id, nextStatus(b.status))}
+                        className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                      >
+                        Mark as {STATUS_CFG[nextStatus(b.status)]?.label ?? nextStatus(b.status)}
+                      </button>
+                    )}
+                  </div>
+                )
+              })
+            )}
           </div>
         )}
 
@@ -435,6 +494,14 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
     </main>
 
     {/* Minimal legal footer */}
+    <ProfileHub
+      open={hubOpen}
+      onOpenChange={setHubOpen}
+      user={user}
+      onLogout={onLogout}
+      onShowPricing={() => router.push('/pricing')}
+      onShowPrivacy={() => router.push('/privacy')}
+    />
   </div>
   )
 }

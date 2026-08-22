@@ -107,6 +107,7 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
       setReminders(demoReminders);
       setStats({ total: 3, taken: 1, skipped: 0, pending: 2, adherence: 33 });
       setLoading(false);
+      onLoaded?.();
       return;
     }
     try {
@@ -121,8 +122,15 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
       clearTimeout(timeoutId);
       if (!remRes.ok || !statsRes.ok) throw new Error('Failed to load');
       const [rems, s] = await Promise.all([remRes.json(), statsRes.json()]);
-      setReminders(rems);
-      setStats(s);
+      const remList = Array.isArray(rems)
+        ? rems
+        : Array.isArray(rems?.data)
+          ? rems.data
+          : Array.isArray(rems?.reminders)
+            ? rems.reminders
+            : [];
+      setReminders(remList);
+      setStats(s && typeof s === 'object' ? s : null);
       setOffline(false);
       cachePatientData(cacheKey, rems);
       cachePatientData(`${cacheKey}_stats`, s);
@@ -141,7 +149,7 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
           title: 'Showing saved reminders',
           description: "You're offline — showing the last saved list.",
         });
-      } else {
+      } else if (isDemo) {
         // Fallback to demo data so the user always sees something
         setReminders([
           { id: 'demo1', medicationId: 'm1', date, time: '08:00', status: 'taken', medication: { id: 'm1', name: 'Metformin', dosage: '500mg', color: 'emerald', times: ['08:00'], frequency: 'Once daily', active: true, createdAt: date, updatedAt: date } },
@@ -149,6 +157,10 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
         ] as Reminder[]);
         setStats({ total: 2, taken: 1, skipped: 0, pending: 1, adherence: 50 });
         setOffline(false);
+      } else {
+        setReminders([]);
+        setStats({ total: 0, taken: 0, skipped: 0, pending: 0, adherence: 0 });
+        setOffline(true);
       }
     } finally {
       setLoading(false);
@@ -331,9 +343,9 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
   }
 
   const grouped = {
-    upcoming: reminders.filter(r => r.status === 'pending' && isUpcoming(r.time)),
-    overdue: reminders.filter(r => r.status === 'pending' && !isUpcoming(r.time)),
-    done: reminders.filter(r => r.status !== 'pending'),
+    upcoming: (Array.isArray(reminders) ? reminders : []).filter(r => r.status === 'pending' && isUpcoming(r.time)),
+    overdue: (Array.isArray(reminders) ? reminders : []).filter(r => r.status === 'pending' && !isUpcoming(r.time)),
+    done: (Array.isArray(reminders) ? reminders : []).filter(r => r.status !== 'pending'),
   };
 
   return (

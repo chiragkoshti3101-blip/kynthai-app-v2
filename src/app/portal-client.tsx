@@ -298,7 +298,7 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
         };
         login(fallback);
         completeOnboarding('caretaker');
-        if (pathname === '/') router.replace('/family');
+        if (pathname === '/') router.replace('/caretaker');
       })();
     }
   }, [user, onboardingComplete, completeOnboarding, pathname, router]);
@@ -367,7 +367,7 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
                     ? '/lab'
                     : resolved === 'admin'
                       ? '/admin'
-                      : '/family';
+                      : '/caretaker';
             router.replace(dest);
           }}
         />
@@ -390,14 +390,14 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     // /dashboard is a legacy empty stub — send signed-in users to their portal.
     if (pathname === '/dashboard') {
       const portalFromRole: Record<string, string> = {
-        caretaker: 'family',
+        caretaker: 'caretaker',
         family: 'caretaker',
         patient: 'patient',
         doctor: 'doctor',
         lab: 'lab',
         admin: 'admin',
       };
-      router.replace('/' + (portalFromRole[user.role] ?? 'family'));
+      router.replace('/' + (portalFromRole[user.role] ?? 'caretaker'));
       return <AppLoader label="Loading…" />;
     }
     return <ErrorBoundary>{children}</ErrorBoundary>;
@@ -442,7 +442,7 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     // Map 'caretaker' (DB role) to the 'family' client portal path, and
     // 'family' to 'caretaker' (the actual DB role). All other roles map 1:1.
     const portalFromRole: Record<string, string> = {
-      caretaker: 'family',
+      caretaker: 'caretaker',
       family: 'caretaker',
       patient: 'patient',
       doctor: 'doctor',

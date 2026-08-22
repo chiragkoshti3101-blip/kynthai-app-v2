@@ -33,9 +33,23 @@ interface AddMedicationProps {
   onAdded?: () => void
   onClose?: () => void
   familyMemberId?: string
+  isDemo?: boolean
+  onCreated?: (med: {
+    id: string
+    name: string
+    dosage: string
+    times: string[]
+    frequency: string
+    instructions: string
+    notes: string
+    color: string
+    active: boolean
+    createdAt: string
+    updatedAt: string
+  }) => void
 }
 
-export function AddMedication({ onAdded, onClose, familyMemberId }: AddMedicationProps) {
+export function AddMedication({ onAdded, onClose, familyMemberId, isDemo, onCreated }: AddMedicationProps) {
   const [name, setName] = useState('')
   const [dosage, setDosage] = useState('')
   const [frequency, setFrequency] = useState('Once daily')
@@ -110,6 +124,32 @@ export function AddMedication({ onAdded, onClose, familyMemberId }: AddMedicatio
     }
     setSaving(true)
     try {
+      if (isDemo) {
+        const now = new Date().toISOString()
+        onCreated?.({
+          id: `local-${Date.now()}`,
+          name: name.trim(),
+          dosage: dosage.trim(),
+          times,
+          frequency,
+          instructions,
+          notes,
+          color,
+          active: true,
+          createdAt: now,
+          updatedAt: now,
+        })
+        toast({ title: 'Medication added', description: name })
+        setName('')
+        setDosage('')
+        setTimes(['08:00'])
+        setInstructions('')
+        setNotes('')
+        setScheduleText('')
+        onAdded?.()
+        onClose?.()
+        return
+      }
       const csrf = await fetch('/api/auth/csrf', { credentials: 'include' })
         .then((r) => r.json())
         .then((d) => d.token as string)

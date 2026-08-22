@@ -40,11 +40,12 @@ interface MemberData {
   reminders: Array<{ id: string; medicationId: string; date: string; time: string; status: string }>
 }
 
-export default function FamilyMemberDetailClient({ memberId, user }: { memberId: string; user: { id: string; role?: string } }) {
+export default function FamilyMemberDetailClient({ memberId, user }: { memberId: string; user: { id: string; role?: string; email?: string; isDemo?: boolean } }) {
   const router = useRouter()
   const { toast } = useToast()
   const [data, setData] = React.useState<MemberData | null>(null)
   const [loading, setLoading] = React.useState(true)
+  const demoAccount = !!user.isDemo || (user.email || '').toLowerCase().endsWith('@kynthai.app')
 
   // ponytail: navigate back to the portal the user came from. The family
   // circle lives in /caretaker (caretaker portal) and /patient (Care Hub),
@@ -55,17 +56,36 @@ export default function FamilyMemberDetailClient({ memberId, user }: { memberId:
 
   const load = React.useCallback(async () => {
     setLoading(true)
+    const DEMO_MEMBERS: Record<string, MemberData> = {
+      fm1: { id: 'fm1', name: 'Robert Wilson', relation: 'Father', age: 62, role: 'member', color: 'emerald', conditions: ['Type 2 diabetes', 'Hypertension'], photoUrl: null, medications: [], reminders: [] },
+      fm2: { id: 'fm2', name: 'Emma Wilson', relation: 'Mother', age: 58, role: 'member', color: 'teal', conditions: ['Hypothyroidism'], photoUrl: null, medications: [], reminders: [] },
+      fm3: { id: 'fm3', name: 'Noah Wilson', relation: 'Child', age: 12, role: 'member', color: 'cyan', conditions: ['Seasonal allergies'], photoUrl: null, medications: [], reminders: [] },
+    }
+    if (demoAccount && DEMO_MEMBERS[memberId]) {
+      setData(DEMO_MEMBERS[memberId]!)
+      setLoading(false)
+      return
+    }
     try {
-      const res = await fetch(`/api/family/members/${memberId}`)
-      if (!res.ok) { setData(null); setLoading(false); return }
+      const res = await fetch(`/api/family/members/${memberId}`, { credentials: 'include' })
+      if (!res.ok) {
+        if (DEMO_MEMBERS[memberId]) {
+          setData(DEMO_MEMBERS[memberId]!)
+        } else {
+          setData(null)
+        }
+        setLoading(false)
+        return
+      }
       const json = await res.json()
       setData(json)
     } catch {
-      toast({ title: 'Failed to load member', variant: 'destructive' })
+      if (DEMO_MEMBERS[memberId]) setData(DEMO_MEMBERS[memberId]!)
+      else toast({ title: 'Failed to load member', variant: 'destructive' })
     } finally {
       setLoading(false)
     }
-  }, [memberId, toast])
+  }, [memberId, toast, demoAccount])
 
   React.useEffect(() => { void load() }, [load])
 
@@ -150,30 +170,7 @@ export default function FamilyMemberDetailClient({ memberId, user }: { memberId:
           <TabsTrigger value="details"><User className="h-4 w-4 mr-1" /> Details</TabsTrigger>
         </TabsList>
         <TabsContent value="medications" className="mt-4">
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Active Medications</CardTitle></CardHeader>
-            <CardContent>
-              {data.medications.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No medications added yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {data.medications.map((med) => (
-                    <div key={med.id} className="border rounded-lg p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold">{med.name}</h3>
-                        <Badge variant={med.active ? 'default' : 'secondary'}>
-                          {med.active ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </div>
-                      {med.dosage && <p className="text-sm text-muted-foreground">Dosage: {med.dosage}</p>}
-                      {med.frequency && <p className="text-sm text-muted-foreground">Frequency: {med.frequency}</p>}
-                      {med.instructions && <p className="text-sm text-muted-foreground">Instructions: {med.instructions}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <MedicationsList familyMemberId={data.id} isDemo={demoAccount} />
         </TabsContent>
         <TabsContent value="reminders" className="mt-4">
           <Card>
