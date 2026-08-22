@@ -598,8 +598,8 @@ html:not(.dark) .phone-frame {
   }
 }
 
-/* DEPLOY-HASH: 20260822-mobile-switch-pill-v2 — bust cached donut-switch CSS */
-:root { --deploy-hash: 20260822-mobile-switch-pill-v2; }
+/* DEPLOY-HASH: 20260823-switch-pill-v3 — force iOS pill, never oval */
+:root { --deploy-hash: 20260823-switch-pill-v3; }
 html { --deploy-hash-ref: var(--deploy-hash); }
 
 
@@ -613,4 +613,9 @@ html { --deploy-hash-ref: var(--deploy-hash); }
   ::selection {
     background-color: color-mix(in oklab, var(--primary) 22%, transparent);
   }
+}
+
+/* Parent rows must not crush the switch */
+.kynthai-switch {
+  margin-left: auto;
 }

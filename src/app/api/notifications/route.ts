@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch last 50 notifications, newest first
-    const notifications = await db.notificationLog.findMany({
+    let notifications = await db.notificationLog.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -38,6 +38,37 @@ export async function GET(req: NextRequest) {
         createdAt: true,
       },
     })
+
+    // First-time / empty inbox: seed one in-app system note so the center is not a dead empty state
+    if (notifications.length === 0 && !unreadOnly) {
+      try {
+        const welcome = await db.notificationLog.create({
+          data: {
+            userId: user.id,
+            channel: 'in-app',
+            type: 'system',
+            title: 'Welcome to Kynthai',
+            body: 'Medication reminders and family alerts will show up here. Turn on push in Settings for device alerts.',
+            status: 'sent',
+            cost: 0,
+          },
+          select: {
+            id: true,
+            channel: true,
+            type: true,
+            title: true,
+            body: true,
+            recipient: true,
+            status: true,
+            cost: true,
+            createdAt: true,
+          },
+        })
+        notifications = [welcome]
+      } catch {
+        /* non-fatal */
+      }
+    }
 
     // Compute unread count
     const unreadCount = await db.notificationLog.count({

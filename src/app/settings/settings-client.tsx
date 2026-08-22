@@ -262,32 +262,50 @@ export default function SettingsClient() {
   }
 
   async function handleNotifToggle(key: string, value: boolean) {
+    const prev = notifPrefs;
     setNotifPrefs(p => ({ ...p, [key]: value }));
     try {
-      await fetch('/api/user/notification-prefs', {
+      const res = await fetch('/api/user/notification-prefs', {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [key]: value }),
       });
+      if (!res.ok) throw new Error('save failed');
     } catch {
-      toast({ title: 'Failed to save', variant: 'destructive' });
+      setNotifPrefs(prev);
+      toast({ title: 'Failed to save notification preference', variant: 'destructive' });
     }
   }
 
   async function handleConsentToggle(key: string, value: boolean) {
+    // Core legal/data consent: confirm before withdraw
+    if (
+      !value &&
+      (key === 'consentAccepted' || key === 'dataProcessingConsent') &&
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        'Turning this off may limit access to health features. Withdraw consent?',
+      )
+    ) {
+      return;
+    }
+    const prev = consentFlags;
     setConsentFlags(p => ({ ...p, [key]: value }));
     try {
       const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
       const { token: csrfToken } = await csrfRes.json();
-      await fetch('/api/user/consent', {
+      const res = await fetch('/api/user/consent', {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
         body: JSON.stringify({ [key]: value }),
       });
+      if (!res.ok) throw new Error('save failed');
+      toast({ title: value ? 'Consent updated' : 'Consent withdrawn' });
     } catch {
-      toast({ title: 'Failed to save', variant: 'destructive' });
+      setConsentFlags(prev);
+      toast({ title: 'Failed to save consent', variant: 'destructive' });
     }
   }
 

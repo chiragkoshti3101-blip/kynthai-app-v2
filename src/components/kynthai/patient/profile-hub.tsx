@@ -787,13 +787,26 @@ function ConsentManager({ consentFlags }: ConsentManagerProps) {
   ]);
 
   async function handleToggle(key: keyof typeof localFlags, next: boolean) {
+    if (
+      !next &&
+      (key === 'consentAccepted' || key === 'dataProcessingConsent') &&
+      typeof window !== 'undefined' &&
+      !window.confirm('Turning this off may limit health features. Withdraw consent?')
+    ) {
+      return;
+    }
     setLocalFlags(prev => ({ ...prev, [key]: next }));
     setSavingKey(key);
     try {
+      const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
+      const { token: csrfToken } = await csrfRes.json().catch(() => ({}));
       const res = await fetch('/api/user/consent', {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
         body: JSON.stringify({ [key]: next }),
       });
       if (!res.ok) {
@@ -808,7 +821,6 @@ function ConsentManager({ consentFlags }: ConsentManagerProps) {
       if (data.aiTrainingConsent !== undefined)
         setLocalFlags(p => ({ ...p, aiTrainingConsent: data.aiTrainingConsent }));
     } catch {
-      // Revert toggle on error.
       setLocalFlags(prev => ({ ...prev, [key]: !next }));
     } finally {
       setSavingKey(null);
