@@ -341,6 +341,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
   React.useEffect(() => {
     let cancelled = false;
     async function load() {
+      if (isDemo) return;
       try {
         const famRes = await fetch('/api/family', { credentials: 'include' });
         if (!famRes.ok) {
@@ -437,7 +438,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [isDemo]);
 
   const updateMemberMed = React.useCallback(
     async (
@@ -549,7 +550,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
                   onSelect={setSelectedMember}
                 />
                 {selectedMember ? (
-                  <MedicationsList familyMemberId={selectedMember.id} isDemo={user.isDemo} />
+                  <MedicationsList familyMemberId={selectedMember.id} isDemo={isDemo} />
                 ) : (
                   <Card>
                     <CardContent className="p-8 text-center text-muted-foreground">
