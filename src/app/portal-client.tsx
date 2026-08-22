@@ -116,6 +116,38 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   // re-rendered the entire app shell on ANY store write (alarm toggle,
   // currency, hydration, …), since the selector identity changed every time.
   const login = useAppStore((s) => s.login);
+  const isDemoMode = isDemoEnabled();
+
+  // Server-backed onboarding: restore completion from DB if localStorage was cleared.
+  // MUST run unconditionally (Rules of Hooks) — before any early returns below.
+  useEffect(() => {
+    if (!user || !hydrated || isDemoMode) return;
+    if (onboardingComplete || user.consentAccepted === true) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/user/consent', { credentials: 'include' });
+        if (!res.ok || cancelled) return;
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (data.consentAccepted === true) {
+          completeOnboarding((data.role || user.role) as typeof user.role);
+          login({
+            ...user,
+            consentAccepted: true,
+            dataProcessingConsent: !!data.dataProcessingConsent,
+            aiTrainingConsent: !!data.aiTrainingConsent,
+          });
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, hydrated, isDemoMode, onboardingComplete, completeOnboarding, login]);
+
 
   // ─── iOS Safari tab-restore / page-visibility recovery ──────────────
   // When Safari brings a background tab back to foreground after hours,
@@ -283,8 +315,6 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   const isProtectedPath =
     PROTECTED_PATHS.has(pathname) || pathname.startsWith('/family/members/');
   const isLandingPage = pathname === '/';
-  const isDemoMode =
-    isDemoEnabled();
 
   // Public pages (marketing, legal, auth helpers) always render their real page.
   if (isPublicPath) {
@@ -299,6 +329,7 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   // Authenticated users who haven't completed onboarding see the
   // Welcome → role → consent flow before their portal, on any app route
   // (including `/` and portal paths, which used to skip it entirely).
+
   // First-time only. If the account already accepted consent (server) or this
   // device finished onboarding, skip Welcome — returning sign-ins go to the app.
   const needsOnboarding =
@@ -314,19 +345,30 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
         <Onboarding
           initialRole={user.role}
           onComplete={role => {
-            completeOnboarding(role);
-            setLoginPortal(role);
-            // Keep consent flags on the client user so a refresh still skips tour
+            const resolved =
+              role === 'admin' ? user.role : role;
+            completeOnboarding(resolved);
+            setLoginPortal(resolved);
             if (user) {
               login({
                 ...user,
                 consentAccepted: true,
                 dataProcessingConsent: true,
                 aiTrainingConsent: true,
-                role: role === 'admin' ? user.role : role,
+                role: resolved,
               });
             }
-            router.push('/');
+            const dest =
+              resolved === 'patient'
+                ? '/patient'
+                : resolved === 'doctor'
+                  ? '/doctor'
+                  : resolved === 'lab'
+                    ? '/lab'
+                    : resolved === 'admin'
+                      ? '/admin'
+                      : '/family';
+            router.replace(dest);
           }}
         />
       </ErrorBoundary>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuthWithCsrf, jsonError, jsonOk, audit } from '@/lib/api-helpers'
+import { requireAuth, requireAuthWithCsrf, jsonError, jsonOk } from '@/lib/api-helpers'
 import { logAudit } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { z } from 'zod'
@@ -18,6 +18,36 @@ const consentUpdateSchema = z.object({
 
 function isResponseError(v: unknown): v is NextResponse {
   return v instanceof NextResponse
+}
+
+
+// GET /api/user/consent — read consent flags (session auth, no CSRF needed)
+export async function GET(req: NextRequest) {
+  try {
+    const { response, user } = await requireAuth(req)
+    if (response || !user) return response!
+
+    const row = await db.user.findUnique({
+      where: { id: user.id },
+      select: {
+        consentAccepted: true,
+        dataProcessingConsent: true,
+        aiTrainingConsent: true,
+        role: true,
+      },
+    })
+    if (!row) return jsonError('User not found', 404)
+
+    return jsonOk({
+      consentAccepted: !!row.consentAccepted,
+      dataProcessingConsent: !!row.dataProcessingConsent,
+      aiTrainingConsent: !!row.aiTrainingConsent,
+      role: row.role,
+    })
+  } catch (error) {
+    logger.phiSafeError(error)
+    return jsonError('Failed to load consent', 500)
+  }
 }
 
 // PATCH /api/user/consent

@@ -74,6 +74,10 @@ export function Onboarding({
 }) {
   const [index, setIndex] = React.useState(0)
   const [role, setRole] = React.useState<'patient' | 'caretaker' | 'doctor' | 'lab' | 'admin' | null>(initialRole ?? null)
+  // Keep role locked to signup/portal selection
+  React.useEffect(() => {
+    if (initialRole) setRole(initialRole)
+  }, [initialRole])
   // COMPLIANCE: consent flags gated by explicit user action before completion.
   const [termsAccepted, setTermsAccepted] = React.useState(false)
   const [dataProcessingAccepted, setDataProcessingAccepted] = React.useState(false)
@@ -114,19 +118,50 @@ export function Onboarding({
   const isMedSlide = index === CONSENT_INDEX + 1
   const canAddMed = medName.trim().length > 0 && medDosage.trim().length > 0
 
+  // Role already chosen at signup/login portal — never ask again
+  const roleLocked = !!initialRole
+  const skipRoleSlide = roleLocked
+
   const slide = index < CONSENT_INDEX ? SLIDES[index]! : null
   const isConsentSlide = index === CONSENT_INDEX
-  const isRoleSlide = index === ROLE_SLIDE_INDEX
+  const isRoleSlide = index === ROLE_SLIDE_INDEX && !skipRoleSlide
   const isAiLimitsSlide = index === 4
 
   const allConsentGiven = termsAccepted && dataProcessingAccepted && aiProcessingAccepted
   const canComplete = isConsentSlide
     ? allConsentGiven && !consentSaving
     : isRoleSlide
-    ? !!role  // role required on role-selection slide
-    : isMedSlide
-    ? true    // first-medication slide is optional — can always finish
-    : true    // all other slides: can always tap Continue
+    ? !!role
+    : true
+
+  /** Ordered step indices the user actually walks (skips role when locked). */
+  const walkOrder = React.useMemo(() => {
+    const steps: number[] = []
+    for (let i = 0; i <= CONSENT_INDEX + 1; i++) {
+      if (skipRoleSlide && i === ROLE_SLIDE_INDEX) continue
+      steps.push(i)
+    }
+    return steps
+  }, [skipRoleSlide])
+
+  React.useEffect(() => {
+    if (skipRoleSlide && index === ROLE_SLIDE_INDEX) {
+      setIndex(ROLE_SLIDE_INDEX + 1)
+    }
+  }, [skipRoleSlide, index])
+
+  const stepPos = Math.max(0, walkOrder.indexOf(index))
+  const stepTotal = walkOrder.length
+
+  const goToAdjacent = React.useCallback(
+    (dir: 1 | -1) => {
+      const pos = walkOrder.indexOf(index)
+      const nextPos = pos + dir
+      if (nextPos < 0 || nextPos >= walkOrder.length) return
+      setIndex(walkOrder[nextPos]!)
+    },
+    [walkOrder, index],
+  )
 
   const saveFirstMedication = React.useCallback(async () => {
     if (!canAddMed || medSaving) return
@@ -187,18 +222,14 @@ export function Onboarding({
             setConsentError(e instanceof Error ? e.message : 'Could not save consent — please try again.')
           })
       }
-    } else if (isRoleSlide) {
-      setIndex(CONSENT_INDEX - 1) // role slide → AI limits slide (index 4)
-    } else if (isAiLimitsSlide) {
-      setIndex(CONSENT_INDEX) // AI limits slide → consent slide
     } else if (isMedSlide) {
-      onComplete(role ?? 'patient') // medication slide → done
+      onComplete((role ?? initialRole ?? 'patient') as 'patient' | 'caretaker' | 'doctor' | 'lab' | 'admin')
     } else {
-      setIndex((i) => Math.min(i + 1, CONSENT_INDEX))
+      goToAdjacent(1)
     }
-  }, [isConsentSlide, allConsentGiven, consentSaving, isRoleSlide, isAiLimitsSlide, isMedSlide, onComplete, role])
+  }, [isConsentSlide, allConsentGiven, consentSaving, isMedSlide, onComplete, role, initialRole, goToAdjacent])
 
-  const prev = React.useCallback(() => {
+  const prev = React.useCallback(() => goToAdjacent(-1), [goToAdjacent])
     if (isConsentSlide) {
       setIndex(CONSENT_INDEX - 1)
     } else if (isMedSlide) {
@@ -487,24 +518,63 @@ export function Onboarding({
 
       <div className="px-4 sm:px-6 pb-6">
         <div className="mx-auto flex w-full max-w-md flex-col items-center gap-3">
-          <div className="flex items-center gap-2">
-            {index > 0 && (
-              <button onClick={prev} aria-label="Previous slide"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground">
-                <ChevronLeft className="h-4 w-4" /></button>
-            )}
-            {(slide?.showDots !== false && !isConsentSlide) && (
-              <div className="flex items-center gap-2">
-                {SLIDES.map((_, i) => (
-                  <button key={i} onClick={() => setIndex(i)} aria-label={`Go to slide ${i + 1}`}
-                    className={cn('h-2 rounded-full transition-all',
-                      i === index ? 'w-8 bg-gradient-to-r from-emerald-500 to-teal-600' : 'w-2 bg-muted-foreground/30 hover:bg-muted-foreground/50')} />
-                ))}
+          <div className="flex w-full flex-col items-center gap-3">
+            <div className="flex w-full items-center gap-2">
+              {stepPos > 0 ? (
+                <button
+                  type="button"
+                  onClick={prev}
+                  aria-label="Previous step"
+                  className="flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-border/60 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              ) : (
+                <span className="w-11 shrink-0" aria-hidden />
+              )}
+              {/* Segmented step rail — not thin line dots */}
+              <div
+                className="flex flex-1 items-center gap-1.5"
+                role="progressbar"
+                aria-valuenow={stepPos + 1}
+                aria-valuemin={1}
+                aria-valuemax={stepTotal}
+                aria-label={`Step ${stepPos + 1} of ${stepTotal}`}
+              >
+                {walkOrder.map((stepIndex, i) => {
+                  const done = i < stepPos
+                  const active = i === stepPos
+                  return (
+                    <button
+                      key={stepIndex}
+                      type="button"
+                      onClick={() => {
+                        if (i <= stepPos) setIndex(stepIndex)
+                      }}
+                      className={cn(
+                        'h-2 flex-1 rounded-full transition-all duration-300',
+                        active && 'h-2.5 bg-gradient-to-r from-emerald-400 to-teal-500 shadow-sm shadow-emerald-500/40',
+                        done && !active && 'bg-emerald-500/50',
+                        !done && !active && 'bg-white/15',
+                      )}
+                      aria-label={`Step ${i + 1}`}
+                      aria-current={active ? 'step' : undefined}
+                    />
+                  )
+                })}
               </div>
-            )}
+              <span className="w-11 shrink-0 text-center text-[11px] font-semibold tabular-nums text-muted-foreground">
+                {stepPos + 1}/{stepTotal}
+              </span>
+            </div>
           </div>
-          <Button onClick={next} disabled={!canComplete}
-            className="w-full gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-600/25 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50">
+          <Button
+            onClick={next}
+            disabled={!canComplete}
+            variant="brand"
+            size="cta"
+            className="w-full gap-2 shadow-emerald-600/25 disabled:opacity-50"
+          >
             {consentSaving ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
