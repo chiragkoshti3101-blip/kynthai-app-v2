@@ -8,7 +8,19 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { useAppStore } from '@/lib/store'
-import { playProfessionalRingtone, playAlertRingtone, playSuccessChime, stopAllRingtones, isAlarmRinging } from '@/lib/alarm'
+import {
+  playProfessionalRingtone,
+  playAlertRingtone,
+  playSuccessChime,
+  stopAllRingtones,
+  isAlarmRinging,
+  unlockAudio,
+  msUntilReminder,
+  pickDueReminder,
+  pickNextFutureReminder,
+  notifyReminder,
+  requestAlarmNotificationPermission,
+} from '@/lib/alarm'
 
 export interface MemberMed {
   id: string
@@ -40,54 +52,80 @@ export function FamilyMemberSchedule({ memberName, meds, onUpdate }: Props) {
   const { alarmEnabled, alarmMode } = useAppStore()
   const [updating, setUpdating] = React.useState<string | null>(null)
 
-  // Persistent repeating alarm
+  // Time-based repeating alarm — rings at dose time, not on mount
   const [alarmTarget, setAlarmTarget] = React.useState<MemberMed | null>(null)
   const alarmTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // useRef holds the latest schedule function so the setTimeout callback
-  // always calls the current version (avoids stale-closure recursion bug).
   const scheduleRef = React.useRef<(() => void) | null>(null)
 
   const scheduleNextAlarm = React.useCallback(() => {
+    if (alarmTimer.current) {
+      clearTimeout(alarmTimer.current)
+      alarmTimer.current = null
+    }
     const pending = meds.filter(m => m.status === 'pending')
-    if (pending.length === 0) { setAlarmTarget(null); return }
-
-    const sorted = [...pending].sort((a, b) => a.time.localeCompare(b.time))
-    const closest = sorted[0]
-    setAlarmTarget(closest!)
-
-    if (!isAlarmRinging()) {
-      if (alarmMode === 'alert') playAlertRingtone()
-      else playProfessionalRingtone()
+    if (pending.length === 0) {
+      setAlarmTarget(null)
+      stopAllRingtones()
+      return
     }
 
-    if (alarmTimer.current) clearTimeout(alarmTimer.current)
-    alarmTimer.current = setTimeout(() => scheduleRef.current?.(), 10 * 60 * 1000) // 10 min default
-  }, [meds, alarmMode])
+    const due = pickDueReminder(pending)
+    if (due) {
+      setAlarmTarget(due)
+      unlockAudio()
+      if (!isAlarmRinging()) {
+        if (alarmMode === 'alert') playAlertRingtone()
+        else playProfessionalRingtone()
+      }
+      notifyReminder(`${memberName} — medication`, `${due.name} · ${due.time}`)
+      alarmTimer.current = setTimeout(() => scheduleRef.current?.(), 10 * 60 * 1000)
+      return
+    }
 
-  // Keep the ref in sync so the setTimeout callback always calls the latest version.
+    setAlarmTarget(null)
+    const next = pickNextFutureReminder(pending)
+    if (!next) return
+    const wait = Math.max(1000, msUntilReminder(next.time))
+    alarmTimer.current = setTimeout(
+      () => scheduleRef.current?.(),
+      Math.min(wait, 6 * 60 * 60 * 1000),
+    )
+  }, [meds, alarmMode, memberName])
+
   React.useEffect(() => {
     scheduleRef.current = scheduleNextAlarm
   }, [scheduleNextAlarm])
 
   React.useEffect(() => {
-    if (!alarmEnabled) return
-    const hasPending = meds.some(m => m.status === 'pending')
-    if (hasPending) {
-      const timer = setTimeout(() => scheduleNextAlarm(), 800)
-      return () => clearTimeout(timer)
-    } else {
+    if (!alarmEnabled) {
+      if (alarmTimer.current) clearTimeout(alarmTimer.current)
       setAlarmTarget(null)
       stopAllRingtones()
       return
     }
+    requestAlarmNotificationPermission()
+    const timer = setTimeout(() => scheduleNextAlarm(), 600)
+    return () => {
+      clearTimeout(timer)
+      if (alarmTimer.current) clearTimeout(alarmTimer.current)
+    }
   }, [alarmEnabled, meds, scheduleNextAlarm])
+
+  React.useEffect(() => {
+    if (!alarmEnabled) return
+    const onVis = () => {
+      if (document.visibilityState === 'visible') scheduleRef.current?.()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [alarmEnabled])
 
   const handleAlarmAction = (med: MemberMed, status: 'taken' | 'skipped') => {
     stopAllRingtones()
     if (alarmTimer.current) clearTimeout(alarmTimer.current)
     setAlarmTarget(null)
     updateMed(med, status)
+    setTimeout(() => scheduleRef.current?.(), 1500)
   }
 
   const updateMed = async (med: MemberMed, status: 'taken' | 'skipped') => {

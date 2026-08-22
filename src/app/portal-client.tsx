@@ -149,6 +149,32 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   }, [user, hydrated, isDemoMode, onboardingComplete, completeOnboarding, login]);
 
 
+  // Unlock Web Audio on first user gesture so scheduled med alarms can play
+  // sound on mobile (AudioContext starts suspended until a gesture).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let done = false;
+    const unlock = async () => {
+      if (done) return;
+      done = true;
+      try {
+        const { unlockAudio } = await import('@/lib/alarm');
+        unlockAudio();
+      } catch { /* ignore */ }
+      document.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('keydown', unlock);
+      document.removeEventListener('touchstart', unlock);
+    };
+    document.addEventListener('pointerdown', unlock, { once: true, passive: true });
+    document.addEventListener('keydown', unlock, { once: true });
+    document.addEventListener('touchstart', unlock, { once: true, passive: true });
+    return () => {
+      document.removeEventListener('pointerdown', unlock);
+      document.removeEventListener('keydown', unlock);
+      document.removeEventListener('touchstart', unlock);
+    };
+  }, []);
+
   // ─── iOS Safari tab-restore / page-visibility recovery ──────────────
   // When Safari brings a background tab back to foreground after hours,
   // the JS heap is entirely fresh, but localStorage may have a stale user
@@ -320,9 +346,23 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   if (isPublicPath) {
     return <ErrorBoundary>{children}</ErrorBoundary>;
   }
-  // Wait for hydration before auth-aware decisions (portals, onboarding, redirects).
-  if (!isLandingPage && !hydrated) {
-    return <ErrorBoundary>{children}</ErrorBoundary>;
+
+  // Wait for zustand rehydration before auth-aware decisions on `/`.
+  // Without this, a logged-in user reopening the app at `/` briefly sees the
+  // marketing LandingPage (user is still null) → then Loader → portal.
+  // Portal/protected paths keep their server-rendered children during
+  // rehydration so we don't flash a second loader over the real shell.
+  if (!hydrated) {
+    if (isLandingPage) {
+      return (
+        <ErrorBoundary>
+          <AppLoader label="Loading…" />
+        </ErrorBoundary>
+      );
+    }
+    if (isPortalPath || isProtectedPath) {
+      return <ErrorBoundary>{children}</ErrorBoundary>;
+    }
   }
 
   // ─── Onboarding gate — first sign-in ─────────────────────────────────────
@@ -415,14 +455,31 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     ? routeScreen
     : 'landing';
 
+  // Logged-in user hitting `/` or `/login` → hard-redirect to their portal path.
+  // Avoids rendering the portal under the `/` URL (which caused a Landing flash
+  // on reopen and left the address bar on the marketing route).
+  if (user && (routeScreen === 'landing' || routeScreen === 'login')) {
+    const portalFromRole: Record<string, string> = {
+      caretaker: 'caretaker',
+      family: 'caretaker',
+      patient: 'patient',
+      doctor: 'doctor',
+      lab: 'lab',
+      admin: 'admin',
+    };
+    const dest = '/' + (portalFromRole[user.role] ?? 'caretaker');
+    router.replace(dest);
+    return (
+      <ErrorBoundary>
+        <AppLoader label="Opening your portal…" />
+      </ErrorBoundary>
+    );
+  }
+
   // Auth-aware screen resolution
   let effectiveScreen: AppScreen = resolvedScreen;
-  if (user) {
-    if (routeScreen === 'landing' || routeScreen === 'login') {
-      effectiveScreen = (user.role as AppScreen) ?? routeScreen;
-    }
-  } else {
-    if (PORTAL_SCREENS.includes(routeScreen as any)) effectiveScreen = 'landing';
+  if (!user && PORTAL_SCREENS.includes(routeScreen as any)) {
+    effectiveScreen = 'landing';
   }
 
   // ── Portal apps — loaded via portal-loaders.tsx ───────────────────────────

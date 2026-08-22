@@ -30,6 +30,12 @@ import {
   playSuccessChime,
   isAlarmRinging,
   stopAllRingtones,
+  unlockAudio,
+  msUntilReminder,
+  pickDueReminder,
+  pickNextFutureReminder,
+  notifyReminder,
+  requestAlarmNotificationPermission,
 } from '@/lib/alarm';
 
 function todayStr() {
@@ -258,89 +264,101 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
     }
   };
 
-  // ── In-app alarm: persistent repeating alarm with Take/Skip ──
+  // ── In-app alarm: fires at dose time, repeats until Take/Skip ──
   const [alarmTarget, setAlarmTarget] = useState<Reminder | null>(null);
   const alarmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scheduleNextAlarmRef = useRef<(alarmTarget: Reminder | null) => void>(() => {});
+  const scheduleNextAlarmRef = useRef<() => void>(() => {});
 
   const scheduleNextAlarm = React.useCallback(() => {
-    const pending = reminders.filter(r => r.status === 'pending');
+    if (alarmTimer.current) {
+      clearTimeout(alarmTimer.current);
+      alarmTimer.current = null;
+    }
+
+    const pending = (Array.isArray(reminders) ? reminders : []).filter(
+      r => r.status === 'pending',
+    );
     if (pending.length === 0) {
       setAlarmTarget(null);
+      stopAllRingtones();
       return;
     }
 
-    // Find the most urgent pending reminder (closest time)
-    const now = new Date();
-    const nowMins = now.getHours() * 60 + now.getMinutes();
-    const sorted = [...pending].sort((a, b) => {
-      const [ah = 0, am = 0] = a.time.split(':').map(Number) as [number, number];
-      const [bh = 0, bm = 0] = b.time.split(':').map(Number) as [number, number];
-      return ah * 60 + am - (bh * 60 + bm);
-    });
+    // Due now (or overdue within grace)? Ring + banner.
+    const due = pickDueReminder(pending);
+    if (due) {
+      setAlarmTarget(due);
+      unlockAudio();
+      if (!isAlarmRinging()) {
+        if (alarmMode === 'alert') playAlertRingtone();
+        else playProfessionalRingtone();
+      }
+      const medName =
+        (due.medication as { name?: string } | undefined)?.name ?? 'Medication';
+      notifyReminder('Time to take medication', `${medName} · ${due.time}`);
 
-    const closest = sorted[0];
-    setAlarmTarget(closest ?? null);
-
-    // Play alarm if not already ringing
-    if (!isAlarmRinging()) {
-      if (alarmMode === 'alert') playAlertRingtone();
-      else playProfessionalRingtone();
-    }
-
-    // Schedule next alarm check based on reminderInterval
-    // Default 10 minutes if medication doesn't specify
-    const interval = (closest as unknown as { reminderInterval?: number }).reminderInterval || 10;
-    if (interval > 0 && alarmTimer.current) {
-      clearTimeout(alarmTimer.current);
+      // Repeat every N minutes until taken/skipped (default 10)
+      const intervalMin =
+        (due as unknown as { reminderInterval?: number }).reminderInterval || 10;
       alarmTimer.current = setTimeout(
-        () => {
-          scheduleNextAlarmRef.current(alarmTarget);
-        },
-        interval * 60 * 1000
+        () => scheduleNextAlarmRef.current(),
+        Math.max(1, intervalMin) * 60 * 1000,
       );
+      return;
     }
-  }, [
-    reminders,
-    alarmMode,
-    alarmTarget,
-    isAlarmRinging,
-    alarmMode,
-    playAlertRingtone,
-    playProfessionalRingtone,
-  ]);
+
+    // Not due yet — sleep until the next scheduled time
+    setAlarmTarget(null);
+    const next = pickNextFutureReminder(pending);
+    if (!next) return;
+    const wait = Math.max(1000, msUntilReminder(next.time));
+    // Cap at 6h so we re-evaluate (midnight rollover, list changes)
+    alarmTimer.current = setTimeout(
+      () => scheduleNextAlarmRef.current(),
+      Math.min(wait, 6 * 60 * 60 * 1000),
+    );
+  }, [reminders, alarmMode]);
 
   React.useEffect(() => {
     scheduleNextAlarmRef.current = scheduleNextAlarm;
   }, [scheduleNextAlarm]);
 
-  // Trigger alarm on first load and when reminders change
+  // Start / stop scheduler when alarm toggle, list, or loading changes
   React.useEffect(() => {
-    if (!alarmEnabled || loading) return;
-    const hasPending = reminders.some(r => r.status === 'pending');
-    if (hasPending) {
-      const timer = setTimeout(() => scheduleNextAlarm(), 800);
-      return () => clearTimeout(timer);
-    } else {
+    if (!alarmEnabled || loading) {
+      if (alarmTimer.current) clearTimeout(alarmTimer.current);
       setAlarmTarget(null);
       stopAllRingtones();
       return;
     }
+    requestAlarmNotificationPermission();
+    // Small delay so list settles after fetch
+    const timer = setTimeout(() => scheduleNextAlarm(), 600);
+    return () => {
+      clearTimeout(timer);
+      if (alarmTimer.current) clearTimeout(alarmTimer.current);
+    };
   }, [alarmEnabled, reminders, loading, scheduleNextAlarm]);
+
+  // Re-check when tab becomes visible again (timer may have been throttled)
+  React.useEffect(() => {
+    if (!alarmEnabled) return;
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        scheduleNextAlarmRef.current();
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [alarmEnabled]);
 
   function handleAlarmAction(reminder: Reminder, status: 'taken' | 'skipped') {
     stopAllRingtones();
     if (alarmTimer.current) clearTimeout(alarmTimer.current);
+    setAlarmTarget(null);
     updateStatus(reminder, status);
-    // Reschedule alarm if there are still pending reminders
-    const remaining = reminders
-      .filter(r => r.id !== reminder.id)
-      .filter(r => r.status === 'pending');
-    if (remaining.length > 0) {
-      setTimeout(() => scheduleNextAlarm(), 2000);
-    } else {
-      setAlarmTarget(null);
-    }
+    // Re-evaluate remaining pending after status update settles
+    setTimeout(() => scheduleNextAlarmRef.current(), 1500);
   }
 
   const grouped = {
