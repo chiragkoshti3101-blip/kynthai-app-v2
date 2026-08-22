@@ -413,9 +413,9 @@ export default function SettingsClient() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {theme === 'dark' ? <Moon className="h-4 w-4 text-violet-500" /> : <Sun className="h-4 w-4 text-amber-500" />}
+            <div className="flex min-h-14 items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                {theme === 'dark' ? <Moon className="h-4 w-4 shrink-0 text-violet-500" /> : <Sun className="h-4 w-4 shrink-0 text-amber-500" />}
                 <span className="text-sm font-medium">Dark mode</span>
               </div>
               <Switch checked={theme === 'dark'} onCheckedChange={c => setTheme(c ? 'dark' : 'light')} />
@@ -446,10 +446,10 @@ export default function SettingsClient() {
               { key: 'insights', label: 'AI insights', desc: 'Weekly health reports' },
               { key: 'family', label: 'Family updates', desc: 'Caretaker notifications' },
             ].map(item => (
-              <div key={item.key} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+              <div key={item.key} className="flex min-h-14 items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-snug">{item.label}</p>
+                  <p className="text-xs text-muted-foreground leading-snug">{item.desc}</p>
                 </div>
                 <Switch
                   checked={(notifPrefs as any)[item.key]}
@@ -473,10 +473,10 @@ export default function SettingsClient() {
               { key: 'dataProcessingConsent', label: 'Data processing', desc: 'Store and process health data under US privacy' },
               { key: 'aiTrainingConsent', label: 'AI training data', desc: 'Allow de-identified data to improve AI' },
             ].map(item => (
-              <div key={item.key} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+              <div key={item.key} className="flex min-h-14 items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium leading-snug">{item.label}</p>
+                  <p className="text-xs text-muted-foreground leading-snug">{item.desc}</p>
                 </div>
                 <Switch
                   checked={(consentFlags as any)[item.key]}

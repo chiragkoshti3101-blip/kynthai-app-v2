@@ -486,7 +486,7 @@ export function ProfileHub({
                   </p>
                 </div>
               </div>
-              <div className="ml-12 space-y-3">
+              <div className="ml-12 space-y-1">
                 {(
                   [
                     {
@@ -500,10 +500,13 @@ export function ProfileHub({
                     { key: 'family', label: 'Family updates', desc: 'Caretaker notifications' },
                   ] as const
                 ).map(item => (
-                  <div key={item.key} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium">{item.label}</p>
-                      <p className="text-[10px] text-muted-foreground">{item.desc}</p>
+                  <div
+                    key={item.key}
+                    className="flex min-h-14 items-center justify-between gap-3 py-2"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium leading-snug">{item.label}</p>
+                      <p className="text-xs text-muted-foreground leading-snug">{item.desc}</p>
                     </div>
                     <Switch
                       checked={notifPrefs[item.key]}
@@ -519,7 +522,6 @@ export function ProfileHub({
                           toast({ title: 'Failed to save', variant: 'destructive' });
                         }
                       }}
-                      className="scale-90"
                     />
                   </div>
                 ))}
@@ -904,15 +906,17 @@ function SettingRow({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3 p-4">
-      <span className={cn('flex h-9 w-9 items-center justify-center rounded-xl', tint)}>
+    <div className="flex min-h-14 items-center gap-3 p-4">
+      <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', tint)}>
         <Icon className="h-4 w-4" />
       </span>
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">{label}</p>
       </div>
-      {value && <p className="text-xs text-muted-foreground">{value}</p>}
-      {children}
+      {value && (
+        <p className="max-w-[40%] truncate text-xs text-muted-foreground shrink-0">{value}</p>
+      )}
+      <div className="shrink-0">{children}</div>
     </div>
   );
 }
