@@ -230,14 +230,6 @@ export function Onboarding({
   }, [isConsentSlide, allConsentGiven, consentSaving, isMedSlide, onComplete, role, initialRole, goToAdjacent])
 
   const prev = React.useCallback(() => goToAdjacent(-1), [goToAdjacent])
-    if (isConsentSlide) {
-      setIndex(CONSENT_INDEX - 1)
-    } else if (isMedSlide) {
-      setIndex(CONSENT_INDEX)
-    } else {
-      setIndex((i) => Math.max(i - 1, 0))
-    }
-  }, [isConsentSlide, isMedSlide])
 
   // COMPLIANCE: Skip must navigate to consent slide, never bypass it.
   const handleSkip = React.useCallback(() => {
