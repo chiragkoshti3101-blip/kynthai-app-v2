@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { isDemoEnabled } from '@/lib/demo-mode'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +15,7 @@ import { redirect } from 'next/navigation'
 export default async function FamilyPortalPage() {
   const user = await getAuthUser()
   // SECURITY-CRITICAL: only caretaker-role users may access the family portal.
-  const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true';
+  const isDemoMode = isDemoEnabled();
 
   // In demo mode, pass a synthetic demo user to the client component.
   const demoUser = isDemoMode

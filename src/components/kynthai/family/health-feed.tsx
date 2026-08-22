@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Activity, CheckCircle, AlertTriangle, Heart, TrendingUp, Clock, Users } from 'lucide-react'
 import { logger } from '@/lib/logger'
+import { isDemoEnabled } from '@/lib/demo-mode'
 
 interface FeedItem {
   id: string
@@ -21,7 +22,7 @@ export function FamilyHealthFeed() {
   const [loading, setLoading] = useState(true)
 
   const fetchFeed = async () => {
-    const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && process.env.NODE_ENV !== 'production';
+    const isDemoMode = isDemoEnabled();
 
     // Demo mode: return seeded data without backend call
     if (isDemoMode) {

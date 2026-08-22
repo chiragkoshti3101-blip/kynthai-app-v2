@@ -1,5 +1,6 @@
 'use client'
 
+import { isDemoEnabled } from '@/lib/demo-mode'
 /**
  * FamilyAnalytics — Cross-member analytics for caretakers.
  *
@@ -88,7 +89,7 @@ export function FamilyAnalytics() {
   const [error, setError] = React.useState<string | null>(null)
 
   const load = React.useCallback(async () => {
-    const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && process.env.NODE_ENV !== 'production';
+    const isDemoMode = isDemoEnabled();
 
     // Demo mode: return seeded data without backend call
     if (isDemoMode) {

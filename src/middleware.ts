@@ -24,6 +24,7 @@ import { validateEnv } from './lib/env';
 import { logger } from '@/lib/logger';
 import { checkCsrf } from '@/lib/csrf';
 import { verifySessionToken, signSessionToken, verifySupabaseJwt } from './lib/session-signing';
+import { isDemoEnabled } from '@/lib/demo-mode';
 
 // HMR-safe env validation (fail-loud in production, skip during build/edge)
 let envValidated = false;
@@ -159,51 +160,49 @@ function isSystemApi(pathname: string): boolean {
   return SYSTEM_API_PATHS.has(pathname);
 }
 
-// ── Public API Paths (logging bypass + rate-limit exemption) ─────────────────
-// Merged from legacy middleware.ts and updated proxy.ts.
-// Also includes /api/v1/ variants for API versioning.
+// ── Public API Paths ─────────────────────────────────────────────────────────
+// Only true anonymous surfaces. Auth-required routes must NOT appear here —
+// even if the route handler also calls requireAuth (defense in depth).
+// GET-only public listings (doctors/labs directory) are method-gated below.
 const PUBLIC_API_PATHS = new Set([
   '/api/auth/register',
   '/api/auth/login',
   '/api/auth/csrf',
   '/api/auth/forgot-password',
   '/api/auth/reset-password',
+  '/api/auth/verify-email',
+  '/api/auth/resend-verification',
+  '/api/auth/oauth',
+  '/api/auth/oauth/callback',
   '/api/health',
   '/api/stripe/webhook',
-  '/api/upload/',
-  '/api/search-medicine',
-  '/api/identify-medicine',
-  '/api/ai/nudge',
-  '/api/consult-messages',
-  '/api/prescription-scan',
-  '/api/doctors',
-  '/api/labs',
-  // API v1 variants (rewritten to /api/* above, but match here for edge case)
+  '/api/csp-report',
+  '/api/newsletter',
+  // API v1 variants
   '/api/v1/auth/register',
   '/api/v1/auth/login',
   '/api/v1/auth/csrf',
   '/api/v1/auth/forgot-password',
   '/api/v1/auth/reset-password',
+  '/api/v1/auth/verify-email',
+  '/api/v1/auth/resend-verification',
   '/api/v1/health',
   '/api/v1/stripe/webhook',
-  '/api/v1/upload/',
-  '/api/v1/search-medicine',
-  '/api/v1/identify-medicine',
-  '/api/v1/ai/nudge',
-  '/api/v1/consult-messages',
-  '/api/v1/prescription-scan',
-  '/api/v1/doctors',
-  '/api/v1/labs',
 ]);
 
-function isPublicApi(pathname: string): boolean {
-  for (const p of PUBLIC_API_PATHS) {
-    if (p.endsWith('/')) {
-      if (pathname.startsWith(p)) return true;
-    } else {
-      if (pathname === p) return true;
-    }
-  }
+/** Directory-style GET endpoints safe without a session (no PHI in list). */
+const PUBLIC_GET_ONLY = new Set([
+  '/api/doctors',
+  '/api/labs',
+  '/api/search-medicine',
+  '/api/v1/doctors',
+  '/api/v1/labs',
+  '/api/v1/search-medicine',
+]);
+
+function isPublicApi(pathname: string, method: string = 'GET'): boolean {
+  if (PUBLIC_API_PATHS.has(pathname)) return true;
+  if (method === 'GET' && PUBLIC_GET_ONLY.has(pathname)) return true;
   return false;
 }
 
@@ -237,6 +236,13 @@ function buildAuthPrefixes(): string[] {
     '/api/me',
     '/api/monitoring',
     '/api/turn-credentials',
+    '/api/ai',
+    '/api/consult-messages',
+    '/api/prescription-scan',
+    '/api/identify-medicine',
+    '/api/documents',
+    '/api/upload',
+    '/api/search-medicine',
   ];
   // Add /api/v1/ variants
   const v1: string[] = v0.map(p => '/api/v1' + p.slice(4));
@@ -575,7 +581,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   }
 
   // ── Edge audit log API requests (health-data-safe) ────────────────────────────
-  if (isApi && !isPublicApi(pathname)) {
+  if (isApi && !isPublicApi(pathname, method)) {
     const origin = req.headers.get('origin') ?? 'direct';
     // Edge-safe audit logging (no DB access at edge)
     console.log(`[AUDIT] request.edge | method=${method} | path=${maskPathIds(pathname)} | ip=${ip}`);
@@ -585,7 +591,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   // Role-based access is enforced by each portal's client-side auth guard.
   // The proxy only checks session presence (supabaseUser above).
   // Demo mode: allow portal access without session cookie.
-  const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true';
+  const isDemoMode = isDemoEnabled();
   if (isPortalPath(pathname) && !isApi && !supabaseUser && !isDemoMode) {
     const redirect = NextResponse.redirect(new URL('/login', req.url));
     applyHeaders(redirect, pathname, requestId);
@@ -634,12 +640,12 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   if (requiresAuth(pathname)) {
     const sessionUser = supabaseUser;
 
-    if (!sessionUser && !isPublicApi(pathname) && !isSystemApi(pathname)) {
+    if (!sessionUser && !isPublicApi(pathname, method) && !isSystemApi(pathname)) {
       applyHeaders(res, pathname, requestId);
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (sessionUser && !isPublicApi(pathname)) {
+    if (sessionUser && !isPublicApi(pathname, method)) {
       const resourceType = inferResourceType(pathname);
       const resourceId = inferResourceId(pathname);
       try {

@@ -53,6 +53,7 @@ import { useOfflineQueue } from '@/hooks/use-offline-queue';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FadeIn } from '@/components/kynthai/animations';
 import type { PulseMember } from '@/components/kynthai/family/family-circle';
+import { isDemoEnabled } from '@/lib/demo-mode'
 
 const MarketView = dynamic(
   () => import('@/components/kynthai/market/market-view')
@@ -508,7 +509,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
       </header>
 
       {/* Demo banner */}
-      {isDemo && process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && (
+      {isDemo && isDemoEnabled() && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5 text-center text-[11px] text-amber-700 dark:text-amber-300">
           Demo mode — sample data, changes won&apos;t be saved
         </div>

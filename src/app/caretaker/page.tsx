@@ -1,10 +1,11 @@
+import { isDemoEnabled } from '@/lib/demo-mode'
 export const dynamic = 'force-dynamic'
 
 import CaretakerClient from './caretaker-client'
 import { getAuthUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 
-const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true';
+const isDemoMode = isDemoEnabled();
 
 export default async function CaretakerPage() {
   const user = await getAuthUser()

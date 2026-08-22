@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { isDemoEnabled } from '@/lib/demo-mode'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
 import { getAuthUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 
-const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true';
+const isDemoMode = isDemoEnabled();
 
 export default async function DashboardPage() {
   const user = await getAuthUser()

@@ -69,6 +69,7 @@ import {
   partnerKeeps,
   PAYOUT_POLICY,
 } from '@/lib/commission';
+import { isDemoEnabled } from '@/lib/demo-mode'
 interface DoctorProfile {
   id: string;
   specialization: string;
@@ -756,7 +757,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
       </header>
 
       {/* Demo banner */}
-      {isDemo && process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && (
+      {isDemo && isDemoEnabled() && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5 text-center text-[11px] text-amber-700 dark:text-amber-300">
           Demo mode — sample data, changes won&apos;t be saved
         </div>

@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Heart, AlertTriangle, CheckCircle, Clock, Users } from 'lucide-react'
 import { logger } from '@/lib/logger'
+import { isDemoEnabled } from '@/lib/demo-mode'
 
 export interface FamilyMemberPulse {
   id: string
@@ -28,7 +29,7 @@ export function FamilyHealthPulse({ onDataLoaded }: { onDataLoaded?: (members: F
   const [loading, setLoading] = useState(true)
 
   const fetchFamilyData = async () => {
-    const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && process.env.NODE_ENV !== 'production';
+    const isDemoMode = isDemoEnabled();
 
     // Demo mode: return seeded data without backend call
     if (isDemoMode) {

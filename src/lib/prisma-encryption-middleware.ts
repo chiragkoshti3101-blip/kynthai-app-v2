@@ -207,7 +207,9 @@ function getEncCounterpart(model: string, fieldName: string): string | null {
  * For production, ensure `ENCRYPTION_TRANSITIONAL` is NOT set (defaults
  * to false), or explicitly set it to `false` in the deployment environment.
  */
-const TRANSITIONAL = process.env.ENCRYPTION_TRANSITIONAL === 'true'
+// Default ON until a full backfill sets ENCRYPTION_TRANSITIONAL=false.
+// Without this, enabling the middleware would null-out unmigrated plaintext fields.
+const TRANSITIONAL = process.env.ENCRYPTION_TRANSITIONAL !== 'false'
 
 function encryptPayload(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null

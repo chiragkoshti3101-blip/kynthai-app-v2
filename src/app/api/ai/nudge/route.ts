@@ -4,12 +4,15 @@ import { logAudit } from '@/lib/auth'
 import { jsonOk, jsonError, requireAuth } from '@/lib/api-helpers'
 import { logger } from '@/lib/logger'
 import { todayStr, daysAgo } from '@/lib/utils'
+import { rateLimit } from '@/lib/security'
 // Prevent static generation — this route reads session + DB at runtime
 export const dynamic = 'force-dynamic'
 
 // ── GET ──────────────────────────────────────────────────────────────
 // Returns up to 2 proactive health nudges based on user data.
 export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, 30, 60000);
+  if (limited) return limited;
   try {
     const { response, user } = await requireAuth(req)
     if (response || !user) return response!

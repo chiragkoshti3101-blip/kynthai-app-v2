@@ -15,7 +15,7 @@ import {
 } from '@/lib/api-helpers';
 import { logAudit } from '@/lib/auth';
 import { chatMessageSchema, chatQuerySchema } from '@/lib/schemas';
-import { sanitizeText } from '@/lib/security';
+import { sanitizeText, rateLimit } from '@/lib/security';
 import { getCached, setCached } from '@/lib/ai-cache';
 import { getMedicineFromDb, buildPatientAlerts } from '@/lib/medicine-db-cache';
 import { buildDeidentifiedContext } from '@/lib/phi-filter';
@@ -151,6 +151,8 @@ ${med.storage}
 // NOTE: uses requireAuthWithCsrf to enforce CSRF token validation on
 // all state-changing endpoints, preventing cross-site request forgery.
 export async function POST(req: NextRequest) {
+  const limited = rateLimit(req, 20, 60000);
+  if (limited) return limited;
   const { response, user } = await requireAuthWithCsrf(req);
   if (response || !user) return response!;
   const u = user!;
@@ -621,6 +623,8 @@ hasPatientContext: formattedContext.length > 0,
 // GET — cursor-based paginated message history
 // ────────────────────────────────────────────
 export async function GET(req: NextRequest) {
+  const limited = rateLimit(req, 20, 60000);
+  if (limited) return limited;
   const { response, user } = await requireAuth(req);
   if (response || !user) return response!;
 
@@ -674,6 +678,8 @@ export async function GET(req: NextRequest) {
 // DELETE — clear all chat messages for user
 // ────────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
+  const limited = rateLimit(req, 20, 60000);
+  if (limited) return limited;
   const { response: csrfResponse, user } = await requireAuthWithCsrf(req);
   if (csrfResponse || !user) return csrfResponse!;
   const u = user;

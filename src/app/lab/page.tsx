@@ -1,10 +1,11 @@
+import { isDemoEnabled } from '@/lib/demo-mode'
 export const dynamic = 'force-dynamic'
 
 import LabClient from './lab-client'
 import { getAuthUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 
-const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true';
+const isDemoMode = isDemoEnabled();
 
 export default async function LabPage() {
   const user = await getAuthUser()

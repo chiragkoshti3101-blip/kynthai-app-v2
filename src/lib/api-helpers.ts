@@ -387,8 +387,14 @@ export async function requireAdmin(
 ): Promise<{ response: NextResponse | null; user: User | null }> {
   const r = await requireAuth(req);
   if (r.response || !r.user) return r;
-  if (!ADMIN_EMAILS.includes(r.user.email) && r.user.role !== 'admin') {
+  const isRoleAdmin = r.user.role === 'admin';
+  const isEmailAdmin = ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(r.user.email);
+  if (!isRoleAdmin && !isEmailAdmin) {
     return { response: jsonError('Forbidden — admin only', 403), user: null };
+  }
+  // Break-glass email admins should still be explicitly listed; prefer role=admin.
+  if (isEmailAdmin && !isRoleAdmin && process.env.NODE_ENV === 'production') {
+    console.warn(`[security] admin access via ADMIN_EMAILS for ${r.user.email} (role=${r.user.role})`);
   }
   return r;
 }

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { FamilyHealthPulse, type FamilyMemberPulse } from './health-pulse'
+import { isDemoEnabled } from '@/lib/demo-mode'
 
 export interface PulseMember {
   memberId: string
@@ -146,7 +147,7 @@ export function FamilyCircle({ members, loading }: FamilyCircleProps) {
   const [pulseMembers, setPulseMembers] = React.useState<PulseMember[]>(members)
 
   // Demo mode fallback: use seeded data when no members provided
-  const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && process.env.NODE_ENV !== 'production';
+  const isDemoMode = isDemoEnabled();
   const demoMembers: PulseMember[] = [
     { memberId: 'fm1', name: 'Robert Wilson', relation: 'Father', color: 'emerald', score: 85, adherence: 85, total: 4, taken: 3, missed: 1, status: 'all_taken', lastTaken: null, conditions: [] },
     { memberId: 'fm2', name: 'Emma Wilson', relation: 'Mother', color: 'teal', score: 78, adherence: 78, total: 2, taken: 1, missed: 1, status: 'in_progress', lastTaken: null, conditions: [] },

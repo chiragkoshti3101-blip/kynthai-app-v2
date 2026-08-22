@@ -9,6 +9,7 @@ import { Menu, X, ArrowRight, LogIn } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import { isDemoEnabled } from '@/lib/demo-mode'
 
 /* ------------------------------------------------------------------ */
 /* LandingNav — scroll-aware navigation bar (client island)           */
@@ -40,7 +41,7 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
     { label: 'For Patients', onClick: () => goToLogin('patient') },
     { label: 'For Doctors', onClick: () => goToLogin('doctor') },
     { label: 'For Labs', onClick: () => goToLogin('lab') },
-    ...(process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true'
+    ...(isDemoEnabled()
       ? [{ label: 'Try the demo', href: '/login?demo=1' }]
       : []),
     { label: 'Privacy', href: '/privacy' },

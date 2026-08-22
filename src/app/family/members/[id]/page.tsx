@@ -1,10 +1,11 @@
+import { isDemoEnabled } from '@/lib/demo-mode'
 export const dynamic = 'force-dynamic'
 
 import FamilyMemberDetailClient from '@/components/kynthai/family/family-member-detail'
 import { getAuthUser } from '@/lib/auth'
 import { notFound, redirect } from 'next/navigation'
 
-const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true';
+const isDemoMode = isDemoEnabled();
 
 interface PageProps {
   params: Promise<{ id: string }>

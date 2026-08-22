@@ -5,6 +5,7 @@ import FamilyPortalClient from '@/app/family/family-portal-client'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AppLoader } from '@/components/kynthai/app-loader'
+import { isDemoEnabled } from '@/lib/demo-mode'
 
 // This is the entry point loaded by portal-loaders.tsx for family role users.
 export function FamilyPortal() {
@@ -14,7 +15,7 @@ export function FamilyPortal() {
   useEffect(() => {
     // ponytail: removed the NODE_ENV !== 'production' guard so the demo
     // auto-login works in production when NEXT_PUBLIC_ENABLE_DEMO=true.
-    const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true'
+    const isDemoMode = isDemoEnabled()
     if (!user && !isDemoMode) {
       setLoginPortal('caretaker')
       fetch('/api/auth/me', { credentials: 'include' })
@@ -28,7 +29,7 @@ export function FamilyPortal() {
   }, [user, router, setLoginPortal, storeLogin])
 
   // Demo mode fallback: show portal even without server session
-  const isDemoMode = process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true'
+  const isDemoMode = isDemoEnabled()
   if (!user && !isDemoMode) {
     return <AppLoader label="Loading…" />
   }

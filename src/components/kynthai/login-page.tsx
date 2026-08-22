@@ -33,6 +33,7 @@ import { FadeIn } from './animations';
 import { TurnstileWidget, type TurnstileWidgetHandle } from './turnstile-widget';
 import { runDemoLogin, demoRolePath, type DemoRole, DEMO_ROLES } from '@/lib/demo-login';
 import { AppLoader } from '@/components/kynthai/app-loader';
+import { isDemoEnabled } from '@/lib/demo-mode'
 
 interface PortalConfig {
   id: LoginPortal;
@@ -135,7 +136,7 @@ export function LoginPage({
   const bootRequestingDemo =
     initialDemo ||
     (typeof window !== 'undefined' &&
-    process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' &&
+    isDemoEnabled() &&
     // URL marker survives only until the auto-login effect consumes it
     (new URLSearchParams(window.location.search).get('demo') === '1' ||
       ['patient', 'doctor', 'caretaker', 'lab', 'admin'].includes(
@@ -244,7 +245,7 @@ export function LoginPage({
   // redirecting them to /patient — breaking the real sign-in journey
   // (the middleware gate is NODE_ENV-aware, but this effect wasn't).
   React.useEffect(() => {
-    if (process.env.NEXT_PUBLIC_ENABLE_DEMO !== 'true') return;
+    if (!isDemoEnabled()) return;
     if (user) return;
     if (loading || demoBusy) return;
     if (typeof window === 'undefined') return;
@@ -597,7 +598,7 @@ export function LoginPage({
                   </button>
                 </div>
 
-                {process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && (
+                {isDemoEnabled() && (
                   <div className="mb-5">
                     <button
                       type="button"

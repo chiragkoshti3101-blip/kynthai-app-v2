@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { installEncryptionMiddleware } from './prisma-encryption-middleware'
 import { logger } from './logger'
 import { maskArgs } from './data-masking'
 import path from 'path'
@@ -40,11 +41,23 @@ function getDb(): PrismaClient {
   if (_initError) throw _initError
 
   try {
-    _db = globalForPrisma.prisma ?? new PrismaClient({
+    const existing = globalForPrisma.prisma
+    if (existing) {
+      _db = existing
+      return _db
+    }
+    const client = new PrismaClient({
       datasources: { db: { url: resolveDatabaseUrl(process.env.DATABASE_URL!) } },
       log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
       errorFormat: 'pretty',
     })
+    try {
+      installEncryptionMiddleware(client)
+    } catch (e) {
+      // Non-fatal: app continues; plaintext columns still readable in transitional mode
+      logger.warn('PHI encryption middleware failed to install', e)
+    }
+    _db = client
     globalForPrisma.prisma = _db
     return _db
   } catch (err) {

@@ -1,5 +1,6 @@
 'use client';
 
+import { isDemoEnabled } from '@/lib/demo-mode'
 /**
  * portal-client.tsx
  *
@@ -208,7 +209,7 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     // would for a real user — the world-class AI (patient record,
     // verified interaction/contraindication checking, streaming) all
     // activates. The client-side store.login mock is gone.
-    if (process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && !user && !onboardingComplete) {
+    if (isDemoEnabled() && !user && !onboardingComplete) {
       // ponytail: do a real sign-in via the login API. The chosen
       // demo account is the patient (most seeded: meds, conditions,
       // allergies) so the patient portal demos the full world-class
@@ -283,7 +284,7 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     PROTECTED_PATHS.has(pathname) || pathname.startsWith('/family/members/');
   const isLandingPage = pathname === '/';
   const isDemoMode =
-    process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true' && process.env.NODE_ENV !== 'production';
+    isDemoEnabled();
 
   // Public pages (marketing, legal, auth helpers) always render their real page.
   if (isPublicPath) {
