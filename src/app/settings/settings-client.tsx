@@ -94,12 +94,11 @@ export default function SettingsClient() {
   const [exporting, setExporting] = React.useState(false);
 
   React.useEffect(() => {
-    if (!user) {
-      const t = window.setTimeout(() => {
-        if (!useAppStore.getState().user) router.replace('/login');
-      }, 2500);
-      return () => window.clearTimeout(t);
-    }
+    if (user) return;
+    const timer = window.setTimeout(() => {
+      if (!useAppStore.getState().user) router.replace('/login');
+    }, 2500);
+    return () => window.clearTimeout(timer);
   }, [user, router]);
 
   if (!user) {
