@@ -101,7 +101,7 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
           </Button>
           <Button
             size="default"
-            onClick={() => goToLogin('caretaker')}
+            onClick={() => goToLogin('patient')}
             className="h-10 gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-5 text-white shadow-md hover:from-emerald-600 hover:to-teal-700 active:scale-[0.97] transition-transform duration-150"
           >
             Get Started

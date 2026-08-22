@@ -14,32 +14,36 @@ import {
 function FAQ() {
   const faqs: Array<{ q: string; a: string }> = [
     {
-      q: 'Is my health data safe?',
-      a: 'Yes. Kynthai is designed with Privacy-first safeguards. Your data is encrypted in transit (TLS 1.3), and uploaded documents and prescription images are additionally encrypted at rest with AES-256-GCM. We never sell your personal data. You can export or delete it anytime.',
+      q: 'Is Kynthai a doctor or hospital?',
+      a: 'No. Kynthai is a health management app — reminders, organization, and optional tools. It does not diagnose, treat, or replace emergency care. In an emergency call 911. See our Medical Disclaimer.',
     },
     {
-      q: 'What payment methods are supported?',
-      a: 'We support secure card payments, ACH, Apple Pay, and Google Pay. No UPI. All pricing is in USD with no hidden currency conversion.',
+      q: 'Is my health data safe?',
+      a: 'We design for privacy. Traffic uses TLS. Uploaded documents and prescription images are encrypted at rest (AES-256-GCM). We do not sell your personal health data. You can request export or deletion from your account or by emailing privacy@kynthai.app.',
+    },
+    {
+      q: 'Are you HIPAA compliant?',
+      a: 'Kynthai is a consumer health app. We are not a HIPAA covered entity or business associate and do not claim HIPAA compliance. See our Privacy Policy for how we handle data under applicable US consumer privacy rules.',
     },
     {
       q: 'Is it really free to start?',
-      a: 'Yes. The Free tier includes 1 member profile, up to 10 medications, 5 AI chats per day, and all smart reminders. No credit card required. Upgrade only when you need more. The AI only answers health & medication questions — it will not respond to coding, homework, or non-health topics.',
+      a: 'Yes. The Free plan includes a member profile, a limited set of medications and AI chats, and smart reminders. No credit card is required to sign up. Paid plans unlock more capacity when you need them.',
     },
     {
-      q: 'Are the doctors verified?',
-      a: "Our admin team reviews every doctor's professional credentials before platform access. Checks typically include medical registration numbers, government-issued photo ID, and qualification documents. Approved doctors receive a platform badge confirming our review was completed. Verification status reflects our initial review only; individual doctors remain responsible for maintaining their own professional registration and licence with the relevant state medical council.",
+      q: 'What do paid plans cost?',
+      a: 'Listed early pricing is in USD (for example Plus about $9.99/mo and Family Pro about $19.99/mo). Prices can change with notice. Cancel from your account when billing is active.',
+    },
+    {
+      q: 'Are doctors on the platform verified?',
+      a: 'When doctor listing is available, our team reviews credentials before access. A platform badge means our review was completed — doctors remain responsible for their own licenses with state boards.',
     },
     {
       q: 'Can I cancel anytime?',
-      a: 'Yes, cancel anytime with one tap in your profile. No questions asked.',
+      a: 'Yes. When you have a paid subscription, cancel from your profile. You keep access through the end of the paid period where applicable.',
     },
     {
-      q: 'Does it work for elderly family members?',
-      a: 'Absolutely. Kynthai was designed for multi-generational American families. Clear in-app reminders, large text, and SOS alerts make it accessible for seniors. Caretakers get live alerts if a dose is missed.',
-    },
-    {
-      q: "What if my doctor isn't on Kynthai?",
-      a: 'You can still use all patient features — reminders, AI chat, symptom analyzer, medicine ID, drug interactions. Invite your doctor to join for free; they earn on every consult and medicine order routed through Kynthai.',
+      q: "What if my doctor is not on Kynthai?",
+      a: 'You can still use reminders, AI chat (health topics), and other patient tools. Invite your clinician when they are ready to join.',
     },
   ];
 

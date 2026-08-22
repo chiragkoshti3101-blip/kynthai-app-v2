@@ -35,8 +35,8 @@ export function WhyAmericaSection() {
     },
     {
       icon: Languages,
-      title: 'English with Spanish support',
-      body: 'Clear English interface with optional Spanish language support for eligible accounts.',
+      title: 'English-first interface',
+      body: 'Clear English interface designed for US households.',
       accent: 'from-emerald-500 to-emerald-700',
     },
     {
@@ -48,7 +48,7 @@ export function WhyAmericaSection() {
     {
       icon: ShieldCheck,
       title: 'Local & US privacy-aligned',
-      body: 'US-hosted infrastructure meets US expectations. Data never leaves American soil.',
+      body: 'Built for US families with privacy-first defaults. Primary app data uses US cloud regions where configured.',
       accent: 'from-emerald-600 to-teal-700',
     },
   ]

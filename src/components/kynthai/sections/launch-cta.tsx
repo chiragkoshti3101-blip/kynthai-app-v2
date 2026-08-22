@@ -36,7 +36,9 @@ export function LaunchCTA({ onPickPortal }: { onPickPortal: (portal: LoginPortal
           </Button>
           <Button
             variant="outline"
-            onClick={() => onPickPortal('caretaker')}
+            onClick={() => {
+              if (typeof window !== 'undefined') window.location.href = '/login'
+            }}
             className="h-12 min-h-12 flex-1 rounded-full border-border px-6"
           >
             Sign In
@@ -44,7 +46,7 @@ export function LaunchCTA({ onPickPortal }: { onPickPortal: (portal: LoginPortal
         </div>
 
         <p className="mt-4 text-xs text-muted-foreground">
-          Privacy-first · encryption · US-hosted
+          Privacy-first · free to start · not a medical provider
         </p>
       </div>
     </section>

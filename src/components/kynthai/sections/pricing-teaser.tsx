@@ -32,7 +32,7 @@ function PricingTeaser({
     {
       name: 'Free',
       price: '$0',
-      cadence: 'plan',
+      cadence: 'free plan',
       features: [
         '1 member profile',
         'Up to 10 medications',
@@ -59,7 +59,7 @@ function PricingTeaser({
         'Lab test booking',
       ],
       cta: 'Upgrade',
-      onClick: () => onCheckout?.('plus'),
+      onClick: () => (onCheckout ? onCheckout('plus') : onGetStarted()),
       highlight: true,
       icon: Sparkles,
       tierKey: 'plus',
@@ -78,7 +78,7 @@ function PricingTeaser({
         'Caregiver dashboard',
       ],
       cta: 'Get Family Pro',
-      onClick: () => onCheckout?.('family_pro'),
+      onClick: () => (onCheckout ? onCheckout('family_pro') : onGetStarted()),
       icon: Users,
       tierKey: 'family_pro',
     },

@@ -159,7 +159,7 @@ export function BentoFeatures() {
             <SmallFeature
               icon={Video}
               title="Video Consults"
-              body="Book consultations with US-licensed doctors in minutes."
+              body="Book consultations with reviewed practitioners when available."
               accent="from-teal-500 to-teal-600"
             />
             <SmallFeature
@@ -171,7 +171,7 @@ export function BentoFeatures() {
             <SmallFeature
               icon={ShoppingBag}
               title="Order Medicines"
-              body="Refills delivered to your door."
+              body="Track medicines and refills in one place."
               accent="from-teal-500 to-emerald-600"
             />
           </div>
@@ -179,7 +179,7 @@ export function BentoFeatures() {
             wide
             icon={FlaskConical}
             title="Lab Tests at Home"
-            body="Book diagnostics from partner labs. Reports land in your dashboard, auto-shared with your doctor."
+            body="Book lab tests when partners are available. Results can appear in your dashboard for you to share."
             accent="from-emerald-600 to-teal-700"
           />
         </div>

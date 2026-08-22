@@ -29,13 +29,13 @@ export function LandingFinalCTA({ onGetStarted }: { onGetStarted: () => void }) 
         <div className="relative">
           <div className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur sm:mb-5 sm:px-3 sm:text-xs">
             <DollarSign className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-            Built for the US
+            Built for US families
           </div>
           <h2 className="mx-auto max-w-2xl text-balance text-2xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
             Because your family deserves better than forgetting.
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-pretty text-sm text-emerald-50 sm:mt-4 sm:text-base">
-            Join US families who trust Kynthai. Start free today — no credit card, no commitment.
+            Start free today — no credit card required to sign up. Cancel paid plans anytime when billing is active.
           </p>
           <div className="mt-4 flex flex-col items-center justify-center gap-2 sm:mt-6 sm:flex-row sm:gap-3">
             <Button

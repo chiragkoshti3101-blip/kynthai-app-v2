@@ -19,7 +19,7 @@ export function HowItWorks() {
     {
       icon: Pill,
       title: 'Add Medicines Easily',
-      body: 'Upload a prescription photo or type a list — AI automatically understands and adds them.',
+      body: 'Upload a prescription photo or type a list — AI helps extract details so you can review and confirm before saving.',
     },
     {
       icon: Bell,
@@ -28,8 +28,8 @@ export function HowItWorks() {
     },
     {
       icon: Stethoscope,
-      title: 'Doctors, Labs & Medicines',
-      body: 'Video consultations, home lab tests, and medicine delivery — all within the app.',
+      title: 'Care when you need it',
+      body: 'Book consults and lab tests when available in the app. Medication tools work even if you keep your own pharmacy.',
     },
   ];
 
