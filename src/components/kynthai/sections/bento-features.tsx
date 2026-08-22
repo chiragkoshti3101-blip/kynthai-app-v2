@@ -281,8 +281,8 @@ export function BentoFeatures() {
       <div className="mt-6 flex justify-center">
         <Button
           variant="outline"
-          size="lg"
-          className="group rounded-full border-border/60 px-8 py-6 text-base hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-200 hover:shadow-md"
+          size="ctaSecondary"
+          className="group border-border/60 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 hover:shadow-md"
           onClick={() =>
             document.getElementById('features-anchor')?.scrollIntoView({ behavior: 'smooth' })
           }

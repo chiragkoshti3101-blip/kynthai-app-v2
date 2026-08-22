@@ -39,18 +39,18 @@ export function LandingFinalCTA({ onGetStarted }: { onGetStarted: () => void }) 
           </p>
           <div className="mt-4 flex flex-col items-center justify-center gap-2 sm:mt-6 sm:flex-row sm:gap-3">
             <Button
-              size="lg"
+              size="cta"
               onClick={onGetStarted}
-              className="h-11 min-h-11 w-full rounded-full bg-white px-6 text-sm text-emerald-700 shadow-lg hover:bg-emerald-50 sm:h-12 sm:min-h-12 sm:w-auto sm:px-7 sm:text-base"
+              className="w-full rounded-full bg-white text-emerald-700 shadow-lg hover:bg-emerald-50 sm:w-auto"
             >
               Get Started Free
               <ArrowRight className="h-4 w-4" />
             </Button>
             <Button
-              size="lg"
+              size="ctaSecondary"
               variant="outline"
               onClick={() => router.push('/pricing')}
-              className="h-11 min-h-11 w-full rounded-full border-white/40 bg-white/10 px-5 text-sm text-white backdrop-blur hover:bg-white/20 hover:text-white sm:h-12 sm:min-h-12 sm:w-auto sm:px-6 sm:text-base"
+              className="w-full rounded-full border-white/40 bg-white/10 text-white backdrop-blur hover:bg-white/20 hover:text-white sm:w-auto"
             >
               View Pricing
             </Button>

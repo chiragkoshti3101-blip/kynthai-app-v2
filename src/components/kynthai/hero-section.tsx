@@ -106,24 +106,25 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
             .
           </p>
 
-          {/* CTA buttons */}
-          <div className="mt-4 flex flex-col gap-2 sm:mt-5 sm:flex-row sm:items-center sm:gap-3">
+          {/* CTA buttons — primary 48px, secondary 44px, full-width on mobile */}
+          <div className="mt-6 flex w-full max-w-md flex-col gap-3 sm:mt-8 sm:max-w-none sm:flex-row sm:items-center">
             <Button
-              size="lg"
-              onClick={() => onGetStarted('caretaker')}
-              className="h-11 min-h-11 w-full gap-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-6 text-sm font-semibold shadow-lg shadow-emerald-600/25 hover:from-emerald-600 hover:to-teal-700 sm:h-12 sm:w-auto sm:px-7 sm:text-base"
+              variant="brand"
+              size="cta"
+              onClick={() => onGetStarted('patient')}
+              className="w-full shadow-emerald-600/25 sm:w-auto"
             >
               Get Started Free
               <ArrowRight className="h-4 w-4" />
             </Button>
             <Button
-              size="lg"
+              size="ctaSecondary"
               variant="outline"
               onClick={() => {
                 const el = document.getElementById('how-it-works');
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="h-11 w-full rounded-full px-6 text-sm font-semibold sm:h-12 sm:w-auto sm:px-7 sm:text-base"
+              className="w-full border-border/80 sm:w-auto"
             >
               See How It Works
             </Button>

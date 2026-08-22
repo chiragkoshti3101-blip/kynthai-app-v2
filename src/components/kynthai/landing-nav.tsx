@@ -93,16 +93,18 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
         <div className="hidden items-center gap-2 lg:flex">
           <Button
             variant="ghost"
-            size="sm"
+            size="ctaSecondary"
             onClick={() => router.push('/login')}
+            className="rounded-full px-4"
           >
-            <LogIn className="mr-1.5 h-3.5 w-3.5" />
+            <LogIn className="mr-1.5 h-4 w-4" />
             Sign in
           </Button>
           <Button
-            size="default"
+            variant="brand"
+            size="ctaSecondary"
             onClick={() => goToLogin('patient')}
-            className="h-10 gap-1.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 px-5 text-white shadow-md hover:from-emerald-600 hover:to-teal-700 active:scale-[0.97] transition-transform duration-150"
+            className="gap-1.5 px-5 shadow-md"
           >
             Get Started
             <ArrowRight className="h-4 w-4" />
@@ -110,7 +112,7 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
         </div>
 
         <button
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-border lg:hidden transition-transform duration-200 active:scale-90"
+          className="inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-xl border border-border lg:hidden transition-transform duration-200 active:scale-95"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
           aria-expanded={open}
@@ -165,7 +167,9 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
             )}
             <Link href="/login" onClick={() => setOpen(false)}>
               <Button
-                className="mt-2 h-11 min-h-11 w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white"
+                variant="brand"
+                size="cta"
+                className="mt-2 w-full"
               >
                 Get Started
               </Button>

@@ -29,7 +29,7 @@ export function LandingPage({
   onPickPortal,
 }: LandingPageProps) {
   return (
-    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground antialiased">
       <EarlyAdopterBanner onGetStarted={onGetStarted} />
       <LandingNav goToLogin={onPickPortal} />
       <main id="main-content">

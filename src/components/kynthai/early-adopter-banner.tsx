@@ -28,9 +28,9 @@ export function EarlyAdopterBanner({ onGetStarted }: EarlyAdopterBannerProps) {
 
           {/* Right: CTA */}
           <Button
-            onClick={() => onGetStarted()}
-            className="shrink-0 min-h-11 bg-white text-emerald-700 hover:bg-emerald-50"
-            size="sm"
+            onClick={() => onGetStarted('patient')}
+            size="ctaSecondary"
+            className="w-full shrink-0 rounded-full bg-white text-emerald-700 shadow-sm hover:bg-emerald-50 sm:w-auto"
           >
             Get Started
             <ChevronRight className="ml-1 h-4 w-4" />
