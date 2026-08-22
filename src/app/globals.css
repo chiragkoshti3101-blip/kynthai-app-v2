@@ -523,7 +523,7 @@ html:not(.dark) .phone-frame {
      hash and filename. Without this, Turbopack sometimes reuses the same
      CSS filename across deploys, and immutable CDN headers prevent browsers
      from fetching fresh styles. */
-  :root { --deploy-1787412600000id: 3001561; }
+  :root { --deploy-1787412600000id: 3001562; }
 
   /* ── Switch toggle — iOS pill, never a circle ─────────────────────────
      Phone bug (Aug 2026): Settings → Notifications rendered as green

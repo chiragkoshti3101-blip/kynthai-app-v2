@@ -19,6 +19,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { type Medication, type Reminder, type ReminderStats, getColorClasses } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
@@ -407,45 +408,37 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
         </div>
       )}
 
-      {/* Alarm toggle */}
-      <div className="flex items-center justify-between rounded-xl border border-border/60 bg-card p-2.5">
-        <div className="flex items-center gap-2">
+      {/* Alarm toggle — uses shared iOS pill Switch (no JS sizing) */}
+      <div className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-border/60 bg-card px-3 py-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <Volume2
-            className={`h-4 w-4 ${alarmEnabled ? 'text-emerald-600' : 'text-muted-foreground'}`}
+            className={`h-4 w-4 shrink-0 ${alarmEnabled ? 'text-emerald-600' : 'text-muted-foreground'}`}
           />
-          <span className="text-xs font-medium">In-app alarm</span>
-          <span className="text-[10px] text-muted-foreground">
-            {alarmEnabled ? (alarmMode === 'alert' ? 'Loud beep' : 'Gentle chime') : 'Silent'}
-          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium leading-snug">In-app alarm</p>
+            {alarmEnabled ? (
+              <button
+                type="button"
+                onClick={() =>
+                  useAppStore
+                    .getState()
+                    .setAlarmMode(alarmMode === 'professional' ? 'alert' : 'professional')
+                }
+                className="mt-0.5 text-left text-xs text-muted-foreground hover:text-foreground transition-colors"
+                title="Tap to switch ringtone style"
+              >
+                {alarmMode === 'alert' ? 'Loud beep' : 'Gentle chime'} · tap to change
+              </button>
+            ) : (
+              <p className="mt-0.5 text-xs text-muted-foreground">Silent</p>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => useAppStore.getState().toggleAlarm()}
-            className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${
-              alarmEnabled ? 'bg-emerald-600' : 'bg-muted-foreground/30'
-            }`}
-            aria-label={alarmEnabled ? 'Disable alarm' : 'Enable alarm'}
-          >
-            <span
-              className={`inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
-                alarmEnabled ? 'translate-x-[18px]' : 'translate-x-0.5'
-              } mt-0.5`}
-            />
-          </button>
-          {alarmEnabled && (
-            <button
-              onClick={() =>
-                useAppStore
-                  .getState()
-                  .setAlarmMode(alarmMode === 'professional' ? 'alert' : 'professional')
-              }
-              className="rounded-lg border border-border/60 px-2 py-1 text-[10px] font-medium text-muted-foreground hover:bg-accent transition-colors"
-              title="Toggle ringtone style"
-            >
-              {alarmMode === 'professional' ? 'Chime' : 'Beep'}
-            </button>
-          )}
-        </div>
+        <Switch
+          checked={alarmEnabled}
+          onCheckedChange={() => useAppStore.getState().toggleAlarm()}
+          aria-label={alarmEnabled ? 'Disable in-app alarm' : 'Enable in-app alarm'}
+        />
       </div>
 
       {/* Offline notice — data shown is the last saved snapshot */}
