@@ -6,7 +6,7 @@
 /* deploy-1787423547425ts:1787423547 — forces new CSS hash on every deploy */
 
 @theme inline {
-  --deploy-hash: b2338ab-mt4ptvz5;
+  --deploy-hash: premium-mt5;
   /* DEPLOY: --deploy-hash forces new CSS hash on every deploy */
   --deploy-marker: var(--deploy-hash);
   --color-background: var(--background);
@@ -601,3 +601,16 @@ html:not(.dark) .phone-frame {
 /* DEPLOY-HASH: 20260822-mobile-switch-pill-v2 — bust cached donut-switch CSS */
 :root { --deploy-hash: 20260822-mobile-switch-pill-v2; }
 html { --deploy-hash-ref: var(--deploy-hash); }
+
+
+/* Premium reading defaults */
+@layer base {
+  body {
+    font-feature-settings: "ss01" on, "cv01" on;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+}

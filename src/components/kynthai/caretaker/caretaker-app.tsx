@@ -481,7 +481,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
   return (
     <div className="relative min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
       {/* Top app bar */}
-      <header className="sticky top-0 z-30 border-b border-border/40 bg-background/70 backdrop-blur-xl pt-safe">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 pt-safe">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           {/* Kynthai Brand - Prominent, Left Side */}
           <div className="flex items-center">
@@ -613,7 +613,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
       <div className="h-20 shrink-0" aria-hidden />
 
       {/* Bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/40 bg-background/80 backdrop-blur-xl pb-safe">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/90 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/80 pb-safe">
         <div className="mx-auto flex max-w-3xl items-stretch justify-around gap-1 overflow-x-auto px-2 py-2 scrollbar-none">
           {TABS.map(t => {
             const active = tab === t.id;

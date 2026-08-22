@@ -1238,13 +1238,13 @@ export function PatientApp({ user }: { user: AuthUser }) {
 
   return (
     <div className="relative min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
-      <header className="sticky top-0 z-30 border-b border-border/40 bg-background/70 backdrop-blur-xl pt-safe">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 pt-safe">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <KynthaiBrand iconSize={30} />
           <div className="flex items-center gap-1">
             <button
               onClick={() => setShareOpen(true)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-muted-foreground hover:text-foreground"
+              className="flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               aria-label="Share"
             >
               <Share2 className="h-4 w-4" />
@@ -1260,7 +1260,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
               aria-label="Profile"
               className="relative flex items-center gap-1.5 rounded-xl px-1.5 py-1 transition-colors hover:bg-accent"
             >
-              <Avatar className="h-9 w-9 ring-2 ring-emerald-500/20">
+              <Avatar className="h-10 w-10 ring-2 ring-emerald-500/25">
                 <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-sm font-semibold">
                   {initial}
                 </AvatarFallback>
@@ -1387,7 +1387,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
       </Dialog>
 
       {/* Bottom nav */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/40 bg-background/80 backdrop-blur-xl pb-safe">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/90 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/80 pb-safe">
         <div className="mx-auto flex max-w-3xl items-stretch justify-around gap-1 overflow-x-auto px-2 py-2 scrollbar-none">
           {TABS.map(t => {
             const active = tab === t.id;
