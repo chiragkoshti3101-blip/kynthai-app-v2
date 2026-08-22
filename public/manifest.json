@@ -9,8 +9,12 @@
   "background_color": "#ffffff",
   "theme_color": "#10b981",
   "orientation": "portrait-primary",
-  "version": "f7209f3",
-  "categories": ["health", "medical", "lifestyle"],
+  "version": "b2338ab-mt4ptvz5",
+  "categories": [
+    "health",
+    "medical",
+    "lifestyle"
+  ],
   "screenshots": [
     {
       "src": "/og-image.webp",

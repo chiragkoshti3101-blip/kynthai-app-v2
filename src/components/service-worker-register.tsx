@@ -3,14 +3,35 @@
 /**
  * ServiceWorkerRegister
  *
- * Registers /sw.js in production only. Also auto-subscribes to push
- * notifications if the user has a session (non-blocking, best-effort).
+ * Production-only. Ensures new deploys reach users quickly:
+ * - Registers /sw.js?v=<deployVersion> so the SW script itself is cache-busted
+ * - Calls registration.update() on load, focus, and visibilitychange
+ * - Reloads once when a new SW takes control (controllerchange / SW_ACTIVATED)
+ * - Guards against reload loops via sessionStorage
  *
- * In development, Next.js runs HMR over websockets which conflicts with a
- * cached service worker, so we skip registration unless NODE_ENV=production.
+ * Dev is skipped — HMR + SW fight each other.
  */
 
 import * as React from 'react'
+
+const RELOAD_GUARD_KEY = 'kynthai-sw-reload-at'
+const RELOAD_COOLDOWN_MS = 15_000
+
+function canReload(): boolean {
+  try {
+    const last = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || '0')
+    if (Date.now() - last < RELOAD_COOLDOWN_MS) return false
+    sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()))
+    return true
+  } catch {
+    return true
+  }
+}
+
+function safeReload() {
+  if (!canReload()) return
+  window.location.reload()
+}
 
 export function ServiceWorkerRegister() {
   React.useEffect(() => {
@@ -18,127 +39,122 @@ export function ServiceWorkerRegister() {
     if (!('serviceWorker' in navigator)) return
     if (process.env.NODE_ENV !== 'production') return
 
+    const pageVersion =
+      document.documentElement.dataset.deployVersion || 'local'
     const wasControlled = !!navigator.serviceWorker.controller
+    let refreshing = false
+
+    const onControllerChange = () => {
+      if (refreshing) return
+      if (!wasControlled) return
+      refreshing = true
+      safeReload()
+    }
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'SW_ACTIVATED' && wasControlled) {
+        if (refreshing) return
+        refreshing = true
+        safeReload()
+      }
+    }
+
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange)
+    navigator.serviceWorker.addEventListener('message', onMessage)
+
+    let registration: ServiceWorkerRegistration | null = null
+    let intervalId: number | undefined
+
+    const checkForUpdate = () => {
+      if (!registration) return
+      void registration.update().catch(() => {})
+    }
+
     const register = async () => {
       try {
-        const reg = await navigator.serviceWorker.register('/sw.js', {
-          scope: '/',
-          updateViaCache: 'none',
-        })
-        // Force-check for SW update on every page load (not just every 60 min).
-        // New deploys change the DEPLOY_ID in sw.js, so update() detects it
-        // immediately instead of waiting up to an hour.
-        void reg.update().catch(() => {})
+        // Query param forces browsers that cache /sw.js to fetch the new script
+        registration = await navigator.serviceWorker.register(
+          `/sw.js?v=${encodeURIComponent(pageVersion)}`,
+          { scope: '/', updateViaCache: 'none' },
+        )
 
-        // When a new SW takes over, reload once so the latest UI is shown.
-        let refreshing = false
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          if (refreshing) return
-          refreshing = true
-          if (wasControlled) {
-            window.location.reload()
-          }
-        })
+        checkForUpdate()
 
-        // Force hard reload if SW version doesn't match page version.
-        // This catches cases where Chrome's HTTP cache serves stale HTML
-        // whose CSS references are outdated.
-        const pageVersion = document.documentElement.dataset.deployVersion
-        if (pageVersion && reg.active) {
-          const swMsg = new Promise<string>((resolve) => {
-            const ch = new MessageChannel()
-            ch.port1.onmessage = (e) => resolve(e.data)
-            reg.active!.postMessage({ type: 'GET_VERSION' }, [ch.port2])
-            setTimeout(() => resolve(''), 1000)
+        // If a waiting worker is already sitting there, activate it now
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+        }
+
+        registration.addEventListener('updatefound', () => {
+          const installing = registration?.installing
+          if (!installing) return
+          installing.addEventListener('statechange', () => {
+            if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+              // New worker ready — ask it to skip waiting (also handled in install)
+              installing.postMessage({ type: 'SKIP_WAITING' })
+            }
           })
-          const swVersion = await swMsg
-          if (swVersion && pageVersion && swVersion !== pageVersion) {
-            window.location.reload()
-          }
-          // If SW doesn't respond to GET_VERSION (old SW without handler),
-          // assume it's stale and force reload.
-          if (!swVersion && pageVersion) {
-            console.warn('[sw] Old SW detected (no GET_VERSION handler), forcing reload')
-            window.location.reload()
-          }
-        }
-        // Additional: force SW update check immediately on load
-        void reg.update().catch(() => {})
-        // Additional: check version on focus (catches PWA resume)
-        window.addEventListener('visibilitychange', () => {
-          if (!document.hidden && pageVersion && reg.active) {
-            void reg.update().catch(() => {})
-          }
-        })
-        // Additional: check version on page load (catches cold start)
-        // This runs after the initial render to verify version matches
-        React.useEffect(() => {
-          if (!pageVersion) return
-          const checkVersion = async () => {
-            try {
-              const response = await fetch('/manifest.json', { cache: 'no-cache' })
-              const manifest = await response.json()
-              const manifestVersion = manifest.version || manifest.id
-              if (manifestVersion && manifestVersion !== pageVersion) {
-                console.warn('[sw] Manifest version mismatch, forcing reload')
-                window.location.reload()
-              }
-            } catch {
-              // Ignore errors
-            }
-          }
-          // Check immediately
-          void checkVersion()
-          // Check again after a short delay (catches PWA cold start)
-          setTimeout(() => void checkVersion(), 1000)
-          // Check periodically (catches long-running PWA sessions)
-          const interval = setInterval(() => void checkVersion(), 60000)
-          return () => clearInterval(interval)
-        }, [pageVersion])
-        // Additional: Force hard reload if SW registration fails or times out
-        const updateTimeout = setTimeout(() => {
-          console.warn('[sw] Update check timeout, forcing reload')
-          window.location.reload()
-        }, 10000)
-        // Clean up timeout on successful update
-        reg.addEventListener('updatefound', () => {
-          clearTimeout(updateTimeout)
         })
 
-        // Auto-subscribe to push notifications (best-effort, non-blocking)
-        // — checks for existing session cookie, then subscribes if push
-        // is supported and permission is granted/default.
-        try {
-          const authRes = await fetch('/api/auth/me', { credentials: 'include' })
-          if (authRes.ok) {
-            const authData = await authRes.json()
-            if (authData?.user) {
-              const { enablePush, pushSupported, permissionState } = await import('@/lib/push')
-              if (pushSupported()) {
-                const perm = permissionState()
-                if (perm === 'granted' || perm === 'default') {
-                  // Subscribe silently — user can disable in Settings
-                  await enablePush()
-                }
-              }
-            }
-          }
-        } catch {
-          // No session or push not supported — continue without push
-        }
+        // While the app stays open, keep looking for deploys
+        intervalId = window.setInterval(checkForUpdate, 60_000)
       } catch (e) {
         console.warn('[sw] registration failed', e)
       }
     }
 
-    // Register after the page is idle to avoid contention with first paint.
+    // Optional: silent push subscribe when already signed in
+    const maybePush = async () => {
+      try {
+        const authRes = await fetch('/api/auth/me', { credentials: 'include' })
+        if (!authRes.ok) return
+        const authData = await authRes.json()
+        if (!authData?.user) return
+        const { enablePush, pushSupported, permissionState } = await import(
+          '@/lib/push'
+        )
+        if (!pushSupported()) return
+        const perm = permissionState()
+        if (perm === 'granted' || perm === 'default') {
+          await enablePush()
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') checkForUpdate()
+    }
+
+    window.addEventListener('focus', checkForUpdate)
+    document.addEventListener('visibilitychange', onVisible)
+
     const w = window as unknown as {
-      requestIdleCallback?: (cb: () => void) => void
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
     }
     if (typeof w.requestIdleCallback === 'function') {
-      w.requestIdleCallback(register)
+      w.requestIdleCallback(
+        () => {
+          void register().then(() => void maybePush())
+        },
+        { timeout: 3000 },
+      )
     } else {
-      window.setTimeout(register, 1500)
+      window.setTimeout(() => {
+        void register().then(() => void maybePush())
+      }, 1200)
+    }
+
+    return () => {
+      navigator.serviceWorker.removeEventListener(
+        'controllerchange',
+        onControllerChange,
+      )
+      navigator.serviceWorker.removeEventListener('message', onMessage)
+      window.removeEventListener('focus', checkForUpdate)
+      document.removeEventListener('visibilitychange', onVisible)
+      if (intervalId) window.clearInterval(intervalId)
     }
   }, [])
 

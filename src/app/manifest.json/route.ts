@@ -46,13 +46,14 @@ const manifest = {
       purpose: 'any maskable',
     },
   ],
-  version: 'f7209f3',
+  version: 'b2338ab-mt4ptvz5',
 };
 
 export async function GET() {
   return NextResponse.json(manifest, {
     headers: {
-      'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+      // Short TTL so PWAs notice version changes quickly after a deploy
+      'Cache-Control': 'public, max-age=60, stale-while-revalidate=300',
       'Content-Type': 'application/manifest+json',
     },
   });
