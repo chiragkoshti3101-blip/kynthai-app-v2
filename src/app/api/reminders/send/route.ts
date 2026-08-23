@@ -31,44 +31,45 @@ async function run(req: NextRequest) {
 
   const modeParam = req.nextUrl.searchParams.get('mode')
   const mode = modeParam === 'tick' ? 'tick' : 'catchup'
-  const clock = clockParts()
-  const date = new Date(clock.isoDate)
+  // Multi-zone: US product + India (and major US zones) so closing the app
+  // still fires when the user set "local" HH:MM in their region.
+  const ZONES = [
+    'America/New_York',
+    'America/Chicago',
+    'America/Denver',
+    'America/Los_Angeles',
+    'Asia/Kolkata',
+    'UTC',
+  ] as const
+  const clocks = ZONES.map((tz) => ({ tz, clock: clockParts(tz) }))
+  const primary = clocks[0]!.clock
+  const dateSet = [...new Set(clocks.map((c) => c.clock.isoDate))]
+  const dates = dateSet.map((iso) => new Date(iso))
 
   try {
-    const candidates = await db.reminder.findMany({
-      where: {
-        date,
-        status: 'pending',
-        ...(mode === 'catchup'
-          ? { time: { lte: clock.timeStr } }
-          : {
-              OR: [{ time: clock.timeStr }, { time: clock.prevTimeStr }],
-            }),
-      },
-      include: {
-        medication: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-                emailOptOut: true,
-              },
+    const includeMed = {
+      medication: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              emailOptOut: true,
             },
-            familyMember: {
-              include: {
-                family: {
-                  select: {
-                    ownerId: true,
-                    owner: {
-                      select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        phone: true,
-                      },
+          },
+          familyMember: {
+            include: {
+              family: {
+                select: {
+                  ownerId: true,
+                  owner: {
+                    select: {
+                      id: true,
+                      name: true,
+                      email: true,
+                      phone: true,
                     },
                   },
                 },
@@ -77,13 +78,34 @@ async function run(req: NextRequest) {
           },
         },
       },
-      take: 200,
+    } as const
+
+    // Collect pending rows for any zone's "today"
+    const pendingPool = await db.reminder.findMany({
+      where: {
+        status: 'pending',
+        date: { in: dates },
+        reminderCount: 0,
+      },
+      include: includeMed,
+      take: 400,
     })
 
-    const dueReminders =
-      mode === 'tick'
-        ? candidates.filter((r) => isDueNow(r.time, clock))
-        : candidates
+    const dueIds = new Set<string>()
+    for (const { clock } of clocks) {
+      for (const r of pendingPool) {
+        const rDate = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10)
+        if (rDate !== clock.dateStr) continue
+        if (mode === 'tick') {
+          if (isDueNow(r.time, clock)) dueIds.add(r.id)
+        } else {
+          if (r.time <= clock.timeStr) dueIds.add(r.id)
+        }
+      }
+    }
+
+    const dueReminders = pendingPool.filter((r) => dueIds.has(r.id))
+    const clock = primary
 
     if (dueReminders.length === 0) {
       return jsonOk({

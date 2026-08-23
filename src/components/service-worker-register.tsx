@@ -74,7 +74,7 @@ export function ServiceWorkerRegister() {
       try {
         // Query param forces browsers that cache /sw.js to fetch the new script
         registration = await navigator.serviceWorker.register(
-          `/sw.js?v=${encodeURIComponent(pageVersion)}`,
+          `/sw-v3.js?v=${encodeURIComponent(pageVersion)}`,
           { scope: '/', updateViaCache: 'none' },
         )
 

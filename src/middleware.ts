@@ -158,6 +158,7 @@ const SYSTEM_API_PATHS = new Set([
   '/api/chat/cleanup',
   '/api/auth/logout',
   '/api/system/seed-demo',
+  '/api/system/test-dose',
 ]);
 
 function isSystemApi(pathname: string): boolean {

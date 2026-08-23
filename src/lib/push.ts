@@ -65,7 +65,7 @@ async function getRegistration(): Promise<ServiceWorkerRegistration | null> {
         ? document.documentElement.dataset.deployVersion || '1'
         : '1'
     const reg = await navigator.serviceWorker.register(
-      `/sw.js?v=${encodeURIComponent(pageVersion)}`,
+      `/sw-v3.js?v=${encodeURIComponent(pageVersion)}`,
       { scope: '/', updateViaCache: 'none' },
     )
     await navigator.serviceWorker.ready
