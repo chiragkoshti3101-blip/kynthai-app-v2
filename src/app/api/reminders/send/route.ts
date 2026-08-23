@@ -35,7 +35,8 @@ async function run(req: NextRequest) {
 
   try {
     const seen = new Set<string>()
-    const dueReminders: Awaited<ReturnType<typeof db.reminder.findMany>> = []
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dueReminders: any[] = []
 
     for (const tz of ZONES) {
       const clock = clockParts(tz)
