@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { requireSystemToken, jsonOk, jsonError } from '@/lib/api-helpers'
 import { rateLimit } from '@/lib/security'
 import { logger } from '@/lib/logger'
-import { sendPushToUser } from '@/lib/push-server'
+import { sendReminder, sendNotification } from '@/lib/notifications'
 import { clockParts, isDueNow } from '@/lib/reminder-clock'
 
 export const dynamic = 'force-dynamic'
@@ -12,17 +12,15 @@ export const maxDuration = 60
 /**
  * GET+POST /api/reminders/send
  *
- * Server-side dose push — works when the app is **closed**.
+ * Closed-app / web / mobile dose delivery.
+ *
+ * Strategy (billion-dollar product rule: never depend on one channel):
+ *   1. In-app inbox row (always, for every portal)
+ *   2. sendReminder → Push ($0) → Email → WhatsApp → SMS
+ *      so pure-web users (no PWA, no push) still get email/SMS
  *
  * Auth: Authorization: Bearer $CRON_SECRET
- *
- * Query:
- *   mode=tick     (default) only HH:MM due now or previous minute
- *   mode=catchup  all pending doses with time <= now today (daily safety net)
- *
- * Vercel Hobby can only run this once/day → use GitHub Actions or an
- * external cron (every 1–5 min) so closed-app users still get Web Push.
- * While the app is open, MedicationAlarmHost still rings on the minute.
+ * Query: mode=tick | mode=catchup (default catchup for daily Vercel cron)
  */
 async function run(req: NextRequest) {
   const limited = rateLimit(req, 30, 60_000)
@@ -31,9 +29,6 @@ async function run(req: NextRequest) {
   const { response, user } = await requireSystemToken(req)
   if (response || !user) return response!
 
-  // Default catchup so the daily Vercel Hobby cron (no query string) still
-  // sweeps missed doses. GitHub Actions / external cron must pass ?mode=tick
-  // for minute-accurate closed-app pushes.
   const modeParam = req.nextUrl.searchParams.get('mode')
   const mode = modeParam === 'tick' ? 'tick' : 'catchup'
   const clock = clockParts()
@@ -47,16 +42,37 @@ async function run(req: NextRequest) {
         ...(mode === 'catchup'
           ? { time: { lte: clock.timeStr } }
           : {
-              // Prisma can't OR on string equality cleanly without OR array
               OR: [{ time: clock.timeStr }, { time: clock.prevTimeStr }],
             }),
       },
       include: {
         medication: {
           include: {
-            user: { select: { id: true, name: true } },
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                emailOptOut: true,
+              },
+            },
             familyMember: {
-              include: { family: { select: { ownerId: true } } },
+              include: {
+                family: {
+                  select: {
+                    ownerId: true,
+                    owner: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -64,7 +80,6 @@ async function run(req: NextRequest) {
       take: 200,
     })
 
-    // Extra filter for tick mode (in case prev day boundary edge cases)
     const dueReminders =
       mode === 'tick'
         ? candidates.filter((r) => isDueNow(r.time, clock))
@@ -85,16 +100,18 @@ async function run(req: NextRequest) {
     let sent = 0
     let skipped = 0
     let failed = 0
+    const channels: Record<string, number> = {}
 
     for (const reminder of dueReminders) {
-      // Already pushed for this dose slot (reminderCount bumped on first send)
       if (reminder.reminderCount > 0) {
         skipped++
         continue
       }
 
+      const medUser = reminder.medication?.user
+      const familyOwner = reminder.medication?.familyMember?.family?.owner
       const userId =
-        reminder.medication?.userId ||
+        medUser?.id ||
         reminder.medication?.familyMember?.family?.ownerId ||
         null
       if (!userId) {
@@ -105,12 +122,12 @@ async function run(req: NextRequest) {
       const medName = reminder.medication?.name || 'your medication'
       const dosage = reminder.medication?.dosage || ''
       const frequency = reminder.medication?.frequency || ''
-      const body =
-        [dosage, frequency, reminder.time].filter(Boolean).join(' · ') ||
-        `Reminder: take ${medName}`
+      const bodyBits = [dosage, frequency, reminder.time].filter(Boolean).join(' · ')
+      const body = bodyBits || `Reminder: take ${medName}`
       const title = `Time to take ${medName}`
       const dedupeKey = `dose:${reminder.id}`
 
+      // 1) Always write in-app inbox
       try {
         const already = await db.notificationLog.findFirst({
           where: {
@@ -139,24 +156,32 @@ async function run(req: NextRequest) {
         logger.phiSafeError(e, 'reminder.inApp')
       }
 
+      // 2) Multi-channel: push → email → WhatsApp → SMS
+      // Clinical dose alerts are never blocked by marketing opt-out.
       try {
-        const push = await sendPushToUser(userId, {
-          title,
-          body,
-          tag: `reminder-${reminder.id}`,
-          url: '/patient',
+        const route = await sendReminder(userId, medName, dosage || body, reminder.time, {
+          email: medUser?.email || familyOwner?.email || undefined,
+          phone: medUser?.phone || familyOwner?.phone || undefined,
         })
-        // Mark as notified so catchup / re-ticks do not spam
+
+        // Mark notified so re-ticks do not spam
         await db.reminder.update({
           where: { id: reminder.id },
           data: { reminderCount: { increment: 1 } },
         })
-        if (push.sent > 0 || push.failed === 0) {
+
+        const ch = route.channel || 'none'
+        channels[ch] = (channels[ch] || 0) + 1
+        if (route.delivered || ch === 'none') {
+          // none = no push/email/sms configured — still counted; inbox has the row
           sent++
         } else {
-          // No subscription on device — still counted as processed
           sent++
         }
+
+        // If primary user is a patient on family med with a caretaker owner,
+        // also notify the caretaker by email/push when delivery was push-only
+        // failure path — sendReminder already covers the owner when userId is owner.
       } catch (e) {
         try {
           await db.reminder.update({
@@ -166,8 +191,25 @@ async function run(req: NextRequest) {
         } catch {
           /* ignore */
         }
+        // Last-resort email if sendReminder threw
+        try {
+          const email = medUser?.email || familyOwner?.email
+          if (email) {
+            await sendNotification(
+              { userId, email },
+              {
+                title,
+                body: `${body}\n\nOpen Kynthai: https://kynthai.app/patient`,
+                type: 'reminder',
+                data: { url: '/patient' },
+              },
+            )
+          }
+        } catch {
+          /* ignore */
+        }
         sent++
-        logger.phiSafeError(e, 'reminder.push')
+        logger.phiSafeError(e, 'reminder.multiChannel')
       }
     }
 
@@ -178,6 +220,7 @@ async function run(req: NextRequest) {
       sent,
       skipped,
       failed,
+      channels,
       time: clock.timeStr,
       date: clock.dateStr,
     })

@@ -62,7 +62,8 @@ import { useToast } from '@/hooks/use-toast';
 import { playProfessionalRingtone, stopAllRingtones } from '@/lib/alarm';
 import { TodayView } from '@/components/medication/today-view';
 import { MedicationsList } from '@/components/medication/medications-list';
-import { MedicationAlarmHost } from '@/components/medication/medication-alarm-host';
+import { MedicationAlarmHost } from '@/components/medication/medication-alarm-host'
+import { WebAlertsBanner } from '@/components/kynthai/web-alerts-banner';
 import { AiChat } from '@/components/medication/ai-chat';
 import { CareHub } from '@/components/kynthai/caretaker/care-hub';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
@@ -1240,7 +1241,10 @@ export function PatientApp({ user }: { user: AuthUser }) {
 
   return (
     <div className="relative min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
+      <>
+      <WebAlertsBanner />
       <MedicationAlarmHost userId={user.id} isDemo={isDemo} />
+      </>
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 pt-safe">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <KynthaiBrand iconSize={30} />
