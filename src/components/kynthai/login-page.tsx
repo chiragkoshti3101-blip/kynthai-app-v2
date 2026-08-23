@@ -146,8 +146,15 @@ export function LoginPage({
   // ───────────────────────────────────────────────────────────────────────────
 
   const [mode, setMode] = React.useState<'signin' | 'register'>(initialMode);
-  const [email, setEmail] = React.useState('');
+  const [email, setEmail] = React.useState(() => {
+    try {
+      return typeof window !== 'undefined' ? sessionStorage.getItem('kynthai.login.email') || '' : ''
+    } catch {
+      return ''
+    }
+  });
   const [password, setPassword] = React.useState('');
+  const [formError, setFormError] = React.useState<string | null>(null);
   const [name, setName] = React.useState('');
   const [phone, setPhone] = React.useState('');
   const [dateOfBirth, setDateOfBirth] = React.useState('');
@@ -327,6 +334,7 @@ export function LoginPage({
       return;
     }
 
+    setFormError(null);
     setLoading(true);
     try {
       // Turnstile tokens are single-use: track the token sent with each
@@ -417,11 +425,15 @@ export function LoginPage({
       // A failed submit consumed the single-use CAPTCHA token — reset the
       // widget so the next attempt mints a fresh one instead of replaying a
       // stale token (which fails with CAPTCHA_FAILED).
+      // Keep email + password — never wipe the form on a failed attempt.
+      // Only refresh CAPTCHA (single-use tokens); do not remount the page.
       turnstileRef.current?.reset();
       setCaptchaToken(null);
+      const msg = err instanceof Error ? err.message : String(err);
+      setFormError(msg);
       toast({
         title: mode === 'signin' ? 'Sign in failed' : 'Registration failed',
-        description: err instanceof Error ? err.message : String(err),
+        description: msg,
         variant: 'destructive',
       });
     } finally {
@@ -684,7 +696,17 @@ export function LoginPage({
                 )}
                 {/* ───────────────────────────────────────────────────────────────────── */}
 
-                <form id="login-form" onSubmit={submit} className="space-y-4">
+                <form id="login-form" onSubmit={submit} className="space-y-4" noValidate>
+                {formError && (
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-700 dark:text-rose-300"
+                  >
+                    <p className="font-semibold">Could not sign in</p>
+                    <p className="mt-0.5 text-xs opacity-90">{formError}</p>
+                    <p className="mt-1 text-[11px] opacity-80">Your email was kept — fix the password and try again.</p>
+                  </div>
+                )}
                   {/* Registration fields - always rendered, hidden when mode === 'signin' */}
                   <div
                     className={cn('space-y-3.5', mode === 'register' ? 'block' : 'hidden')}
@@ -772,7 +794,12 @@ export function LoginPage({
                       type="email"
                       placeholder="you@example.com"
                       value={email}
-                      onChange={e => setEmail(e.target.value)}
+                      onChange={e => {
+                        const v = e.target.value
+                        setEmail(v)
+                        setFormError(null)
+                        try { sessionStorage.setItem('kynthai.login.email', v) } catch { /* ignore */ }
+                      }}
                       autoComplete="email"
                       required
                     />
@@ -801,7 +828,10 @@ export function LoginPage({
                         type={showPassword ? 'text' : 'password'}
                         placeholder="Enter your password"
                         value={password}
-                        onChange={e => setPassword(e.target.value)}
+                        onChange={e => {
+                          setPassword(e.target.value)
+                          setFormError(null)
+                        }}
                         autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                         required
                         minLength={mode === 'register' ? 8 : undefined}
