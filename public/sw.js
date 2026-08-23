@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = 'b2338ab-mt4ptvz5'
+const DEPLOY_ID = '450dab4-closed-push'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -139,14 +139,18 @@ self.addEventListener('push', (event) => {
     data = { title: 'Kynthai', body: event.data ? event.data.text() : '' }
   }
   const title = data.title || 'Kynthai'
+  const tag = data.tag || 'kynthai-default'
+  const isDose = String(tag).startsWith('reminder-') || String(tag).startsWith('missed-')
   const options = {
     body: data.body || '',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: [100, 50, 100],
+    vibrate: isDose ? [200, 100, 200, 100, 200] : [100, 50, 100],
     data: { url: data.url || '/' },
-    tag: data.tag || 'kynthai-default',
-    renotify: !!data.renotify,
+    tag,
+    renotify: true,
+    // Keep med alarms visible until the user acts (OS-dependent)
+    requireInteraction: isDose,
   }
   event.waitUntil(self.registration.showNotification(title, options))
 })

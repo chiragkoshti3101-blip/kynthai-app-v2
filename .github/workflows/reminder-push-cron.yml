@@ -1,0 +1,44 @@
+# Closed-app medication pushes.
+# Vercel Hobby only allows 1 cron run/day — this GitHub Action hits
+# /api/reminders/send every 5 minutes so Web Push still fires when the
+# user has closed the PWA.
+#
+# Required GitHub repo secrets:
+#   CRON_SECRET  — same value as Vercel env CRON_SECRET
+#   APP_URL      — https://kynthai.app  (no trailing slash)
+#
+name: Reminder push (closed-app)
+
+on:
+  schedule:
+    # Every 5 minutes — GitHub may drift a few minutes; send route uses a
+    # 2-minute due window so doses are not missed.
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Trigger dose push
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CRON_SECRET:-}" ] || [ -z "${APP_URL:-}" ]; then
+            echo "Missing CRON_SECRET or APP_URL secret — skip (configure repo secrets)."
+            exit 0
+          fi
+          # Minute-accurate tick
+          code=$(curl -sS -o /tmp/out.json -w "%{http_code}" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H "Accept: application/json" \
+            "${APP_URL}/api/reminders/send?mode=tick" || true)
+          echo "HTTP $code"
+          cat /tmp/out.json || true
+          # Soft-fail: do not red the workflow on transient 5xx
+          if [ "$code" != "200" ] && [ "$code" != "204" ]; then
+            echo "Non-OK response (will retry next tick)"
+          fi
