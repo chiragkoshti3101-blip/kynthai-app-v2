@@ -9,18 +9,18 @@ import { clockParts, isDueNow } from '@/lib/reminder-clock'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
+const ZONES = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'Asia/Kolkata',
+  'UTC',
+]
+
 /**
- * GET+POST /api/reminders/send
- *
- * Closed-app / web / mobile dose delivery.
- *
- * Strategy (billion-dollar product rule: never depend on one channel):
- *   1. In-app inbox row (always, for every portal)
- *   2. sendReminder → Push ($0) → Email → WhatsApp → SMS
- *      so pure-web users (no PWA, no push) still get email/SMS
- *
- * Auth: Authorization: Bearer $CRON_SECRET
- * Query: mode=tick | mode=catchup (default catchup for daily Vercel cron)
+ * Closed-app dose delivery: push + email when the browser is closed.
+ * Multi-timezone so IST users are not stuck on ET-only matching.
  */
 async function run(req: NextRequest) {
   const limited = rateLimit(req, 30, 60_000)
@@ -31,45 +31,51 @@ async function run(req: NextRequest) {
 
   const modeParam = req.nextUrl.searchParams.get('mode')
   const mode = modeParam === 'tick' ? 'tick' : 'catchup'
-  // Multi-zone: US product + India (and major US zones) so closing the app
-  // still fires when the user set "local" HH:MM in their region.
-  const ZONES = [
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'Asia/Kolkata',
-    'UTC',
-  ] as const
-  const clocks = ZONES.map((tz) => ({ tz, clock: clockParts(tz) }))
-  const primary = clocks[0]!.clock
-  const dateSet = [...new Set(clocks.map((c) => c.clock.isoDate))]
-  const dates = dateSet.map((iso) => new Date(iso))
+  const primary = clockParts('America/New_York')
 
   try {
-    const includeMed = {
-      medication: {
+    const seen = new Set<string>()
+    const dueReminders: Awaited<ReturnType<typeof db.reminder.findMany>> = []
+
+    for (const tz of ZONES) {
+      const clock = clockParts(tz)
+      const date = new Date(`${clock.dateStr}T12:00:00.000Z`)
+      const candidates = await db.reminder.findMany({
+        where: {
+          date,
+          status: 'pending',
+          reminderCount: 0,
+          ...(mode === 'catchup'
+            ? { time: { lte: clock.timeStr } }
+            : {
+                OR: [{ time: clock.timeStr }, { time: clock.prevTimeStr }],
+              }),
+        },
         include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-              emailOptOut: true,
-            },
-          },
-          familyMember: {
+          medication: {
             include: {
-              family: {
+              user: {
                 select: {
-                  ownerId: true,
-                  owner: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  phone: true,
+                  emailOptOut: true,
+                },
+              },
+              familyMember: {
+                include: {
+                  family: {
                     select: {
-                      id: true,
-                      name: true,
-                      email: true,
-                      phone: true,
+                      ownerId: true,
+                      owner: {
+                        select: {
+                          id: true,
+                          name: true,
+                          email: true,
+                          phone: true,
+                        },
+                      },
                     },
                   },
                 },
@@ -77,35 +83,16 @@ async function run(req: NextRequest) {
             },
           },
         },
-      },
-    } as const
+        take: 100,
+      })
 
-    // Collect pending rows for any zone's "today"
-    const pendingPool = await db.reminder.findMany({
-      where: {
-        status: 'pending',
-        date: { in: dates },
-        reminderCount: 0,
-      },
-      include: includeMed,
-      take: 400,
-    })
-
-    const dueIds = new Set<string>()
-    for (const { clock } of clocks) {
-      for (const r of pendingPool) {
-        const rDate = r.date instanceof Date ? r.date.toISOString().slice(0, 10) : String(r.date).slice(0, 10)
-        if (rDate !== clock.dateStr) continue
-        if (mode === 'tick') {
-          if (isDueNow(r.time, clock)) dueIds.add(r.id)
-        } else {
-          if (r.time <= clock.timeStr) dueIds.add(r.id)
-        }
+      for (const r of candidates) {
+        if (seen.has(r.id)) continue
+        if (mode === 'tick' && !isDueNow(r.time, clock)) continue
+        seen.add(r.id)
+        dueReminders.push(r)
       }
     }
-
-    const dueReminders = pendingPool.filter((r) => dueIds.has(r.id))
-    const clock = primary
 
     if (dueReminders.length === 0) {
       return jsonOk({
@@ -114,8 +101,9 @@ async function run(req: NextRequest) {
         sent: 0,
         skipped: 0,
         message: 'No reminders due',
-        time: clock.timeStr,
-        date: clock.dateStr,
+        time: primary.timeStr,
+        date: primary.dateStr,
+        zones: ZONES,
       })
     }
 
@@ -148,8 +136,8 @@ async function run(req: NextRequest) {
       const body = bodyBits || `Reminder: take ${medName}`
       const title = `Time to take ${medName}`
       const dedupeKey = `dose:${reminder.id}`
+      const date = reminder.date
 
-      // 1) Always write in-app inbox
       try {
         const already = await db.notificationLog.findFirst({
           where: {
@@ -178,32 +166,18 @@ async function run(req: NextRequest) {
         logger.phiSafeError(e, 'reminder.inApp')
       }
 
-      // 2) Multi-channel: push → email → WhatsApp → SMS
-      // Clinical dose alerts are never blocked by marketing opt-out.
       try {
         const route = await sendReminder(userId, medName, dosage || body, reminder.time, {
           email: medUser?.email || familyOwner?.email || undefined,
           phone: medUser?.phone || familyOwner?.phone || undefined,
         })
-
-        // Mark notified so re-ticks do not spam
         await db.reminder.update({
           where: { id: reminder.id },
           data: { reminderCount: { increment: 1 } },
         })
-
         const ch = route.channel || 'none'
         channels[ch] = (channels[ch] || 0) + 1
-        if (route.delivered || ch === 'none') {
-          // none = no push/email/sms configured — still counted; inbox has the row
-          sent++
-        } else {
-          sent++
-        }
-
-        // If primary user is a patient on family med with a caretaker owner,
-        // also notify the caretaker by email/push when delivery was push-only
-        // failure path — sendReminder already covers the owner when userId is owner.
+        sent++
       } catch (e) {
         try {
           await db.reminder.update({
@@ -213,7 +187,6 @@ async function run(req: NextRequest) {
         } catch {
           /* ignore */
         }
-        // Last-resort email if sendReminder threw
         try {
           const email = medUser?.email || familyOwner?.email
           if (email) {
@@ -243,8 +216,9 @@ async function run(req: NextRequest) {
       skipped,
       failed,
       channels,
-      time: clock.timeStr,
-      date: clock.dateStr,
+      time: primary.timeStr,
+      date: primary.dateStr,
+      zones: ZONES,
     })
   } catch (error) {
     logger.phiSafeError(error)
