@@ -108,15 +108,7 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
 
           {/* CTA buttons — primary 48px, secondary 44px, full-width on mobile */}
           <div className="mt-6 flex w-full max-w-md flex-col gap-3 sm:mt-8 sm:max-w-none sm:flex-row sm:items-center">
-            <Button
-              variant="brand"
-              size="cta"
-              onClick={() => onGetStarted('patient')}
-              className="w-full shadow-emerald-600/25 sm:w-auto"
-            >
-              Get Started Free
-              <ArrowRight className="h-4 w-4" />
-            </Button>
+            <GetStartedButton onGetStarted={onGetStarted} />
             <Button
               size="ctaSecondary"
               variant="outline"
@@ -154,4 +146,26 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
       </div>
     </section>
   );
+}
+
+
+function GetStartedButton({ onGetStarted }: { onGetStarted: (type?: string) => void }) {
+  const [pending, setPending] = React.useState(false)
+  return (
+    <Button
+      variant="brand"
+      size="cta"
+      disabled={pending}
+      onClick={() => {
+        setPending(true)
+        onGetStarted('patient')
+        // Safety: if navigation is slow, re-enable after 4s
+        window.setTimeout(() => setPending(false), 4000)
+      }}
+      className="w-full shadow-emerald-600/25 sm:w-auto"
+    >
+      {pending ? 'Opening…' : 'Get Started Free'}
+      <ArrowRight className={pending ? 'h-4 w-4 animate-pulse' : 'h-4 w-4'} />
+    </Button>
+  )
 }

@@ -30,8 +30,12 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
     const onScroll = () => setScrolled(window.scrollY > 12)
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
+    try {
+      router.prefetch('/login')
+      router.prefetch('/register')
+    } catch { /* ignore */ }
     return () => window.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [router])
 
   const goScreen = (s: AppScreen) => { setScreen(s); router.push('/') }
 

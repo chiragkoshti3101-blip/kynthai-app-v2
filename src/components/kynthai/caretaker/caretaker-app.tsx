@@ -49,7 +49,8 @@ import { FamilyMemberSchedule } from './member-schedule';
 import { MedicationsList } from '@/components/medication/medications-list';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
 import { MedicationAlarmHost } from '@/components/medication/medication-alarm-host'
-import { WebAlertsBanner } from '@/components/kynthai/web-alerts-banner';
+import { WebAlertsBanner } from '@/components/kynthai/web-alerts-banner'
+import { InstallAppBanner } from '@/components/kynthai/install-app-banner';
 import { FamilyCircle } from '@/components/kynthai/family/family-circle';
 import { OfflineIndicator } from '@/components/kynthai/offline-indicator';
 import { useOfflineQueue } from '@/hooks/use-offline-queue';
@@ -491,6 +492,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
 
   return (
     <div className="relative min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
+      <InstallAppBanner />
       <WebAlertsBanner />
       {selectedMember && (
         <MedicationAlarmHost
@@ -539,7 +541,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
       )}
 
       <main id="main-content" className="mx-auto max-w-3xl w-full flex-1 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
-        <AnimatePresence mode="wait">
+        <AnimatePresence initial={false}>
           {tab === 'family' && (
             <FadeIn key="family">
               <FamilyTab

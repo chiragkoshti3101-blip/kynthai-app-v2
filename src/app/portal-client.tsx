@@ -329,6 +329,16 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     }
   }, [user, onboardingComplete, completeOnboarding, pathname, router]);
 
+  // Prefetch auth routes so Get Started / Sign in feel instant
+  useEffect(() => {
+    try {
+      router.prefetch('/login')
+      router.prefetch('/register')
+      router.prefetch('/patient')
+      router.prefetch('/caretaker')
+    } catch { /* ignore */ }
+  }, [router])
+
   // ─── Hydration guard & route resolution ─────────────────────────────────
   // Public, passthrough, and portal routes render `children` immediately
   // (they don't read store state that changes during server-side hydration).

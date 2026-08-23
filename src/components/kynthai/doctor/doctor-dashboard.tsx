@@ -833,7 +833,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
           </Button>
         </div>
 
-        <AnimatePresence mode="wait">
+        <AnimatePresence initial={false}>
           {view === 'overview' && (
             <FadeIn key="overview">
               <>

@@ -63,7 +63,8 @@ import { playProfessionalRingtone, stopAllRingtones } from '@/lib/alarm';
 import { TodayView } from '@/components/medication/today-view';
 import { MedicationsList } from '@/components/medication/medications-list';
 import { MedicationAlarmHost } from '@/components/medication/medication-alarm-host'
-import { WebAlertsBanner } from '@/components/kynthai/web-alerts-banner';
+import { WebAlertsBanner } from '@/components/kynthai/web-alerts-banner'
+import { InstallAppBanner } from '@/components/kynthai/install-app-banner';
 import { AiChat } from '@/components/medication/ai-chat';
 import { CareHub } from '@/components/kynthai/caretaker/care-hub';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
@@ -1242,6 +1243,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
   return (
     <div className="relative min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
       <>
+      <InstallAppBanner />
       <WebAlertsBanner />
       <MedicationAlarmHost userId={user.id} isDemo={isDemo} />
       </>
@@ -1279,7 +1281,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
       </header>
 
       <main id="main-content" className="mx-auto max-w-3xl w-full flex-1 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
-        <AnimatePresence mode="wait">
+        <AnimatePresence initial={false}>
           {tab === 'home' && (
             <FadeIn key="home">
               <HomeTab

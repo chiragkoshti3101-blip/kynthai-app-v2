@@ -196,7 +196,7 @@ export function FadeIn({
       controls.start({
         opacity: 1,
         y: 0,
-        transition: { duration: reduced ? 0 : 0.4, delay, ease: 'easeOut' },
+        transition: { duration: reduced ? 0 : 0.18, delay: reduced ? 0 : delay * 0.5, ease: 'easeOut' },
       })
     })
     return () => cancelAnimationFrame(raf)
@@ -204,9 +204,9 @@ export function FadeIn({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
+      initial={reduced ? false : { opacity: 0, y: 6 }}
       animate={controls}
-      exit={reduced ? {} : { opacity: 0, y: -8 }}
+      exit={reduced ? undefined : { opacity: 0, transition: { duration: 0.1 } }}
       className={className}
     >
       {children}
