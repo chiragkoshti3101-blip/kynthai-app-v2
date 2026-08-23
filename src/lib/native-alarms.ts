@@ -133,7 +133,9 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
             alarm: '1',
             ...input.extra,
           },
-          sound: 'beep.wav',
+          // iOS: omit custom name so system default alert plays (invalid file = silent)
+          // Android: beep.wav in res/raw
+          ...(platform === 'ios' ? {} : { sound: 'beep.wav' }),
         },
       ],
     })

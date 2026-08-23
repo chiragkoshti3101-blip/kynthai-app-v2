@@ -109,6 +109,8 @@ export function notifyReminder(title: string, body: string) {
       requireInteraction: true,
       silent: false,
       renotify: true,
+      // @ts-expect-error iOS Safari accepts sound in some versions
+      sound: 'default',
     } as NotificationOptions)
     n.onclick = () => {
       window.focus()

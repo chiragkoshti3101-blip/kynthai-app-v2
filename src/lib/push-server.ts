@@ -63,7 +63,14 @@ export async function sendPushToUser(
       try {
         await webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          message
+          message,
+          {
+            TTL: 60 * 60,
+            urgency: 'high',
+            headers: {
+              Urgency: 'high',
+            },
+          },
         )
         sent++
       } catch (err: any) {

@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = 'persist-alarm-v5'
+const DEPLOY_ID = 'ios-sound-v6'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -216,7 +216,9 @@ self.addEventListener('push', (event) => {
     tag: isDose ? 'kynthai-dose-alarm' : isEmergency ? 'kynthai-emergency' : String(tag),
     renotify: true,
     requireInteraction: isClinical, // stays until dismiss / click
-    silent: false, // allow OS sound when permitted
+    silent: false,
+    // iOS Safari / Android: default OS alert sound (custom sound limited on web)
+    sound: 'default',
     actions: isDose
       ? [
           { action: 'open-alarm', title: 'Open alarm' },
