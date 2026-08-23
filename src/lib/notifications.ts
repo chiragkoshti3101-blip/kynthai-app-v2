@@ -127,8 +127,12 @@ export async function sendNotification(
     const r = await sendPushToUser(target.userId, {
       title: payload.title,
       body: payload.body,
-      tag: payload.data?.type as string | undefined,
-      url: payload.data?.url as string | undefined,
+      tag: (payload.data?.type as string | undefined) || payload.type,
+      url: (payload.data?.url as string | undefined) || undefined,
+      medName: payload.data?.medName as string | undefined,
+      time: payload.data?.scheduledTime as string | undefined,
+      dosage: payload.data?.dosage as string | undefined,
+      reminderId: payload.data?.reminderId as string | undefined,
     })
     const cost = CHANNEL_COST.push
     const ok = r.sent > 0
@@ -237,10 +241,16 @@ export async function sendReminder(
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(userId)), ...overrides }
   return sendNotification(target, {
-    title: '💊 Medication reminder',
-    body: `Time to take ${medName} (${dosage}) — scheduled at ${scheduledTime}. Tap to mark as taken.`,
+    title: `Time to take ${medName}`,
+    body: `${dosage ? dosage + ' · ' : ''}${scheduledTime} — Open for full-screen alarm. Mark Taken or Skip.`,
     type: 'reminder',
-    data: { medName, scheduledTime },
+    data: {
+      medName,
+      scheduledTime,
+      dosage,
+      type: 'reminder',
+      url: '/patient?alarm=1',
+    },
   })
 }
 

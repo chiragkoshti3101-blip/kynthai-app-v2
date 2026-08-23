@@ -8,7 +8,16 @@ import webpush from 'web-push'
  */
 export async function sendPushToUser(
   userId: string,
-  payload: { title: string; body: string; tag?: string; url?: string }
+  payload: {
+    title: string
+    body: string
+    tag?: string
+    url?: string
+    medName?: string
+    time?: string
+    dosage?: string
+    reminderId?: string
+  },
 ): Promise<{ sent: number; failed: number }> {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
   const privateKey = process.env.VAPID_PRIVATE_KEY
@@ -30,9 +39,22 @@ export async function sendPushToUser(
       title: payload.title || 'Kynthai',
       body: payload.body || '',
       tag: payload.tag || 'kynthai-notification',
+      type: payload.tag || 'kynthai',
+      url: payload.url || '/',
+      medName: payload.medName,
+      time: payload.time,
+      dosage: payload.dosage,
+      reminderId: payload.reminderId,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      data: { url: payload.url || '/', type: payload.tag || 'kynthai' },
+      data: {
+        url: payload.url || '/',
+        type: payload.tag || 'kynthai',
+        medName: payload.medName,
+        time: payload.time,
+        dosage: payload.dosage,
+        reminderId: payload.reminderId,
+      },
     })
 
     let sent = 0

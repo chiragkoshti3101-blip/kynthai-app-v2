@@ -331,6 +331,62 @@ export function MedicationAlarmHost({
     setTimeout(() => scheduleRef.current(), 800)
   }
 
+
+  // Closed-app / background: service worker push → full-screen alarm + ring
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
+
+    const onMsg = (event: MessageEvent) => {
+      const d = event.data
+      if (!d || d.type !== 'SHOW_MED_ALARM') return
+      unlockAudio()
+      const synthetic: HostReminder = {
+        id: d.reminderId || `push-${Date.now()}`,
+        time: d.time || new Date().toTimeString().slice(0, 5),
+        status: 'pending',
+        medication: {
+          name: d.medName || d.title || 'Medication',
+          dosage: d.dosage || '',
+        },
+      }
+      setAlarmTarget(synthetic)
+      if (!isAlarmRinging()) {
+        if (alarmMode === 'alert') playAlertRingtone()
+        else playProfessionalRingtone()
+      }
+    }
+
+    navigator.serviceWorker.addEventListener('message', onMsg)
+
+    // Deep link: /patient?alarm=1 after tapping system notification
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('alarm') === '1') {
+        const med = params.get('med') || 'Medication'
+        unlockAudio()
+        setAlarmTarget({
+          id: `url-alarm-${Date.now()}`,
+          time: new Date().toTimeString().slice(0, 5),
+          status: 'pending',
+          medication: { name: med, dosage: '' },
+        })
+        if (!isAlarmRinging()) {
+          if (alarmMode === 'alert') playAlertRingtone()
+          else playProfessionalRingtone()
+        }
+        // Clean query so refresh does not re-fire forever
+        params.delete('alarm')
+        params.delete('med')
+        const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}`
+        window.history.replaceState({}, '', next)
+      }
+    } catch {
+      /* ignore */
+    }
+
+    return () => navigator.serviceWorker.removeEventListener('message', onMsg)
+  }, [alarmMode])
+
   if (!alarmEnabled || !alarmTarget) return null
 
   const medName = alarmTarget.medication?.name ?? 'Medication'
@@ -353,8 +409,8 @@ export function MedicationAlarmHost({
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">
-            Medication reminder
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300 animate-pulse">
+            ⏰ Medication alarm
           </p>
           <h2 id="dose-alarm-title" className="text-2xl font-bold tracking-tight text-white">
             Time to take {medName}
@@ -386,7 +442,8 @@ export function MedicationAlarmHost({
         </div>
 
         <p className="text-[11px] text-emerald-100/70 max-w-[260px]">
-          This screen stays until you act. If you miss the window, your caretaker may be notified.
+          Full-screen alarm — sound keeps playing until you mark Taken or Skip.
+          If you miss the window, your caretaker may be notified.
         </p>
       </div>
     </div>

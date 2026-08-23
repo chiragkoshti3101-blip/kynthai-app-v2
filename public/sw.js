@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = '20260823-closedapp-v3'
+const DEPLOY_ID = 'alarm-fullscreen-v4'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -140,33 +140,100 @@ self.addEventListener('push', (event) => {
   }
   const title = data.title || 'Kynthai'
   const tag = data.tag || 'kynthai-default'
-  const isDose = String(tag).startsWith('reminder-') || String(tag).startsWith('missed-')
+  const isDose =
+    String(tag).startsWith('reminder-') ||
+    String(tag).startsWith('missed-') ||
+    String(data.type || '').includes('remind') ||
+    String(title).toLowerCase().includes('time to take')
+
+  // If any app window is open (even background tab), wake full-screen alarm + ring
+  const wakeClients = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (const client of list) {
+      try {
+        client.postMessage({
+          type: 'SHOW_MED_ALARM',
+          title,
+          body: data.body || '',
+          tag,
+          medName: data.medName || title,
+          time: data.time || '',
+          dosage: data.dosage || '',
+          reminderId: data.reminderId || null,
+        })
+      } catch (_) { /* ignore */ }
+    }
+    return list.length
+  })
+
+  const alarmUrl = isDose
+    ? (data.url || '/patient') + (String(data.url || '/patient').includes('?') ? '&' : '?') + 'alarm=1'
+    : (data.url || '/')
+
   const options = {
-    body: data.body || '',
+    body: data.body || (isDose ? 'Open Kynthai — full-screen alarm' : ''),
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: isDose ? [200, 100, 200, 100, 200] : [100, 50, 100],
-    data: { url: data.url || '/', type: data.type || tag },
-    tag,
+    vibrate: isDose ? [400, 200, 400, 200, 400, 200, 400] : [100, 50, 100],
+    data: {
+      url: alarmUrl,
+      type: data.type || tag,
+      isDose,
+      medName: data.medName || title,
+      time: data.time || '',
+      dosage: data.dosage || '',
+      reminderId: data.reminderId || null,
+    },
+    tag: isDose ? 'kynthai-dose-alarm' : tag,
     renotify: true,
     requireInteraction: isDose,
-    // Android shows app name from manifest; title+body is the OLX/Zomato pattern
     silent: false,
+    // Android action buttons — still open full-screen alarm for Taken/Skip UI
+    actions: isDose
+      ? [
+          { action: 'open-alarm', title: 'Open alarm' },
+          { action: 'taken', title: 'Taken' },
+        ]
+      : [],
   }
-  event.waitUntil(self.registration.showNotification(title, options))
+
+  event.waitUntil(
+    Promise.all([
+      wakeClients,
+      self.registration.showNotification(title, options),
+    ]),
+  )
 })
 
 self.addEventListener('notificationclick', (event) => {
+  const data = event.notification.data || {}
+  const isDose = data.isDose || event.notification.tag === 'kynthai-dose-alarm'
   event.notification.close()
-  const targetUrl = event.notification.data?.url || '/'
+
+  // Taken from notification tray — still open app so user confirms on full screen
+  let targetUrl = data.url || '/'
+  if (isDose) {
+    targetUrl = '/patient?alarm=1'
+    if (data.medName) {
+      targetUrl += '&med=' + encodeURIComponent(String(data.medName).slice(0, 80))
+    }
+  }
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
-        if (client.url.includes(targetUrl) && 'focus' in client) {
-          return client.focus()
-        }
-      }
-      for (const client of clientList) {
+        try {
+          client.postMessage({
+            type: 'SHOW_MED_ALARM',
+            title: event.notification.title,
+            body: event.notification.body,
+            medName: data.medName,
+            time: data.time,
+            dosage: data.dosage,
+            reminderId: data.reminderId,
+            fromNotification: true,
+            action: event.action || 'open',
+          })
+        } catch (_) { /* ignore */ }
         if ('focus' in client) return client.focus()
       }
       if (self.clients.openWindow) return self.clients.openWindow(targetUrl)
