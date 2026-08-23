@@ -243,20 +243,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     `appt=${appt.id} status=${nextStatus} commission=${commission}`
   );
 
-  // Notifications
+  // Notifications — including doctor Accept / Decline (cancel)
   try {
-    if (nextStatus !== appt.status && nextStatus !== 'cancelled') {
+    if (nextStatus !== appt.status) {
       const notifierId = isPatient ? appt.doctor.userId : appt.patientId;
       const isConfirmStep = nextStatus === 'confirmed' && appt.status === 'pending';
+      const isDoctorDecline =
+        nextStatus === 'cancelled' && isDoctor && appt.status === 'pending';
+      const isPatientCancel = nextStatus === 'cancelled' && isPatient;
+
+      let title = `Appointment ${nextStatus}`;
+      let body = `Your appointment is now "${nextStatus}".`;
+
+      if (isConfirmStep) {
+        title = 'Consultation accepted';
+        body =
+          `Dr. ${appt.doctor.user.name} accepted your request. $${appt.price / 100} has been charged. Kynthai holds payment until the consultation is completed.`;
+      } else if (isDoctorDecline) {
+        title = 'Consultation declined';
+        body = `Dr. ${appt.doctor.user.name} declined your consultation request. You can book another doctor from the Care tab.`;
+      } else if (isPatientCancel) {
+        title = 'Appointment cancelled by patient';
+        body = `${appt.patient?.name || 'Patient'} cancelled the appointment.`;
+      }
+
       await sendNotification(
         { userId: notifierId },
         {
-          title: isConfirmStep
-            ? 'Consultation confirmed — payment captured'
-            : `Appointment ${nextStatus}`,
-          body: isConfirmStep
-            ? `Dr. ${appt.doctor.user.name} accepted. $${appt.price / 100} has been charged. Kynthai holds payment until the consultation is completed.`
-            : `Your appointment is now "${nextStatus}".`,
+          title,
+          body,
           type: 'appointment_update',
           data: { appointmentId: appt.id, status: nextStatus },
         }

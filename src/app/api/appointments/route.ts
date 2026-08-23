@@ -211,16 +211,17 @@ export async function POST(req: NextRequest) {
       }
     ).catch(() => {});
 
-    // Also notify the doctor about the new appointment.
+    // Notify the doctor — actionable Accept / Decline in the doctor portal.
     void sendNotification(
       { userId: doctor.userId },
       {
-        title: 'New appointment booked',
-        body: `${u.name} booked a ${apptType} for ${apptDate}.\n\n` +
+        title: 'New consultation request — Accept or Decline',
+        body: `${u.name} requested a ${apptType} for ${apptDate}.\n\n` +
           `Reason: ${reason || 'General consultation'}\n\n` +
-          `Open Kynthai to view: ${process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app'}/doctor`,
+          `Open Kynthai Doctor → Patients / Appointments to Accept or Decline:\n` +
+          `${process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app'}/doctor`,
         type: 'appointment',
-        data: { appointmentId: appointment.id, patientId: u.id },
+        data: { appointmentId: appointment.id, patientId: u.id, action: 'accept_or_decline' },
       }
     ).catch(() => {});
 
