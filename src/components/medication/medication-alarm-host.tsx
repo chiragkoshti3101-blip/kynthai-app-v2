@@ -27,6 +27,12 @@ import {
   notifyReminder,
   requestAlarmNotificationPermission,
 } from '@/lib/alarm'
+import {
+  scheduleNativeAlarm,
+  ensureNativeNotificationPermission,
+  bindNativeNotificationOpen,
+  isNativeShell,
+} from '@/lib/native-alarms'
 
 type HostReminder = {
   id: string
@@ -41,6 +47,12 @@ const DEFAULT_ESCALATION_GRACE_MS = 15 * 60 * 1000
 function todayLocal() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+function hashId(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0
+  return h
 }
 
 async function getCsrf(): Promise<string | null> {
@@ -246,6 +258,19 @@ export function MedicationAlarmHost({
     const next = pickNextFutureReminder(pending)
     if (!next) return
     const wait = Math.max(1000, msUntilReminder(next.time))
+    // Native shell: exact OS alarm so dose covers the phone outside the app
+    try {
+      const at = new Date(Date.now() + wait)
+      const medName = next.medication?.name ?? 'Medication'
+      const nid = Math.abs(hashId(next.id)) % 2000000000
+      void scheduleNativeAlarm({
+        id: nid,
+        title: `Time to take ${medName}`,
+        body: `${next.medication?.dosage ?? ''} · ${next.time}`.trim() || 'Open Taken / Skip',
+        at,
+        medName,
+      })
+    } catch { /* ignore */ }
     alarmTimer.current = setTimeout(
       () => scheduleRef.current(),
       Math.min(wait, 6 * 60 * 60 * 1000),
@@ -331,6 +356,28 @@ export function MedicationAlarmHost({
     setTimeout(() => scheduleRef.current(), 800)
   }
 
+
+
+  React.useEffect(() => {
+    void ensureNativeNotificationPermission()
+    let unsub = () => {}
+    void bindNativeNotificationOpen((payload) => {
+      unlockAudio()
+      setAlarmTarget({
+        id: `native-${Date.now()}`,
+        time: new Date().toTimeString().slice(0, 5),
+        status: 'pending',
+        medication: { name: payload.medName || payload.title || 'Medication', dosage: '' },
+      })
+      if (!isAlarmRinging()) {
+        if (alarmMode === 'alert') playAlertRingtone()
+        else playProfessionalRingtone()
+      }
+    }).then((u) => {
+      unsub = u
+    })
+    return () => unsub()
+  }, [alarmMode])
 
   // Closed-app / background: service worker push → full-screen alarm + ring
   React.useEffect(() => {
