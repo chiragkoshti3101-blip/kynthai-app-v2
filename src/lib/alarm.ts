@@ -103,10 +103,13 @@ export function notifyReminder(title: string, body: string) {
   try {
     const n = new Notification(title, {
       body,
-      icon: '/icons/icon-192.png',
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
       tag: 'kynthai-med-reminder',
       requireInteraction: true,
-    })
+      silent: false,
+      renotify: true,
+    } as NotificationOptions)
     n.onclick = () => {
       window.focus()
       n.close()
@@ -156,8 +159,14 @@ export function isAlarmRinging(): boolean {
   return _isRinging
 }
 
-/** Immediately stop all active ringtones. */
+let _alarmLoop: ReturnType<typeof setInterval> | null = null
+
+/** Immediately stop all active ringtones and the continuous alarm loop. */
 export function stopAllRingtones() {
+  if (_alarmLoop) {
+    clearInterval(_alarmLoop)
+    _alarmLoop = null
+  }
   for (const osc of activeOscillators) {
     try { osc.stop() } catch { /* already stopped */ }
   }
@@ -166,44 +175,52 @@ export function stopAllRingtones() {
 }
 
 /**
- * Play the professional ringtone — gentle ascending chime.
- * Loops the melody to fill approximately 10 seconds.
+ * Keep ringing until stopAllRingtones() — real alarm behavior for doses / SOS.
+ * mode: 'professional' | 'alert'
  */
-export function playProfessionalRingtone() {
+export function startContinuousAlarm(mode: 'professional' | 'alert' = 'alert') {
+  stopAllRingtones()
+  const tick = () => {
+    if (mode === 'alert') playAlertRingtoneOnce()
+    else playProfessionalRingtoneOnce()
+  }
+  tick()
+  _alarmLoop = setInterval(tick, 8500)
+}
+
+function stopOscillatorsOnly() {
+  for (const osc of activeOscillators) {
+    try { osc.stop() } catch { /* already stopped */ }
+  }
+  activeOscillators = []
+}
+
+function playProfessionalRingtoneOnce() {
   try {
-    stopAllRingtones()
+    stopOscillatorsOnly()
     _isRinging = true
     const ctx = getAudioCtx()
     if (!ctx) return
     const now = ctx.currentTime
-
-    // Each cycle is ~1.2s. 8 cycles = ~9.6s ≈ 10 seconds.
     for (let cycle = 0; cycle < 8; cycle++) {
       const t = now + cycle * 1.25
-      playTone(ctx, 523.25, t, 0.4, 0.22, 'sine')         // C5
-      playTone(ctx, 659.25, t + 0.15, 0.4, 0.22, 'sine')  // E5
-      playTone(ctx, 783.99, t + 0.3, 0.6, 0.22, 'sine')   // G5
-      playTone(ctx, 1046.5, t + 0.7, 0.5, 0.15, 'sine')   // C6
+      playTone(ctx, 523.25, t, 0.4, 0.22, 'sine')
+      playTone(ctx, 659.25, t + 0.15, 0.4, 0.22, 'sine')
+      playTone(ctx, 783.99, t + 0.3, 0.6, 0.22, 'sine')
+      playTone(ctx, 1046.5, t + 0.7, 0.5, 0.15, 'sine')
     }
   } catch {
     _isRinging = false
   }
 }
 
-/**
- * Play the alert ringtone — louder repeating beep for elderly users.
- * Repeats the beep pattern to fill approximately 10 seconds.
- */
-export function playAlertRingtone() {
+function playAlertRingtoneOnce() {
   try {
-    stopAllRingtones()
+    stopOscillatorsOnly()
     _isRinging = true
     const ctx = getAudioCtx()
     if (!ctx) return
     const now = ctx.currentTime
-
-    // Each beep group takes ~0.35s. ~28 groups = ~9.8s ≈ 10 seconds.
-    // Each group: a sharp square-wave A5 + a softer sine E5 overlay.
     for (let i = 0; i < 28; i++) {
       const t = now + i * 0.35
       playTone(ctx, 880, t, 0.25, 0.45, 'square')
@@ -212,6 +229,22 @@ export function playAlertRingtone() {
   } catch {
     _isRinging = false
   }
+}
+
+/**
+ * Play the professional ringtone — gentle ascending chime.
+ * Loops the melody to fill approximately 10 seconds.
+ */
+export function playProfessionalRingtone() {
+  startContinuousAlarm('professional')
+}
+
+/**
+ * Play the alert ringtone — louder repeating beep for elderly users.
+ * Repeats the beep pattern to fill approximately 10 seconds.
+ */
+export function playAlertRingtone() {
+  startContinuousAlarm('alert')
 }
 
 /**

@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = 'alarm-fullscreen-v4'
+const DEPLOY_ID = 'persist-alarm-v5'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -139,79 +139,109 @@ self.addEventListener('push', (event) => {
     data = { title: 'Kynthai', body: event.data ? event.data.text() : '' }
   }
   const title = data.title || 'Kynthai'
-  const tag = data.tag || 'kynthai-default'
+  const body = data.body || ''
+  const tag = data.tag || data.type || 'kynthai-default'
+  const typeStr = String(data.type || tag || title).toLowerCase()
   const isDose =
+    typeStr.includes('remind') ||
+    typeStr.includes('missed') ||
+    typeStr.includes('escalat') ||
+    String(title).toLowerCase().includes('time to take') ||
     String(tag).startsWith('reminder-') ||
-    String(tag).startsWith('missed-') ||
-    String(data.type || '').includes('remind') ||
-    String(title).toLowerCase().includes('time to take')
+    String(tag).startsWith('missed-')
+  const isEmergency =
+    typeStr.includes('sos') ||
+    typeStr.includes('emerg') ||
+    typeStr.includes('alert') ||
+    String(title).toLowerCase().includes('sos')
+  const isClinical =
+    isDose ||
+    isEmergency ||
+    typeStr.includes('appoint') ||
+    typeStr.includes('consult') ||
+    typeStr.includes('lab') ||
+    typeStr.includes('booking') ||
+    typeStr.includes('family')
 
-  // If any app window is open (even background tab), wake full-screen alarm + ring
-  const wakeClients = self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-    for (const client of list) {
-      try {
-        client.postMessage({
-          type: 'SHOW_MED_ALARM',
-          title,
-          body: data.body || '',
-          tag,
-          medName: data.medName || title,
-          time: data.time || '',
-          dosage: data.dosage || '',
-          reminderId: data.reminderId || null,
-        })
-      } catch (_) { /* ignore */ }
-    }
-    return list.length
-  })
+  // Wake any open client into full-screen critical UI
+  const wakeClients = self.clients
+    .matchAll({ type: 'window', includeUncontrolled: true })
+    .then((list) => {
+      for (const client of list) {
+        try {
+          client.postMessage({
+            type: isDose || isEmergency ? 'SHOW_MED_ALARM' : 'SHOW_CRITICAL_ALERT',
+            title,
+            body,
+            tag,
+            medName: data.medName || title,
+            time: data.time || '',
+            dosage: data.dosage || '',
+            reminderId: data.reminderId || null,
+            clinical: isClinical,
+            emergency: isEmergency,
+          })
+        } catch (_) {}
+      }
+      return list.length
+    })
 
-  const alarmUrl = isDose
-    ? (data.url || '/patient') + (String(data.url || '/patient').includes('?') ? '&' : '?') + 'alarm=1'
-    : (data.url || '/')
+  let openUrl = data.url || '/'
+  if (isDose || isEmergency) {
+    const base = openUrl.split('?')[0] || '/patient'
+    openUrl = base + '?alarm=1'
+    if (data.medName) openUrl += '&med=' + encodeURIComponent(String(data.medName).slice(0, 80))
+  }
 
+  // CRITICAL: requireInteraction keeps the banner on screen until the user
+  // acts — so a busy doctor/lab/caretaker does not lose it after a few seconds.
   const options = {
-    body: data.body || (isDose ? 'Open Kynthai — full-screen alarm' : ''),
+    body: body || (isDose ? 'Full-screen alarm — open Kynthai now' : 'Open Kynthai'),
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: isDose ? [400, 200, 400, 200, 400, 200, 400] : [100, 50, 100],
+    vibrate: isClinical
+      ? [500, 200, 500, 200, 500, 200, 500, 200, 500]
+      : [120, 60, 120],
     data: {
-      url: alarmUrl,
+      url: openUrl,
       type: data.type || tag,
       isDose,
+      isEmergency,
+      isClinical,
       medName: data.medName || title,
       time: data.time || '',
       dosage: data.dosage || '',
       reminderId: data.reminderId || null,
     },
-    tag: isDose ? 'kynthai-dose-alarm' : tag,
+    tag: isDose ? 'kynthai-dose-alarm' : isEmergency ? 'kynthai-emergency' : String(tag),
     renotify: true,
-    requireInteraction: isDose,
-    silent: false,
-    // Android action buttons — still open full-screen alarm for Taken/Skip UI
+    requireInteraction: isClinical, // stays until dismiss / click
+    silent: false, // allow OS sound when permitted
     actions: isDose
       ? [
           { action: 'open-alarm', title: 'Open alarm' },
           { action: 'taken', title: 'Taken' },
         ]
-      : [],
+      : isClinical
+        ? [{ action: 'open', title: 'Open' }]
+        : [],
   }
 
   event.waitUntil(
-    Promise.all([
-      wakeClients,
-      self.registration.showNotification(title, options),
-    ]),
+    Promise.all([wakeClients, self.registration.showNotification(title, options)]),
   )
 })
 
 self.addEventListener('notificationclick', (event) => {
   const data = event.notification.data || {}
   const isDose = data.isDose || event.notification.tag === 'kynthai-dose-alarm'
-  event.notification.close()
+  const isEmergency = data.isEmergency || event.notification.tag === 'kynthai-emergency'
+  // Do NOT close clinical notifications until app is focused — keep visible if open fails
+  if (!data.isClinical) event.notification.close()
+  else event.notification.close()
 
-  // Taken from notification tray — still open app so user confirms on full screen
   let targetUrl = data.url || '/'
-  if (isDose) {
+  if (isDose || isEmergency) {
     targetUrl = '/patient?alarm=1'
     if (data.medName) {
       targetUrl += '&med=' + encodeURIComponent(String(data.medName).slice(0, 80))
@@ -231,9 +261,10 @@ self.addEventListener('notificationclick', (event) => {
             dosage: data.dosage,
             reminderId: data.reminderId,
             fromNotification: true,
+            emergency: isEmergency,
             action: event.action || 'open',
           })
-        } catch (_) { /* ignore */ }
+        } catch (_) {}
         if ('focus' in client) return client.focus()
       }
       if (self.clients.openWindow) return self.clients.openWindow(targetUrl)

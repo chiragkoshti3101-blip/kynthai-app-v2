@@ -387,6 +387,29 @@ export function MedicationAlarmHost({
     return () => navigator.serviceWorker.removeEventListener('message', onMsg)
   }, [alarmMode])
 
+  // Try browser Fullscreen API while alarm is active (best-effort; may need gesture)
+  React.useEffect(() => {
+    if (!alarmTarget) return
+    const el = document.documentElement
+    const go = async () => {
+      try {
+        if (!document.fullscreenElement && el.requestFullscreen) {
+          await el.requestFullscreen()
+        }
+      } catch {
+        /* blocked without user gesture — overlay still covers viewport */
+      }
+    }
+    void go()
+    return () => {
+      try {
+        if (document.fullscreenElement) void document.exitFullscreen()
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [alarmTarget])
+
   // Clinical: push-driven SHOW_MED_ALARM always shows full-screen even if
   // the user muted scheduled local timers (alarmEnabled=false).
   if (!alarmTarget) return null
@@ -403,7 +426,7 @@ export function MedicationAlarmHost({
       aria-modal="true"
       aria-labelledby="dose-alarm-title"
       aria-describedby="dose-alarm-desc"
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-emerald-950 text-white px-4 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black text-white px-4 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pointer-events-auto"
     >
       <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
         <div className="relative">
