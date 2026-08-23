@@ -387,7 +387,12 @@ export function MedicationAlarmHost({
     return () => navigator.serviceWorker.removeEventListener('message', onMsg)
   }, [alarmMode])
 
-  if (!alarmEnabled || !alarmTarget) return null
+  // Clinical: push-driven SHOW_MED_ALARM always shows full-screen even if
+  // the user muted scheduled local timers (alarmEnabled=false).
+  if (!alarmTarget) return null
+  if (!alarmEnabled && !String(alarmTarget.id).startsWith("push-") && !String(alarmTarget.id).startsWith("url-alarm-")) {
+    return null
+  }
 
   const medName = alarmTarget.medication?.name ?? 'Medication'
   const dosage = alarmTarget.medication?.dosage ?? ''
