@@ -12,7 +12,7 @@ const manifest = {
   scope: '/',
   display: 'standalone',
   background_color: '#ffffff',
-  theme_color: '#10b981',
+  theme_color: '#089868',
   orientation: 'portrait-primary',
   categories: ['health', 'medical', 'lifestyle'],
   shortcuts: [
@@ -33,20 +33,12 @@ const manifest = {
     },
   ],
   icons: [
-    {
-      src: '/icon-192.png',
-      sizes: '192x192',
-      type: 'image/png',
-      purpose: 'any maskable',
-    },
-    {
-      src: '/icon-512.png',
-      sizes: '512x512',
-      type: 'image/png',
-      purpose: 'any maskable',
-    },
+    { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+    { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
   ],
-  version: 'b2338ab-mt4ptvz5',
+  version: 'cb96d09-icon-v2',
 };
 
 export async function GET() {

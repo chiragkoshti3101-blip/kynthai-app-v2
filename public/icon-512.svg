@@ -1,15 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kynthai app icon">
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Kynthai">
   <defs>
-    <linearGradient id="kynthai-tree-grad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
-      <stop stopColor="#10b981"/>
-      <stop offset="1" stopColor="#0d9488"/>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#067852"/>
+      <stop offset="1" stop-color="#10b981"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="120" fill="#0f172a"/>
-  <line x1="140" y1="420" x2="372" y2="420" stroke="url(#kynthai-tree-grad)" stroke-width="20" stroke-linecap="round" opacity="0.4"/>
-  <path d="M 256 420 L 256 330" stroke="url(#kynthai-tree-grad)" stroke-width="36" stroke-linecap="round"/>
-  <path d="M 230 390 L 282 390" stroke="url(#kynthai-tree-grad)" stroke-width="18" stroke-linecap="round" opacity="0.5"/>
-  <path d="M 256 330 C 160 290, 80 240, 100 150 C 120 90, 190 70, 256 90 C 280 70, 330 70, 370 90 C 410 70, 440 110, 440 150 C 460 240, 380 290, 256 330Z" fill="url(#kynthai-tree-grad)" opacity="0.95"/>
-  <path d="M 256 280 C 200 240, 160 200, 170 140 C 180 100, 210 90, 256 100 C 300 90, 330 100, 340 140 C 350 200, 310 240, 256 280Z" fill="url(#kynthai-tree-grad)" opacity="0.25"/>
+  <rect width="512" height="512" fill="url(#g)"/>
+  <text x="256" y="310" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="300" font-weight="700" fill="white" letter-spacing="-8">K</text>
 </svg>

@@ -152,6 +152,9 @@ function maskPathIds(pathname: string): string {
 // require auth, move it out of this set and add a CSRF fetch to the handlers.
 const SYSTEM_API_PATHS = new Set([
   '/api/reminders/schedule',
+  '/api/reminders/send',
+  '/api/reminders/escalate',
+  '/api/appointment-reminders',
   '/api/chat/cleanup',
   '/api/auth/logout',
 ]);
