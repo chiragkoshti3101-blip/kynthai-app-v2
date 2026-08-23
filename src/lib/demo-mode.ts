@@ -14,5 +14,5 @@ export function isDemoUser(user?: { isDemo?: boolean; email?: string | null } | 
   if (!user) return false
   if (user.isDemo) return true
   const email = (user.email || '').toLowerCase()
-  return email.endsWith('@kynthai.app')
+  return email.endsWith('@kynthai.app') || email.endsWith('@demo.kynthai.app')
 }

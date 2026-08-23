@@ -342,7 +342,7 @@ export function MedicationAlarmHost({
       aria-modal="true"
       aria-labelledby="dose-alarm-title"
       aria-describedby="dose-alarm-desc"
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background/95 backdrop-blur-md px-4 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-emerald-950 text-white px-4 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]"
     >
       <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
         <div className="relative">
@@ -353,13 +353,13 @@ export function MedicationAlarmHost({
         </div>
 
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">
             Medication reminder
           </p>
-          <h2 id="dose-alarm-title" className="text-2xl font-bold tracking-tight">
+          <h2 id="dose-alarm-title" className="text-2xl font-bold tracking-tight text-white">
             Time to take {medName}
           </h2>
-          <p id="dose-alarm-desc" className="text-sm text-muted-foreground">
+          <p id="dose-alarm-desc" className="text-sm text-emerald-100/80">
             {alarmTarget.time}
             {dosage ? ` · ${dosage}` : ''}
           </p>
@@ -377,7 +377,7 @@ export function MedicationAlarmHost({
           <Button
             size="lg"
             variant="outline"
-            className="h-14 w-full text-base font-semibold"
+            className="h-14 w-full text-base font-semibold border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             onClick={() => handleAction(alarmTarget, 'skipped')}
           >
             <SkipForward className="h-5 w-5 mr-2" />
@@ -385,7 +385,7 @@ export function MedicationAlarmHost({
           </Button>
         </div>
 
-        <p className="text-[11px] text-muted-foreground max-w-[260px]">
+        <p className="text-[11px] text-emerald-100/70 max-w-[260px]">
           This screen stays until you act. If you miss the window, your caretaker may be notified.
         </p>
       </div>
