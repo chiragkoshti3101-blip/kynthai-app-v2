@@ -24,12 +24,15 @@ async function run(req: NextRequest) {
 
   const clock = clockParts()
   const date = new Date(clock.isoDate)
+  // Hobby plan: this job runs once daily (08:00 ET). Send every pending
+  // dose whose stored HH:MM is already due today, not only the current minute.
+  // While the app is open, MedicationAlarmHost covers minute-level timing.
 
   try {
     const dueReminders = await db.reminder.findMany({
       where: {
         date,
-        time: { in: [clock.timeStr, clock.prevTimeStr] },
+        time: { lte: clock.timeStr },
         status: 'pending',
       },
       include: {
@@ -73,18 +76,29 @@ async function run(req: NextRequest) {
       const title = `Time to take ${medName}`
 
       try {
-        await db.notificationLog.create({
-          data: {
+        const already = await db.notificationLog.findFirst({
+          where: {
             userId,
-            channel: 'in-app',
             type: 'reminder',
             title,
-            body,
-            recipient: userId,
-            status: 'sent',
-            cost: 0,
+            createdAt: { gte: date },
           },
+          select: { id: true },
         })
+        if (!already) {
+          await db.notificationLog.create({
+            data: {
+              userId,
+              channel: 'in-app',
+              type: 'reminder',
+              title,
+              body,
+              recipient: userId,
+              status: 'sent',
+              cost: 0,
+            },
+          })
+        }
       } catch (e) {
         logger.phiSafeError(e, 'reminder.inApp')
       }

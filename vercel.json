@@ -11,7 +11,7 @@
     },
     {
       "path": "/api/reminders/send",
-      "schedule": "* * * * *"
+      "schedule": "0 12 * * *"
     },
     {
       "path": "/api/chat/cleanup",
