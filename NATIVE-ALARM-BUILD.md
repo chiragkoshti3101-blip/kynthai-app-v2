@@ -25,3 +25,22 @@ npx cap open android
 2. Alarms & reminders (exact alarm)
 3. Full-screen notifications (Android 14+ special app access)
 
+
+## Platforms
+
+### Android
+Debug APK can be built with:
+```bash
+export ANDROID_HOME=... JAVA_HOME=...
+cd android && ./gradlew assembleDebug --max-workers=1
+# Output: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### iOS
+Requires **macOS + Xcode** (cannot build on Linux CI):
+```bash
+npx cap sync ios
+npx cap open ios
+# Xcode → Select device/simulator → Product → Archive
+```
+Add Push Notifications + Time Sensitive Notifications capability in Xcode for dose alerts.
