@@ -121,7 +121,7 @@ async function run(req: NextRequest) {
 
       const medUser = reminder.medication?.user
       const familyOwner = reminder.medication?.familyMember?.family?.owner
-      const userId =
+      const userId: string | null =
         medUser?.id ||
         reminder.medication?.familyMember?.family?.ownerId ||
         null
@@ -168,10 +168,16 @@ async function run(req: NextRequest) {
       }
 
       try {
-        const route = await sendReminder(userId, medName, dosage || body, reminder.time, {
-          email: medUser?.email || familyOwner?.email || undefined,
-          phone: medUser?.phone || familyOwner?.phone || undefined,
-        })
+        const route = await sendReminder(
+          userId as string,
+          String(medName),
+          String(dosage || body),
+          String(reminder.time),
+          {
+            email: medUser?.email || familyOwner?.email || undefined,
+            phone: medUser?.phone || familyOwner?.phone || undefined,
+          },
+        )
         await db.reminder.update({
           where: { id: reminder.id },
           data: { reminderCount: { increment: 1 } },

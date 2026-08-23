@@ -65,10 +65,10 @@ async function run(req: NextRequest) {
 
     const route = await sendReminder(
       u.id,
-      med.name,
+      med.name || 'Medication',
       med.dosage || '',
       time,
-      { email: u.email, phone: u.phone || undefined },
+      { email: u.email || undefined, phone: u.phone || undefined },
     )
 
     await db.reminder.update({
