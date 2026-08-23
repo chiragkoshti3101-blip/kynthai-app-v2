@@ -37,6 +37,7 @@ async function run(req: NextRequest) {
           userId: u.id,
           name: 'Test Metformin',
           dosage: '500mg',
+          times: time,
           frequency: 'As needed',
           active: true,
         },
