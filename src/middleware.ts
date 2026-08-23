@@ -378,7 +378,7 @@ function applyHeaders(res: NextResponse, pathname: string, requestId: string) {
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob: https: http:",
         "font-src 'self' data:",
-        "connect-src 'self' https://api.stripe.com https://checkout.stripe.com https://*.upstash.com https://www.google-analytics.com https://analytics.google.com https://api.mixpanel.com wss: stun: turn:",
+        "connect-src 'self' https://api.stripe.com https://checkout.stripe.com https://*.upstash.com https://www.google-analytics.com https://analytics.google.com https://api.mixpanel.com https://fcm.googleapis.com https://*.googleapis.com https://updates.push.services.mozilla.com https://*.push.services.mozilla.com wss: stun: turn:",
         "frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://*.stripe.com https://challenges.cloudflare.com",
         "frame-ancestors 'none'",
         "base-uri 'self'",

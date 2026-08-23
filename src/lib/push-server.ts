@@ -27,12 +27,12 @@ export async function sendPushToUser(
     if (subs.length === 0) return { sent: 0, failed: 0 }
 
     const message = JSON.stringify({
-      title: payload.title,
-      body: payload.body,
+      title: payload.title || 'Kynthai',
+      body: payload.body || '',
       tag: payload.tag || 'kynthai-notification',
       icon: '/icon-192.png',
       badge: '/icon-192.png',
-      data: { url: payload.url || '/' },
+      data: { url: payload.url || '/', type: payload.tag || 'kynthai' },
     })
 
     let sent = 0

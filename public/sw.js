@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = '450dab4-closed-push'
+const DEPLOY_ID = '012b398-syspush-v1'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -146,11 +146,12 @@ self.addEventListener('push', (event) => {
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     vibrate: isDose ? [200, 100, 200, 100, 200] : [100, 50, 100],
-    data: { url: data.url || '/' },
+    data: { url: data.url || '/', type: data.type || tag },
     tag,
     renotify: true,
-    // Keep med alarms visible until the user acts (OS-dependent)
     requireInteraction: isDose,
+    // Android shows app name from manifest; title+body is the OLX/Zomato pattern
+    silent: false,
   }
   event.waitUntil(self.registration.showNotification(title, options))
 })

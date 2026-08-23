@@ -3,6 +3,7 @@
 import { ThemeProvider } from '@/components/theme-provider'
 import { MotionConfig } from 'framer-motion'
 import { ServiceWorkerRegister } from '@/components/service-worker-register'
+import { AutoEnableNotifications } from '@/components/kynthai/auto-enable-notifications'
 import { AuthGuard } from '@/components/kynthai/auth-guard'
 import { Toaster } from '@/components/ui/toaster'
 import { CookieConsent, hasConsented } from '@/components/kynthai/cookie-consent'
@@ -41,6 +42,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <GlobalErrorCatcher />
       <ServiceWorkerRegister />
+      <AutoEnableNotifications />
       <DeferredAuthGuard />
       {children}
       <CookieConsent />
