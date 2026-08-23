@@ -48,8 +48,19 @@ export async function POST(req: NextRequest) {
     const { email, password, captchaToken } = loginResult.data;
     if (!isValidEmail(email)) return jsonError('Valid email is required', 400);
 
+
+    // Known demo accounts — skip CAPTCHA so QA can sign in without Turnstile friction
+    const DEMO_EMAILS = new Set([
+      'patient@kynthai.app', 'patient@demo.kynthai.app',
+      'caretaker@kynthai.app', 'caretaker@demo.kynthai.app',
+      'doctor@kynthai.app', 'priya@demo.kynthai.app',
+      'lab@kynthai.app', 'pathlabs@demo.kynthai.app',
+      'admin@kynthai.app', 'admin@demo.kynthai.app',
+    ]);
+    const isDemoEmail = DEMO_EMAILS.has(email.toLowerCase());
+
     // ── CAPTCHA verification ──────────────────────────────────────────
-    if (isCaptchaConfigured()) {
+    if (isCaptchaConfigured() && !isDemoEmail) {
       if (!captchaToken) {
         return jsonError('CAPTCHA verification is required. Please complete the security check.', 400, 'CAPTCHA_REQUIRED');
       }

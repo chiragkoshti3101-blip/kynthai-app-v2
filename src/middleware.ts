@@ -157,6 +157,7 @@ const SYSTEM_API_PATHS = new Set([
   '/api/appointment-reminders',
   '/api/chat/cleanup',
   '/api/auth/logout',
+  '/api/system/seed-demo',
 ]);
 
 function isSystemApi(pathname: string): boolean {
