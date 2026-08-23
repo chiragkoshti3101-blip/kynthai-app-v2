@@ -14,6 +14,7 @@ import {
   MapPin, Home,
 } from 'lucide-react'
 import { OfflineIndicator } from '@/components/kynthai/offline-indicator'
+import { NotificationCenter } from '@/components/kynthai/notification-center'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { LAB_BASE_FEE_PCT } from '@/lib/commission'
@@ -137,7 +138,11 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
         const d = await dr.json()
         setStats({bookingsTotal: d.stats?.bookingsTotal ?? 0, pending: d.stats?.pending ?? 0, completed: d.stats?.completed ?? 0, revenue: d.stats?.revenue ?? 0})
       }
-      if (br?.ok) { const b = await br.json(); setBookings(Array.isArray(b) ? b : []) }
+      if (br?.ok) {
+        const b = await br.json()
+        const list = Array.isArray(b) ? b : Array.isArray(b?.data) ? b.data : Array.isArray(b?.bookings) ? b.bookings : []
+        setBookings(list)
+      }
     } catch {
       toast({title: 'Failed to load data', variant: 'destructive'})
     } finally { setLoading(false) }
@@ -226,6 +231,14 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <KynthaiBrand iconSize={32} />
           <div className="flex items-center gap-1">
+            <NotificationCenter
+              userId={user.id}
+              isDemo={!!user.isDemo || (user.email || '').endsWith('@kynthai.app')}
+              onNavigate={(t: string) => {
+                if (t === 'meds' || t === 'care') setTab('bookings')
+                else setTab('overview')
+              }}
+            />
             <div className="relative" ref={profileRef}>
               <button onClick={() => setProfileOpen(o => !o)}
                 aria-label="Profile"

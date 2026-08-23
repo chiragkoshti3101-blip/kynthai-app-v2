@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { logAudit } from '@/lib/auth'
 import { requireAuth, requireAuthWithCsrf, jsonOk, jsonError } from '@/lib/api-helpers'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { clockParts } from '@/lib/reminder-clock'
 export const dynamic = 'force-dynamic'
 
 // GET /api/notifications
@@ -39,6 +40,52 @@ export async function GET(req: NextRequest) {
       },
     })
 
+    // Merge today's pending reminders so the bell is never a dead empty inbox
+    // while the user still has doses on the schedule (cron may lag or miss).
+    try {
+      const clock = clockParts()
+      const today = new Date(clock.isoDate)
+      const meds = await db.medication.findMany({
+        where: { active: true, OR: [{ userId: user.id }, { familyMember: { family: { ownerId: user.id } } }] },
+        select: { id: true, name: true, dosage: true },
+      })
+      const medIds = meds.map((m) => m.id)
+      if (medIds.length) {
+        const pending = await db.reminder.findMany({
+          where: { date: today, medicationId: { in: medIds }, status: 'pending' },
+          include: { medication: { select: { name: true, dosage: true } } },
+          orderBy: { time: 'asc' },
+          take: 20,
+        })
+        const existingKeys = new Set(
+          notifications.map((n) => `${n.type}|${n.title}|${n.body}`),
+        )
+        for (const r of pending) {
+          const medName = r.medication?.name || 'medication'
+          const due = r.time <= clock.timeStr
+          const title = due ? `Time to take ${medName}` : `Upcoming: ${medName}`
+          const body = [r.medication?.dosage, r.time].filter(Boolean).join(' · ')
+          const key = `reminder|${title}|${body}`
+          if (existingKeys.has(key)) continue
+          existingKeys.add(key)
+          notifications.push({
+            id: `rem-${r.id}`,
+            channel: 'in-app',
+            type: 'reminder',
+            title,
+            body,
+            recipient: user.id,
+            status: 'sent',
+            cost: 0,
+            createdAt: r.createdAt,
+          })
+        }
+        notifications.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+      }
+    } catch {
+      /* non-fatal — inbox still returns stored logs */
+    }
+
     // First-time / empty inbox: seed one in-app system note so the center is not a dead empty state
     if (notifications.length === 0 && !unreadOnly) {
       try {
@@ -74,6 +121,7 @@ export async function GET(req: NextRequest) {
     const unreadCount = await db.notificationLog.count({
       where: { userId: user.id, status: { not: 'read' } },
     })
+    const syntheticUnread = notifications.filter((n) => n.id.startsWith('rem-')).length
 
     // Map status → read boolean for the frontend
     const mapped = notifications.map((n) => ({
@@ -85,7 +133,7 @@ export async function GET(req: NextRequest) {
 
     return jsonOk({
       notifications: mapped,
-      unreadCount,
+      unreadCount: unreadCount + syntheticUnread,
     })
   } catch (error) {
     logger.phiSafeError(error)
@@ -120,7 +168,7 @@ export async function POST(req: NextRequest) {
     // Mark as read — only for the current user's notifications
     const result = await db.notificationLog.updateMany({
       where: {
-        id: { in: validIds },
+        id: { in: validIds.filter((id) => !id.startsWith('rem-')) },
         userId: user.id,
       },
       data: { status: 'read' },

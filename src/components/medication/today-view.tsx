@@ -61,7 +61,7 @@ function isUpcoming(time: string) {
   return target.getTime() >= now.getTime() - 60 * 1000;
 }
 
-export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDemo?: boolean; onLoaded?: () => void } = {}) {
+export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?: string; isDemo?: boolean; onLoaded?: () => void; externalAlarm?: boolean } = {}) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [stats, setStats] = useState<ReminderStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -178,6 +178,18 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const onUpdated = (e: Event) => {
+      const detail = (e as CustomEvent<{ id?: string; status?: 'taken' | 'skipped' }>).detail
+      if (!detail?.id || !detail.status) return
+      setReminders(prev =>
+        prev.map(r => (r.id === detail.id ? { ...r, status: detail.status! } : r)),
+      )
+    }
+    window.addEventListener('kynthai:reminder-updated', onUpdated)
+    return () => window.removeEventListener('kynthai:reminder-updated', onUpdated)
+  }, []);
 
   const updateStatus = async (reminder: Reminder, status: 'taken' | 'skipped') => {
     setUpdating(reminder.id);
@@ -323,13 +335,18 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
     scheduleNextAlarmRef.current = scheduleNextAlarm;
   }, [scheduleNextAlarm]);
 
-  // Start / stop scheduler when alarm toggle, list, or loading changes
+  // Start / stop scheduler when alarm toggle, list, or loading changes.
+  // When a portal-level MedicationAlarmHost is mounted, skip local scheduling
+  // so the ringtone does not double-fire.
   React.useEffect(() => {
-    if (!alarmEnabled || loading) {
-      if (alarmTimer.current) clearTimeout(alarmTimer.current);
-      setAlarmTarget(null);
-      stopAllRingtones();
-      return;
+    if (externalAlarm || !alarmEnabled || loading) {
+      if (alarmTimer.current) clearTimeout(alarmTimer.current)
+      if (externalAlarm) setAlarmTarget(null)
+      if (!alarmEnabled) {
+        setAlarmTarget(null)
+        stopAllRingtones()
+      }
+      return
     }
     requestAlarmNotificationPermission();
     // Small delay so list settles after fetch
@@ -338,11 +355,11 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
       clearTimeout(timer);
       if (alarmTimer.current) clearTimeout(alarmTimer.current);
     };
-  }, [alarmEnabled, reminders, loading, scheduleNextAlarm]);
+  }, [alarmEnabled, reminders, loading, scheduleNextAlarm, externalAlarm]);
 
   // Re-check when tab becomes visible again (timer may have been throttled)
   React.useEffect(() => {
-    if (!alarmEnabled) return;
+    if (!alarmEnabled || externalAlarm) return;
     const onVis = () => {
       if (document.visibilityState === 'visible') {
         scheduleNextAlarmRef.current();
@@ -350,7 +367,7 @@ export function TodayView({ userId, isDemo, onLoaded }: { userId?: string; isDem
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [alarmEnabled]);
+  }, [alarmEnabled, externalAlarm]);
 
   function handleAlarmAction(reminder: Reminder, status: 'taken' | 'skipped') {
     stopAllRingtones();

@@ -7,6 +7,10 @@ import { logger } from '@/lib/logger'
 // Prevent static generation — requires runtime context
 export const dynamic = 'force-dynamic'
 
+export async function GET(req: NextRequest) {
+  return POST(req)
+}
+
 /**
  * POST /api/chat/cleanup — cron job to delete expired messages.
  *

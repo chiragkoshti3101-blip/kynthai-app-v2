@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Heart, AlertTriangle, CheckCircle, Clock, Users } from 'lucide-react'
 import { logger } from '@/lib/logger'
-import { isDemoEnabled } from '@/lib/demo-mode'
+import { isDemoUser } from '@/lib/demo-mode'
+import { useAppStore } from '@/lib/store'
 
 export interface FamilyMemberPulse {
   id: string
@@ -29,7 +30,8 @@ export function FamilyHealthPulse({ onDataLoaded }: { onDataLoaded?: (members: F
   const [loading, setLoading] = useState(true)
 
   const fetchFamilyData = async () => {
-    const isDemoMode = isDemoEnabled();
+    const user = useAppStore.getState().user
+    const isDemoMode = isDemoUser(user)
 
     // Demo mode: return seeded data without backend call
     if (isDemoMode) {

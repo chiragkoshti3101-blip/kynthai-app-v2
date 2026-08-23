@@ -77,6 +77,39 @@ export function LabResultsViewer({ isDemo }: { isDemo: boolean }) {
 
   const load = React.useCallback(async () => {
     setLoading(true);
+    if (isDemo) {
+      setBookings([
+        {
+          id: 'demo-lb1',
+          labName: 'Kynthai Diagnostic Center',
+          tests: [{ name: 'Complete Blood Count', price: 35 }],
+          scheduledAt: new Date().toISOString(),
+          status: 'pending',
+          price: 35,
+          homeCollection: false,
+        },
+        {
+          id: 'demo-lb2',
+          labName: 'Kynthai Diagnostic Center',
+          tests: [{ name: 'Lipid Panel', price: 49 }],
+          scheduledAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+          status: 'sample_collected',
+          price: 49,
+          homeCollection: true,
+        },
+        {
+          id: 'demo-lb3',
+          labName: 'Kynthai Diagnostic Center',
+          tests: [{ name: 'HbA1c', price: 39 }, { name: 'Vitamin D', price: 45 }],
+          scheduledAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+          status: 'completed',
+          price: 84,
+          homeCollection: false,
+        },
+      ]);
+      setLoading(false);
+      return;
+    }
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -84,13 +117,20 @@ export function LabResultsViewer({ isDemo }: { isDemo: boolean }) {
       clearTimeout(timeoutId);
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
-      setBookings(data);
+      const list = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.bookings)
+            ? data.bookings
+            : [];
+      setBookings(list);
     } catch {
       setBookings([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isDemo]);
 
   React.useEffect(() => {
     load();
@@ -98,6 +138,17 @@ export function LabResultsViewer({ isDemo }: { isDemo: boolean }) {
 
   const handleDownload = async (bookingId: string) => {
     setDownloading(bookingId);
+    if (isDemo || bookingId.startsWith('demo-')) {
+      toast({
+        title: bookingId === 'demo-lb3' ? 'Results ready' : 'No results file yet',
+        description:
+          bookingId === 'demo-lb3'
+            ? 'HbA1c 6.4% · Vitamin D 32 ng/mL — demo values, not a real report.'
+            : 'This booking is still in progress.',
+      });
+      setDownloading(null);
+      return;
+    }
     try {
       const res = await fetch(`/api/lab-bookings/${bookingId}/results`);
       if (!res.ok) throw new Error('Failed to fetch results');
@@ -132,6 +183,11 @@ export function LabResultsViewer({ isDemo }: { isDemo: boolean }) {
 
   const handleShare = async (bookingId: string) => {
     setSharing(bookingId);
+    if (isDemo || bookingId.startsWith('demo-')) {
+      toast({ title: 'Shared successfully', description: 'Your doctor(s) have been notified. (demo)' });
+      setSharing(null);
+      return;
+    }
     try {
       const res = await fetch(`/api/lab-bookings/${bookingId}/share`, {
         method: 'POST',

@@ -80,6 +80,10 @@ function adjustTimeForUser(
   return originalTime
 }
 
+export async function GET(req: NextRequest) {
+  return POST(req)
+}
+
 // POST /api/reminders/schedule
 // Server-side reminder creation for all active medications of all users.
 // Cron/system-only endpoint.

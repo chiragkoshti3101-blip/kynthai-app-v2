@@ -1,6 +1,7 @@
 'use client'
 
-import { isDemoEnabled } from '@/lib/demo-mode'
+import { isDemoUser } from '@/lib/demo-mode'
+import { useAppStore } from '@/lib/store'
 /**
  * FamilyAnalytics — Cross-member analytics for caretakers.
  *
@@ -89,7 +90,8 @@ export function FamilyAnalytics() {
   const [error, setError] = React.useState<string | null>(null)
 
   const load = React.useCallback(async () => {
-    const isDemoMode = isDemoEnabled();
+    const user = useAppStore.getState().user
+    const isDemoMode = isDemoUser(user)
 
     // Demo mode: return seeded data without backend call
     if (isDemoMode) {

@@ -47,6 +47,8 @@ import { CareHub as CaretakerCareHub } from './care-hub';
 import { ProfileHub } from '@/components/kynthai/patient/profile-hub';
 import { FamilyMemberSchedule } from './member-schedule';
 import { MedicationsList } from '@/components/medication/medications-list';
+import { NotificationCenter } from '@/components/kynthai/notification-center';
+import { MedicationAlarmHost } from '@/components/medication/medication-alarm-host';
 import { FamilyCircle } from '@/components/kynthai/family/family-circle';
 import { OfflineIndicator } from '@/components/kynthai/offline-indicator';
 import { useOfflineQueue } from '@/hooks/use-offline-queue';
@@ -243,13 +245,13 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
     try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {}
     logout();
   }, [logout, router]);
-  const [family, setFamily] = React.useState<FamilyMember[]>(SAMPLE_FAMILY);
-  const [alerts, setAlerts] = React.useState<EscalatedAlert[]>(SAMPLE_ALERTS);
+  const [family, setFamily] = React.useState<FamilyMember[]>(isDemo ? SAMPLE_FAMILY : []);
+  const [alerts, setAlerts] = React.useState<EscalatedAlert[]>(isDemo ? SAMPLE_ALERTS : []);
   const [selectedMember, setSelectedMember] = React.useState<FamilyMember | null>(
-    SAMPLE_FAMILY[0] ?? null
+    isDemo ? SAMPLE_FAMILY[0] ?? null : null
   );
   const [addOpen, setAddOpen] = React.useState(false);
-  const [memberMeds, setMemberMeds] = React.useState<MemberMeds>({});
+  const [memberMeds, setMemberMeds] = React.useState<MemberMeds>(isDemo ? SAMPLE_MEMBER_MEDS : {});
   const [familyPulse, setFamilyPulse] = React.useState<PulseMember[]>([]);
   const [pulseLoading, setPulseLoading] = React.useState(!isDemo);
 
@@ -488,6 +490,12 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
 
   return (
     <div className="relative min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
+      {selectedMember && (
+        <MedicationAlarmHost
+          isDemo={isDemo}
+          familyMemberId={isDemo ? undefined : selectedMember.id}
+        />
+      )}
       {/* Top app bar */}
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 pt-safe">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
@@ -510,6 +518,11 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
               </div>
             </button>
             <div className="flex items-center gap-1">
+              <NotificationCenter
+                userId={user.id}
+                isDemo={isDemo}
+                onNavigate={(t: string) => setTab(t as Tab)}
+              />
               <OfflineIndicator />
             </div>
           </div>

@@ -43,6 +43,7 @@ import { useGreeting } from '@/lib/greeting';
 import { ProfileHub } from '@/components/kynthai/patient/profile-hub';
 import { PatientCare } from './patient-care';
 import { OfflineIndicator } from '@/components/kynthai/offline-indicator';
+import { NotificationCenter } from '@/components/kynthai/notification-center';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -444,6 +445,28 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
 
   const fetchDashboardData = React.useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
+    if (isDemo) {
+      const demoPatients = [
+        { id: 'dp1', name: 'Alex Johnson' },
+        { id: 'dp2', name: 'Jordan Smith' },
+        { id: 'dp3', name: 'Casey Lee' },
+      ];
+      const completedN = APPOINTMENTS.filter(a => a.status === 'completed').length;
+      const upcomingN = APPOINTMENTS.filter(
+        a => a.status === 'pending' || a.status === 'confirmed' || a.status === 'rescheduled'
+      ).length;
+      const gross = APPOINTMENTS.filter(a => a.status === 'completed').reduce((s, a) => s + a.fee, 0);
+      setDashboardData({
+        appointments: APPOINTMENTS,
+        patients: demoPatients,
+        prescriptions: PRESCRIPTIONS,
+        stats: { completed: completedN, upcoming: upcomingN, grossEarnings: gross },
+      });
+      setPatientCount(demoPatients.length);
+      setApiLoaded(true);
+      if (isRefresh) setRefreshing(false);
+      return;
+    }
     try {
       const [dashRes, adherenceRes] = await Promise.all([
         fetch('/api/doctors/dashboard', { cache: 'no-store' }),
@@ -555,7 +578,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
     } finally {
       if (isRefresh) setRefreshing(false);
     }
-  }, []);
+  }, [isDemo]);
 
   React.useEffect(() => {
     fetchDashboardData();
@@ -655,7 +678,13 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
     apiLoaded &&
     dashboardData !== null &&
     (dashboardData.appointments.length > 0 || dashboardData.patients.length > 0);
-  const livePatients = dashboardData?.patients ?? [];
+  const livePatients = isRealData
+    ? (dashboardData?.patients ?? [])
+    : [
+        { id: 'dp1', name: 'Alex Johnson' },
+        { id: 'dp2', name: 'Jordan Smith' },
+        { id: 'dp3', name: 'Casey Lee' },
+      ];
 
   // Loyalty tier — derived from lifetime fulfilled orders.
   const totalCompletedLifetime = isRealData
@@ -715,6 +744,14 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
               </div>
             </button>
             <div className="flex items-center gap-1">
+              <NotificationCenter
+                userId={user.id}
+                isDemo={isDemo}
+                onNavigate={(t: string) => {
+                  if (t === 'meds' || t === 'care') setView('patients')
+                  else setView('overview')
+                }}
+              />
               <OfflineIndicator />
               {/* Online/Offline toggle */}
               <button
