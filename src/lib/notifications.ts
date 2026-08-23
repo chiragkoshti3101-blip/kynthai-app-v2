@@ -175,31 +175,35 @@ export async function sendNotification(
 
   // WhatsApp and SMS removed — Kynthai only uses Push + Email channels.
 
-  // If no real channel could deliver, log a skipped/failed in-app row so we
-  // always have an audit trail (recipient falls back to best identifier).
+  // ALWAYS write an in-app inbox row for the user (doctor, patient, family, lab).
+  // Push/email are delivery channels; the bell/inbox is the product surface —
+  // same idea as native apps' notification center.
   const recipient = target.pushToken || target.email || target.userId || 'unknown'
-  const logId = await logNotification({
-    userId: target.userId,
-    channel: delivered ? usedChannel : 'in-app',
-    type: payload.type,
-    title: payload.title,
-    body: payload.body,
-    recipient,
-    status: delivered ? 'sent' : 'skipped',
-    cost: usedCost,
-  })
-
-  // If we did NOT deliver via any real channel, log a fallback in-app row.
-  if (!delivered) {
-    await logNotification({
+  let logId: string | undefined
+  if (target.userId) {
+    logId = await logNotification({
       userId: target.userId,
       channel: 'in-app',
       type: payload.type,
       title: payload.title,
       body: payload.body,
-      recipient,
+      recipient: target.userId,
       status: 'sent',
       cost: 0,
+    })
+  }
+
+  // Audit row for the external channel that actually delivered (if any)
+  if (delivered && usedChannel !== 'none') {
+    await logNotification({
+      userId: target.userId,
+      channel: usedChannel,
+      type: payload.type,
+      title: payload.title,
+      body: payload.body,
+      recipient,
+      status: 'sent',
+      cost: usedCost,
     })
   }
 

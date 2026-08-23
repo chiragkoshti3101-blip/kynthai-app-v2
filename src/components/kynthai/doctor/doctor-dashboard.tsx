@@ -745,6 +745,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
             </button>
             <div className="flex items-center gap-1">
               <NotificationCenter
+              role="doctor"
                 userId={user.id}
                 isDemo={isDemo}
                 onNavigate={(t: string) => {

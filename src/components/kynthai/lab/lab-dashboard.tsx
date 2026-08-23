@@ -231,7 +231,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <KynthaiBrand iconSize={32} />
           <div className="flex items-center gap-1">
-            <NotificationCenter
+            <NotificationCenter role="lab"
               userId={user.id}
               isDemo={!!user.isDemo || (user.email || '').endsWith('@kynthai.app')}
               onNavigate={(t: string) => {

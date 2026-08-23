@@ -35,6 +35,7 @@ interface Notification {
 interface NotificationCenterProps {
   userId: string
   isDemo: boolean
+  role?: string
   onNavigate?: (tab: string) => void
 }
 
@@ -44,10 +45,12 @@ function normalizeType(t: string): NotificationType {
   if (x.includes('sos') || x.includes('emerg') || x === 'alert' || x === 'escalation') return 'alert'
   if (x.includes('achieve') || x.includes('streak')) return 'achievement'
   if (x.includes('family') || x.includes('invite') || x.includes('care')) return 'family'
+  if (x.includes('appoint') || x.includes('consult')) return 'appointment'
+  if (x.includes('lab') || x.includes('booking') || x.includes('result')) return 'lab'
   return x || 'system'
 }
 
-export function NotificationCenter({ userId, isDemo, onNavigate }: NotificationCenterProps) {
+export function NotificationCenter({ userId, isDemo, role, onNavigate }: NotificationCenterProps) {
   const [open, setOpen] = React.useState(false)
   const [notifications, setNotifications] = React.useState<Notification[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -60,38 +63,32 @@ export function NotificationCenter({ userId, isDemo, onNavigate }: NotificationC
   const loadNotifications = React.useCallback(async () => {
     setLoading(true)
     if (isDemo) {
-      setNotifications([
-        {
-          id: '1',
-          channel: 'app',
-          type: 'reminder',
-          title: 'Time for Metformin',
-          body: 'Take your 500mg dose',
-          status: 'sent',
-          createdAt: new Date().toISOString(),
-          read: false,
-        },
-        {
-          id: '2',
-          channel: 'app',
-          type: 'achievement',
-          title: '7-Day Streak!',
-          body: 'Great job staying on track',
-          status: 'sent',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          read: true,
-        },
-        {
-          id: '3',
-          channel: 'app',
-          type: 'family',
-          title: 'Family update',
-          body: 'Mom marked her evening dose as taken',
-          status: 'sent',
-          createdAt: new Date(Date.now() - 7200000).toISOString(),
-          read: false,
-        },
-      ])
+      const now = Date.now()
+      const r = (role || 'patient').toLowerCase()
+      if (r === 'doctor') {
+        setNotifications([
+          { id: 'd1', channel: 'app', type: 'appointment', title: 'New consultation request', body: 'Alex Rivera · Video · Accept or Decline', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
+          { id: 'd2', channel: 'app', type: 'appointment', title: 'Patient cancelled', body: 'Jordan Lee cancelled tomorrow 10:00 AM', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
+          { id: 'd3', channel: 'app', type: 'system', title: 'Welcome, Doctor', body: 'New consult requests appear here and as device alerts when enabled.', status: 'sent', createdAt: new Date(now - 7200000).toISOString(), read: true },
+        ])
+      } else if (r === 'lab') {
+        setNotifications([
+          { id: 'l1', channel: 'app', type: 'lab', title: 'New lab booking', body: 'CBC + Lipid panel · Confirm slot', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
+          { id: 'l2', channel: 'app', type: 'lab', title: 'Results ready to share', body: 'Patient waiting on metabolic panel', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
+        ])
+      } else if (r === 'caretaker' || r === 'family') {
+        setNotifications([
+          { id: 'c1', channel: 'app', type: 'family', title: 'Missed dose alert', body: 'Robert · Atorvastatin 10mg · 8:00 AM', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
+          { id: 'c2', channel: 'app', type: 'reminder', title: 'Upcoming: Emma', body: 'Vitamin D3 · 6:00 PM', status: 'sent', createdAt: new Date(now - 1800000).toISOString(), read: false },
+          { id: 'c3', channel: 'app', type: 'family', title: 'Dose taken', body: 'Noah marked morning dose as taken', status: 'sent', createdAt: new Date(now - 7200000).toISOString(), read: true },
+        ])
+      } else {
+        setNotifications([
+          { id: '1', channel: 'app', type: 'reminder', title: 'Time for Metformin', body: 'Take your 500mg dose', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
+          { id: '2', channel: 'app', type: 'appointment', title: 'Consultation confirmed', body: 'Dr. Sharma accepted your request', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
+          { id: '3', channel: 'app', type: 'lab', title: 'Lab results ready', body: 'Open Lab to view your report', status: 'sent', createdAt: new Date(now - 7200000).toISOString(), read: true },
+        ])
+      }
       setLoading(false)
       return
     }
@@ -116,7 +113,7 @@ export function NotificationCenter({ userId, isDemo, onNavigate }: NotificationC
     } finally {
       setLoading(false)
     }
-  }, [isDemo])
+  }, [isDemo, role])
 
   React.useEffect(() => {
     loadNotifications()
@@ -198,6 +195,10 @@ export function NotificationCenter({ userId, isDemo, onNavigate }: NotificationC
     switch (type) {
       case 'reminder':
         return Pill
+      case 'appointment':
+        return Calendar
+      case 'lab':
+        return Info
       case 'alert':
         return AlertTriangle
       case 'achievement':

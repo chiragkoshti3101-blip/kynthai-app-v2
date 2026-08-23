@@ -1260,6 +1260,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
             </button>
             <OfflineIndicator />
             <NotificationCenter
+              role="patient"
               userId={user.id}
               isDemo={isDemo}
               onNavigate={(t: string) => setTab(t as Tab)}
