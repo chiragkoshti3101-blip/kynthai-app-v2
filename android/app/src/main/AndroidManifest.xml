@@ -24,7 +24,6 @@
 
         </activity>
 
-        <!-- Full-phone medication / emergency alarm (outside other apps) -->
         <activity
             android:name=".FullScreenAlarmActivity"
             android:excludeFromRecents="true"
@@ -33,7 +32,16 @@
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:theme="@style/AppTheme.NoActionBarLaunch" />
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen" />
+
+        <receiver
+            android:name=".DoseAlarmReceiver"
+            android:exported="false"
+            android:enabled="true">
+            <intent-filter>
+                <action android:name="app.kynthai.health.ACTION_DOSE_ALARM" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

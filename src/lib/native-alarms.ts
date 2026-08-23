@@ -1,9 +1,8 @@
 /**
- * Native OS alarms + on-device notification inbox.
- * When running inside Capacitor Android/iOS:
- *  - schedules exact local notifications (high priority)
- *  - stores a persistent notification history on device
- * Web-only: no-ops safely.
+ * Native OS alarms + on-device notification history.
+ * Android APK: DoseAlarm plugin → full-screen intent over other apps.
+ * iOS: local notifications (time-sensitive); true full-screen takeover is not allowed by Apple.
+ * Web: no-op for OS full-screen; uses Web Push + in-app overlay.
  */
 
 'use client'
@@ -36,9 +35,18 @@ function isNative(): boolean {
   }
 }
 
-/** Request notification + exact-alarm permissions (Android 13+). */
+function getPlatform(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (window as any).Capacitor?.getPlatform?.() || 'web'
+  } catch {
+    return 'web'
+  }
+}
+
 export async function ensureNativeNotificationPermission(): Promise<boolean> {
-  if (typeof window === 'undefined' || !isNative()) {
+  if (typeof window === 'undefined') return false
+  if (!isNative()) {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       const p = await Notification.requestPermission()
       return p === 'granted'
@@ -57,9 +65,9 @@ export async function ensureNativeNotificationPermission(): Promise<boolean> {
 }
 
 /**
- * Schedule a dose/emergency alarm at an absolute time.
- * On Android (native shell) this uses a high-importance channel so the OS
- * can show a full-screen intent style interrupt.
+ * Schedule a dose alarm at absolute time.
+ * Android native: exact AlarmManager + full-screen intent (covers whole phone).
+ * iOS native: high-priority local notification (Apple blocks full-screen over other apps).
  */
 export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void> {
   await ensureNativeNotificationPermission()
@@ -74,24 +82,44 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
 
   if (!isNative()) return
 
+  const platform = getPlatform()
+
+  // Android: custom full-screen dose plugin
+  if (platform === 'android') {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const Cap = (window as any).Capacitor
+      const DoseAlarm = Cap?.Plugins?.DoseAlarm
+      if (DoseAlarm?.schedule) {
+        await DoseAlarm.schedule({
+          id: input.id,
+          title: input.title,
+          body: input.body,
+          atMs: input.at.getTime(),
+        })
+        return
+      }
+    } catch (e) {
+      console.warn('[native-alarms] DoseAlarm plugin failed, falling back', e)
+    }
+  }
+
+  // iOS (and Android fallback): Capacitor local notifications
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications')
-
-    // High-importance channel for dose alarms (Android)
     try {
       await LocalNotifications.createChannel({
         id: 'kynthai_dose_alarm',
         name: 'Medication alarms',
-        description: 'Full-priority dose and emergency alarms',
-        importance: 5, // IMPORTANCE_HIGH
+        description: 'Dose and emergency alarms',
+        importance: 5,
         visibility: 1,
         sound: 'beep.wav',
         vibration: true,
       })
     } catch {
-      /* channel may already exist */
+      /* exists */
     }
-
     await LocalNotifications.schedule({
       notifications: [
         {
@@ -105,9 +133,7 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
             alarm: '1',
             ...input.extra,
           },
-          actionTypeId: 'DOSE_ALARM',
           sound: 'beep.wav',
-          smallIcon: 'ic_stat_icon',
         },
       ],
     })
@@ -118,6 +144,13 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
 
 export async function cancelNativeAlarm(id: number): Promise<void> {
   if (!isNative()) return
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const DoseAlarm = (window as any).Capacitor?.Plugins?.DoseAlarm
+    if (DoseAlarm?.cancel) await DoseAlarm.cancel({ id })
+  } catch {
+    /* ignore */
+  }
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications')
     await LocalNotifications.cancel({ notifications: [{ id }] })
@@ -132,7 +165,9 @@ export async function cancelAllNativeAlarms(): Promise<void> {
     const { LocalNotifications } = await import('@capacitor/local-notifications')
     const pending = await LocalNotifications.getPending()
     if (pending.notifications.length) {
-      await LocalNotifications.cancel({ notifications: pending.notifications.map((n) => ({ id: n.id })) })
+      await LocalNotifications.cancel({
+        notifications: pending.notifications.map((n) => ({ id: n.id })),
+      })
     }
   } catch {
     /* ignore */
@@ -141,7 +176,6 @@ export async function cancelAllNativeAlarms(): Promise<void> {
 
 const HISTORY_KEY = 'kynthai.device.notification.history'
 
-/** Persist notification on device (survives app kill; local to phone). */
 export async function appendStoredNotification(n: StoredNotification): Promise<void> {
   try {
     const list = await getStoredNotifications()
@@ -186,7 +220,6 @@ export async function markStoredRead(id?: string): Promise<void> {
   }
 }
 
-/** Listen for notification taps → open full-screen alarm route. */
 export async function bindNativeNotificationOpen(
   onAlarm: (payload: { title?: string; body?: string; medName?: string }) => void,
 ): Promise<() => void> {
@@ -220,4 +253,9 @@ export async function bindNativeNotificationOpen(
 export function isNativeShell(): boolean {
   if (typeof window === 'undefined') return false
   return isNative()
+}
+
+/** True only on Android native APK — OS may show full-screen over other apps. */
+export function supportsOsFullScreenAlarm(): boolean {
+  return isNative() && getPlatform() === 'android'
 }

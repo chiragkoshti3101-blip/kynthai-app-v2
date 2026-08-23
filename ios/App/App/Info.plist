@@ -66,5 +66,12 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+		<string>fetch</string>
+	</array>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Kynthai needs notifications for medication alarms and care alerts.</string>
 </dict>
 </plist>
