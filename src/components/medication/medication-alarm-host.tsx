@@ -145,17 +145,18 @@ export function MedicationAlarmHost({
 
   const load = React.useCallback(async () => {
     if (isDemo) {
-      // Demo: surface a due dose immediately so QA can verify full-screen overlay
+      // Demo: force a due dose + full-screen alarm immediately (no schedule race).
       const now = new Date()
       const hh = String(now.getHours()).padStart(2, '0')
       const mm = String(now.getMinutes()).padStart(2, '0')
+      const demoDue = {
+        id: 'host-demo-now',
+        time: `${hh}:${mm}`,
+        status: 'pending',
+        medication: { name: 'Atorvastatin', dosage: '10mg' },
+      }
       setReminders([
-        {
-          id: 'host-demo-now',
-          time: `${hh}:${mm}`,
-          status: 'pending',
-          medication: { name: 'Atorvastatin', dosage: '10mg' },
-        },
+        demoDue,
         {
           id: 'host-dr3',
           time: '18:00',
@@ -163,6 +164,18 @@ export function MedicationAlarmHost({
           medication: { name: 'Vitamin D3', dosage: '60K IU' },
         },
       ])
+      // Only auto-show if user has not already dismissed this session
+      setAlarmTarget((prev) => {
+        if (prev && String(prev.id).startsWith('host-demo')) return prev
+        return demoDue
+      })
+      try {
+        unlockAudio()
+        if (!isAlarmRinging()) {
+          if (alarmMode === 'alert') playAlertRingtone()
+          else playProfessionalRingtone()
+        }
+      } catch { /* ignore */ }
       return
     }
     try {
@@ -183,7 +196,7 @@ export function MedicationAlarmHost({
     } catch {
       /* ignore */
     }
-  }, [isDemo, userId, familyMemberId])
+  }, [isDemo, userId, familyMemberId, alarmMode])
 
   React.useEffect(() => {
     void load()
@@ -193,11 +206,31 @@ export function MedicationAlarmHost({
     document.addEventListener('visibilitychange', onVis)
     const onUpdated = () => void load()
     window.addEventListener('kynthai:reminder-updated', onUpdated)
+    const onTest = () => {
+      const now = new Date()
+      const hh = String(now.getHours()).padStart(2, '0')
+      const mm = String(now.getMinutes()).padStart(2, '0')
+      const demoDue = {
+        id: `host-demo-test-${Date.now()}`,
+        time: `${hh}:${mm}`,
+        status: 'pending',
+        medication: { name: 'Atorvastatin', dosage: '10mg' },
+      }
+      setReminders((prev) => [demoDue, ...prev.filter((r) => !String(r.id).startsWith('host-demo'))])
+      setAlarmTarget(demoDue)
+      try {
+        unlockAudio()
+        if (alarmMode === 'alert') playAlertRingtone()
+        else playProfessionalRingtone()
+      } catch { /* ignore */ }
+    }
+    window.addEventListener('kynthai:test-alarm', onTest)
     return () => {
       document.removeEventListener('visibilitychange', onVis)
       window.removeEventListener('kynthai:reminder-updated', onUpdated)
+      window.removeEventListener('kynthai:test-alarm', onTest)
     }
-  }, [load])
+  }, [load, alarmMode])
 
   const clearEscalateTimer = () => {
     if (escalateTimer.current) {

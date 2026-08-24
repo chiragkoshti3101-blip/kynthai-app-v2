@@ -690,6 +690,19 @@ function MedsTab({ userId, isDemo }: { userId: string; isDemo: boolean }) {
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-bold">My Medications</h2>
+      {isDemo && (
+        <button
+          type="button"
+          className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-md active:scale-[0.99]"
+          onClick={() => {
+            try {
+              window.dispatchEvent(new Event('kynthai:test-alarm'))
+            } catch { /* ignore */ }
+          }}
+        >
+          Test full-screen dose alarm now
+        </button>
+      )}
       <TodayView userId={userId} isDemo={isDemo} externalAlarm />
       <MedicationsList userId={userId} isDemo={isDemo} />
     </div>
