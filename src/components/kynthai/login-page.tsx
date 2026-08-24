@@ -81,7 +81,7 @@ function getCsrfToken(): string | null {
   return match ? decodeURIComponent(match[1]!) : null;
 }
 
-async function apiCall(path: string, body: Record<string, unknown>) {
+async function apiCall(path: string, body: Record<string, unknown>, attempt = 1): Promise<unknown> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const url = `/api${path.startsWith('/auth') ? path : path}`;
 
@@ -92,25 +92,37 @@ async function apiCall(path: string, body: Record<string, unknown>) {
   }
   if (token) headers['X-CSRF-Token'] = token;
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers,
-    credentials: 'include',
-    body: JSON.stringify(body),
-  });
-  // Parse the body defensively: a 5xx may return empty or non-JSON, which
-  // would otherwise throw and surface a confusing "Unexpected end of JSON"
-  // error to the user instead of the real failure.
-  const data = await res.json().catch(() => null);
-  if (!res.ok) {
-    const reason =
-      (data && typeof data === 'object' && (data as { error?: string }).error) ||
-      (res.status >= 500
-        ? 'Something went wrong on our side. Please try again in a moment.'
-        : 'Request failed. Please try again.');
-    throw new Error(reason);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify(body),
+    });
+    // Parse the body defensively: a 5xx may return empty or non-JSON, which
+    // would otherwise throw and surface a confusing "Unexpected end of JSON"
+    // error to the user instead of the real failure.
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const reason =
+        (data && typeof data === 'object' && (data as { error?: string }).error) ||
+        (res.status >= 500
+          ? 'Something went wrong on our side. Please try again in a moment.'
+          : 'Request failed. Please try again.');
+      throw new Error(reason);
+    }
+    return data;
+  } catch (err) {
+    const aborted =
+      (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError')) ||
+      (err instanceof Error && /aborted|AbortError|timed out/i.test(err.message));
+    // One automatic retry for auth on flaky mobile networks
+    if (aborted && attempt < 2 && path.includes('/auth/')) {
+      await new Promise((r) => setTimeout(r, 600));
+      return apiCall(path, body, attempt + 1);
+    }
+    throw err;
   }
-  return data;
 }
 
 export function LoginPage({
@@ -430,7 +442,15 @@ export function LoginPage({
       // Only refresh CAPTCHA (single-use tokens); do not remount the page.
       turnstileRef.current?.reset();
       setCaptchaToken(null);
-      const msg = err instanceof Error ? err.message : String(err);
+      let msg = err instanceof Error ? err.message : String(err);
+      // Global fetch timeout / navigation abort — never show raw AbortError text
+      if (
+        (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError')) ||
+        /signal is aborted|aborted without reason|AbortError|The operation was aborted/i.test(msg)
+      ) {
+        msg =
+          'Sign-in took too long or the connection dropped. Check your network and try again.';
+      }
       setFormError(msg);
       toast({
         title: mode === 'signin' ? 'Sign in failed' : 'Registration failed',
