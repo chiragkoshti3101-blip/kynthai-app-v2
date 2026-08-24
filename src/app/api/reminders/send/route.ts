@@ -4,7 +4,7 @@ import { requireSystemToken, jsonOk, jsonError } from '@/lib/api-helpers'
 import { rateLimit } from '@/lib/security'
 import { logger } from '@/lib/logger'
 import { sendReminder, sendNotification } from '@/lib/notifications'
-import { clockParts, isDueNow } from '@/lib/reminder-clock'
+import { clockParts, isDueNow, nearbyTimeStrings } from '@/lib/reminder-clock'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -49,7 +49,7 @@ async function run(req: NextRequest) {
           ...(mode === 'catchup'
             ? { time: { lte: clock.timeStr } }
             : {
-                OR: [{ time: clock.timeStr }, { time: clock.prevTimeStr }],
+                time: { in: nearbyTimeStrings(tz, new Date(), 5) },
               }),
         },
         include: {

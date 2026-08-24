@@ -45,7 +45,29 @@ export function clockParts(timeZone = DEFAULT_TZ, now = new Date()): ClockParts 
   }
 }
 
-/** True when a stored "HH:MM" is due now (or within the previous minute). */
-export function isDueNow(time: string, clock: ClockParts): boolean {
-  return time === clock.timeStr || time === clock.prevTimeStr
+/** HH:MM strings for now and the previous N minutes (covers cron lag). */
+export function nearbyTimeStrings(timeZone = DEFAULT_TZ, now = new Date(), minutesBack = 5): string[] {
+  const out: string[] = []
+  const seen = new Set<string>()
+  for (let i = 0; i <= minutesBack; i++) {
+    const t = partsInZone(new Date(now.getTime() - i * 60_000), timeZone).timeStr
+    if (!seen.has(t)) {
+      seen.add(t)
+      out.push(t)
+    }
+  }
+  return out
+}
+
+/** True when a stored "HH:MM" is due now or within the last few minutes. */
+export function isDueNow(time: string, clock: ClockParts, minutesBack = 5): boolean {
+  if (time === clock.timeStr || time === clock.prevTimeStr) return true
+  // Extra lag window for GitHub Actions / Hobby cron drift
+  const [h = 0, m = 0] = time.split(':').map(Number)
+  const [ch = 0, cm = 0] = clock.timeStr.split(':').map(Number)
+  const doseMins = h * 60 + m
+  const nowMins = ch * 60 + cm
+  let delta = nowMins - doseMins
+  if (delta < -12 * 60) delta += 24 * 60 // crossed midnight
+  return delta >= 0 && delta <= minutesBack
 }
