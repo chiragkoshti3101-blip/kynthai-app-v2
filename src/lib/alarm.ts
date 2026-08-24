@@ -1,11 +1,9 @@
 /**
- * Kynthai Ringtone System
- * -----------------------
- * Dual-path sound so iPhone + Android actually ring:
- *   1. HTML5 Audio (/beep.wav) — most reliable on mobile after a user gesture
- *   2. Web Audio API oscillators — fallback if the file cannot play
+ * Kynthai medication ringtone — professional clinical tone.
  *
- * Continuous alarm loops until stopAllRingtones().
+ * Primary: soft multi-note chime (med-chime.wav)
+ * Fallback: Web Audio sine/triangle harmonies (never harsh square beeps)
+ * Loops until stopAllRingtones().
  */
 
 let audioCtx: AudioContext | null = null
@@ -14,6 +12,7 @@ let _isRinging = false
 let _audioUnlocked = false
 let _htmlAudio: HTMLAudioElement | null = null
 let _alarmLoop: ReturnType<typeof setInterval> | null = null
+let _preferredSrc = '/med-chime.wav'
 
 function getAudioCtx(): AudioContext | null {
   if (typeof window === 'undefined') return null
@@ -27,16 +26,16 @@ function getAudioCtx(): AudioContext | null {
   return audioCtx
 }
 
-function getHtmlAudio(): HTMLAudioElement | null {
+function getHtmlAudio(src = _preferredSrc): HTMLAudioElement | null {
   if (typeof window === 'undefined') return null
-  if (!_htmlAudio) {
+  if (!_htmlAudio || _htmlAudio.getAttribute('data-src') !== src) {
     try {
-      const a = new Audio('/beep.wav')
+      const a = new Audio(src)
       a.preload = 'auto'
       a.loop = false
-      // iOS requires playsInline for programmatic play
       a.setAttribute('playsinline', 'true')
       a.setAttribute('webkit-playsinline', 'true')
+      a.setAttribute('data-src', src)
       _htmlAudio = a
     } catch {
       return null
@@ -45,10 +44,7 @@ function getHtmlAudio(): HTMLAudioElement | null {
   return _htmlAudio
 }
 
-/**
- * Mobile browsers suspend audio until a user gesture.
- * Call from click/touch (portal already does this on first interaction).
- */
+/** Unlock audio after a user gesture (required on iOS/Android). */
 export function unlockAudio() {
   if (typeof window === 'undefined') return
   const ctx = getAudioCtx()
@@ -59,7 +55,8 @@ export function unlockAudio() {
     try {
       const osc = ctx.createOscillator()
       const gain = ctx.createGain()
-      gain.gain.value = 0.001
+      gain.gain.value = 0.0008
+      osc.type = 'sine'
       osc.connect(gain)
       gain.connect(ctx.destination)
       osc.start()
@@ -69,7 +66,7 @@ export function unlockAudio() {
       /* ignore */
     }
   }
-  const html = getHtmlAudio()
+  const html = getHtmlAudio('/med-chime.wav')
   if (html) {
     try {
       html.volume = 0.01
@@ -78,7 +75,7 @@ export function unlockAudio() {
         p.then(() => {
           html.pause()
           html.currentTime = 0
-          html.volume = 1
+          html.volume = 0.85
           _audioUnlocked = true
         }).catch(() => {})
       }
@@ -88,7 +85,6 @@ export function unlockAudio() {
   }
 }
 
-/** Milliseconds from now until a "HH:MM" time today (negative = overdue). */
 export function msUntilReminder(time: string): number {
   const [h = 0, m = 0] = time.split(':').map(Number) as [number, number]
   const target = new Date()
@@ -104,8 +100,7 @@ export function pickDueReminder<T extends DueCandidate>(
 ): T | null {
   if (!pending.length) return null
   const sorted = [...pending].sort((a, b) => msUntilReminder(a.time) - msUntilReminder(b.time))
-  const due = sorted.find((r) => msUntilReminder(r.time) <= graceMs)
-  return due ?? null
+  return sorted.find((r) => msUntilReminder(r.time) <= graceMs) ?? null
 }
 
 export function pickNextFutureReminder<T extends DueCandidate>(pending: T[]): T | null {
@@ -117,10 +112,6 @@ export function pickNextFutureReminder<T extends DueCandidate>(pending: T[]): T 
   return future[0]?.r ?? null
 }
 
-/**
- * System tray notification when tab is backgrounded.
- * silent:false is required — without it Android/iOS often play nothing.
- */
 export function notifyReminder(title: string, body: string) {
   if (typeof window === 'undefined' || typeof Notification === 'undefined') return
   if (Notification.permission !== 'granted') return
@@ -134,7 +125,7 @@ export function notifyReminder(title: string, body: string) {
       requireInteraction: true,
       silent: false,
       renotify: true,
-      vibrate: [400, 150, 400, 150, 400],
+      vibrate: [300, 120, 300],
     } as NotificationOptions
     const n = new Notification(title, opts)
     n.onclick = () => {
@@ -146,7 +137,6 @@ export function notifyReminder(title: string, body: string) {
   }
 }
 
-/** Prefer service worker notification (works better on Android Chrome). */
 export async function notifyReminderViaSW(title: string, body: string) {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
     notifyReminder(title, body)
@@ -163,7 +153,7 @@ export async function notifyReminderViaSW(title: string, body: string) {
       requireInteraction: true,
       silent: false,
       renotify: true,
-      vibrate: [400, 150, 400, 150, 400],
+      vibrate: [300, 120, 300],
       data: { url: '/patient?alarm=1', isDose: true, isClinical: true },
     } as NotificationOptions)
   } catch {
@@ -183,19 +173,20 @@ function playTone(
   frequency: number,
   startTime: number,
   duration: number,
-  volume = 0.3,
+  volume = 0.22,
   type: OscillatorType = 'sine',
 ) {
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
   osc.type = type
   osc.frequency.setValueAtTime(frequency, startTime)
-  gain.gain.setValueAtTime(volume, startTime)
-  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+  gain.gain.setValueAtTime(0.0001, startTime)
+  gain.gain.exponentialRampToValueAtTime(volume, startTime + 0.03)
+  gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration)
   osc.connect(gain)
   gain.connect(ctx.destination)
   osc.start(startTime)
-  osc.stop(startTime + duration)
+  osc.stop(startTime + duration + 0.02)
   activeOscillators.push(osc)
   osc.onended = () => {
     activeOscillators = activeOscillators.filter((o) => o !== osc)
@@ -231,80 +222,83 @@ export function stopAllRingtones() {
   _isRinging = false
 }
 
-function playHtmlBeepBurst(times: number, gapMs: number) {
-  const html = getHtmlAudio()
-  if (!html) return false
-  let played = 0
-  const once = () => {
-    if (played >= times || !_isRinging) return
-    played++
-    try {
-      html.loop = false
-      html.volume = 1
-      html.currentTime = 0
-      const p = html.play()
-      if (p && typeof p.catch === 'function') p.catch(() => {})
-    } catch {
-      /* ignore */
-    }
-    if (played < times) setTimeout(once, gapMs)
-  }
-  once()
-  return true
-}
-
-function playProfessionalRingtoneOnce() {
-  try {
-    stopOscillatorsOnly()
-    _isRinging = true
-    // Prefer real audio file on mobile (louder, not blocked as often)
-    if (playHtmlBeepBurst(3, 1400)) return
-    const ctx = getAudioCtx()
-    if (!ctx) return
-    const now = ctx.currentTime
-    for (let cycle = 0; cycle < 8; cycle++) {
-      const t = now + cycle * 1.25
-      playTone(ctx, 523.25, t, 0.4, 0.35, 'sine')
-      playTone(ctx, 659.25, t + 0.15, 0.4, 0.35, 'sine')
-      playTone(ctx, 783.99, t + 0.3, 0.6, 0.35, 'sine')
-      playTone(ctx, 1046.5, t + 0.7, 0.5, 0.25, 'sine')
-    }
-  } catch {
-    _isRinging = false
-  }
-}
-
-function playAlertRingtoneOnce() {
-  try {
-    stopOscillatorsOnly()
-    _isRinging = true
-    if (playHtmlBeepBurst(6, 900)) return
-    const ctx = getAudioCtx()
-    if (!ctx) return
-    const now = ctx.currentTime
-    for (let i = 0; i < 28; i++) {
-      const t = now + i * 0.35
-      playTone(ctx, 880, t, 0.25, 0.55, 'square')
-      playTone(ctx, 660, t + 0.08, 0.18, 0.3, 'sine')
-    }
-  } catch {
-    _isRinging = false
-  }
-}
-
 function stopOscillatorsOnly() {
   for (const osc of activeOscillators) {
     try {
       osc.stop()
     } catch {
-      /* already stopped */
+      /* ignore */
     }
   }
   activeOscillators = []
 }
 
-/** Keep ringing until stopAllRingtones() — real alarm behavior. */
-export function startContinuousAlarm(mode: 'professional' | 'alert' = 'alert') {
+/** Play soft WAV chime once; returns true if playback started. */
+function playChimeFile(src: string): boolean {
+  const html = getHtmlAudio(src)
+  if (!html) return false
+  try {
+    html.loop = false
+    html.volume = 0.85
+    html.currentTime = 0
+    const p = html.play()
+    if (p && typeof p.catch === 'function') p.catch(() => {})
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Soft ascending clinical chime (C–E–G–C). */
+function playProfessionalRingtoneOnce() {
+  try {
+    stopOscillatorsOnly()
+    _isRinging = true
+    if (playChimeFile('/med-chime.wav')) return
+    const ctx = getAudioCtx()
+    if (!ctx) return
+    const now = ctx.currentTime
+    // Gentle sine arpeggio — hospital / wellness style
+    const notes = [
+      [523.25, 0, 0.35],
+      [659.25, 0.28, 0.32],
+      [783.99, 0.56, 0.3],
+      [1046.5, 0.9, 0.28],
+    ] as const
+    for (let cycle = 0; cycle < 2; cycle++) {
+      const base = now + cycle * 1.6
+      for (const [freq, offset, vol] of notes) {
+        playTone(ctx, freq, base + offset, 0.4, vol, 'sine')
+      }
+    }
+  } catch {
+    _isRinging = false
+  }
+}
+
+/** Clearer but still soft two-pulse + resolve (not square-wave alarm). */
+function playAlertRingtoneOnce() {
+  try {
+    stopOscillatorsOnly()
+    _isRinging = true
+    if (playChimeFile('/sounds/med-alert.wav')) return
+    if (playChimeFile('/med-chime.wav')) return
+    const ctx = getAudioCtx()
+    if (!ctx) return
+    const now = ctx.currentTime
+    for (let i = 0; i < 3; i++) {
+      const t = now + i * 0.9
+      playTone(ctx, 784, t, 0.22, 0.32, 'sine')
+      playTone(ctx, 784, t + 0.28, 0.22, 0.3, 'sine')
+      playTone(ctx, 988, t + 0.55, 0.35, 0.28, 'triangle')
+    }
+  } catch {
+    _isRinging = false
+  }
+}
+
+/** Continuous professional ring until stopAllRingtones(). */
+export function startContinuousAlarm(mode: 'professional' | 'alert' = 'professional') {
   stopAllRingtones()
   _isRinging = true
   unlockAudio()
@@ -314,7 +308,8 @@ export function startContinuousAlarm(mode: 'professional' | 'alert' = 'alert') {
     else playProfessionalRingtoneOnce()
   }
   tick()
-  _alarmLoop = setInterval(tick, mode === 'alert' ? 6000 : 9000)
+  // Soft spacing — not frantic
+  _alarmLoop = setInterval(tick, mode === 'alert' ? 4500 : 5500)
 }
 
 export function playProfessionalRingtone() {
@@ -330,8 +325,8 @@ export function playSuccessChime() {
     const ctx = getAudioCtx()
     if (!ctx) return
     const now = ctx.currentTime
-    playTone(ctx, 783.99, now, 0.15, 0.25, 'sine')
-    playTone(ctx, 1046.5, now + 0.1, 0.25, 0.25, 'sine')
+    playTone(ctx, 659.25, now, 0.12, 0.18, 'sine')
+    playTone(ctx, 1046.5, now + 0.1, 0.2, 0.18, 'sine')
   } catch {
     /* ignore */
   }

@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = 'sound-v8'
+const DEPLOY_ID = 'chime-v9'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -22,6 +22,8 @@ const PRECACHE_URLS = [
   '/icon.svg',
   '/logo.svg',
   '/beep.wav',
+  '/med-chime.wav',
+  '/sounds/med-chime.wav',
 ]
 
 self.addEventListener('install', (event) => {
