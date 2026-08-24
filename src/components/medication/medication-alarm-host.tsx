@@ -290,26 +290,35 @@ export function MedicationAlarmHost({
     }
     setAlarmTarget(null)
     clearEscalateTimer()
+
+    // Schedule OS-level exact alarms for every pending dose today (native APK).
+    // This is what removes server-cron delay when the app is closed.
+    for (const r of pending) {
+      const ms = msUntilReminder(r.time)
+      if (ms < -60_000) continue // more than 1 min past — skip re-schedule noise
+      try {
+        const at = new Date(Date.now() + Math.max(0, ms))
+        const medName = r.medication?.name ?? 'Medication'
+        const nid = Math.abs(hashId(r.id)) % 2000000000
+        void scheduleNativeAlarm({
+          id: nid,
+          title: `Time to take ${medName}`,
+          body: `${r.medication?.dosage ?? ''} · ${r.time}`.trim() || 'Open Taken / Skip',
+          at,
+          medName,
+        })
+      } catch {
+        /* ignore */
+      }
+    }
+
     const next = pickNextFutureReminder(pending)
     if (!next) return
-    const wait = Math.max(1000, msUntilReminder(next.time))
-    // Native shell: exact OS alarm so dose covers the phone outside the app
-    try {
-      const at = new Date(Date.now() + wait)
-      const medName = next.medication?.name ?? 'Medication'
-      const nid = Math.abs(hashId(next.id)) % 2000000000
-      void scheduleNativeAlarm({
-        id: nid,
-        title: `Time to take ${medName}`,
-        body: `${next.medication?.dosage ?? ''} · ${next.time}`.trim() || 'Open Taken / Skip',
-        at,
-        medName,
-      })
-    } catch { /* ignore */ }
-    alarmTimer.current = setTimeout(
-      () => scheduleRef.current(),
-      Math.min(wait, 6 * 60 * 60 * 1000),
-    )
+    // Fire at the exact second (no +1s floor) while the app process is alive
+    const wait = Math.max(0, msUntilReminder(next.time))
+    // Sub-second wakeups when close: poll every 1s in the last 90s
+    const tickMs = wait <= 90_000 ? 1_000 : Math.min(wait, 6 * 60 * 60 * 1000)
+    alarmTimer.current = setTimeout(() => scheduleRef.current(), tickMs)
   }, [reminders, alarmMode, isDemo, familyMemberId, escalationGraceMs])
 
   React.useEffect(() => {

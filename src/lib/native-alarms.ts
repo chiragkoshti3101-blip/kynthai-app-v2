@@ -109,12 +109,12 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
     const { LocalNotifications } = await import('@capacitor/local-notifications')
     try {
       await LocalNotifications.createChannel({
-        id: 'kynthai_dose_alarm_v2',
+        id: 'kynthai_dose_alarm',
         name: 'Medication reminders',
         description: 'Dose and emergency alarms with sound',
         importance: 5,
         visibility: 1,
-        sound: platform === 'ios' ? undefined : 'beep.wav',
+        sound: undefined,
         vibration: true,
       } as any)
     } catch {
@@ -126,7 +126,7 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
           id: input.id,
           title: input.title,
           body: input.body,
-          schedule: { at: input.at, allowWhileIdle: true },
+          schedule: { at: input.at, allowWhileIdle: true, precise: true },
           channelId: 'kynthai_dose_alarm',
           extra: {
             medName: input.medName || '',
@@ -135,7 +135,7 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
           },
           // iOS: omit custom name so system default alert plays (invalid file = silent)
           // Android: beep.wav in res/raw
-          ...(platform === 'ios' ? {} : { sound: 'beep.wav' }),
+          
         },
       ],
     })
