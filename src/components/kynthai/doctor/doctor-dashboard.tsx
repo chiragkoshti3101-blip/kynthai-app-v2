@@ -27,7 +27,8 @@ import {
   FileText,
   Sparkles,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button'
+import { InstallAppBanner } from '@/components/kynthai/install-app-banner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -801,6 +802,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         </div>
       )}
 
+      <InstallAppBanner />
       <main className="mx-auto max-w-3xl w-full flex-1 px-4 pt-4 space-y-5 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
         {/* API error banner */}
         {apiError && (
