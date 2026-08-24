@@ -1195,7 +1195,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
                   const ios =
                     /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-                  reg.showNotification(`Time to take ${name}`, {
+                  const nopts: Record<string, unknown> = {
                     body: [dosage, r.time].filter(Boolean).join(' · ') || 'Tap to open Kynthai',
                     icon: '/icon-192.png',
                     badge: '/icon-192.png',
@@ -1203,10 +1203,13 @@ export function PatientApp({ user }: { user: AuthUser }) {
                     // iOS: sticky requireInteraction leaves floating banners
                     requireInteraction: ios ? false : true,
                     silent: false,
-                    renotify: ios ? false : true,
-                    ...(ios ? {} : { vibrate: [400, 150, 400, 150, 400] }),
                     data: { url: '/patient?alarm=1', isDose: true, isClinical: true },
-                  } as NotificationOptions);
+                  }
+                  if (!ios) {
+                    nopts.vibrate = [400, 150, 400, 150, 400]
+                    nopts.renotify = true
+                  }
+                  reg.showNotification(`Time to take ${name}`, nopts as NotificationOptions);
                 }).catch(() => {});
               } catch { /* SW not available */ }
             }
