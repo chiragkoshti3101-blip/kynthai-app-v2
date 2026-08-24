@@ -1,41 +1,62 @@
 'use client'
 
 /**
- * Once per browser profile after sign-in: request system notification
- * permission and store a Web Push subscription so OLX/Zomato-style banners
- * (app name + message) work when the app is backgrounded or closed.
+ * After sign-in: ensure THIS device is subscribed for in-app system notifications
+ * (doctor, lab, caretaker, patient — same path). Email is only a backup if push
+ * cannot reach the device.
  */
 
 import * as React from 'react'
-import { enablePushDetailed, permissionState, pushSupported, isIosStandalone } from '@/lib/push'
+import {
+  enablePushDetailed,
+  permissionState,
+  pushSupported,
+  isIosStandalone,
+} from '@/lib/push'
 
-const KEY = 'kynthai.push.auto-asked.v2'
+const KEY = 'kynthai.push.auto-asked.v3'
 
 export function AutoEnableNotifications() {
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     if (!pushSupported()) return
-    try {
-      if (localStorage.getItem(KEY) === '1') return
-    } catch {
-      return
-    }
 
     const run = async () => {
-      // Small delay so portal chrome is visible before the OS prompt
-      await new Promise((r) => setTimeout(r, 1800))
+      await new Promise((r) => setTimeout(r, 900))
+
+      // iPhone browser tab cannot get system push — only Home Screen app
+      if (!isIosStandalone()) return
+
       try {
         if (permissionState() === 'denied') {
-          localStorage.setItem(KEY, '1')
+          try {
+            localStorage.setItem(KEY, '1')
+          } catch {
+            /* ignore */
+          }
           return
         }
-        if (!isIosStandalone()) {
-          // iPhone Safari tab: cannot get system push — skip prompt spam
+
+        // Always re-subscribe when already granted so doctor/lab/caretaker
+        // devices stay registered after login (fresh endpoint on server).
+        if (permissionState() === 'granted') {
+          await enablePushDetailed()
           return
         }
+
+        try {
+          if (localStorage.getItem(KEY) === '1') return
+        } catch {
+          /* ignore */
+        }
+
         const result = await enablePushDetailed()
         if (result.ok || result.reason === 'denied' || result.reason === 'ios_needs_install') {
-          localStorage.setItem(KEY, '1')
+          try {
+            localStorage.setItem(KEY, '1')
+          } catch {
+            /* ignore */
+          }
         }
       } catch {
         /* ignore */
