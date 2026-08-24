@@ -283,7 +283,8 @@ export function MedicationAlarmHost({
   }, [scheduleNext])
 
   React.useEffect(() => {
-    if (!alarmEnabled) {
+    // Demo accounts always run the host so QA sees full-screen Taken/Skip.
+    if (!alarmEnabled && !isDemo) {
       if (alarmTimer.current) clearTimeout(alarmTimer.current)
       clearEscalateTimer()
       setAlarmTarget(null)
@@ -297,16 +298,16 @@ export function MedicationAlarmHost({
       if (alarmTimer.current) clearTimeout(alarmTimer.current)
       clearEscalateTimer()
     }
-  }, [alarmEnabled, reminders, scheduleNext])
+  }, [alarmEnabled, isDemo, reminders, scheduleNext])
 
   React.useEffect(() => {
-    if (!alarmEnabled) return
+    if (!alarmEnabled && !isDemo) return
     const onVis = () => {
       if (document.visibilityState === 'visible') scheduleRef.current()
     }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
-  }, [alarmEnabled])
+  }, [alarmEnabled, isDemo])
 
   // Lock body scroll while full-screen overlay is up
   React.useEffect(() => {
@@ -461,7 +462,12 @@ export function MedicationAlarmHost({
   // Clinical: push-driven SHOW_MED_ALARM always shows full-screen even if
   // the user muted scheduled local timers (alarmEnabled=false).
   if (!alarmTarget) return null
-  if (!alarmEnabled && !String(alarmTarget.id).startsWith("push-") && !String(alarmTarget.id).startsWith("url-alarm-")) {
+  const isForced =
+    String(alarmTarget.id).startsWith('push-') ||
+    String(alarmTarget.id).startsWith('url-alarm-') ||
+    String(alarmTarget.id).startsWith('host-demo') ||
+    !!isDemo
+  if (!alarmEnabled && !isForced) {
     return null
   }
 
