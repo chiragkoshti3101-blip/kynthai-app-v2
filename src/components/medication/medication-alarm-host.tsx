@@ -524,6 +524,16 @@ export function MedicationAlarmHost({
       aria-labelledby="dose-alarm-title"
       aria-describedby="dose-alarm-desc"
       className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#064e3b] text-white px-4 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pointer-events-auto"
+      style={{
+        // iOS Safari: inset-0 alone can leave a floating strip when the URL bar collapses
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100dvh',
+        minHeight: '-webkit-fill-available',
+      }}
     >
       <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
         <div className="relative">
