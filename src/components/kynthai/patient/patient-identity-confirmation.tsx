@@ -382,7 +382,7 @@ export function PatientIdentityConfirmation({
         <Separator />
 
         {/* ── Animated Step Content ──────────────────────────────── */}
-        <AnimatePresence mode="wait">
+        <AnimatePresence initial={false}>
           <motion.div
             key={`step-${currentStep}-${stepKey}`}
             variants={stepVariants}

@@ -59,7 +59,7 @@ export async function sendPushToUser(
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       silent: false,
-      requireInteraction: true,
+      requireInteraction: false, // SW applies platform rules
       renotify: true,
       clinical: isClinical,
       data: {

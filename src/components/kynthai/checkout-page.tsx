@@ -217,7 +217,7 @@ export function CheckoutPage({ tier }: { tier: 'plus' | 'family_pro' }) {
       </header>
 
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-        <AnimatePresence mode="wait">
+        <AnimatePresence initial={false}>
           {phase === 'success' ? (
             <SuccessView
               key="success"
