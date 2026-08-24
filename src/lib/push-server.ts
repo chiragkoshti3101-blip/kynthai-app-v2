@@ -47,6 +47,8 @@ export async function sendPushToUser(
       reminderId: payload.reminderId,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
+      silent: false,
+      requireInteraction: true,
       data: {
         url: payload.url || '/',
         type: payload.tag || 'kynthai',

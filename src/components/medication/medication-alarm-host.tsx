@@ -25,6 +25,7 @@ import {
   pickDueReminder,
   pickNextFutureReminder,
   notifyReminder,
+  notifyReminderViaSW,
   requestAlarmNotificationPermission,
 } from '@/lib/alarm'
 import {
@@ -226,7 +227,7 @@ export function MedicationAlarmHost({
         else playProfessionalRingtone()
       }
       const medName = due.medication?.name ?? 'Medication'
-      notifyReminder('Time to take medication', `${medName} · ${due.time}`)
+      void notifyReminderViaSW('Time to take medication', `${medName} · ${due.time}`)
       if (!recorded.current.has(due.id) && !isDemo) {
         recorded.current.add(due.id)
         void recordInApp(

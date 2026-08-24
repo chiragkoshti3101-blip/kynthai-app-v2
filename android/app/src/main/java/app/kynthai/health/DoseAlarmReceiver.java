@@ -18,7 +18,7 @@ import androidx.core.app.NotificationCompat;
  * can take over the entire phone (over other apps / lock screen) — not a tray ping.
  */
 public class DoseAlarmReceiver extends BroadcastReceiver {
-  public static final String CHANNEL_ID = "kynthai_fullscreen_dose";
+  public static final String CHANNEL_ID = "kynthai_fullscreen_dose_v2";
   public static final String ACTION_DOSE = "app.kynthai.health.ACTION_DOSE_ALARM";
 
   @Override

@@ -109,14 +109,14 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
     const { LocalNotifications } = await import('@capacitor/local-notifications')
     try {
       await LocalNotifications.createChannel({
-        id: 'kynthai_dose_alarm',
-        name: 'Medication alarms',
-        description: 'Dose and emergency alarms',
+        id: 'kynthai_dose_alarm_v2',
+        name: 'Medication reminders',
+        description: 'Dose and emergency alarms with sound',
         importance: 5,
         visibility: 1,
-        sound: 'beep.wav',
+        sound: platform === 'ios' ? undefined : 'beep.wav',
         vibration: true,
-      })
+      } as any)
     } catch {
       /* exists */
     }

@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = 'professional-v7'
+const DEPLOY_ID = 'sound-v8'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -21,6 +21,7 @@ const PRECACHE_URLS = [
   '/apple-touch-icon.png',
   '/icon.svg',
   '/logo.svg',
+  '/beep.wav',
 ]
 
 self.addEventListener('install', (event) => {

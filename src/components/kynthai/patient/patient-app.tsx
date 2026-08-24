@@ -1185,7 +1185,11 @@ export function PatientApp({ user }: { user: AuthUser }) {
                     badge: '/icon-192.png',
                     tag: `reminder-${r.id}`,
                     requireInteraction: true,
-                    data: { url: '/patient' },
+                    silent: false,
+                    renotify: true,
+                    // @ts-expect-error vibrate supported on Android Chrome
+                    vibrate: [400, 150, 400, 150, 400],
+                    data: { url: '/patient?alarm=1', isDose: true, isClinical: true },
                   });
                 }).catch(() => {});
               } catch { /* SW not available */ }
