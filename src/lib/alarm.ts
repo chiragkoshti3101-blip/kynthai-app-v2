@@ -112,21 +112,36 @@ export function pickNextFutureReminder<T extends DueCandidate>(pending: T[]): T 
   return future[0]?.r ?? null
 }
 
+function isIOSDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return (
+    /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  )
+}
+
+function clinicalNotificationOptions(body: string, extra: NotificationOptions = {}): NotificationOptions {
+  const ios = isIOSDevice()
+  return {
+    body,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    tag: 'kynthai-med-reminder',
+    silent: false,
+    // iOS: sticky requireInteraction leaves floating banners that will not dismiss
+    requireInteraction: ios ? false : true,
+    renotify: ios ? false : true,
+    ...(ios ? {} : { vibrate: [300, 120, 300] }),
+    ...extra,
+  }
+}
+
 export function notifyReminder(title: string, body: string) {
   if (typeof window === 'undefined' || typeof Notification === 'undefined') return
   if (Notification.permission !== 'granted') return
   if (document.visibilityState === 'visible') return
   try {
-    const opts = {
-      body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: 'kynthai-med-reminder',
-      requireInteraction: true,
-      silent: false,
-      renotify: true,
-      vibrate: [300, 120, 300],
-    } as NotificationOptions
+    const opts = clinicalNotificationOptions(body)
     const n = new Notification(title, opts)
     n.onclick = () => {
       window.focus()
@@ -145,17 +160,12 @@ export async function notifyReminderViaSW(title: string, body: string) {
   if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') return
   try {
     const reg = await navigator.serviceWorker.ready
-    await reg.showNotification(title, {
-      body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
-      tag: 'kynthai-med-reminder',
-      requireInteraction: true,
-      silent: false,
-      renotify: true,
-      vibrate: [300, 120, 300],
-      data: { url: '/patient?alarm=1', isDose: true, isClinical: true },
-    } as NotificationOptions)
+    await reg.showNotification(
+      title,
+      clinicalNotificationOptions(body, {
+        data: { url: '/patient?alarm=1', isDose: true, isClinical: true },
+      }),
+    )
   } catch {
     notifyReminder(title, body)
   }

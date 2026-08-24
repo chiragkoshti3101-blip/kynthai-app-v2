@@ -1192,15 +1192,19 @@ export function PatientApp({ user }: { user: AuthUser }) {
             if (typeof navigator !== 'undefined' && navigator.serviceWorker?.controller) {
               try {
                 navigator.serviceWorker.ready.then(reg => {
+                  const ios =
+                    /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+                    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
                   reg.showNotification(`Time to take ${name}`, {
                     body: [dosage, r.time].filter(Boolean).join(' · ') || 'Tap to open Kynthai',
                     icon: '/icon-192.png',
                     badge: '/icon-192.png',
                     tag: `reminder-${r.id}`,
-                    requireInteraction: true,
+                    // iOS: sticky requireInteraction leaves floating banners
+                    requireInteraction: ios ? false : true,
                     silent: false,
-                    renotify: true,
-                    vibrate: [400, 150, 400, 150, 400],
+                    renotify: ios ? false : true,
+                    ...(ios ? {} : { vibrate: [400, 150, 400, 150, 400] }),
                     data: { url: '/patient?alarm=1', isDose: true, isClinical: true },
                   } as NotificationOptions);
                 }).catch(() => {});

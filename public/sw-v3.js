@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = 'push-urgent-v10'
+const DEPLOY_ID = 'ios-notif-v11'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -196,15 +196,17 @@ self.addEventListener('push', (event) => {
     if (data.medName) openUrl += '&med=' + encodeURIComponent(String(data.medName).slice(0, 80))
   }
 
-  // CRITICAL: requireInteraction keeps the banner on screen until the user
-  // acts — so a busy doctor/lab/caretaker does not lose it after a few seconds.
+  // iOS PWA: requireInteraction + notification actions often leave sticky /
+  // "floating" banners that will not dismiss cleanly. Keep those Android-only.
+  const ua = (self.navigator && self.navigator.userAgent) || ''
+  const isIOS =
+    /iPad|iPhone|iPod/i.test(ua) ||
+    (self.navigator && self.navigator.platform === 'MacIntel' && (self.navigator.maxTouchPoints || 0) > 1)
+
   const options = {
     body: body || (isDose ? 'Open to mark Taken or Skip' : 'Open Kynthai'),
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    vibrate: isClinical
-      ? [500, 200, 500, 200, 500, 200, 500, 200, 500]
-      : [120, 60, 120],
     data: {
       url: openUrl,
       type: data.type || tag,
@@ -217,19 +219,23 @@ self.addEventListener('push', (event) => {
       reminderId: data.reminderId || null,
     },
     tag: isDose ? 'kynthai-dose-alarm' : isEmergency ? 'kynthai-emergency' : String(tag),
-    renotify: true,
-    requireInteraction: isClinical, // stays until dismiss / click
+    // Replace prior same-tag alert instead of stacking broken floaters on iOS
+    renotify: !isIOS,
+    requireInteraction: isIOS ? false : isClinical,
     silent: false,
-    // iOS Safari / Android: default OS alert sound (custom sound limited on web)
-    sound: 'default',
-    actions: isDose
+  }
+  if (!isIOS) {
+    options.vibrate = isClinical
+      ? [500, 200, 500, 200, 500]
+      : [120, 60, 120]
+    options.actions = isDose
       ? [
           { action: 'open-alarm', title: 'Open reminder' },
           { action: 'taken', title: 'Taken' },
         ]
       : isClinical
         ? [{ action: 'open', title: 'Open' }]
-        : [],
+        : []
   }
 
   event.waitUntil(
