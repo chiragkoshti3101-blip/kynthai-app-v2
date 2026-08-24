@@ -116,7 +116,7 @@ export default async function RootLayout({
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#064e3b" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         {/* Instant first paint — prevents black/white flash on PWA cold start */}
-        <style dangerouslySetInnerHTML={{ __html: 'html,body{background:#f9fdfb;margin:0}html.dark,html.dark body{background:#070f0c}' }} />
+        <style dangerouslySetInnerHTML={{ __html: 'html,body{background:#ecfdf5!important;margin:0;min-height:100%}html.dark,html.dark body{background:#064e3b!important}#kynthai-boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#ecfdf5;color:#064e3b;font-family:system-ui,sans-serif;font-weight:600;font-size:18px;letter-spacing:0.02em;transition:opacity .2s}html.dark #kynthai-boot{background:#064e3b;color:#ecfdf5}#kynthai-boot.done{opacity:0;pointer-events:none}' }} />
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />
@@ -131,7 +131,7 @@ export default async function RootLayout({
             default. Matches next-themes' 'theme' localStorage key. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme')||'system';var d=document.documentElement;var dark=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark)d.classList.add('dark');}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('theme')||'system';var d=document.documentElement;var dark=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark)d.classList.add('dark');}catch(e){}document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('kynthai-boot');if(b){requestAnimationFrame(function(){b.classList.add('done');setTimeout(function(){b.remove()},250);});}});})();`,
           }}
         />
         {/* ponytail: switch sizing is now handled entirely by inline styles
@@ -170,6 +170,7 @@ export default async function RootLayout({
         >
           Skip to main content
         </a>
+        <div id="kynthai-boot" aria-hidden="true">Kynthai</div>
         <Providers>
           <PortalShell>{children}</PortalShell>
         </Providers>

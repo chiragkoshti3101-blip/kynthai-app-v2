@@ -6,7 +6,7 @@
 /* deploy-1787423547425ts:1787423547 — forces new CSS hash on every deploy */
 
 @theme inline {
-  --deploy-hash: sound-v8;
+  --deploy-hash: splash-v9;
   /* DEPLOY: --deploy-hash forces new CSS hash on every deploy */
   --deploy-marker: var(--deploy-hash);
   --color-background: var(--background);
