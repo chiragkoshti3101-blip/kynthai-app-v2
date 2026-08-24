@@ -60,7 +60,6 @@ export async function sendPushToUser(
       badge: '/icon-192.png',
       silent: false,
       requireInteraction: false, // SW applies platform rules
-      renotify: true,
       clinical: isClinical,
       data: {
         url: payload.url || (isClinical ? '/patient?alarm=1' : '/'),

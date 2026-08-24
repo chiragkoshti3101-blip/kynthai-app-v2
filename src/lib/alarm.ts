@@ -125,8 +125,9 @@ function clinicalNotificationOptions(
   extra: NotificationOptions = {},
 ): NotificationOptions {
   const ios = isIOSDevice()
-  // Cast: renotify/vibrate are valid in browsers but missing from some TS DOM libs
-  return {
+  // Build as a plain record then cast — renotify/vibrate are valid at runtime
+  // but missing from some TypeScript DOM lib versions (breaks next build).
+  const opts: Record<string, unknown> = {
     body,
     icon: '/icon-192.png',
     badge: '/icon-192.png',
@@ -134,10 +135,13 @@ function clinicalNotificationOptions(
     silent: false,
     // iOS: sticky requireInteraction leaves floating banners that will not dismiss
     requireInteraction: ios ? false : true,
-    ...(ios ? {} : { vibrate: [300, 120, 300] }),
     ...extra,
-    ...(ios ? {} : { renotify: true }),
-  } as NotificationOptions
+  }
+  if (!ios) {
+    opts.vibrate = [300, 120, 300]
+    opts.renotify = true
+  }
+  return opts as NotificationOptions
 }
 
 export function notifyReminder(title: string, body: string) {
