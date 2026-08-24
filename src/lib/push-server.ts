@@ -2,27 +2,31 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import webpush from 'web-push'
 
+export type PushPayload = {
+  title: string
+  body: string
+  tag?: string
+  url?: string
+  medName?: string
+  time?: string
+  dosage?: string
+  reminderId?: string
+  /** Clinical dose / emergency — max priority, short TTL */
+  clinical?: boolean
+}
+
 /**
- * sendPushToUser — send a push notification to all devices subscribed by a user.
- * Best-effort: never throws; failures are logged and expired subs are removed.
+ * Instant push to all of a user's devices.
+ * Clinical (dose) uses Urgency: high + short TTL so carriers deliver immediately
+ * (same class of signal messaging apps use for priority traffic).
  */
 export async function sendPushToUser(
   userId: string,
-  payload: {
-    title: string
-    body: string
-    tag?: string
-    url?: string
-    medName?: string
-    time?: string
-    dosage?: string
-    reminderId?: string
-  },
+  payload: PushPayload,
 ): Promise<{ sent: number; failed: number }> {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
   const privateKey = process.env.VAPID_PRIVATE_KEY
   if (!publicKey || !privateKey) {
-    // Push not configured — never throw, the app still works in-app.
     return { sent: 0, failed: 0 }
   }
 
@@ -35,12 +39,19 @@ export async function sendPushToUser(
     })
     if (subs.length === 0) return { sent: 0, failed: 0 }
 
+    const isClinical =
+      payload.clinical === true ||
+      payload.tag === 'reminder' ||
+      payload.tag === 'missed_dose' ||
+      payload.tag === 'emergency' ||
+      !!payload.reminderId
+
     const message = JSON.stringify({
       title: payload.title || 'Kynthai',
       body: payload.body || '',
-      tag: payload.tag || 'kynthai-notification',
-      type: payload.tag || 'kynthai',
-      url: payload.url || '/',
+      tag: payload.tag || (isClinical ? 'kynthai-dose' : 'kynthai-notification'),
+      type: isClinical ? 'dose' : payload.tag || 'kynthai',
+      url: payload.url || (isClinical ? '/patient?alarm=1' : '/'),
       medName: payload.medName,
       time: payload.time,
       dosage: payload.dosage,
@@ -49,41 +60,53 @@ export async function sendPushToUser(
       badge: '/icon-192.png',
       silent: false,
       requireInteraction: true,
+      renotify: true,
+      clinical: isClinical,
       data: {
-        url: payload.url || '/',
-        type: payload.tag || 'kynthai',
+        url: payload.url || (isClinical ? '/patient?alarm=1' : '/'),
+        type: isClinical ? 'dose' : payload.tag || 'kynthai',
         medName: payload.medName,
         time: payload.time,
         dosage: payload.dosage,
         reminderId: payload.reminderId,
+        isDose: isClinical,
+        isClinical,
       },
     })
 
-    let sent = 0
-    let failed = 0
-    for (const sub of subs) {
-      try {
-        await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          message,
-          {
-            TTL: 60 * 60,
-            urgency: 'high',
-            headers: {
-              Urgency: 'high',
+    // Parallel fan-out — no sequential delay across devices
+    const results = await Promise.all(
+      subs.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+            message,
+            {
+              // Clinical: short TTL, high urgency (push services prioritize)
+              TTL: isClinical ? 120 : 3600,
+              urgency: 'high',
+              topic: isClinical ? 'kynthai-dose' : 'kynthai',
+              headers: {
+                Urgency: 'high',
+                Topic: isClinical ? 'kynthai-dose' : 'kynthai',
+              },
             },
-          },
-        )
-        sent++
-      } catch (err: any) {
-        failed++
-        if (err.statusCode === 404 || err.statusCode === 410) {
-          await db.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {})
-        } else {
-          logger.phiSafeError(err, 'push.send')
+          )
+          return { ok: true as const, id: sub.id }
+        } catch (err: unknown) {
+          const statusCode = (err as { statusCode?: number })?.statusCode
+          if (statusCode === 404 || statusCode === 410) {
+            await db.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {})
+          } else {
+            logger.phiSafeError(err, 'push.send')
+          }
+          return { ok: false as const, id: sub.id }
         }
-      }
-    }
+      }),
+    )
+
+    const sent = results.filter((r) => r.ok).length
+    const failed = results.length - sent
     return { sent, failed }
   } catch (err) {
     logger.phiSafeError(err, 'push.send')

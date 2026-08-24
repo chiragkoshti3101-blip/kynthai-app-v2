@@ -137,6 +137,16 @@ export async function sendNotification(
 
   // 1. PUSH (cheapest, $0) — uses VAPID web-push, not Firebase FCM
   if (target.userId && isPushEnabled()) {
+    const clinicalTypes = new Set([
+      'reminder',
+      'missed_dose',
+      'reminder_escalation',
+      'emergency',
+      'sos',
+      'appointment',
+      'appointment_update',
+      'lab_booking',
+    ])
     const r = await sendPushToUser(target.userId, {
       title: payload.title,
       body: payload.body,
@@ -146,6 +156,7 @@ export async function sendNotification(
       time: payload.data?.scheduledTime as string | undefined,
       dosage: payload.data?.dosage as string | undefined,
       reminderId: payload.data?.reminderId as string | undefined,
+      clinical: clinicalTypes.has(String(payload.type || '')),
     })
     const cost = CHANNEL_COST.push
     const ok = r.sent > 0
