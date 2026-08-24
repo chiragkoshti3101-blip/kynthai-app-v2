@@ -40,6 +40,7 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
   const goScreen = (s: AppScreen) => { setScreen(s); router.push('/') }
 
   const links: NavLink[] = [
+    { label: 'Download app', href: '/download' },
     { label: 'Pricing', href: '/pricing' },
     { label: 'For Families', onClick: () => goToLogin('caretaker') },
     { label: 'For Patients', onClick: () => goToLogin('patient') },
@@ -95,6 +96,14 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
         </nav>
 
         <div className="hidden items-center gap-2 lg:flex">
+          <Button
+            variant="outline"
+            size="ctaSecondary"
+            onClick={() => router.push('/download')}
+            className="rounded-full px-4 border-emerald-500/40 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300"
+          >
+            Download app
+          </Button>
           <Button
             variant="ghost"
             size="ctaSecondary"
@@ -169,6 +178,15 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
                 </button>
               )
             )}
+            <Link href="/download" onClick={() => setOpen(false)}>
+              <Button
+                variant="outline"
+                size="cta"
+                className="mt-2 w-full border-emerald-500/40"
+              >
+                Download Android app
+              </Button>
+            </Link>
             <Link href="/login" onClick={() => setOpen(false)}>
               <Button
                 variant="brand"
