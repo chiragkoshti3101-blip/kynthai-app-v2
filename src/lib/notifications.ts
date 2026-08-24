@@ -122,6 +122,19 @@ export async function sendNotification(
   let usedChannel: NotificationChannel | 'none' = 'none'
   let usedCost = 0
 
+  // Resolve email from DB when callers only pass userId (doctor/lab/family paths)
+  if (target.userId && !target.email) {
+    try {
+      const u = await db.user.findUnique({
+        where: { id: target.userId },
+        select: { email: true, emailOptOut: true },
+      })
+      if (u?.email && !u.emailOptOut) target = { ...target, email: u.email }
+    } catch {
+      /* best-effort */
+    }
+  }
+
   // 1. PUSH (cheapest, $0) — uses VAPID web-push, not Firebase FCM
   if (target.userId && isPushEnabled()) {
     const r = await sendPushToUser(target.userId, {

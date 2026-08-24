@@ -277,14 +277,15 @@ export function MedicationAlarmHost({
           void triggerEscalation(due, familyMemberId)
           void recordInApp(
             `Missed: ${medName}`,
-            `No action after grace · caretaker notified`,
+            familyMemberId
+              ? `No action after grace · family caretaker notified`
+              : `No action after grace · please take or skip when you can`,
             'reminder_escalation',
           )
         }, escalationGraceMs)
       }
-      // Keep re-checking so the overlay stays until action
-      const intervalMin = 1
-      alarmTimer.current = setTimeout(() => scheduleRef.current(), intervalMin * 60 * 1000)
+      // Re-check soon so overlay + ring stay reliable (not only once per minute)
+      alarmTimer.current = setTimeout(() => scheduleRef.current(), 15_000)
       return
     }
     setAlarmTarget(null)
@@ -557,8 +558,9 @@ export function MedicationAlarmHost({
         </div>
 
         <p className="text-[11px] text-emerald-100/70 max-w-[260px]">
-          Full-screen alarm — sound keeps playing until you mark Taken or Skip.
-          If you miss the window, your caretaker may be notified.
+          {familyMemberId
+            ? 'Sound continues until Taken or Skip. If this dose is missed, the family caretaker may be notified.'
+            : 'Sound continues until you mark Taken or Skip. Please act so your schedule stays accurate.'}
         </p>
       </div>
     </div>
