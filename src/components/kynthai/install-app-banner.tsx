@@ -122,20 +122,26 @@ export function InstallAppBanner({ className }: { className?: string }) {
                 Tap <Share className="inline h-3 w-3" /> <strong>Share</strong> →{' '}
                 <strong>Add to Home Screen</strong> → Add. Open from the icon and allow notifications.
               </p>
-              <Button size="sm" variant="ghost" className="h-9 mt-1" onClick={dismiss}>
-                Got it
-              </Button>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button size="sm" variant="secondary" className="h-9 gap-1.5" asChild>
+                  <a href="/download">Install guide</a>
+                </Button>
+                <Button size="sm" variant="ghost" className="h-9" onClick={dismiss}>
+                  Got it
+                </Button>
+              </div>
             </>
           ) : (
             <div className="flex flex-wrap gap-2 pt-1">
-              {(android || !ios) && (
-                <Button size="sm" className="h-9 gap-1.5" asChild>
-                  <a href={APK_URL} download="Kynthai.apk">
-                    <Download className="h-3.5 w-3.5" />
-                    Download APK
-                  </a>
-                </Button>
-              )}
+              <Button size="sm" className="h-9 gap-1.5" asChild>
+                <a href={APK_URL} download="Kynthai.apk">
+                  <Download className="h-3.5 w-3.5" />
+                  Download APK
+                </a>
+              </Button>
+              <Button size="sm" variant="secondary" className="h-9 gap-1.5" asChild>
+                <a href="/download">Install guide</a>
+              </Button>
               {deferred.current && (
                 <Button size="sm" variant="secondary" className="h-9 gap-1.5" onClick={() => void installPwa()}>
                   Install (Chrome)
