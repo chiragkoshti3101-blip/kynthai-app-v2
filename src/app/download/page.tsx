@@ -1,10 +1,13 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
-import { Download, Smartphone, Bell, Shield } from 'lucide-react'
+import { Download, Bell, Shield } from 'lucide-react'
+import { KynthaiBrand } from '@/components/kynthai/logo'
 
 export const metadata: Metadata = {
   title: 'Download Kynthai for Android',
-  description: 'Official Android APK — reliable medication reminders and notifications when the app is closed.',
+  description:
+    'Official Android APK — reliable medication reminders and notifications when the app is closed.',
 }
 
 const APK = '/downloads/kynthai-android.apk'
@@ -12,10 +15,23 @@ const APK = '/downloads/kynthai-android.apk'
 export default function DownloadPage() {
   return (
     <main className="min-h-screen bg-[#f9fdfb] text-slate-900">
-      <div className="mx-auto max-w-lg px-5 py-12 space-y-8">
-        <div className="space-y-3 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg">
-            <Smartphone className="h-8 w-8" />
+      <div className="mx-auto max-w-lg px-5 py-10 space-y-8">
+        <div className="flex justify-center">
+          <Link href="/" className="inline-flex items-center gap-2" aria-label="Kynthai home">
+            <KynthaiBrand iconSize={32} />
+          </Link>
+        </div>
+
+        <div className="space-y-4 text-center">
+          <div className="mx-auto relative h-24 w-24 overflow-hidden rounded-[1.35rem] shadow-lg ring-1 ring-emerald-900/10">
+            <Image
+              src="/icon-512.png"
+              alt="Kynthai app icon"
+              width={96}
+              height={96}
+              priority
+              className="h-full w-full object-cover"
+            />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Download Kynthai</h1>
           <p className="text-sm text-slate-600 leading-relaxed">
@@ -52,23 +68,24 @@ export default function DownloadPage() {
 
         <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-xs text-slate-600 space-y-2 leading-relaxed">
           <p className="font-semibold text-slate-800">Install steps</p>
-          <ol className="list-decimal pl-4 space-y-1">
+          <ol className="list-decimal list-inside space-y-1">
             <li>Tap Download Android APK</li>
             <li>Open the downloaded file</li>
             <li>Tap Install (allow “unknown apps” for Chrome/Files if asked)</li>
             <li>Open Kynthai → Allow notifications</li>
             <li>Sign in with your account</li>
           </ol>
-          <p className="pt-2">
-            iPhone: use Safari → Share → Add to Home Screen. App Store build comes later.
-          </p>
         </div>
 
-        <p className="text-center text-sm">
-          <Link href="/" className="text-emerald-700 font-medium hover:underline">
+        <p className="text-center text-xs text-slate-500 leading-relaxed">
+          iPhone: use Safari → Share → Add to Home Screen. App Store build comes later.
+        </p>
+
+        <div className="text-center">
+          <Link href="/" className="text-sm font-medium text-emerald-700 hover:underline">
             Back to Kynthai
           </Link>
-        </p>
+        </div>
       </div>
     </main>
   )
