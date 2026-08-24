@@ -1,21 +1,24 @@
 /**
  * Smart notification routing service for Kynthai.
  *
- * Channels are tried in cost-ascending order (cheapest first) so the
- * platform spends the least amount possible per notification while still
- * reaching the user:
+ * Product rule (owner):
+ *   - In-app + Web Push for almost everything (doses, doctor, lab, caretaker, SOS).
+ *   - Email ONLY for:
+ *       1) Prescription from doctor (type: invite / prescription*)
+ *       2) Invitation flows (family_invite / invite)
+ *     Prescription emails include a short “Download the Android app” CTA.
  *
- *   Push ($0) → Email ($0.001) → WhatsApp ($0.003) → SMS ($0.02)
+ * Channels:
+ *   Push ($0) → Email ($0.001, invite/prescription only)
  *
- * Each send is logged to `db.notificationLog` regardless of success/failure,
- * with channel, type, status, and cost recorded for analytics + billing.
+ * Each send is logged to `db.notificationLog` regardless of success/failure.
  *
  * Higher-level helpers:
  *   - sendNotification()  generic routing
  *   - sendReminder()      medication due reminders
  *   - sendEscalation()    missed-dose escalations to caretakers
  *   - sendNudge()         doctor → patient nudge
- *   - sendInvite()        prescription invite
+ *   - sendInvite()        prescription invite (email + push + in-app)
  *   - sendFollowUp()      follow-up appointment reminder
  *   - sendEmergency()     SOS alert to caretakers + linked doctors
  */
@@ -168,12 +171,46 @@ export async function sendNotification(
     }
   }
 
-  // 2. EMAIL ($0.001)
-  if (!delivered && target.email && isEmailEnabled()) {
+  // 2. EMAIL — only prescription + invitation flows (product rule)
+  // Everything else is in-app / push only. No email spam for doses, consults, lab, etc.
+  const emailAllowedTypes = new Set([
+    'invite',
+    'family_invite',
+    'prescription',
+    'prescription_invite',
+    'prescription_sent',
+  ])
+  const allowEmail = emailAllowedTypes.has(String(payload.type || ''))
+
+  if (allowEmail && target.email && isEmailEnabled()) {
+    const isPrescription =
+      payload.type === 'invite' ||
+      payload.type === 'prescription' ||
+      payload.type === 'prescription_invite' ||
+      payload.type === 'prescription_sent'
+    const downloadUrl = `${APP_URL}/download`
+    const openUrl =
+      (payload.data?.inviteLink as string | undefined) ||
+      (payload.data?.url as string | undefined) ||
+      `${APP_URL}/patient`
+
+    const extraCta = isPrescription
+      ? `<p style="color:#374151;font-size:14px;line-height:1.5;margin:16px 0 8px">
+            For reliable reminders on your phone, install the Kynthai Android app.
+         </p>
+         <div style="text-align:center;padding:8px 0 16px">
+           <a href="${downloadUrl}" style="display:inline-block;background:#0f766e;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">Download Android app</a>
+         </div>`
+      : ''
+
     const r = await sendEmailReal({
       to: target.email,
       subject: payload.title,
-      text: payload.body,
+      text:
+        payload.body +
+        (isPrescription
+          ? `\n\nDownload the Android app for reliable reminders: ${downloadUrl}\nOpen: ${openUrl}`
+          : `\n\nOpen Kynthai: ${openUrl}`),
       html: `<div style="font-family:sans-serif;max-width:560px;margin:auto;padding:24px;background:#f9fafb">
         <div style="text-align:center;padding:16px 0">
           <span style="font-size:24px;font-weight:bold;color:#10b981">Kynthai</span>
@@ -181,13 +218,14 @@ export async function sendNotification(
         <div style="background:white;border-radius:12px;padding:24px;margin:16px 0;border:1px solid #e5e7eb">
           <h2 style="color:#10b981;margin-top:0">${payload.title}</h2>
           <p style="color:#374151;font-size:15px;line-height:1.6;white-space:pre-line">${payload.body}</p>
+          ${extraCta}
         </div>
         <div style="text-align:center;padding:16px 0">
-          <a href="${APP_URL}/patient" style="display:inline-block;background:#10b981;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open Kynthai</a>
+          <a href="${openUrl}" style="display:inline-block;background:#10b981;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px">Open Kynthai</a>
         </div>
         <hr style="margin:24px 0;border:none;border-top:1px solid #e5e7eb" />
         <p style="font-size:11px;color:#9ca3af;text-align:center">
-          Kynthai · AI Health Management for US Families<br/>
+          Kynthai · AI Health Management<br/>
           <a href="${APP_URL}" style="color:#10b981;text-decoration:none">${APP_URL}</a>
         </p>
       </div>`,
@@ -196,8 +234,8 @@ export async function sendNotification(
     results.push({ channel: 'email', result: r, cost })
     if (r.ok) {
       delivered = true
-      usedChannel = 'email'
-      usedCost = cost
+      usedChannel = usedChannel === 'none' ? 'email' : usedChannel
+      usedCost = usedChannel === 'email' ? cost : usedCost
     }
   }
 
@@ -334,7 +372,7 @@ export async function sendInvite(
   const target = { ...(await loadUserTarget(patientId)), ...overrides }
   const r = await sendNotification(target, {
     title: `Prescription from Dr. ${doctorName}`,
-    body: `You have a new prescription with ${medCount} medication(s). Review and accept: ${inviteLink}`,
+    body: `You have a new prescription with ${medCount} medication(s). Review and accept: ${inviteLink}\n\nFor reliable phone reminders, download the Kynthai Android app: ${APP_URL}/download`,
     type: 'invite',
     data: { inviteLink, doctorName },
   })
