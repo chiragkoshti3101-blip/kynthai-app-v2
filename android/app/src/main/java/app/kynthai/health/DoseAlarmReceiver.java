@@ -25,8 +25,8 @@ public class DoseAlarmReceiver extends BroadcastReceiver {
   public void onReceive(Context context, Intent intent) {
     String title = intent.getStringExtra("title");
     String body = intent.getStringExtra("body");
-    if (title == null) title = "Medication alarm";
-    if (body == null) body = "Time to take your medication";
+    if (title == null || title.trim().isEmpty()) title = "Time for your medication";
+    if (body == null || body.trim().isEmpty()) body = "Open Kynthai to mark Taken or Skip.";
     int notifId = intent.getIntExtra("notifId", 9001);
 
     ensureChannel(context);
@@ -87,10 +87,11 @@ public class DoseAlarmReceiver extends BroadcastReceiver {
     if (nm == null) return;
     NotificationChannel ch = new NotificationChannel(
       CHANNEL_ID,
-      "Medication full-screen alarms",
+      "Medication reminders",
       NotificationManager.IMPORTANCE_HIGH
     );
-    ch.setDescription("Takes over the screen for dose and emergency alarms");
+    ch.setDescription("Full-screen medication and emergency reminders with sound");
+    ch.setBypassDnd(true);
     ch.enableVibration(true);
     ch.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
     Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);

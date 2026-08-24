@@ -6,10 +6,10 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#f9fdfb",
   "theme_color": "#089868",
   "orientation": "portrait-primary",
-  "version": "cb96d09-icon-v2",
+  "version": "professional-v1",
   "categories": [
     "health",
     "medical",

@@ -11,7 +11,7 @@ const manifest = {
   start_url: '/',
   scope: '/',
   display: 'standalone',
-  background_color: '#ffffff',
+  background_color: '#f9fdfb',
   theme_color: '#089868',
   orientation: 'portrait-primary',
   categories: ['health', 'medical', 'lifestyle'],

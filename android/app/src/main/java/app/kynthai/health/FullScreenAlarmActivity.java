@@ -42,42 +42,55 @@ public class FullScreenAlarmActivity extends Activity {
 
     String title = getIntent().getStringExtra("title");
     String body = getIntent().getStringExtra("body");
-    if (title == null) title = "Medication alarm";
-    if (body == null) body = "Time to take your medication";
+    if (title == null || title.trim().isEmpty()) title = "Time for your medication";
+    if (body == null || body.trim().isEmpty()) body = "Mark Taken or Skip to dismiss this reminder.";
 
     LinearLayout root = new LinearLayout(this);
     root.setOrientation(LinearLayout.VERTICAL);
     root.setGravity(Gravity.CENTER);
-    root.setBackgroundColor(Color.parseColor("#022c22"));
-    root.setPadding(48, 48, 48, 48);
+    root.setBackgroundColor(Color.parseColor("#064e3b")); // brand emerald, not pure black
+    root.setPadding(56, 72, 56, 72);
+
+    TextView brand = new TextView(this);
+    brand.setText("Kynthai");
+    brand.setTextColor(Color.parseColor("#a7f3d0"));
+    brand.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+    brand.setGravity(Gravity.CENTER);
+    brand.setLetterSpacing(0.12f);
+    root.addView(brand);
 
     TextView label = new TextView(this);
-    label.setText("MEDICATION ALARM");
-    label.setTextColor(Color.parseColor("#fbbf24"));
-    label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+    label.setText("Medication reminder");
+    label.setTextColor(Color.parseColor("#ecfdf5"));
+    label.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
     label.setGravity(Gravity.CENTER);
+    label.setPadding(0, 8, 0, 0);
     root.addView(label);
 
     TextView t = new TextView(this);
     t.setText(title);
     t.setTextColor(Color.WHITE);
-    t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 28);
+    t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 26);
     t.setGravity(Gravity.CENTER);
-    t.setPadding(0, 24, 0, 16);
+    t.setPadding(0, 28, 0, 12);
     root.addView(t);
 
     TextView b = new TextView(this);
     b.setText(body);
-    b.setTextColor(Color.parseColor("#a7f3d0"));
+    b.setTextColor(Color.parseColor("#d1fae5"));
     b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16);
     b.setGravity(Gravity.CENTER);
-    b.setPadding(0, 0, 0, 48);
+    b.setPadding(0, 0, 0, 40);
     root.addView(b);
 
     Button open = new Button(this);
-    open.setText("Open Kynthai — Taken / Skip");
+    open.setText("Taken / Skip");
+    open.setAllCaps(false);
+    open.setTextSize(TypedValue.COMPLEX_UNIT_SP, 17);
+    open.setTextColor(Color.parseColor("#064e3b"));
+    open.setBackgroundColor(Color.parseColor("#ffffff"));
+    open.setPadding(32, 28, 32, 28);
     open.setOnClickListener(v -> {
-      // Bring main WebView activity to front
       android.content.Intent i = new android.content.Intent(this, MainActivity.class);
       i.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP);
       i.putExtra("alarm", "1");

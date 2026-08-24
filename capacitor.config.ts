@@ -18,15 +18,18 @@ const config: CapacitorConfig = {
     LocalNotifications: {
       smallIcon: 'ic_stat_icon',
       iconColor: '#10b981',
-      sound: 'beep.wav',
+      sound: 'default',
     },
     SplashScreen: {
       launchAutoHide: true,
+      backgroundColor: '#f9fdfb',
+      launchShowDuration: 0,
+      showSpinner: false,
     },
   },
   android: {
     allowMixedContent: false,
-    backgroundColor: '#022c22',
+    backgroundColor: '#f9fdfb',
   },
 }
 

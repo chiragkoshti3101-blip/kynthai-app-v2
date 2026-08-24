@@ -113,7 +113,10 @@ export default async function RootLayout({
       <head>
         <StructuredData pathname={pathname} />
         <meta name="theme-color" content="#10b981" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#022c22" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#064e3b" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        {/* Instant first paint — prevents black/white flash on PWA cold start */}
+        <style dangerouslySetInnerHTML={{ __html: 'html,body{background:#f9fdfb;margin:0}html.dark,html.dark body{background:#070f0c}' }} />
         <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
         <meta httpEquiv="Pragma" content="no-cache" />
         <meta httpEquiv="Expires" content="0" />

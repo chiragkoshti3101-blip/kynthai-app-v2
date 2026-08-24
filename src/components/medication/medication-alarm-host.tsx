@@ -473,7 +473,7 @@ export function MedicationAlarmHost({
       aria-modal="true"
       aria-labelledby="dose-alarm-title"
       aria-describedby="dose-alarm-desc"
-      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black text-white px-4 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pointer-events-auto"
+      className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#064e3b] text-white px-4 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] pointer-events-auto"
     >
       <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center">
         <div className="relative">
@@ -484,8 +484,8 @@ export function MedicationAlarmHost({
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-amber-300 animate-pulse">
-            ⏰ Medication alarm
+          <p className="text-sm font-medium tracking-wide text-emerald-200/90">
+            Medication reminder
           </p>
           <h2 id="dose-alarm-title" className="text-2xl font-bold tracking-tight text-white">
             Time to take {medName}

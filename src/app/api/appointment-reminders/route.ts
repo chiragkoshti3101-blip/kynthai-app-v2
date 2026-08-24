@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
       await sendNotification(
         { userId: appt.patientId, email: appt.patient.email },
         {
-          title: `⏰ Appointment reminder — ${hoursUntil}h away`,
+          title: `Appointment in ${hoursUntil}h`,
           body: `Your ${apptType} with Dr. ${appt.doctor.user.name} is on ${apptDate}.\n\n` +
             `Reason: ${appt.reason || 'General consultation'}\n\n` +
             `Open Kynthai to prepare: ${APP_URL}/patient`,
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
       await sendNotification(
         { userId: appt.doctor.userId, email: appt.doctor.user.email },
         {
-          title: `⏰ Appointment reminder — ${hoursUntil}h away`,
+          title: `Appointment in ${hoursUntil}h`,
           body: `${appt.patient.name}'s ${apptType} is on ${apptDate}.\n\n` +
             `Reason: ${appt.reason || 'General consultation'}\n\n` +
             `Open Kynthai to prepare: ${APP_URL}/doctor`,

@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
         await sendNotification(
           { userId: u.id, email: u.email, phone: null },
           {
-            title: '🚨 Family member missed a dose',
+            title: 'Family member missed a dose',
             body: `Your family member missed ${medName} at ${scheduledTime}. You may want to reach out.`,
             type: 'escalation',
             data: { medName, scheduledTime },

@@ -264,7 +264,7 @@ export async function sendEscalation(
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(userId)), ...overrides }
   const r = await sendNotification(target, {
-    title: '⚠️ Missed dose — please take now',
+    title: 'Missed dose — please take now',
     body: `Your ${medName} reminder at ${scheduledTime} was missed. Please take it now or mark as skipped.`,
     type: 'escalation',
     data: { medName, scheduledTime, escalated: '1' },
@@ -274,7 +274,7 @@ export async function sendEscalation(
   if (caretakerId && caretakerId !== userId) {
     const ct = { ...(await loadUserTarget(caretakerId)) }
     await sendNotification(ct, {
-      title: '🚨 Family member missed a dose',
+      title: 'Family member missed a dose',
       body: `Your family member missed ${medName} at ${scheduledTime}. You may want to reach out.`,
       type: 'escalation',
       data: { medName, scheduledTime, forUserId: userId },
@@ -292,7 +292,7 @@ export async function sendNudge(
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(patientId)), ...overrides }
   return sendNotification(target, {
-    title: `👋 Nudge from Dr. ${doctorName}`,
+    title: `Nudge from Dr. ${doctorName}`,
     body: message,
     type: 'nudge',
     data: { doctorName },
@@ -309,7 +309,7 @@ export async function sendInvite(
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(patientId)), ...overrides }
   const r = await sendNotification(target, {
-    title: `📩 Prescription from Dr. ${doctorName}`,
+    title: `Prescription from Dr. ${doctorName}`,
     body: `You have a new prescription with ${medCount} medication(s). Review and accept: ${inviteLink}`,
     type: 'invite',
     data: { inviteLink, doctorName },
@@ -331,7 +331,7 @@ export async function sendInvite(
         if (caretaker.userId && caretaker.userId !== patientId) {
           const ct = { ...(await loadUserTarget(caretaker.userId)) }
           await sendNotification(ct, {
-            title: `📩 New prescription for your family member`,
+            title: `New prescription for your family member`,
             body: `Dr. ${doctorName} sent a prescription with ${medCount} medication(s). Help them review it: ${inviteLink}`,
             type: 'invite',
             data: { inviteLink, doctorName, forUserId: patientId },
@@ -356,7 +356,7 @@ export async function sendFollowUp(
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(userId)), ...overrides }
   return sendNotification(target, {
-    title: `📅 Follow-up with Dr. ${doctorName}`,
+    title: `Follow-up with Dr. ${doctorName}`,
     body: `Your follow-up appointment is scheduled for ${scheduledAt}. Tap to join the video call: ${APP_URL}/patient`,
     type: 'follow_up',
     data: { doctorName, scheduledAt, appointmentId: appointmentId || '' },
@@ -373,7 +373,7 @@ export async function sendEmergency(
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(reporterId)), ...overrides }
   const r = await sendNotification(target, {
-    title: '🆘 Emergency SOS received',
+    title: 'Emergency SOS received',
     body: `Your SOS alert for ${memberName} has been sent to your caretaker and linked doctors. For ambulance or emergency services, call 911 immediately.${notes ? ` Notes: ${notes}` : ''}`,
     type: 'emergency',
     data: { memberName, notes },
@@ -383,7 +383,7 @@ export async function sendEmergency(
   for (const docId of notifiedDoctorIds) {
     const dt = { ...(await loadUserTarget(docId)) }
     await sendNotification(dt, {
-      title: `🆘 SOS from ${memberName}`,
+      title: `SOS from ${memberName}`,
       body: `A family under your care triggered an SOS. ${notes ? `Notes: ${notes}` : ''} Please respond urgently.`,
       type: 'emergency',
       data: { memberName, notes, reporterId },

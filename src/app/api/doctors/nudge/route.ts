@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!body) return jsonError('Invalid JSON', 400)
   if (!body.patientId) return jsonError('patientId is required', 400)
 
-  const message = sanitizeText(body.message, 500) || 'Time to take your medication 💊'
+  const message = sanitizeText(body.message, 500) || 'Time to take your medication'
   const channel = sanitizeText(body.channel, 20) || 'in-app'
 
   const profile = await db.doctorProfile.findUnique({ where: { userId: u.id } })

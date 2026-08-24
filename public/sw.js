@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = 'ios-sound-v6'
+const DEPLOY_ID = 'professional-v7'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -196,7 +196,7 @@ self.addEventListener('push', (event) => {
   // CRITICAL: requireInteraction keeps the banner on screen until the user
   // acts — so a busy doctor/lab/caretaker does not lose it after a few seconds.
   const options = {
-    body: body || (isDose ? 'Full-screen alarm — open Kynthai now' : 'Open Kynthai'),
+    body: body || (isDose ? 'Open to mark Taken or Skip' : 'Open Kynthai'),
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     vibrate: isClinical
@@ -221,7 +221,7 @@ self.addEventListener('push', (event) => {
     sound: 'default',
     actions: isDose
       ? [
-          { action: 'open-alarm', title: 'Open alarm' },
+          { action: 'open-alarm', title: 'Open reminder' },
           { action: 'taken', title: 'Taken' },
         ]
       : isClinical
