@@ -236,3 +236,84 @@ export function playSuccessChime() {
     /* ignore */
   }
 }
+
+export type TimedReminder = { id: string; time: string; status?: string }
+
+/** Due if scheduled time is now or up to 15 minutes past (still pending). */
+export function pickDueReminder<T extends TimedReminder>(reminders: T[]): T | null {
+  const now = Date.now()
+  let best: T | null = null
+  let bestDelta = Infinity
+  for (const r of reminders) {
+    if (r.status && r.status !== 'pending') continue
+    const ms = msUntilReminder(r.time)
+    // msUntilReminder returns negative if within last 60s past, else +24h
+    // Treat -60s..+15s as due; also 0..wait if we just crossed
+    if (ms <= 15_000 && ms >= -60_000) {
+      const delta = Math.abs(ms)
+      if (delta < bestDelta) {
+        bestDelta = delta
+        best = r
+      }
+    }
+  }
+  return best
+}
+
+export function pickNextFutureReminder<T extends TimedReminder>(reminders: T[]): T | null {
+  let best: T | null = null
+  let bestWait = Infinity
+  for (const r of reminders) {
+    if (r.status && r.status !== 'pending') continue
+    const ms = msUntilReminder(r.time)
+    if (ms > 15_000 && ms < bestWait) {
+      bestWait = ms
+      best = r
+    }
+  }
+  return best
+}
+
+export function notifyReminder(title: string, body: string) {
+  if (typeof window === 'undefined' || typeof Notification === 'undefined') return
+  if (Notification.permission !== 'granted') return
+  try {
+    const n = new Notification(title, {
+      body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'kynthai-dose-alarm',
+      silent: false,
+    })
+    n.onclick = () => {
+      try {
+        window.focus()
+      } catch {
+        /* ignore */
+      }
+      n.close()
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function notifyReminderViaSW(title: string, body: string) {
+  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+    notifyReminder(title, body)
+    return
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready
+    await reg.showNotification(title, {
+      body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      tag: 'kynthai-dose-alarm',
+      silent: false,
+      data: { url: '/patient?alarm=1', isDose: true, isClinical: true },
+    })
+  } catch {
+    notifyReminder(title, body)
+  }
+}
