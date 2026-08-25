@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
     const apptDate = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
     const apptType = appointmentType === 'video' ? 'Video consultation' : 'In-person visit';
     
-    void sendNotification(
+    await sendNotification(
       { userId: u.id, email: u.email },
       {
         title: 'Appointment request sent',
@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
     ).catch(() => {});
 
     // Notify the doctor — actionable Accept / Decline in the doctor portal.
-    void sendNotification(
+    await sendNotification(
       {
         userId: doctor.userId,
         email: appointment.doctor.user.email || undefined,
@@ -310,7 +310,7 @@ export async function PUT(req: NextRequest) {
 
   if (normalizedStatus === 'confirmed' && isDoctor) {
     // Doctor confirmed → notify patient
-    void sendNotification(
+    await sendNotification(
       { userId: appt.patientId, email: appt.patient.email },
       {
         title: '✅ Appointment confirmed!',
@@ -326,7 +326,7 @@ export async function PUT(req: NextRequest) {
     const cancelledBy = isDoctor ? 'doctor' : isPatient ? 'patient' : 'admin';
     const notifyUserId = isDoctor ? appt.patientId : appt.doctor.userId;
     const notifyEmail = isDoctor ? appt.patient.email : appt.doctor.user.email;
-    void sendNotification(
+    await sendNotification(
       { userId: notifyUserId, email: notifyEmail },
       {
         title: '❌ Appointment cancelled',
@@ -338,7 +338,7 @@ export async function PUT(req: NextRequest) {
     ).catch(() => {});
   } else if (normalizedStatus === 'completed' && isDoctor) {
     // Doctor marked as completed → notify patient
-    void sendNotification(
+    await sendNotification(
       { userId: appt.patientId, email: appt.patient.email },
       {
         title: '✅ Consultation completed',

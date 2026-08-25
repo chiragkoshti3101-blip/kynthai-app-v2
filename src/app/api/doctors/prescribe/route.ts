@@ -180,9 +180,9 @@ export async function POST(req: NextRequest) {
     })
     followUp = { id: created.id, scheduledAt: created.scheduledAt.toISOString() }
 
-    // Send follow-up reminder by email only.
+    // Send follow-up reminder (push + in-app + email when enabled).
     try {
-      void sendFollowUp(
+      await sendFollowUp(
         patient.id,
         u.name ?? 'Doctor',
         created.scheduledAt.toISOString(),
