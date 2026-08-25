@@ -32,8 +32,9 @@
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
     "cap:build:android": "npx cap sync android",
-    "android:apk": "bash scripts/build-android-apk.sh",
-    "android:sync": "npx cap sync android"
+    "android:apk": "bash scripts/build-android-apk.sh debug",
+    "android:sync": "npx cap sync android",
+    "android:apk:release": "bash scripts/build-android-apk.sh release"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.11.3",

@@ -1,53 +1,25 @@
-# Build and attach debug APK on main (and manual dispatch).
-# Artifact can be downloaded from the Actions run and uploaded to /public/downloads.
-name: Android APK
+# Debug APK only — prefer android-release.yml for full pipeline
+name: Android APK (debug)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'android/**'
-      - 'capacitor.config.ts'
-      - 'src/lib/native-alarms.ts'
-      - '.github/workflows/android-apk.yml'
-      - 'scripts/build-android-apk.sh'
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Assemble debug APK
+  debug:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept licenses
-        run: yes | sdkmanager --licenses || true
-
-      - name: Build debug APK
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
+      - uses: android-actions/setup-android@v3
+      - run: yes | sdkmanager --licenses || true
+      - working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
         with:
           name: kynthai-android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
-
-      - name: Summary
-        run: |
-          ls -la android/app/build/outputs/apk/debug/ || true
-          echo "Download the artifact from this run, then copy to public/downloads/kynthai-android.apk and deploy."
+          path: android/app/build/outputs/apk/debug/*.apk
+          retention-days: 14

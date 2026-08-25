@@ -1,22 +1,31 @@
 #!/usr/bin/env bash
-# Build debug APK for sideload / kynthai.app/download
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+MODE="${1:-debug}"
 
-echo "==> Sync web assets into Android (optional if server.url is remote)"
 if command -v npx >/dev/null 2>&1; then
-  npx cap sync android || true
+  npx cap sync android 2>/dev/null || true
 fi
 
 cd android
 chmod +x gradlew
-./gradlew assembleDebug --no-daemon
 
-OUT="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
+if [ "$MODE" = "release" ]; then
+  if [ -z "${ANDROID_KEYSTORE_PATH:-}" ]; then
+    echo "Set ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD"
+    exit 1
+  fi
+  ./gradlew assembleRelease --no-daemon
+  OUT="$ROOT/android/app/build/outputs/apk/release/app-release.apk"
+else
+  ./gradlew assembleDebug --no-daemon
+  OUT="$ROOT/android/app/build/outputs/apk/debug/app-debug.apk"
+fi
+
 DEST="$ROOT/public/downloads/kynthai-android.apk"
 mkdir -p "$(dirname "$DEST")"
 cp -f "$OUT" "$DEST"
 cp -f "$OUT" "$ROOT/public/downloads/Kynthai.apk"
-echo "==> APK ready: $DEST"
+echo "APK → $DEST"
 ls -la "$DEST"
