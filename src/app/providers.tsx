@@ -13,6 +13,7 @@ if (typeof window !== 'undefined') {
 import { ThemeProvider } from '@/components/theme-provider'
 import { MotionConfig } from 'framer-motion'
 import { ServiceWorkerRegister } from '@/components/service-worker-register'
+import { bootstrapNativeShell } from '@/lib/native-shell-bootstrap'
 import { AutoEnableNotifications } from '@/components/kynthai/auto-enable-notifications'
 import { AuthGuard } from '@/components/kynthai/auth-guard'
 import { Toaster } from '@/components/ui/toaster'
@@ -52,6 +53,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <GlobalErrorCatcher />
       <ServiceWorkerRegister />
+      <NativeShellBootstrap />
       <AutoEnableNotifications />
       <DeferredAuthGuard />
       {children}
@@ -61,6 +63,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
     </ThemeProvider>
     </MotionConfig>
   )
+}
+
+
+function NativeShellBootstrap() {
+  useEffect(() => {
+    void bootstrapNativeShell()
+  }, [])
+  return null
 }
 
 function TelemetryBootstrap() {

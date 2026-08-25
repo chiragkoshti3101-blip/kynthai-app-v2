@@ -69,3 +69,28 @@ JS scheduleNativeAlarm()
 - APK loads **HTTPS production only** in `capacitor.config.ts`
 - No embedded API secrets in the shell
 - Auth remains cookie/session based against kynthai.app
+
+## Official Capacitor community plugins (in use)
+
+| Package | Use in Kynthai |
+|---------|----------------|
+| `@capacitor/app` | App resume events, Android back button |
+| `@capacitor/status-bar` | Status bar color / style |
+| `@capacitor/local-notifications` | Fallback local alerts + channels |
+| `@capacitor/preferences` | Lightweight on-device prefs |
+| `@capacitor/haptics` | Taken / Skip feedback |
+| **Custom `DoseAlarm`** | Exact alarms + full-screen intent |
+
+Bootstrap: `src/lib/native-shell-bootstrap.ts` (runs once inside native shell).
+
+## Not yet enabled (optional later)
+
+| Package | Why wait |
+|---------|----------|
+| `@capacitor/push-notifications` + FCM | Needs Firebase `google-services.json` |
+| `@capacitor/splash-screen` | Core splash via Android theme already |
+| `@capacitor/network` | Nice-to-have offline banner |
+
+## Signing
+
+See `docs/ANDROID-SIGNING.md`. CI: `.github/workflows/android-release.yml`.

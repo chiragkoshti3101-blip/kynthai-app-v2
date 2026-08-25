@@ -43,3 +43,14 @@ Local:
 
 Soft launch: web + sideload APK is fine for early users.  
 “Market perfect” needs Play/App Store + FCM/APNs + device matrix pass.
+
+## Signing (Play / trusted installs)
+
+1. Generate keystore once — see `docs/ANDROID-SIGNING.md`
+2. Add GitHub secrets: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`
+3. Actions → **Android Release** → produces debug always; signed APK+AAB when secrets set
+4. Copy release APK to `public/downloads/kynthai-android.apk` and deploy web
+
+## Capacitor plugins
+
+Bootstrap runs on native only (`native-shell-bootstrap.ts`): StatusBar, App, LocalNotifications channel, Haptics.
