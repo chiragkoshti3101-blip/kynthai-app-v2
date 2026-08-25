@@ -47,7 +47,12 @@ export async function bootstrapNativeShell(): Promise<void> {
     const { LocalNotifications } = await import('@capacitor/local-notifications')
     const perm = await LocalNotifications.checkPermissions()
     if (perm.display !== 'granted') {
-      await LocalNotifications.requestPermissions()
+      const after = await LocalNotifications.requestPermissions()
+      if (after.display !== 'granted') {
+        try {
+          window.dispatchEvent(new CustomEvent('kynthai:notifications-denied'))
+        } catch { /* ignore */ }
+      }
     }
     // Android notification channel for clinical alerts
     await LocalNotifications.createChannel({

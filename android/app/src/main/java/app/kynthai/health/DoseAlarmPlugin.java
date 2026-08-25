@@ -6,7 +6,10 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
+import android.provider.Settings;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -14,12 +17,6 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-/**
- * JS API:
- *   DoseAlarm.schedule({ id, title, body, atMs })
- *   DoseAlarm.cancel({ id })
- *   DoseAlarm.requestPermissions()
- */
 @CapacitorPlugin(name = "DoseAlarm")
 public class DoseAlarmPlugin extends Plugin {
 
@@ -48,9 +45,7 @@ public class DoseAlarmPlugin extends Plugin {
     intent.putExtra("notifId", id);
 
     PendingIntent pi = PendingIntent.getBroadcast(
-      ctx,
-      id,
-      intent,
+      ctx, id, intent,
       PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
     );
 
@@ -87,9 +82,7 @@ public class DoseAlarmPlugin extends Plugin {
     Intent intent = new Intent(ctx, DoseAlarmReceiver.class);
     intent.setAction(DoseAlarmReceiver.ACTION_DOSE);
     PendingIntent pi = PendingIntent.getBroadcast(
-      ctx,
-      id,
-      intent,
+      ctx, id, intent,
       PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
     );
     if (am != null) am.cancel(pi);
@@ -108,11 +101,37 @@ public class DoseAlarmPlugin extends Plugin {
     boolean granted =
       ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS)
         == PackageManager.PERMISSION_GRANTED;
+    if (!granted && getActivity() != null) {
+      ActivityCompat.requestPermissions(
+        getActivity(),
+        new String[] { Manifest.permission.POST_NOTIFICATIONS },
+        1001
+      );
+    }
     JSObject ret = new JSObject();
     ret.put("granted", granted);
-    if (!granted) {
-      ret.put("reason", "not_granted_yet");
-    }
+    ret.put("reason", granted ? "granted" : "prompted_or_denied");
     call.resolve(ret);
+  }
+
+  /** Opens system screen so user can turn allowNoti=true when previously denied. */
+  @PluginMethod
+  public void openNotificationSettings(PluginCall call) {
+    try {
+      Context ctx = getContext();
+      Intent intent = new Intent();
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        intent.setAction(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+        intent.putExtra(Settings.EXTRA_APP_PACKAGE, ctx.getPackageName());
+      } else {
+        intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+      }
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      ctx.startActivity(intent);
+      call.resolve();
+    } catch (Exception e) {
+      call.reject("openNotificationSettings failed: " + e.getMessage());
+    }
   }
 }
