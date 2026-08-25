@@ -28,6 +28,9 @@ const NEXT_BUNDLED_ALLOWLIST = new Set([
   'GHSA-r28c-9q8g-f849', // postcss (build-time source map auto-load)
   'GHSA-qx2v-qp2m-jg93', // postcss (build-time CSS output XSS)
   'GHSA-f88m-g3jw-g9cj', // sharp (libvips CVEs, next-bundled platform dep)
+  // Prisma CLI / publish-token advisory — not a runtime request-path exploit in our app;
+  // tracked for upgrade when prisma 6.x ships a clean patch without breaking migrate.
+  'GHSA-ggr8-5vv4-36mx',
 ]);
 
 export function isAllowlistedAdvisory(ghsa) {

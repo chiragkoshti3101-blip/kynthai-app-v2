@@ -79,7 +79,11 @@ export default function DownloadPage() {
         </div>
 
         <p className="text-center text-xs text-slate-500 leading-relaxed">
-          iPhone: use Safari → Share → Add to Home Screen. App Store build comes later.
+          This is the official <strong>APK</strong> (sideload). Play Store <strong>AAB</strong> builds
+          are produced by CI when release signing secrets are configured.
+        </p>
+        <p className="text-center text-xs text-slate-500 leading-relaxed">
+          iPhone: Safari → Share → Add to Home Screen. App Store build comes later.
         </p>
 
         <div className="text-center">
