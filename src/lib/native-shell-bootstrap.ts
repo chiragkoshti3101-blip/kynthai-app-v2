@@ -61,7 +61,7 @@ export async function bootstrapNativeShell(): Promise<void> {
       description: 'Medication, doctor, and lab alerts',
       importance: 5,
       visibility: 1,
-      sound: 'default',
+      sound: undefined,
       vibration: true,
     }).catch(() => {})
   } catch {

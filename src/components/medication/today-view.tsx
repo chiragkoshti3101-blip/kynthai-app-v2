@@ -302,8 +302,7 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
       setAlarmTarget(due);
       unlockAudio();
       if (!isAlarmRinging()) {
-        if (alarmMode === 'alert') playAlertRingtone();
-        else playProfessionalRingtone();
+                else playProfessionalRingtone();
       }
       const medName =
         (due.medication as { name?: string } | undefined)?.name ?? 'Medication';
@@ -457,12 +456,12 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
                 onClick={() =>
                   useAppStore
                     .getState()
-                    .setAlarmMode(alarmMode === 'professional' ? 'alert' : 'professional')
+                    /* ringtone fixed to soft chime */
                 }
                 className="mt-0.5 text-left text-xs text-muted-foreground hover:text-foreground transition-colors"
                 title="Tap to switch ringtone style"
               >
-                {alarmMode === 'alert' ? 'Loud beep' : 'Gentle chime'} · tap to change
+                Gentle clinical chime
               </button>
             ) : (
               <p className="mt-0.5 text-xs text-muted-foreground">Silent</p>
