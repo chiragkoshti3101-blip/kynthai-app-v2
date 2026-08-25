@@ -225,16 +225,18 @@ export async function bindNativeNotificationOpen(
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications')
     const sub = await LocalNotifications.addListener('localNotificationActionPerformed', (e) => {
-      const extra = (e.notification.extra || {}) as Record<string, string>
+      const n = e.notification
+      if (!n) return
+      const extra = (n.extra || {}) as Record<string, string>
       onAlarm({
-        title: e.notification.title,
-        body: e.notification.body,
-        medName: extra.medName || e.notification.title,
+        title: n.title,
+        body: n.body,
+        medName: extra.medName || n.title,
       })
       void appendStoredNotification({
-        id: `tap-${e.notification.id}-${Date.now()}`,
-        title: e.notification.title || 'Kynthai',
-        body: e.notification.body || '',
+        id: `tap-${n.id}-${Date.now()}`,
+        title: n.title || 'Kynthai',
+        body: n.body || '',
         createdAt: new Date().toISOString(),
         read: false,
         type: 'reminder',
