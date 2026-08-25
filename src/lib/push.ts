@@ -156,6 +156,38 @@ export async function enablePushDetailed(): Promise<PushEnableResult> {
           message: 'Browser could not create a push subscription.',
         }
       }
+    } else {
+      // A subscription created against an OLD applicationServerKey will be
+      // rejected by the push service once the server signs with a NEW VAPID
+      // private key (VAPID auth = the same public key the browser used at
+      // subscribe time). Without this, existing users keep a dead subscription
+      // and never receive a dose after a VAPID key rotation. Detect the
+      // mismatch and transparently re-subscribe under the current key.
+      const existingKey = sub.getKey('applicationServerKey' as unknown as PushEncryptionKeyName)
+      const currentKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      const stale =
+        existingKey && existingKey.byteLength > 0
+          ? !keysEqual(existingKey, currentKey)
+          : false
+      if (stale) {
+        try {
+          await sub.unsubscribe()
+        } catch {
+          /* best-effort */
+        }
+        try {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: currentKey as BufferSource,
+          })
+        } catch {
+          return {
+            ok: false,
+            reason: 'subscribe_failed',
+            message: 'Could not re-subscribe under the updated notification key.',
+          }
+        }
+      }
     }
 
     const stored = await storeSubscription(sub)
@@ -239,4 +271,22 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
     outputArray[i] = rawData.charCodeAt(i)
   }
   return outputArray
+}
+
+/** Constant-time key byte comparison for VAPID application-server-key checks. */
+function keysEqual(a: ArrayBuffer | ArrayBufferView, b: ArrayBuffer | ArrayBufferView): boolean {
+  const av = toBytes(a)
+  const bv = toBytes(b)
+  if (av.length !== bv.length) return false
+  let diff = 0
+  for (let i = 0; i < av.length; ++i) diff |= (av[i] ?? 0) ^ (bv[i] ?? 0)
+  return diff === 0
+}
+
+function toBytes(x: ArrayBuffer | ArrayBufferView): Uint8Array {
+  if (x instanceof ArrayBuffer) return new Uint8Array(x)
+  const view = x as { buffer?: ArrayBuffer; byteOffset: number; byteLength: number }
+  const buf = view.buffer
+  if (!buf) return new Uint8Array(0)
+  return new Uint8Array(buf, view.byteOffset, view.byteLength)
 }
