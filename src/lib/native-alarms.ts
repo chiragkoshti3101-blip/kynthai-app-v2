@@ -225,7 +225,12 @@ export async function bindNativeNotificationOpen(
   try {
     const { LocalNotifications } = await import('@capacitor/local-notifications')
     const sub = await LocalNotifications.addListener('localNotificationActionPerformed', (e) => {
-      const n = e.notification
+      const n = e.notification as {
+        id?: number
+        title?: string
+        body?: string
+        extra?: Record<string, unknown>
+      }
       if (!n) return
       const extra = (n.extra || {}) as Record<string, string>
       onAlarm({
