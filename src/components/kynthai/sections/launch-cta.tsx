@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import type { LoginPortal } from '@/lib/store';
 /* Launch CTA — get users into the app now                            */
 /* ------------------------------------------------------------------ */
 export function LaunchCTA({ onPickPortal }: { onPickPortal: (portal: LoginPortal) => void }) {
+  const router = useRouter();
   return (
     <section className="border-y border-border/60 bg-gradient-to-b from-emerald-500/[0.03] to-teal-500/[0.03] py-10 lg:py-14">
       <div className="mx-auto max-w-2xl px-4 text-center sm:px-6 lg:px-8">
@@ -36,9 +38,7 @@ export function LaunchCTA({ onPickPortal }: { onPickPortal: (portal: LoginPortal
           </Button>
           <Button
             variant="outline"
-            onClick={() => {
-              if (typeof window !== 'undefined') window.location.href = '/login'
-            }}
+            onClick={() => router.push('/login')}
             className="h-12 min-h-12 flex-1 rounded-full border-border px-6"
           >
             Sign In

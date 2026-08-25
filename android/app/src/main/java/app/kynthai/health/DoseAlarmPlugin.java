@@ -58,11 +58,7 @@ public class DoseAlarmPlugin extends Plugin {
     }
 
     try {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi);
-      } else {
-        am.setExact(AlarmManager.RTC_WAKEUP, trigger, pi);
-      }
+      scheduleExactOrInexact(am, trigger, pi);
       JSObject ret = new JSObject();
       ret.put("scheduled", true);
       ret.put("id", id);
@@ -183,12 +179,30 @@ public class DoseAlarmPlugin extends Plugin {
           ctx, id, intent,
           PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-          am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
-        } else {
-          am.setExact(AlarmManager.RTC_WAKEUP, at, pi);
-        }
+        scheduleExactOrInexact(am, at, pi);
       }
     } catch (Exception ignored) {}
+  }
+
+  /**
+   * Schedule an exact dose alarm when possible, falling back to an inexact
+   * alarm otherwise. setExactAndAllowWhileIdle() throws SecurityException on
+   * Android 12+ (API 31+) when the SCHEDULE_EXACT_ALARM "special app access"
+   * is not granted; without this guard a missing grant silently killed every
+   * reminder. canScheduleExactAlarms() only exists on API 31+, so feature-detect.
+   */
+  private static void scheduleExactOrInexact(AlarmManager am, long trigger, PendingIntent pi) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      boolean canExact = Build.VERSION.SDK_INT >= 31 && am.canScheduleExactAlarms();
+      if (canExact) {
+        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi);
+      } else {
+        // Inexact fallback so the dose still fires absent the grant (a few
+        // minutes of Doze delay is far better than never firing).
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pi);
+      }
+    } else {
+      am.setExact(AlarmManager.RTC_WAKEUP, trigger, pi);
+    }
   }
 }

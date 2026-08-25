@@ -22,10 +22,12 @@ describe('clockParts', () => {
     expect(c.prevTimeStr).toBe('23:59')
   })
 
-  it('isDueNow matches current and previous minute only', () => {
+  it('isDueNow matches current, previous minute, and the cron-drift lag window', () => {
     const c = clockParts('America/New_York', new Date('2026-08-23T12:05:00.000Z'))
-    expect(isDueNow('08:05', c)).toBe(true)
-    expect(isDueNow('08:04', c)).toBe(true)
-    expect(isDueNow('08:00', c)).toBe(false)
+    expect(isDueNow('08:05', c)).toBe(true) // current minute
+    expect(isDueNow('08:04', c)).toBe(true) // previous minute
+    expect(isDueNow('08:00', c)).toBe(true) // within 5-min GitHub Actions / Hobby cron drift window
+    expect(isDueNow('07:58', c)).toBe(false) // outside the window — stale, must not re-fire
+    expect(isDueNow('09:00', c)).toBe(false) // future — not due
   })
 })

@@ -52,6 +52,7 @@ export function InstallAppBanner({ className }: { className?: string }) {
   const [visible, setVisible] = React.useState(false)
   const [ios, setIos] = React.useState(false)
   const [android, setAndroid] = React.useState(false)
+  const [hasInstallPrompt, setHasInstallPrompt] = React.useState(false)
   const deferred = React.useRef<BeforeInstallPromptEvent | null>(null)
 
   React.useEffect(() => {
@@ -68,6 +69,7 @@ export function InstallAppBanner({ className }: { className?: string }) {
     const onBip = (e: Event) => {
       e.preventDefault()
       deferred.current = e as BeforeInstallPromptEvent
+      setHasInstallPrompt(true)
       setVisible(true)
     }
     window.addEventListener('beforeinstallprompt', onBip)
@@ -145,7 +147,7 @@ export function InstallAppBanner({ className }: { className?: string }) {
               <Button size="sm" variant="secondary" className="h-9 gap-1.5" asChild>
                 <a href="/download">Install guide</a>
               </Button>
-              {deferred.current && (
+              {hasInstallPrompt && (
                 <Button size="sm" variant="secondary" className="h-9 gap-1.5" onClick={() => void installPwa()}>
                   Install (Chrome)
                 </Button>
