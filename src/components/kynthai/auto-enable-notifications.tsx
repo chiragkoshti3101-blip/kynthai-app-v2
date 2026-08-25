@@ -15,6 +15,7 @@ import {
   isIosStandalone,
 } from '@/lib/push'
 import { isNativeShell } from '@/lib/native-shell'
+import { requestNativeNotificationPermission } from '@/lib/native-alarms'
 
 const KEY = 'kynthai.push.auto-asked.v4'
 
@@ -48,6 +49,11 @@ export function AutoEnableNotifications() {
 
         // Ask once per device (unless native shell — always try so APK users get the OS dialog)
         const native = isNativeShell()
+        if (native) {
+          try {
+            await requestNativeNotificationPermission()
+          } catch { /* ignore */ }
+        }
         try {
           if (!native && localStorage.getItem(KEY) === '1') return
         } catch {

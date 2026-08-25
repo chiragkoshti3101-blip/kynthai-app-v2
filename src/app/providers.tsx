@@ -1,5 +1,15 @@
 'use client'
 
+import { installFetchTimeout } from '@/lib/fetch-timeout'
+import { installGlobalCsrf } from '@/lib/client-fetch'
+
+// App-wide: every page (including /login) gets CSRF + sane fetch timeouts
+if (typeof window !== 'undefined') {
+  installGlobalCsrf()
+  installFetchTimeout()
+}
+
+
 import { ThemeProvider } from '@/components/theme-provider'
 import { MotionConfig } from 'framer-motion'
 import { ServiceWorkerRegister } from '@/components/service-worker-register'
