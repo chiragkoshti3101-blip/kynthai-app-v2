@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 android {
     namespace = "app.kynthai.health"
-    compileSdk = rootProject.ext.compileSdkVersion
+    compileSdk rootProject.ext.compileSdkVersion
     defaultConfig {
         applicationId "app.kynthai.health"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -11,26 +11,23 @@ android {
         versionName "1.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
-            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
 
-    def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
-    def keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-    def keyAliasEnv = System.getenv("ANDROID_KEY_ALIAS")
-    def keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
-    def hasReleaseKeystore =
-        keystorePath != null && !keystorePath.isEmpty() &&
-        keystorePassword != null && keyAliasEnv != null && keyPassword != null &&
-        file(keystorePath).exists()
+    def ksPath = System.getenv("ANDROID_KEYSTORE_PATH") ?: ""
+    def ksPass = System.getenv("ANDROID_KEYSTORE_PASSWORD") ?: ""
+    def ksAlias = System.getenv("ANDROID_KEY_ALIAS") ?: ""
+    def keyPass = System.getenv("ANDROID_KEY_PASSWORD") ?: ""
+    def canSign = !ksPath.isEmpty() && new File(ksPath).exists() && !ksPass.isEmpty() && !ksAlias.isEmpty() && !keyPass.isEmpty()
 
-    signingConfigs {
-        release {
-            if (hasReleaseKeystore) {
-                storeFile file(keystorePath)
-                storePassword keystorePassword
-                keyAlias keyAliasEnv
-                keyPassword keyPassword
+    if (canSign) {
+        signingConfigs {
+            release {
+                storeFile file(ksPath)
+                storePassword ksPass
+                keyAlias ksAlias
+                keyPassword keyPass
             }
         }
     }
@@ -43,7 +40,7 @@ android {
             minifyEnabled false
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            if (hasReleaseKeystore) {
+            if (canSign) {
                 signingConfig signingConfigs.release
             }
         }
@@ -76,5 +73,5 @@ try {
         apply plugin: 'com.google.gms.google-services'
     }
 } catch (Exception e) {
-    logger.info("google-services.json not found — FCM optional until Firebase is configured")
+    logger.info("google-services.json not found")
 }
