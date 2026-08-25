@@ -31,7 +31,9 @@
     "audit:ci": "npm audit --audit-level=high",
     "cap:sync": "npx cap sync",
     "cap:android": "npx cap open android",
-    "cap:build:android": "npx cap sync android"
+    "cap:build:android": "npx cap sync android",
+    "android:apk": "bash scripts/build-android-apk.sh",
+    "android:sync": "npx cap sync android"
   },
   "dependencies": {
     "@auth/supabase-adapter": "^1.11.3",
