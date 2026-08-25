@@ -27,7 +27,6 @@ export type StoredNotification = {
 
 function isNative(): boolean {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any
     return !!(w.Capacitor?.isNativePlatform?.() || w.Capacitor?.isNative === true)
   } catch {
@@ -37,7 +36,6 @@ function isNative(): boolean {
 
 function getPlatform(): string {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (window as any).Capacitor?.getPlatform?.() || 'web'
   } catch {
     return 'web'
@@ -87,7 +85,6 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
   // Android: custom full-screen dose plugin
   if (platform === 'android') {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const Cap = (window as any).Capacitor
       const DoseAlarm = Cap?.Plugins?.DoseAlarm
       if (DoseAlarm?.schedule) {
@@ -147,7 +144,6 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
 export async function cancelNativeAlarm(id: number): Promise<void> {
   if (!isNative()) return
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const DoseAlarm = (window as any).Capacitor?.Plugins?.DoseAlarm
     if (DoseAlarm?.cancel) await DoseAlarm.cancel({ id })
   } catch {
