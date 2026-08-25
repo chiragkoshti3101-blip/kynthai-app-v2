@@ -70,12 +70,10 @@ export function useFetchData<T>(
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url, isDemo, timeout]);
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load, ...deps]);
 
   return { data, loading, error, offline, refresh: load, setData };
