@@ -59,6 +59,9 @@ export interface NotificationPayload {
   body: string
   type: string // reminder | escalation | nudge | invite | follow_up | emergency | general
   data?: Record<string, string>
+  /** Stable per-event key (e.g. `dose:<reminderId>`). Stored in the in-app log
+   *  body so cron ticks can dedupe and never re-send the same event. */
+  dedupeKey?: string
 }
 
 export interface RouteResult {
@@ -247,12 +250,17 @@ export async function sendNotification(
   const recipient = target.pushToken || target.email || target.userId || 'unknown'
   let logId: string | undefined
   if (target.userId) {
+    // dedupeKey is appended to the stored body so reminder-send cron ticks can
+    // detect an already-sent dose via body-contains lookup.
+    const storedBody = payload.dedupeKey
+      ? `${payload.body}\n[ref:${payload.dedupeKey}]`
+      : payload.body
     logId = await logNotification({
       userId: target.userId,
       channel: 'in-app',
       type: payload.type,
       title: payload.title,
-      body: payload.body,
+      body: storedBody,
       recipient: target.userId,
       status: 'sent',
       cost: 0,
@@ -300,6 +308,7 @@ export async function sendReminder(
   dosage: string,
   scheduledTime: string,
   overrides: Partial<NotificationTarget> = {},
+  dedupeKey?: string,
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(userId)), ...overrides }
   return sendNotification(target, {
@@ -313,6 +322,7 @@ export async function sendReminder(
       type: 'reminder',
       url: '/patient?alarm=1',
     },
+    dedupeKey,
   })
 }
 
