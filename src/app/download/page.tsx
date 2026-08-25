@@ -7,7 +7,7 @@ import { KynthaiBrand } from '@/components/kynthai/logo'
 export const metadata: Metadata = {
   title: 'Download Kynthai for Android',
   description:
-    'Official Android APK — reliable medication reminders and notifications when the app is closed.',
+    'Official Android APK (v1.1.0) — reliable medication reminders and notifications when the app is closed.',
 }
 
 const APK = '/downloads/kynthai-android.apk'
