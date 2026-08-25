@@ -3,7 +3,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { logAudit } from '@/lib/auth';
 import { sanitizeText, rateLimit } from '@/lib/security';
-import { parseTimes } from '@/lib/parse-times';
+import { parseTimes } from '@/lib/parse-times'
+import { ensureTodayRemindersForMed } from '@/lib/ensure-reminders';
 import {
   requireAuth,
   requireAuthWithCsrf,
@@ -181,5 +182,10 @@ export async function POST(req: NextRequest) {
   });
 
   await logAudit(u.id, 'medication.create', `med=${med.id}`);
+  try {
+    await ensureTodayRemindersForMed(med.id, times);
+  } catch {
+    /* reminder rows are best-effort; cron backfills */
+  }
   return jsonOk({ ...med, times: parseTimes(med.times) });
 }

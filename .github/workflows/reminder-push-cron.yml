@@ -12,9 +12,9 @@ on:
 jobs:
   send:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
-      - name: Trigger dose push + email
+      - name: Ensure today's reminder rows + send due pushes
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           APP_URL: ${{ secrets.APP_URL }}
@@ -24,11 +24,14 @@ jobs:
             echo "Missing CRON_SECRET or APP_URL secret"
             exit 0
           fi
+          auth=(-H "Authorization: Bearer ${CRON_SECRET}" -H "Accept: application/json")
+          curl -sS -o /tmp/sched.json -w "schedule HTTP %{http_code}\n" \
+            "${auth[@]}" "${APP_URL}/api/reminders/schedule" || true
+          cat /tmp/sched.json || true
+          echo
           code=$(curl -sS -o /tmp/out.json -w "%{http_code}" \
-            -H "Authorization: Bearer ${CRON_SECRET}" \
-            -H "Accept: application/json" \
-            "${APP_URL}/api/reminders/send?mode=tick" || true)
-          echo "HTTP $code"
+            "${auth[@]}" "${APP_URL}/api/reminders/send?mode=tick" || true)
+          echo "send HTTP $code"
           cat /tmp/out.json || true
           if [ "$code" != "200" ] && [ "$code" != "204" ]; then
             echo "Non-OK (will retry next tick)"

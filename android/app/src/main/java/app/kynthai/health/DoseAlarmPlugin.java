@@ -16,6 +16,9 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import android.content.SharedPreferences;
 
 @CapacitorPlugin(name = "DoseAlarm")
 public class DoseAlarmPlugin extends Plugin {
@@ -64,6 +67,7 @@ public class DoseAlarmPlugin extends Plugin {
       ret.put("scheduled", true);
       ret.put("id", id);
       ret.put("atMs", trigger);
+      persistAlarm(id, title, body, trigger);
       call.resolve(ret);
     } catch (Exception e) {
       call.reject("schedule failed: " + e.getMessage());
@@ -133,5 +137,58 @@ public class DoseAlarmPlugin extends Plugin {
     } catch (Exception e) {
       call.reject("openNotificationSettings failed: " + e.getMessage());
     }
+  }
+
+  private static final String PREFS = "kynthai_dose_alarms";
+
+  private void persistAlarm(int id, String title, String body, long atMs) {
+    try {
+      SharedPreferences sp = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+      JSONArray arr;
+      try { arr = new JSONArray(sp.getString("items", "[]")); } catch (Exception e) { arr = new JSONArray(); }
+      JSONArray next = new JSONArray();
+      for (int i = 0; i < arr.length(); i++) {
+        JSONObject o = arr.optJSONObject(i);
+        if (o != null && o.optInt("id") != id) next.put(o);
+      }
+      JSONObject o = new JSONObject();
+      o.put("id", id);
+      o.put("title", title);
+      o.put("body", body);
+      o.put("atMs", atMs);
+      next.put(o);
+      sp.edit().putString("items", next.toString()).apply();
+    } catch (Exception ignored) {}
+  }
+
+  public static void restoreAlarms(Context ctx) {
+    try {
+      SharedPreferences sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+      JSONArray arr = new JSONArray(sp.getString("items", "[]"));
+      AlarmManager am = (AlarmManager) ctx.getSystemService(Context.ALARM_SERVICE);
+      if (am == null) return;
+      long now = System.currentTimeMillis();
+      for (int i = 0; i < arr.length(); i++) {
+        JSONObject o = arr.optJSONObject(i);
+        if (o == null) continue;
+        long at = o.optLong("atMs");
+        if (at < now) continue;
+        int id = o.optInt("id");
+        Intent intent = new Intent(ctx, DoseAlarmReceiver.class);
+        intent.setAction(DoseAlarmReceiver.ACTION_DOSE);
+        intent.putExtra("title", o.optString("title", "Medication reminder"));
+        intent.putExtra("body", o.optString("body", "Time to take your medication"));
+        intent.putExtra("notifId", id);
+        PendingIntent pi = PendingIntent.getBroadcast(
+          ctx, id, intent,
+          PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+          am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi);
+        } else {
+          am.setExact(AlarmManager.RTC_WAKEUP, at, pi);
+        }
+      }
+    } catch (Exception ignored) {}
   }
 }

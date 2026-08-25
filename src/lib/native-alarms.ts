@@ -82,20 +82,20 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
 
   const platform = getPlatform()
 
-  // Android: custom full-screen dose plugin
+  // Android: custom exact AlarmManager plugin (must registerPlugin — Capacitor 8
+  // does not expose custom plugins on Capacitor.Plugins by default).
   if (platform === 'android') {
     try {
-      const Cap = (window as any).Capacitor
-      const DoseAlarm = Cap?.Plugins?.DoseAlarm
-      if (DoseAlarm?.schedule) {
-        await DoseAlarm.schedule({
-          id: input.id,
-          title: input.title,
-          body: input.body,
-          atMs: input.at.getTime(),
-        })
-        return
-      }
+      const { registerPlugin } = await import('@capacitor/core')
+      const DoseAlarm = registerPlugin<{
+        schedule: (opts: { id: number; title: string; body: string; atMs: number }) => Promise<unknown>
+      }>('DoseAlarm')
+      await DoseAlarm.schedule({
+        id: input.id,
+        title: input.title,
+        body: input.body,
+        atMs: input.at.getTime(),
+      })
     } catch (e) {
       console.warn('[native-alarms] DoseAlarm plugin failed, falling back', e)
     }
@@ -263,11 +263,10 @@ export function supportsOsFullScreenAlarm(): boolean {
 export async function requestNativeNotificationPermission(): Promise<boolean> {
   if (typeof window === 'undefined' || !isNative()) return false
   try {
-    const DoseAlarm = (window as any).Capacitor?.Plugins?.DoseAlarm
-    if (DoseAlarm?.requestPermissions) {
-      const res = await DoseAlarm.requestPermissions()
-      return !!res?.granted
-    }
+    const { registerPlugin } = await import('@capacitor/core')
+    const DoseAlarm = registerPlugin<{ requestPermissions: () => Promise<{ granted?: boolean }> }>('DoseAlarm')
+    const res = await DoseAlarm.requestPermissions()
+    return !!res?.granted
   } catch {
     /* ignore */
   }
