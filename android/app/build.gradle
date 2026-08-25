@@ -7,16 +7,14 @@ android {
         applicationId "app.kynthai.health"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
-        versionName "1.0.4"
+        versionCode 5
+        versionName "1.1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
 
-    // CI / local release signing via env (never commit the keystore)
-    // ANDROID_KEYSTORE_PATH, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
     def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
     def keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
     def keyAlias = System.getenv("ANDROID_KEY_ALIAS")
@@ -39,8 +37,8 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix ".debug"
-            versionNameSuffix "-debug"
+            // Keep same applicationId as release so sideload updates work
+            minifyEnabled false
         }
         release {
             minifyEnabled false
@@ -79,5 +77,5 @@ try {
         apply plugin: 'com.google.gms.google-services'
     }
 } catch (Exception e) {
-    logger.info("google-services.json not found — FCM plugin skipped until Firebase is configured")
+    logger.info("google-services.json not found — FCM optional until Firebase is configured")
 }
