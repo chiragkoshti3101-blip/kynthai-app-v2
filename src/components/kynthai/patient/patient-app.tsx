@@ -64,7 +64,8 @@ import { TodayView } from '@/components/medication/today-view';
 import { MedicationsList } from '@/components/medication/medications-list';
 import { MedicationAlarmHost } from '@/components/medication/medication-alarm-host'
 import { WebAlertsBanner } from '@/components/kynthai/web-alerts-banner'
-import { InstallAppBanner } from '@/components/kynthai/install-app-banner';
+import { InstallAppBanner } from '@/components/kynthai/install-app-banner'
+import { NotificationPermissionBanner } from '@/components/kynthai/notification-permission-banner';
 import { AiChat } from '@/components/medication/ai-chat';
 import { CareHub } from '@/components/kynthai/caretaker/care-hub';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
@@ -1266,6 +1267,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
   return (
     <div className="relative min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
       <>
+      <NotificationPermissionBanner />
       <InstallAppBanner />
       <WebAlertsBanner />
       <MedicationAlarmHost userId={user.id} isDemo={isDemo} />

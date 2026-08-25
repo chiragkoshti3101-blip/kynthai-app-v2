@@ -32,7 +32,13 @@ export function PushNotificationToggle({ className }: { className?: string }) {
       setHint('iPhone: Add to Home Screen, then open the app to enable push')
       return
     }
-    setEnabled(permissionState() === 'granted')
+    const perm = permissionState()
+    setEnabled(perm === 'granted')
+    if (perm === 'denied') {
+      setHint('Notifications blocked. Open system Settings → Apps → Kynthai → Notifications → Allow.')
+    } else if (perm === 'default') {
+      setHint('Tap Enable notifications so dose, doctor, and lab alerts can reach this phone.')
+    }
   }, [])
 
   const onToggle = async () => {

@@ -7,7 +7,8 @@ import { useAppStore, type AuthUser } from '@/lib/store';
 import { LabVerification } from './lab-verification';
 import { LabDashboard } from './lab-dashboard';
 import { AppLoader } from '@/components/kynthai/app-loader';
-import { InstallAppBanner } from '@/components/kynthai/install-app-banner';
+import { InstallAppBanner } from '@/components/kynthai/install-app-banner'
+import { NotificationPermissionBanner } from '@/components/kynthai/notification-permission-banner';
 
 type ProfileState = 'loading' | 'none' | 'exists';
 
@@ -107,7 +108,8 @@ export function LabApp({ user }: { user: AuthUser }) {
   if (profile) {
     return (
       <>
-        <InstallAppBanner />
+        <NotificationPermissionBanner />
+      <InstallAppBanner />
         <LabDashboard user={user} profile={profile} onLogout={handleLogout} />
       </>
     );

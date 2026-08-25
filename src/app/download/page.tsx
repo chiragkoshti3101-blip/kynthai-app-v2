@@ -71,8 +71,9 @@ export default function DownloadPage() {
           <ol className="list-decimal list-inside space-y-1">
             <li>Tap Download Android APK</li>
             <li>Open the downloaded file</li>
-            <li>Tap Install (allow “unknown apps” for Chrome/Files if asked)</li>
-            <li>Open Kynthai → Allow notifications</li>
+            <li>Tap Install (allow “Install unknown apps” for Chrome/Files if asked)</li>
+            <li>Open Kynthai — Android will ask <strong>Allow notifications?</strong> → tap <strong>Allow</strong></li>
+            <li>If no dialog appears: Settings → Apps → Kynthai → Notifications → turn On</li>
             <li>Sign in with your account</li>
           </ol>
         </div>

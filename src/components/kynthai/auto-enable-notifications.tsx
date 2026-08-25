@@ -1,9 +1,10 @@
 'use client'
 
 /**
- * After sign-in: ensure THIS device is subscribed for in-app system notifications
- * (doctor, lab, caretaker, patient — same path). Email is only a backup if push
- * cannot reach the device.
+ * After sign-in: ensure THIS device is subscribed for system notifications
+ * (patient, family, doctor, lab). Email is only a backup if push cannot reach the device.
+ *
+ * Android APK: also relies on MainActivity POST_NOTIFICATIONS runtime prompt.
  */
 
 import * as React from 'react'
@@ -13,8 +14,9 @@ import {
   pushSupported,
   isIosStandalone,
 } from '@/lib/push'
+import { isNativeShell } from '@/lib/native-shell'
 
-const KEY = 'kynthai.push.auto-asked.v3'
+const KEY = 'kynthai.push.auto-asked.v4'
 
 export function AutoEnableNotifications() {
   React.useEffect(() => {
@@ -22,7 +24,8 @@ export function AutoEnableNotifications() {
     if (!pushSupported()) return
 
     const run = async () => {
-      await new Promise((r) => setTimeout(r, 900))
+      // Slight delay so UI mounts first; keep short so permission prompt appears early
+      await new Promise((r) => setTimeout(r, 600))
 
       // iPhone browser tab cannot get system push — only Home Screen app
       if (!isIosStandalone()) return
@@ -37,15 +40,16 @@ export function AutoEnableNotifications() {
           return
         }
 
-        // Always re-subscribe when already granted so doctor/lab/caretaker
-        // devices stay registered after login (fresh endpoint on server).
+        // Already allowed → re-subscribe so doctor/lab/caretaker stay registered
         if (permissionState() === 'granted') {
           await enablePushDetailed()
           return
         }
 
+        // Ask once per device (unless native shell — always try so APK users get the OS dialog)
+        const native = isNativeShell()
         try {
-          if (localStorage.getItem(KEY) === '1') return
+          if (!native && localStorage.getItem(KEY) === '1') return
         } catch {
           /* ignore */
         }
