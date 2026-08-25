@@ -3,8 +3,10 @@ import { db } from '@/lib/db'
 import { requireSystemToken, jsonOk, jsonError } from '@/lib/api-helpers'
 import { rateLimit } from '@/lib/security'
 import { logger } from '@/lib/logger'
-import { sendReminder, sendNotification } from '@/lib/notifications'
+import { sendReminder } from '@/lib/notifications'
 import { clockParts, isDueNow, nearbyTimeStrings } from '@/lib/reminder-clock'
+import { parseTimes } from '@/lib/parse-times'
+import { ensureTodayRemindersForAllActive } from '@/lib/ensure-reminders'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -18,12 +20,13 @@ const ZONES = [
   'UTC',
 ]
 
-/**
- * Closed-app dose delivery: push + email when the browser is closed.
- * Multi-timezone so IST users are not stuck on ET-only matching.
- */
+function dayUtc(dateStr: string) {
+  // Must match todayStr()/toISODateTime used when creating reminder rows
+  return new Date(`${dateStr}T00:00:00.000Z`)
+}
+
 async function run(req: NextRequest) {
-  const limited = rateLimit(req, 30, 60_000)
+  const limited = rateLimit(req, 60, 60_000)
   if (limited) return limited
 
   const { response, user } = await requireSystemToken(req)
@@ -34,23 +37,24 @@ async function run(req: NextRequest) {
   const primary = clockParts('America/New_York')
 
   try {
+    const ensured = await ensureTodayRemindersForAllActive()
+
     const seen = new Set<string>()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dueReminders: any[] = []
 
     for (const tz of ZONES) {
       const clock = clockParts(tz)
-      const date = new Date(`${clock.dateStr}T12:00:00.000Z`)
+      const dates = [dayUtc(clock.dateStr)]
+      if (clock.prevDateStr !== clock.dateStr) dates.push(dayUtc(clock.prevDateStr))
+
       const candidates = await db.reminder.findMany({
         where: {
-          date,
+          date: { in: dates },
           status: 'pending',
-          reminderCount: 0,
           ...(mode === 'catchup'
             ? { time: { lte: clock.timeStr } }
-            : {
-                time: { in: nearbyTimeStrings(tz, new Date(), 5) },
-              }),
+            : { time: { in: nearbyTimeStrings(tz, new Date(), 8) } }),
         },
         include: {
           medication: {
@@ -70,12 +74,7 @@ async function run(req: NextRequest) {
                     select: {
                       ownerId: true,
                       owner: {
-                        select: {
-                          id: true,
-                          name: true,
-                          email: true,
-                          phone: true,
-                        },
+                        select: { id: true, name: true, email: true, phone: true },
                       },
                     },
                   },
@@ -84,14 +83,55 @@ async function run(req: NextRequest) {
             },
           },
         },
-        take: 100,
+        take: 200,
       })
 
       for (const r of candidates) {
         if (seen.has(r.id)) continue
-        if (mode === 'tick' && !isDueNow(r.time, clock)) continue
+        if (mode === 'tick' && !isDueNow(r.time, clock, 8)) continue
         seen.add(r.id)
         dueReminders.push(r)
+      }
+    }
+
+    // Fallback: active medications whose times are due even if reminder rows lagged
+    if (dueReminders.length === 0 && mode === 'tick') {
+      const meds = await db.medication.findMany({
+        where: { active: true },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true, emailOptOut: true },
+          },
+          familyMember: {
+            include: {
+              family: {
+                select: {
+                  ownerId: true,
+                  owner: { select: { id: true, name: true, email: true, phone: true } },
+                },
+              },
+            },
+          },
+        },
+        take: 500,
+      })
+      for (const tz of ZONES) {
+        const clock = clockParts(tz)
+        for (const med of meds) {
+          for (const t of parseTimes(med.times)) {
+            if (!isDueNow(t, clock, 8)) continue
+            const fakeId = `med:${med.id}:${clock.dateStr}:${t}`
+            if (seen.has(fakeId)) continue
+            seen.add(fakeId)
+            dueReminders.push({
+              id: fakeId,
+              time: t,
+              reminderCount: 0,
+              date: dayUtc(clock.dateStr),
+              medication: med,
+            })
+          }
+        }
       }
     }
 
@@ -101,6 +141,7 @@ async function run(req: NextRequest) {
         mode,
         sent: 0,
         skipped: 0,
+        ensured,
         message: 'No reminders due',
         time: primary.timeStr,
         date: primary.dateStr,
@@ -114,17 +155,10 @@ async function run(req: NextRequest) {
     const channels: Record<string, number> = {}
 
     for (const reminder of dueReminders) {
-      if (reminder.reminderCount > 0) {
-        skipped++
-        continue
-      }
-
       const medUser = reminder.medication?.user
       const familyOwner = reminder.medication?.familyMember?.family?.owner
       const userId: string | null =
-        medUser?.id ||
-        reminder.medication?.familyMember?.family?.ownerId ||
-        null
+        medUser?.id || reminder.medication?.familyMember?.family?.ownerId || null
       if (!userId) {
         failed++
         continue
@@ -132,12 +166,12 @@ async function run(req: NextRequest) {
 
       const medName = reminder.medication?.name || 'your medication'
       const dosage = reminder.medication?.dosage || ''
-      const frequency = reminder.medication?.frequency || ''
-      const bodyBits = [dosage, frequency, reminder.time].filter(Boolean).join(' · ')
+      const bodyBits = [dosage, reminder.medication?.frequency || '', reminder.time]
+        .filter(Boolean)
+        .join(' · ')
       const body = bodyBits || `Reminder: take ${medName}`
       const title = `Time to take ${medName}`
       const dedupeKey = `dose:${reminder.id}`
-      const date = reminder.date
 
       try {
         const already = await db.notificationLog.findFirst({
@@ -145,31 +179,21 @@ async function run(req: NextRequest) {
             userId,
             type: 'reminder',
             body: { contains: dedupeKey },
-            createdAt: { gte: date },
+            createdAt: { gte: new Date(Date.now() - 12 * 60 * 60 * 1000) },
           },
           select: { id: true },
         })
-        if (!already) {
-          await db.notificationLog.create({
-            data: {
-              userId,
-              channel: 'in-app',
-              type: 'reminder',
-              title,
-              body: `${body} · ${dedupeKey}`,
-              recipient: userId,
-              status: 'sent',
-              cost: 0,
-            },
-          })
+        if (already) {
+          skipped++
+          continue
         }
-      } catch (e) {
-        logger.phiSafeError(e, 'reminder.inApp')
+      } catch {
+        /* continue */
       }
 
       try {
         const route = await sendReminder(
-          userId as string,
+          userId,
           String(medName),
           String(dosage || body),
           String(reminder.time),
@@ -178,39 +202,25 @@ async function run(req: NextRequest) {
             phone: medUser?.phone || familyOwner?.phone || undefined,
           },
         )
-        await db.reminder.update({
-          where: { id: reminder.id },
-          data: { reminderCount: { increment: 1 } },
-        })
         const ch = route.channel || 'none'
         channels[ch] = (channels[ch] || 0) + 1
-        sent++
-      } catch (e) {
-        try {
-          await db.reminder.update({
-            where: { id: reminder.id },
-            data: { reminderCount: { increment: 1 } },
-          })
-        } catch {
-          /* ignore */
-        }
-        try {
-          const email = medUser?.email || familyOwner?.email
-          if (email) {
-            await sendNotification(
-              { userId, email },
-              {
-                title,
-                body: `${body}\n\nOpen Kynthai: https://kynthai.app/patient`,
-                type: 'reminder',
-                data: { url: '/patient' },
-              },
-            )
+
+        if (route.delivered) {
+          sent++
+          if (typeof reminder.id === 'string' && !String(reminder.id).startsWith('med:')) {
+            await db.reminder
+              .update({
+                where: { id: reminder.id },
+                data: { reminderCount: { increment: 1 } },
+              })
+              .catch(() => {})
           }
-        } catch {
-          /* ignore */
+        } else {
+          // Keep pending so the next tick can retry (e.g. no push sub yet)
+          failed++
         }
-        sent++
+      } catch (e) {
+        failed++
         logger.phiSafeError(e, 'reminder.multiChannel')
       }
     }
@@ -222,6 +232,7 @@ async function run(req: NextRequest) {
       sent,
       skipped,
       failed,
+      ensured,
       channels,
       time: primary.timeStr,
       date: primary.dateStr,

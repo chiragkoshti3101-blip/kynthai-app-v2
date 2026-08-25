@@ -82,7 +82,7 @@ export async function sendPushToUser(
             message,
             {
               // Clinical: short TTL, high urgency (push services prioritize)
-              TTL: isClinical ? 120 : 3600,
+              TTL: isClinical ? 1800 : 3600,
               urgency: 'high',
               topic: isClinical ? 'kynthai-dose' : 'kynthai',
               headers: {

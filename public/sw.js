@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = 'ios-notif-v11'
+const DEPLOY_ID = 'closed-app-v12'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
@@ -21,7 +21,7 @@ const PRECACHE_URLS = [
   '/apple-touch-icon.png',
   '/icon.svg',
   '/logo.svg',
-  '/beep.wav',
+  '/med-chime.wav',
   '/med-chime.wav',
   '/sounds/med-chime.wav',
 ]

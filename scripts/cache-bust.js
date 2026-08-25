@@ -35,15 +35,17 @@ if (fs.existsSync(cssPath)) {
 }
 
 // 2) Service worker DEPLOY_ID (invalidates all SW caches)
-const swPath = path.join(__dirname, '..', 'public', 'sw.js');
-if (fs.existsSync(swPath)) {
-  let sw = fs.readFileSync(swPath, 'utf8');
-  sw = sw.replace(
-    /const DEPLOY_ID = ['"][^'"]*['"]/,
-    `const DEPLOY_ID = '${deployId}'`,
-  );
-  fs.writeFileSync(swPath, sw);
-  console.log('[cache-bust] public/sw.js DEPLOY_ID →', deployId);
+for (const swName of ['sw.js', 'sw-v3.js']) {
+  const swPath = path.join(__dirname, '..', 'public', swName);
+  if (fs.existsSync(swPath)) {
+    let sw = fs.readFileSync(swPath, 'utf8');
+    sw = sw.replace(
+      /const DEPLOY_ID = ['"][^'"]*['"]/,
+      `const DEPLOY_ID = '${deployId}'`,
+    );
+    fs.writeFileSync(swPath, sw);
+    console.log('[cache-bust] public/' + swName + ' DEPLOY_ID →', deployId);
+  }
 }
 
 // 3) Dynamic manifest route version (PWA clients compare this)
