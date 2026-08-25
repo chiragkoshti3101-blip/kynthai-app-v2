@@ -10,6 +10,7 @@ let _isRinging = false
 let _audioUnlocked = false
 let _htmlAudio: HTMLAudioElement | null = null
 let _alarmLoop: ReturnType<typeof setInterval> | null = null
+let _chimeFileFailed = false
 
 const CHIME_SRC = '/med-chime.wav'
 
@@ -172,14 +173,23 @@ function playChimeFile(): boolean {
     html.volume = 0.8
     html.currentTime = 0
     const p = html.play()
-    if (p && typeof p.catch === 'function') p.catch(() => {})
+    if (p && typeof p.catch === 'function') {
+      // Playback was blocked (autoplay policy / iOS) → report failure so the
+      // WebAudio synth fallback takes over instead of silence.
+      p.catch(() => {
+        _chimeFileFailed = true
+      })
+      // Optimistically true only until a failure is observed.
+      return !_chimeFileFailed
+    }
     return true
   } catch {
+    _chimeFileFailed = true
     return false
   }
 }
 
-/** Soft ascending clinical chime (C–E–G–C) via WAV or sine fallback. */
+/** Soft ascending clinical chime (G–C–E–G) via WAV or bell-voice fallback. */
 function playChimeOnce() {
   try {
     stopOscillatorsOnly()
@@ -188,14 +198,24 @@ function playChimeOnce() {
     const ctx = getAudioCtx()
     if (!ctx) return
     const now = ctx.currentTime
-    const notes: Array<[number, number, number]> = [
-      [523.25, 0, 0.35],
-      [659.25, 0.28, 0.32],
-      [783.99, 0.56, 0.3],
-      [1046.5, 0.9, 0.45],
+    // Bell voice: fundamental + inharmonic partials, soft 8ms attack,
+    // exponential decay — mirrors scripts/make-chime.wav design.
+    const notes: Array<[number, number]> = [
+      [783.99, 0],
+      [1046.5, 0.22],
+      [1318.51, 0.44],
+      [1567.98, 0.66],
     ]
-    for (const [freq, start, dur] of notes) {
-      playTone(ctx, freq, now + start, dur, 0.2, 'sine')
+    const partials: Array<[number, number]> = [
+      [1.0, 1.0],
+      [2.01, 0.32],
+      [2.98, 0.18],
+      [4.16, 0.09],
+    ]
+    for (const [freq, start] of notes) {
+      for (const [ratio, pamp] of partials) {
+        playTone(ctx, freq * ratio, now + start, 1.6 / Math.sqrt(ratio), 0.16 * pamp, 'sine')
+      }
     }
   } catch {
     _isRinging = false

@@ -19,6 +19,8 @@ import android.util.TypedValue;
  * Shown via full-screen intent even when another app is in the foreground.
  */
 public class FullScreenAlarmActivity extends Activity {
+  private android.media.MediaPlayer player;
+
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -100,5 +102,31 @@ public class FullScreenAlarmActivity extends Activity {
     root.addView(open);
 
     setContentView(root);
+
+    // Ring the clinical chime on the ALARM stream, looping until dismissed.
+    android.media.AudioAttributes alarmAttrs = new android.media.AudioAttributes.Builder()
+      .setUsage(android.media.AudioAttributes.USAGE_ALARM)
+      .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+      .build();
+    player = android.media.MediaPlayer.create(
+      this, R.raw.med_chime, alarmAttrs,
+      ((android.media.AudioManager) getSystemService(AUDIO_SERVICE)).generateAudioSessionId());
+    if (player != null) {
+      player.setLooping(true);
+      player.start();
+    }
+  }
+
+  @Override
+  protected void onDestroy() {
+    if (player != null) {
+      try {
+        if (player.isPlaying()) player.stop();
+      } catch (IllegalStateException ignored) {
+      }
+      player.release();
+      player = null;
+    }
+    super.onDestroy();
   }
 }

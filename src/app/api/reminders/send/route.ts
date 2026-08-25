@@ -200,6 +200,7 @@ async function run(req: NextRequest) {
             email: medUser?.email || familyOwner?.email || undefined,
             phone: medUser?.phone || familyOwner?.phone || undefined,
           },
+          dedupeKey,
         )
         const ch = route.channel || 'none'
         channels[ch] = (channels[ch] || 0) + 1
