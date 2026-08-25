@@ -265,7 +265,7 @@ export function supportsOsFullScreenAlarm(): boolean {
 
 /** Android APK: check native POST_NOTIFICATIONS (MainActivity also prompts on launch). */
 export async function requestNativeNotificationPermission(): Promise<boolean> {
-  if (typeof window === 'undefined' || !isNativeApp()) return false
+  if (typeof window === 'undefined' || !isNative()) return false
   try {
     const DoseAlarm = (window as any).Capacitor?.Plugins?.DoseAlarm
     if (DoseAlarm?.requestPermissions) {
