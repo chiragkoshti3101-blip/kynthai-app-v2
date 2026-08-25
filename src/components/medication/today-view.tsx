@@ -302,7 +302,7 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
       setAlarmTarget(due);
       unlockAudio();
       if (!isAlarmRinging()) {
-                else playProfessionalRingtone();
+        playProfessionalRingtone();
       }
       const medName =
         (due.medication as { name?: string } | undefined)?.name ?? 'Medication';
