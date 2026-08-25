@@ -15,6 +15,7 @@ import {
   isIosStandalone,
 } from '@/lib/push'
 import { isNativeShell } from '@/lib/native-shell'
+import { openNativeNotificationSettings } from '@/lib/native-alarms'
 
 const DISMISS = 'kynthai.notif-banner.dismiss.v1'
 
@@ -56,9 +57,22 @@ export function NotificationPermissionBanner() {
   const onEnable = async () => {
     setBusy(true)
     try {
+      // If already denied on Android native, open system settings (allowNoti=false cannot be fixed by prompt alone)
+      if (permissionState() === 'denied' && isNativeShell()) {
+        const opened = await openNativeNotificationSettings()
+        if (opened) {
+          setMsg('Turn Notifications ON for Kynthai, then return here.')
+          return
+        }
+      }
       const result = await enablePushDetailed()
       if (result.ok) {
         setShow(false)
+        return
+      }
+      if (isNativeShell()) {
+        await openNativeNotificationSettings()
+        setMsg(result.message || 'Enable notifications in system settings, then reopen the app.')
         return
       }
       setMsg(result.message)

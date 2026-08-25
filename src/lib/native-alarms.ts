@@ -277,3 +277,18 @@ export async function requestNativeNotificationPermission(): Promise<boolean> {
   }
   return false
 }
+
+
+/** Open Android/iOS system notification settings when allowNoti was denied. */
+export async function openNativeNotificationSettings(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  try {
+    const { Capacitor, registerPlugin } = await import('@capacitor/core')
+    if (!Capacitor.isNativePlatform()) return false
+    const DoseAlarm = registerPlugin<{ openNotificationSettings: () => Promise<void> }>('DoseAlarm')
+    await DoseAlarm.openNotificationSettings()
+    return true
+  } catch {
+    return false
+  }
+}
