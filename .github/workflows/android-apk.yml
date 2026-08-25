@@ -1,4 +1,3 @@
-# Debug APK only — prefer android-release.yml for full pipeline
 name: Android APK (debug)
 
 on:
@@ -7,17 +6,23 @@ on:
 jobs:
   debug:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
       - run: yes | sdkmanager --licenses || true
+      - run: npm ci --no-audit --no-fund
+      - run: npx cap sync android
       - working-directory: android
-        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         with:
           name: kynthai-android-debug

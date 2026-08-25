@@ -6,6 +6,8 @@ on:
     paths:
       - 'android/**'
       - 'capacitor.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
       - 'src/lib/native-alarms.ts'
       - 'src/lib/native-shell-bootstrap.ts'
       - '.github/workflows/android-release.yml'
@@ -15,9 +17,14 @@ jobs:
   apk:
     name: Build Android APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
 
       - uses: actions/setup-java@v4
         with:
@@ -28,6 +35,12 @@ jobs:
 
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses || true
+
+      - name: Install JS dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Capacitor sync Android
+        run: npx cap sync android
 
       - name: Build debug APK
         working-directory: android
@@ -94,9 +107,9 @@ jobs:
       - name: Job summary
         run: |
           echo "### Android artifacts" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Debug APK: built" >> "$GITHUB_STEP_SUMMARY"
+          ls -la android/app/build/outputs/apk/debug/ 2>/dev/null || true
           if [ "${{ steps.ks.outputs.present }}" = "true" ]; then
-            echo "- Signed release APK + AAB: built" >> "$GITHUB_STEP_SUMMARY"
+            echo "Signed release: built" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "- Signed release: skipped (no keystore secrets)" >> "$GITHUB_STEP_SUMMARY"
+            echo "Signed release: skipped (no keystore secrets)" >> "$GITHUB_STEP_SUMMARY"
           fi
