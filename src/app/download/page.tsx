@@ -7,10 +7,11 @@ import { KynthaiBrand } from '@/components/kynthai/logo'
 export const metadata: Metadata = {
   title: 'Download Kynthai for Android',
   description:
-    'Official Android APK (v1.1.0) — reliable medication reminders and notifications when the app is closed.',
+    'Official signed Android APK (v1.1.0) — reliable medication reminders and notifications when the app is closed.',
 }
 
-const APK = '/downloads/kynthai-android.apk'
+const APK = 'https://github.com/chiragkoshti3101-blip/kynthai-app-v2/releases/download/v1.1.0/Kynthai-1.1.0.apk'
+const APK_FALLBACK = '/downloads/kynthai-android.apk'
 
 export default function DownloadPage() {
   return (
@@ -42,7 +43,7 @@ export default function DownloadPage() {
 
         <a
           href={APK}
-          download="Kynthai.apk"
+          download="Kynthai-1.1.0.apk"
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-4 text-base font-semibold text-white shadow-md hover:bg-emerald-700"
         >
           <Download className="h-5 w-5" />
