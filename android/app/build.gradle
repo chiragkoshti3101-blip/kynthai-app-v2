@@ -17,19 +17,19 @@ android {
 
     def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
     def keystorePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-    def keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+    def keyAliasEnv = System.getenv("ANDROID_KEY_ALIAS")
     def keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
     def hasReleaseKeystore =
         keystorePath != null && !keystorePath.isEmpty() &&
-        keystorePassword != null && keyAlias != null && keyPassword != null &&
+        keystorePassword != null && keyAliasEnv != null && keyPassword != null &&
         file(keystorePath).exists()
 
     signingConfigs {
-        if (hasReleaseKeystore) {
-            release {
+        release {
+            if (hasReleaseKeystore) {
                 storeFile file(keystorePath)
                 storePassword keystorePassword
-                keyAlias keyAlias
+                keyAlias keyAliasEnv
                 keyPassword keyPassword
             }
         }
@@ -37,7 +37,6 @@ android {
 
     buildTypes {
         debug {
-            // Keep same applicationId as release so sideload updates work
             minifyEnabled false
         }
         release {
