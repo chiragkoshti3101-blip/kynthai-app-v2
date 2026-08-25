@@ -1,11 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Kynthai</title>
-    <meta http-equiv="refresh" content="0;url=https://kynthai.app" />
+    <style>
+      html, body {
+        margin: 0; height: 100%;
+        background: #10b981;
+        color: #fff;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        display: flex; align-items: center; justify-content: center;
+        text-align: center;
+      }
+      .wrap { padding: 24px; max-width: 320px; }
+      h1 { font-size: 1.25rem; font-weight: 600; margin: 0 0 8px; }
+      p { opacity: 0.9; font-size: 0.9rem; margin: 0 0 16px; }
+      a {
+        display: inline-block; background: #fff; color: #059669;
+        padding: 12px 20px; border-radius: 999px; text-decoration: none; font-weight: 600;
+      }
+    </style>
+    <script>
+      // Prefer remote app; if it fails to load in WebView, user can open browser.
+      setTimeout(function () {
+        try { window.location.replace('https://kynthai.app'); } catch (e) {}
+      }, 50);
+    </script>
   </head>
   <body>
-    <p>Loading Kynthai…</p>
+    <div class="wrap">
+      <h1>Kynthai</h1>
+      <p>Loading your health companion…</p>
+      <p style="font-size:0.75rem;opacity:0.75">If this stays blank, check internet and reopen the app.</p>
+      <a href="https://kynthai.app">Open kynthai.app</a>
+    </div>
   </body>
 </html>

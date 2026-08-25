@@ -1,34 +1,37 @@
 import type { CapacitorConfig } from '@capacitor/cli'
 
-/**
- * Native shell for Kynthai.
- * Loads production web app; OS plugins handle alarms, local notifications, chrome UI.
- */
 const config: CapacitorConfig = {
   appId: 'app.kynthai.health',
   appName: 'Kynthai',
   webDir: 'www',
   server: {
+    // Load production; local www is only a fallback shell
     url: 'https://kynthai.app',
     cleartext: false,
-    allowNavigation: ['kynthai.app', '*.kynthai.app'],
+    allowNavigation: [
+      'kynthai.app',
+      '*.kynthai.app',
+      'https://kynthai.app',
+      'https://*.kynthai.app',
+    ],
   },
   plugins: {
     LocalNotifications: {
-      // Use launcher icon until a dedicated status drawable is added
       smallIcon: 'ic_launcher',
       iconColor: '#10b981',
       sound: 'default',
     },
     SplashScreen: {
       launchAutoHide: true,
-      backgroundColor: '#f9fdfb',
-      launchShowDuration: 400,
+      launchShowDuration: 0,
+      backgroundColor: '#10b981',
       showSpinner: false,
+      splashFullScreen: true,
+      splashImmersive: true,
     },
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#f9fdfb',
+      backgroundColor: '#10b981',
     },
   },
   android: {
