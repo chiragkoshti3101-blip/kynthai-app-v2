@@ -54,6 +54,20 @@ const nextConfig = {
   // External packages that shouldn't be traced/bundled (fixes NFT warnings)
   serverExternalPackages: ['@prisma/client', 'bcryptjs', 'speakeasy', 'qrcode'],
 
+
+  // Common marketing / auth aliases (crawlers + user bookmarks)
+  async redirects() {
+    return [
+      { source: '/sign-in', destination: '/login', permanent: true },
+      { source: '/signin', destination: '/login', permanent: true },
+      { source: '/sign-up', destination: '/register', permanent: true },
+      { source: '/signup', destination: '/register', permanent: true },
+      { source: '/app', destination: '/download', permanent: false },
+      { source: '/get-app', destination: '/download', permanent: false },
+      { source: '/android', destination: '/download', permanent: false },
+    ]
+  },
+
   // Headers for performance and security
   async headers() {
     return [
