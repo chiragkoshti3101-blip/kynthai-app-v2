@@ -1,10 +1,13 @@
 package app.kynthai.health;
 
+import android.Manifest;
 import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.os.Build;
+import androidx.core.content.ContextCompat;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
@@ -12,8 +15,10 @@ import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
 /**
- * JS API: DoseAlarm.schedule({ id, title, body, atMs })
- * Schedules an exact alarm that opens FullScreenAlarmActivity over other apps.
+ * JS API:
+ *   DoseAlarm.schedule({ id, title, body, atMs })
+ *   DoseAlarm.cancel({ id })
+ *   DoseAlarm.requestPermissions()
  */
 @CapacitorPlugin(name = "DoseAlarm")
 public class DoseAlarmPlugin extends Plugin {
@@ -21,7 +26,7 @@ public class DoseAlarmPlugin extends Plugin {
   @PluginMethod
   public void schedule(PluginCall call) {
     Integer id = call.getInt("id");
-    String title = call.getString("title", "Medication alarm");
+    String title = call.getString("title", "Medication reminder");
     String body = call.getString("body", "Time to take your medication");
     Double atMs = call.getDouble("atMs");
     if (id == null || atMs == null) {
@@ -89,5 +94,25 @@ public class DoseAlarmPlugin extends Plugin {
     );
     if (am != null) am.cancel(pi);
     call.resolve();
+  }
+
+  @PluginMethod
+  public void requestPermissions(PluginCall call) {
+    if (Build.VERSION.SDK_INT < 33) {
+      JSObject ret = new JSObject();
+      ret.put("granted", true);
+      ret.put("reason", "pre_tiramisu");
+      call.resolve(ret);
+      return;
+    }
+    boolean granted =
+      ContextCompat.checkSelfPermission(getContext(), Manifest.permission.POST_NOTIFICATIONS)
+        == PackageManager.PERMISSION_GRANTED;
+    JSObject ret = new JSObject();
+    ret.put("granted", granted);
+    if (!granted) {
+      ret.put("reason", "not_granted_yet");
+    }
+    call.resolve(ret);
   }
 }
