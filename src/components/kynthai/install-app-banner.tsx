@@ -20,11 +20,14 @@ function isStandalone(): boolean {
   const mq = window.matchMedia('(display-mode: standalone)').matches
   const ios = (navigator as Navigator & { standalone?: boolean }).standalone === true
   // Capacitor native shell
-  const cap =
-    typeof (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor
-      ?.isNativePlatform === 'function' &&
-    (window as unknown as { Capacitor: { isNativePlatform: () => boolean } }).Capacitor.isNativePlatform()
-  return mq || ios || !!cap
+  const w = window as unknown as { Capacitor?: { isNativePlatform?: () => boolean; getPlatform?: () => string } }
+  const cap = w.Capacitor
+  const native =
+    (typeof cap?.isNativePlatform === 'function' && cap.isNativePlatform()) ||
+    cap?.getPlatform?.() === 'android' ||
+    cap?.getPlatform?.() === 'ios' ||
+    /; wv\)/i.test(navigator.userAgent)
+  return mq || ios || !!native
 }
 
 function isIos(): boolean {

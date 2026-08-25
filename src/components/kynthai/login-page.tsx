@@ -28,7 +28,8 @@ import { Separator } from '@/components/ui/separator';
 import { useAppStore, selectors, type AuthUser, type LoginPortal } from '@/lib/store';
 import { logger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils'
+import { isNativeShell, isStandaloneDisplay } from '@/lib/native-shell';
 import { KynthaiBrand } from './logo';
 import { FadeIn } from './animations';
 import { TurnstileWidget, type TurnstileWidgetHandle } from './turnstile-widget';
@@ -156,6 +157,10 @@ export function LoginPage({
         (window.location.hash || '').replace('#', '').toLowerCase()
       )));
   const [demoBooting, setDemoBooting] = React.useState(bootRequestingDemo);
+  const [hideDownloadCta, setHideDownloadCta] = React.useState(false);
+  React.useEffect(() => {
+    setHideDownloadCta(isNativeShell() || isStandaloneDisplay())
+  }, []);
   // ───────────────────────────────────────────────────────────────────────────
 
   const [mode, setMode] = React.useState<'signin' | 'register'>(initialMode);
@@ -381,7 +386,7 @@ export function LoginPage({
         }
       }
 
-      const data = await apiCall('/auth/login', { email, password, captchaToken: effectiveCaptcha });
+      const data = (await apiCall('/auth/login', { email, password, captchaToken: effectiveCaptcha })) as AuthUser & { isUserMinor?: boolean; consentAccepted?: boolean; dataProcessingConsent?: boolean; aiTrainingConsent?: boolean };
       const user: AuthUser = {
         id: data.id,
         email: data.email,
@@ -494,6 +499,7 @@ export function LoginPage({
             Back
           </button>
           <KynthaiBrand />
+          {!hideDownloadCta && (
           <button
             onClick={() => router.push('/download')}
             className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300"
@@ -501,6 +507,7 @@ export function LoginPage({
             <Download className="h-3.5 w-3.5" />
             Get app
           </button>
+          )}
         </div>
 
         <div className="grid flex-1 items-center gap-10 py-8 lg:grid-cols-2 lg:gap-16">
@@ -511,6 +518,7 @@ export function LoginPage({
             <p className="mt-3 text-muted-foreground">
               {active.label} portal — sign in or create an account to continue.
             </p>
+            {!hideDownloadCta && (
             <a
               href="/download"
               className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-500/10 dark:text-emerald-200"
@@ -518,6 +526,7 @@ export function LoginPage({
               <Download className="h-4 w-4 shrink-0" />
               Download Android app for reliable notifications
             </a>
+            )}
             <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:max-w-md">
               {visiblePortals.map(p => (
                 <button
