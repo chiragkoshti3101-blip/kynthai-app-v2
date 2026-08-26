@@ -206,3 +206,13 @@ public class DoseAlarmPlugin extends Plugin {
     }
   }
 }
+
+  @PluginMethod
+  public void restore(PluginCall call) {
+    try {
+      restoreAlarms(getContext());
+      call.resolve();
+    } catch (Exception e) {
+      call.reject("restore failed: " + e.getMessage());
+    }
+  }

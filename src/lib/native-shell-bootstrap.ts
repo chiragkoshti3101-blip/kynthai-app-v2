@@ -26,7 +26,11 @@ export async function bootstrapNativeShell(): Promise<void> {
     const { App } = await import('@capacitor/app')
     App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
-        // Resume: web layer may re-check due doses / push subscription
+        // Resume: re-arm native alarms (Android cancels them on force-stop)
+        // and notify the web layer to re-check due doses / push subscription.
+        try {
+          import('@/lib/native-alarms').then(m => m.restoreNativeAlarms()).catch(() => {})
+        } catch { /* ignore */ }
         try {
           window.dispatchEvent(new CustomEvent('kynthai:app-resume'))
         } catch {
