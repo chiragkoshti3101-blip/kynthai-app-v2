@@ -111,7 +111,7 @@ export async function scheduleNativeAlarm(input: NativeAlarmInput): Promise<void
         description: 'Dose and emergency alarms with sound',
         importance: 5,
         visibility: 1,
-        sound: undefined,
+        sound: 'med_chime',
         vibration: true,
       } as any)
     } catch {
