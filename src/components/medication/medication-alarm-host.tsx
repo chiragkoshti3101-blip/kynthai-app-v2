@@ -185,6 +185,20 @@ export function MedicationAlarmHost({
             else playProfessionalRingtone()
           }
         } catch { /* ignore */ }
+        // On Android, Web Audio may be blocked until a user gesture. Fire a
+        // native alarm in 2s so the chime plays via MediaPlayer regardless.
+        try {
+          const { scheduleNativeAlarm, isNativeShell } = await import('@/lib/native-alarms')
+          if (isNativeShell()) {
+            await scheduleNativeAlarm({
+              id: Date.now(),
+              title: 'Time to take Atorvastatin',
+              body: '10mg · now',
+              at: new Date(Date.now() + 2000),
+              medName: 'Atorvastatin',
+            })
+          }
+        } catch { /* web fallback — Web Audio path above */ }
       }
       return
     }
