@@ -155,27 +155,37 @@ export function MedicationAlarmHost({
         status: 'pending',
         medication: { name: 'Atorvastatin', dosage: '10mg' },
       }
-      setReminders([
-        demoDue,
-        {
-          id: 'host-dr3',
-          time: '18:00',
-          status: 'pending',
-          medication: { name: 'Vitamin D3', dosage: '60K IU' },
-        },
-      ])
+      setReminders((prev) => {
+        // Preserve the acted status: handleAction marks host-demo-now
+        // taken/skipped and fires kynthai:reminder-updated → load() re-runs.
+        // Recreating the reminder as fresh 'pending' here resurrected the
+        // alarm instantly — Skip → new alarm, forever (inescapable overlay).
+        const acted = prev.find((r) => r.id === 'host-demo-now' && r.status !== 'pending')
+        return [
+          acted ?? demoDue,
+          prev.find((r) => r.id === 'host-dr3') ?? {
+            id: 'host-dr3',
+            time: '18:00',
+            status: 'pending',
+            medication: { name: 'Vitamin D3', dosage: '60K IU' },
+          },
+        ]
+      })
       // Only auto-show if user has not already dismissed this session
       setAlarmTarget((prev) => {
         if (prev && String(prev.id).startsWith('host-demo')) return prev
+        if (escalated.current.has('host-demo-now')) return prev // user already Took/Skipped
         return demoDue
       })
-      try {
-        unlockAudio()
-        if (!isAlarmRinging()) {
-          if (alarmMode === 'alert') playAlertRingtone()
-          else playProfessionalRingtone()
-        }
-      } catch { /* ignore */ }
+      if (!escalated.current.has('host-demo-now')) {
+        try {
+          unlockAudio()
+          if (!isAlarmRinging()) {
+            if (alarmMode === 'alert') playAlertRingtone()
+            else playProfessionalRingtone()
+          }
+        } catch { /* ignore */ }
+      }
       return
     }
     try {
