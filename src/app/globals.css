@@ -468,6 +468,14 @@ html:not(.dark) .phone-frame {
   .pt-safe {
     padding-top: env(safe-area-inset-top);
   }
+  /* Capacitor Android/iOS already overlays the status bar natively.
+     env(safe-area-inset-top) still reports the status bar height in the
+     WebView, creating a visible white gap at the top of every page.
+     Zero it out on native shells — the web PWA still gets the padding. */
+  .plt-capacitor .pt-safe,
+  html.plt-capacitor .pt-safe {
+    padding-top: 0;
+  }
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
