@@ -26,7 +26,10 @@ export async function GET(req: NextRequest) {
   if (user.role !== 'doctor') return jsonError('Only doctors may access templates', 403)
 
   const profile = await db.doctorProfile.findUnique({ where: { userId: user.id } })
-  if (!profile) return jsonError('Doctor profile not found', 404)
+  // A doctor with no profile yet simply has no templates — not an error.
+  // (Demo/seeded accounts and freshly-registered doctors hit this; a 404 here
+  // surfaced as a console error every time the prescribe modal opened.)
+  if (!profile) return jsonOk({ templates: [] })
 
   const templates = await db.prescriptionTemplate.findMany({
     where: { doctorId: profile.id },
