@@ -131,7 +131,7 @@ export default async function RootLayout({
             default. Matches next-themes' 'theme' localStorage key. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme')||'system';var d=document.documentElement;var dark=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark)d.classList.add('dark');}catch(e){}document.addEventListener('DOMContentLoaded',function(){var b=document.getElementById('kynthai-boot');if(b){requestAnimationFrame(function(){b.classList.add('done');setTimeout(function(){b.remove()},250);});}});})();`,
+            __html: `(function(){try{var t=localStorage.getItem('theme')||'system';var d=document.documentElement;var dark=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark)d.classList.add('dark');}catch(e){}function dismissBoot(){var b=document.getElementById('kynthai-boot');if(b){requestAnimationFrame(function(){b.classList.add('done');setTimeout(function(){b.remove()},250);});}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',dismissBoot);}else{dismissBoot();}})();`,
           }}
         />
         {/* ponytail: switch sizing is now handled entirely by inline styles
