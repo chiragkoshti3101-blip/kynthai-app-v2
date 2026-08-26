@@ -178,27 +178,31 @@ export function MedicationAlarmHost({
         return demoDue
       })
       if (!escalated.current.has('host-demo-now')) {
-        try {
-          unlockAudio()
-          if (!isAlarmRinging()) {
-            if (alarmMode === 'alert') playAlertRingtone()
-            else playProfessionalRingtone()
-          }
-        } catch { /* ignore */ }
-        // On Android, Web Audio may be blocked until a user gesture. Fire a
-        // native alarm in 2s so the chime plays via MediaPlayer regardless.
+        // On native Android/iOS, use the native alarm exclusively — Web Audio
+        // and MediaPlayer fighting each other causes intermittent ringing.
+        let usedNative = false
         try {
           const { scheduleNativeAlarm, isNativeShell } = await import('@/lib/native-alarms')
           if (isNativeShell()) {
+            usedNative = true
             await scheduleNativeAlarm({
               id: Date.now(),
               title: 'Time to take Atorvastatin',
               body: '10mg · now',
-              at: new Date(Date.now() + 2000),
+              at: new Date(Date.now() + 1500),
               medName: 'Atorvastatin',
             })
           }
-        } catch { /* web fallback — Web Audio path above */ }
+        } catch { /* web fallback below */ }
+        if (!usedNative) {
+          try {
+            unlockAudio()
+            if (!isAlarmRinging()) {
+              if (alarmMode === 'alert') playAlertRingtone()
+              else playProfessionalRingtone()
+            }
+          } catch { /* ignore */ }
+        }
       }
       return
     }
