@@ -170,15 +170,19 @@ async function run(req: NextRequest) {
         .join(' · ')
       const body = bodyBits || `Reminder: take ${medName}`
       const title = `Time to take ${medName}`
-      const dedupeKey = `dose:${reminder.id}`
 
       try {
+        // ponytail: dedupe on title (med name) + body containing the scheduled
+        // time + 30-min window. The old check matched `body contains dedupeKey`
+        // but the notification body never included the dedupeKey → dedupe never
+        // fired → every minute-tick re-sent the same dose (the "flood" bug).
         const already = await db.notificationLog.findFirst({
           where: {
             userId,
             type: 'reminder',
-            body: { contains: dedupeKey },
-            createdAt: { gte: new Date(Date.now() - 12 * 60 * 60 * 1000) },
+            title,
+            body: { contains: String(reminder.time) },
+            createdAt: { gte: new Date(Date.now() - 30 * 60 * 1000) },
           },
           select: { id: true },
         })
@@ -200,7 +204,6 @@ async function run(req: NextRequest) {
             email: medUser?.email || familyOwner?.email || undefined,
             phone: medUser?.phone || familyOwner?.phone || undefined,
           },
-          dedupeKey,
         )
         const ch = route.channel || 'none'
         channels[ch] = (channels[ch] || 0) + 1
