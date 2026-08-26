@@ -13,30 +13,32 @@ export async function POST(req: NextRequest) {
   try {
     const results: string[] = [];
     
-    // List all triggers on doctor_profiles
+    // Find ALL triggers that reference updatedAt across all tables
     const triggers: any[] = await db.$queryRaw`
-      SELECT trigger_name, event_manipulation, action_statement
+      SELECT trigger_name, event_object_table, action_statement
       FROM information_schema.triggers
-      WHERE event_object_table = 'doctor_profiles'
+      WHERE action_statement LIKE '%updatedAt%' OR trigger_name LIKE '%updated_at%'
     `;
-    results.push('triggers: ' + JSON.stringify(triggers.map(t => t.trigger_name)));
+    results.push('found: ' + triggers.map(t => `${t.event_object_table}.${t.trigger_name}`).join(', '));
     
-    // Drop all triggers on doctor_profiles that reference updatedAt
     for (const t of triggers) {
       try {
-        await db.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "${t.trigger_name}" ON "doctor_profiles"`);
-        results.push(`dropped trigger: ${t.trigger_name}`);
+        await db.$executeRawUnsafe(`DROP TRIGGER IF EXISTS "${t.trigger_name}" ON "${t.event_object_table}"`);
+        results.push(`dropped: ${t.trigger_name} on ${t.event_object_table}`);
       } catch (e: any) {
-        results.push(`drop failed ${t.trigger_name}: ${e?.message?.slice(0, 80)}`);
+        results.push(`drop failed: ${t.trigger_name}: ${e?.message?.slice(0, 80)}`);
       }
     }
 
-    // Test: can we now update a doctor profile?
+    // Test appointment creation
     try {
-      await db.$executeRaw`UPDATE "doctor_profiles" SET "verified" = true, "verificationStatus" = 'approved' WHERE id = 'cmtaf5yqb000jib04hegbpwk1'`;
-      results.push('UPDATE succeeded!');
+      const appt: any[] = await db.$queryRaw`SELECT id FROM doctor_profiles WHERE verified = true LIMIT 1`;
+      if (appt.length) {
+        await db.$executeRawUnsafe(`INSERT INTO appointments (id, "doctorId", "patientId", "scheduledAt", status, type, price, commission, reason, "createdAt") VALUES (gen_random_uuid()::text, '${appt[0].id}', (SELECT id FROM users WHERE email='patient@kynthai.app' LIMIT 1), '2026-08-28T10:00:00Z', 'pending', 'video', 150, 0, 'test', NOW())`);
+        results.push('appointment INSERT succeeded!');
+      }
     } catch (e: any) {
-      results.push('UPDATE still fails: ' + (e?.message?.slice(0, 150) || 'unknown'));
+      results.push('appointment test: ' + (e?.message?.slice(0, 150) || 'unknown'));
     }
 
     return jsonOk({ results });
