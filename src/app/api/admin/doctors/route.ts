@@ -107,8 +107,8 @@ export async function PUT(req: NextRequest) {
       await logAudit(u.id, 'admin.doctor.reject', `doctor=${body.id} reason=${reason}`);
       return jsonOk(updated);
     }
-  } catch (error) {
+  } catch (error: any) {
     logger.phiSafeError(error);
-    return jsonError('Internal server error', 500);
+    return jsonError(error?.message?.slice(0, 200) || 'Internal server error', 500);
   }
 }
