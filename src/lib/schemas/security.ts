@@ -74,7 +74,7 @@ export const prescribeSchema = z.object({
 // ── Admin: doctor/lab actions ────────────────────────────────────────
 
 export const adminActionSchema = z.object({
-  id:     z.string().uuid('id must be a valid UUID'),
+  id:     z.string().min(1, 'id is required'),
   action: z.enum(['approve', 'reject']),
   reason: z.string().max(500).optional().nullable(),
 }).refine(
