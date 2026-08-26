@@ -44,6 +44,19 @@ function DeferredAuthGuard() {
   return <AuthGuard disableMountCheck={!ready} />
 }
 
+function BootSplashCleanup() {
+  // The boot splash is server-rendered INSIDE the React tree. The inline
+  // pre-paint script only fades it (adds .done); it must never remove the
+  // node itself — React owns this DOM, and a hydration regeneration would
+  // resurrect the splash opaque and stuck (the intermittent full-page
+  // lockup). Removal happens here instead: after hydration commits.
+  useEffect(() => {
+    const b = document.getElementById('kynthai-boot')
+    if (b) b.remove()
+  }, [])
+  return null
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     /* `reducedMotion="user"` makes every Framer Motion transform/layout
@@ -51,6 +64,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
        animates). Single source of truth for the motion a11y contract. */
     <MotionConfig reducedMotion="user">
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <BootSplashCleanup />
       <GlobalErrorCatcher />
       <ServiceWorkerRegister />
       <NativeShellBootstrap />

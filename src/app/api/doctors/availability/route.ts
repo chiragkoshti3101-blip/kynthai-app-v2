@@ -24,9 +24,17 @@ export async function GET(req: NextRequest) {
   let doctorId = req.nextUrl.searchParams.get('doctorId')
 
   // If the caller is a doctor and no doctorId is provided, use their own profile.
+  let me: { id: string } | null = null
   if (!doctorId && user.role === 'doctor') {
-    const me = await db.doctorProfile.findUnique({ where: { userId: user.id }, select: { id: true } })
+    me = await db.doctorProfile.findUnique({ where: { userId: user.id }, select: { id: true } })
     if (me) doctorId = me.id
+  }
+
+  // A doctor with no profile yet simply has no availability — not a bad request.
+  if (!doctorId && user.role === 'doctor' && !me) {
+    const schedule: Record<string, { start: string; end: string }[]> = {}
+    for (const day of DAYS) schedule[day] = []
+    return jsonOk({ doctorId: null, schedule })
   }
 
   if (!doctorId) return jsonError('doctorId is required', 400)

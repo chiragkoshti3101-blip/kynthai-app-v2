@@ -164,13 +164,16 @@ export function LoginPage({
   // ───────────────────────────────────────────────────────────────────────────
 
   const [mode, setMode] = React.useState<'signin' | 'register'>(initialMode);
-  const [email, setEmail] = React.useState(() => {
+  // ponytail: read sessionStorage in an effect, NOT the state initializer —
+  // a render-phase browser read is a server/client branch and caused an
+  // intermittent React #418 hydration mismatch (full-page boot-splash lockup).
+  const [email, setEmail] = React.useState('');
+  React.useEffect(() => {
     try {
-      return typeof window !== 'undefined' ? sessionStorage.getItem('kynthai.login.email') || '' : ''
-    } catch {
-      return ''
-    }
-  });
+      const saved = sessionStorage.getItem('kynthai.login.email')
+      if (saved) setEmail(saved)
+    } catch { /* private mode */ }
+  }, []);
   const [password, setPassword] = React.useState('');
   const [formError, setFormError] = React.useState<string | null>(null);
   const [name, setName] = React.useState('');
