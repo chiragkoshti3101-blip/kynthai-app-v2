@@ -206,7 +206,6 @@ model DoctorProfile {
   medicalCouncil      String?
   medicalCouncil_enc  String?                  @map("medicalCouncil_enc")
   lastActiveAt        DateTime? // for presence tracking
-  updatedAt           DateTime?
 
   appointments        Appointment[]            @relation("DoctorAppointments")
   prescriptionsGiven  Prescription[]           @relation("DoctorPrescriptions")
