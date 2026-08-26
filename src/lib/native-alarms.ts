@@ -294,3 +294,17 @@ export async function openNativeNotificationSettings(): Promise<boolean> {
     return false
   }
 }
+
+/**
+ * Re-arm persisted dose alarms after the app was force-swiped from recents.
+ * Android cancels AlarmManager alarms on force-stop; this re-schedules them
+ * from the SharedPreferences-backed alarm list that survives the kill.
+ */
+export async function restoreNativeAlarms(): Promise<void> {
+  if (!isNative()) return
+  try {
+    const { registerPlugin } = await import('@capacitor/core')
+    const DoseAlarm = registerPlugin<{ restore: () => Promise<void> }>('DoseAlarm')
+    await DoseAlarm.restore()
+  } catch { /* plugin missing or not Android */ }
+}
