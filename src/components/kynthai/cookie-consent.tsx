@@ -123,7 +123,10 @@ export function CookieConsent() {
     const stored = getStoredConsent()
     const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))
     const inOnboarding = !!user && !onboardingComplete
-    if (!stored && !isPublic && !inOnboarding) {
+    // Suppress when a full-screen medication alarm is active — stacking the
+    // cookie banner under a z-9999 alarm overlay is a terrible first impression.
+    const alarmActive = typeof document !== 'undefined' && !!document.querySelector('[role="alertdialog"]')
+    if (!stored && !isPublic && !inOnboarding && !alarmActive) {
       const timer = setTimeout(() => setVisible(true), 1500)
       return () => clearTimeout(timer)
     }
