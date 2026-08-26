@@ -329,13 +329,17 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     }
   }, [user, onboardingComplete, completeOnboarding, pathname, router]);
 
-  // Prefetch auth routes so Get Started / Sign in feel instant
+  // Prefetch auth routes so Get Started / Sign in feel instant.
+  // ponytail: NEVER prefetch /patient or /caretaker here — for an anonymous
+  // visitor those pages 307→/login and Next's client router CACHESES the
+  // redirect, so after a successful login router.push('/patient') replays
+  // the cached 307 and bounces the user straight back to /login (observed:
+  // patient/family form logins dead while doctor/lab worked, since only
+  // these two portals were prefetched).
   useEffect(() => {
     try {
       router.prefetch('/login')
       router.prefetch('/register')
-      router.prefetch('/patient')
-      router.prefetch('/caretaker')
     } catch { /* ignore */ }
   }, [router])
 
