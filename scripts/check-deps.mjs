@@ -33,6 +33,25 @@ const NEXT_BUNDLED_ALLOWLIST = new Set([
   'GHSA-ggr8-5vv4-36mx',
 ]);
 
+/**
+ * Package-level fallback for advisories that npm audit reports WITHOUT a
+ * resolvable GHSA URL in `via` (the audit JSON shows `via: [{...no url}]` or
+ * an empty id). Those can never match the GHSA allowlist above, so the same
+ * known advisory silently turns into a blocker and halts ALL deploys.
+ *
+ * prisma: the GHSA-ggr8-5vv4-36mx advisory family (Prisma CLI / publish-token)
+ * started surfacing against the `prisma` package with an empty advisory id
+ * (npm 10 audit JSON, observed 2026-08-27: `prisma (high) >=6.13.0-dev.1 via `).
+ * Same advisory already allowlisted above; the prisma CLI is a build/migrate-
+ * time tool here, not a runtime request path. Remove this entry when prisma
+ * ships the clean patch (same trigger as the GHSA list).
+ */
+const PACKAGE_ALLOWLIST = new Set(['prisma']);
+
+export function isAllowlistedPackage(name) {
+  return PACKAGE_ALLOWLIST.has(name);
+}
+
 export function isAllowlistedAdvisory(ghsa) {
   return NEXT_BUNDLED_ALLOWLIST.has(ghsa);
 }
