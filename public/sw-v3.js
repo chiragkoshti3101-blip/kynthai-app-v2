@@ -145,7 +145,16 @@ self.addEventListener('push', (event) => {
   const body = data.body || ''
   const tag = data.tag || data.type || 'kynthai-default'
   const typeStr = String(data.type || tag || title).toLowerCase()
+  // Generic payloads carry the dose signal in structured fields — detect those
+  // FIRST so PHI-free titles ("Medication reminder") still get alarm treatment.
+  const embedded = data.data && typeof data.data === 'object' ? data.data : {}
   const isDose =
+    data.isDose === true ||
+    embedded.isDose === true ||
+    !!data.reminderId ||
+    !!embedded.reminderId ||
+    String(tag) === 'reminder' ||
+    typeStr.includes('dose') ||
     typeStr.includes('remind') ||
     typeStr.includes('missed') ||
     typeStr.includes('escalat') ||
@@ -177,10 +186,11 @@ self.addEventListener('push', (event) => {
             title,
             body,
             tag,
-            medName: data.medName || title,
-            time: data.time || '',
-            dosage: data.dosage || '',
-            reminderId: data.reminderId || null,
+            medName: data.medName || embedded.medName || title,
+            time: data.time || embedded.time || '',
+            dosage: data.dosage || embedded.dosage || '',
+            reminderId: data.reminderId || embedded.reminderId || null,
+            medicationId: data.medicationId || embedded.medicationId || null,
             clinical: isClinical,
             emergency: isEmergency,
           })
@@ -190,10 +200,15 @@ self.addEventListener('push', (event) => {
     })
 
   let openUrl = data.url || '/'
+  const rid = data.reminderId || embedded.reminderId
+  const mid = data.medicationId || embedded.medicationId
   if (isDose || isEmergency) {
-    const base = openUrl.split('?')[0] || '/patient'
-    openUrl = base + '?alarm=1'
-    if (data.medName) openUrl += '&med=' + encodeURIComponent(String(data.medName).slice(0, 80))
+    const base = (openUrl.split('?')[0] || '/patient')
+    // Only rebuild when the payload did not provide a full deep link already
+    openUrl = data.url && data.url.includes('alarm=1') ? data.url : base + '?alarm=1'
+    if (data.medName && !openUrl.includes('med=')) openUrl += '&med=' + encodeURIComponent(String(data.medName).slice(0, 80))
+    if (rid && !openUrl.includes('rid=')) openUrl += '&rid=' + encodeURIComponent(String(rid))
+    if (mid && !openUrl.includes('mid=')) openUrl += '&mid=' + encodeURIComponent(String(mid))
   }
 
   // iOS PWA: requireInteraction + notification actions often leave sticky /
@@ -213,10 +228,11 @@ self.addEventListener('push', (event) => {
       isDose,
       isEmergency,
       isClinical,
-      medName: data.medName || title,
-      time: data.time || '',
-      dosage: data.dosage || '',
-      reminderId: data.reminderId || null,
+      medName: data.medName || embedded.medName || title,
+      time: data.time || embedded.time || '',
+      dosage: data.dosage || embedded.dosage || '',
+      reminderId: data.reminderId || embedded.reminderId || null,
+      medicationId: data.medicationId || embedded.medicationId || null,
     },
     tag: isDose ? 'kynthai-dose-alarm' : isEmergency ? 'kynthai-emergency' : String(tag),
     // Replace prior same-tag alert instead of stacking broken floaters on iOS
@@ -253,9 +269,15 @@ self.addEventListener('notificationclick', (event) => {
 
   let targetUrl = data.url || '/'
   if (isDose || isEmergency) {
-    targetUrl = '/patient?alarm=1'
-    if (data.medName) {
+    targetUrl = data.url && data.url.includes('alarm=1') ? data.url : '/patient?alarm=1'
+    if (data.medName && !targetUrl.includes('med=')) {
       targetUrl += '&med=' + encodeURIComponent(String(data.medName).slice(0, 80))
+    }
+    if (data.reminderId && !targetUrl.includes('rid=')) {
+      targetUrl += '&rid=' + encodeURIComponent(String(data.reminderId))
+    }
+    if (data.medicationId && !targetUrl.includes('mid=')) {
+      targetUrl += '&mid=' + encodeURIComponent(String(data.medicationId))
     }
   }
 
@@ -271,6 +293,7 @@ self.addEventListener('notificationclick', (event) => {
             time: data.time,
             dosage: data.dosage,
             reminderId: data.reminderId,
+            medicationId: data.medicationId,
             fromNotification: true,
             emergency: isEmergency,
             action: event.action || 'open',

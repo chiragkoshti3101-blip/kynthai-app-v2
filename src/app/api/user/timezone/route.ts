@@ -63,7 +63,9 @@ export async function PUT(req: NextRequest) {
   if (!ok) return jsonError('Could not store timezone right now', 500)
 
   try {
-    await db.$executeRawUnsafe(`UPDATE "User" SET "timezone" = $1 WHERE id = $2`, tz, user.id)
+    // Physical table is "users" (Prisma @@map) — "User" does not exist and
+    // this UPDATE silently 500'd forever, so no user ever had a stored tz.
+    await db.$executeRawUnsafe(`UPDATE "users" SET "timezone" = $1 WHERE id = $2`, tz, user.id)
   } catch {
     return jsonError('Could not store timezone right now', 500)
   }

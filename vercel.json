@@ -14,6 +14,22 @@
       "schedule": "0 12 * * *"
     },
     {
+      "path": "/api/reminders/send",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/reminders/send",
+      "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/reminders/send",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/reminders/send",
+      "schedule": "0 20 * * *"
+    },
+    {
       "path": "/api/chat/cleanup",
       "schedule": "30 3 * * *"
     },

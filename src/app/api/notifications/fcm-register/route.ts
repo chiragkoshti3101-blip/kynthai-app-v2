@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { logAudit } from '@/lib/auth'
 import { rateLimit } from '@/lib/security'
-import { jsonOk, jsonError } from '@/lib/api-helpers'
+import { jsonOk, jsonError, requireAuth } from '@/lib/api-helpers'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,10 +21,25 @@ export async function POST(req: NextRequest) {
   const token = typeof body?.token === 'string' ? body.token.trim() : ''
   const email = typeof body?.email === 'string' ? body.email.trim() : ''
   if (!token || token.length < 20) return jsonError('Missing FCM token', 400)
-  if (!email) return jsonError('Missing email', 400)
 
-  const user = await db.user.findUnique({ where: { email } })
-  if (!user) return jsonError('User not found', 404)
+  // FIX: resolve the user from the SESSION first. The old flow required an
+  // email in the body — the web client never sent one (silent 400) and the
+  // native fallback hardcoded a demo address, registering every APK install
+  // under one account. Requests from the WebView carry session cookies; the
+  // email fallback now only applies for pre-session native registration.
+  let user = null as Awaited<ReturnType<typeof db.user.findUnique>>
+  try {
+    const { response, user: sessionUser } = await requireAuth(req)
+    if (!response && sessionUser) {
+      user = await db.user.findUnique({ where: { id: sessionUser.id } })
+    }
+  } catch {
+    /* fall through to email lookup */
+  }
+  if (!user && email) {
+    user = await db.user.findUnique({ where: { email } })
+  }
+  if (!user) return jsonError('Sign in to register this device for push', 401)
 
   try {
     await db.pushSubscription.upsert({

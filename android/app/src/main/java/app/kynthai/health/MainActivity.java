@@ -71,7 +71,10 @@ public class MainActivity extends BridgeActivity {
                 conn.setRequestProperty("Cookie", cookie);
               }
               conn.setDoOutput(true);
-              String body = "{\"token\":\"" + token + "\",\"email\":\"patient@kynthai.app\"}";
+              // Server resolves the user from the session cookies sent above.
+              // Do NOT hardcode an email — that registered every install under
+              // one demo account. Body carries only the token.
+              String body = "{\"token\":\"" + token + "\"}";
               OutputStream os = conn.getOutputStream();
               os.write(body.getBytes("UTF-8"));
               os.close();

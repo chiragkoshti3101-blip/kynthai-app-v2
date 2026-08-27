@@ -121,6 +121,17 @@ export async function POST(req: NextRequest) {
     : false)
   if (!owns) return jsonError('Forbidden', 403)
 
+  // FIX #1/#32: "taken" is terminal for a dose — a stale client (or a re-fired
+  // alarm) must never downgrade taken → skipped/pending and null out takenAt.
+  const existing = await db.reminder.findUnique({
+    where: { medicationId_date_time: { medicationId: body.medicationId, date, time: body.time } },
+    select: { id: true, status: true },
+  })
+  if (existing && existing.status === 'taken' && status !== 'taken') {
+    const current = await db.reminder.findUnique({ where: { id: existing.id } })
+    return jsonOk(current)
+  }
+
   const reminder = await db.reminder.upsert({
     where: { medicationId_date_time: { medicationId: body.medicationId, date, time: body.time } },
     update: { status, takenAt: status === 'taken' ? new Date() : null },

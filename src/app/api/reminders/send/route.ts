@@ -246,27 +246,25 @@ async function run(req: NextRequest) {
         continue
       }
 
-      const medName = reminder.medication?.name || 'your medication'
-      const dosage = reminder.medication?.dosage || ''
-      const bodyBits = [dosage, reminder.medication?.frequency || '', reminder.time]
-        .filter(Boolean)
-        .join(' · ')
-      const body = bodyBits || `Reminder: take ${medName}`
-      const title = `Time to take ${medName}`
+      // FIX #23: keep the lock screen generic — no drug name or dose. The
+      // identifiable details travel in the unrendered data block (deep link
+      // hydration) and in the in-app inbox merge.
+      const title = 'Medication reminder'
+      const body = `A dose is due now · ${reminder.time}. Tap to open.`
 
       try {
-        // Dedupe on title (med name) + body containing the scheduled time.
-        // Window is 20h (not 30 min) so that a frequently-running tick cron
-        // (cron-job.org every minute / */10 backups) sends each dose at most
-        // ONCE per day, while still allowing the same HH:MM tomorrow. A 20h
-        // window can never swallow the next day's dose (that is ≥23h away),
-        // and distinct HH:MM strings never collide as substrings.
+        // Dedupe on the reminder row itself (title is a constant now that
+        // payloads are generic). The stored in-app log body carries
+        // "[ref:dose:<reminderId>]" via dedupeKey, so body-contains matching is
+        // unique per dose — two meds at the same HH:MM no longer collide, and a
+        // frequently-running tick cron sends each dose at most ONCE per day
+        // while the same HH:MM tomorrow (a fresh reminder row) still fires.
         const already = await db.notificationLog.findFirst({
           where: {
             userId,
             type: 'reminder',
             title,
-            body: { contains: String(reminder.time) },
+            body: { contains: `dose:${String(reminder.id)}` },
             createdAt: { gte: new Date(Date.now() - 20 * 60 * 60 * 1000) },
           },
           select: { id: true },
@@ -280,6 +278,8 @@ async function run(req: NextRequest) {
       }
 
       try {
+        const medName = reminder.medication?.name || 'your medication'
+        const dosage = reminder.medication?.dosage || ''
         const route = await sendReminder(
           userId,
           String(medName),
@@ -288,6 +288,14 @@ async function run(req: NextRequest) {
           {
             email: medUser?.email || familyOwner?.email || undefined,
             phone: medUser?.phone || familyOwner?.phone || undefined,
+          },
+          `dose:${String(reminder.id)}`,
+          {
+            reminderId: String(reminder.id).startsWith('med:') ? undefined : String(reminder.id),
+            medicationId:
+              !String(reminder.id).startsWith('med:') && reminder.medication?.id
+                ? String(reminder.medication.id)
+                : undefined,
           },
         )
         const ch = route.channel || 'none'

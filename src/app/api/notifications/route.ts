@@ -40,6 +40,13 @@ export async function GET(req: NextRequest) {
       },
     })
 
+    // The cron appends "[ref:dose:<id>]" to stored bodies for dedupe; that is
+    // plumbing, not user-facing copy — strip it before serving the inbox.
+    notifications = notifications.map((n) => ({
+      ...n,
+      body: n.body?.replace(/\n\[ref:[^\]]+\]$/, '') ?? n.body,
+    }))
+
     // Merge today's pending reminders so the bell is never a dead empty inbox
     // while the user still has doses on the schedule (cron may lag or miss).
     try {
@@ -66,7 +73,12 @@ export async function GET(req: NextRequest) {
           const title = due ? `Time to take ${medName}` : `Upcoming: ${medName}`
           const body = [r.medication?.dosage, r.time].filter(Boolean).join(' · ')
           const key = `reminder|${title}|${body}`
-          if (existingKeys.has(key)) continue
+          // Generic cron rows share the time in their body — don't create a
+          // second inbox entry for a dose already represented.
+          const covered = notifications.some(
+            (n) => n.type === 'reminder' && typeof n.body === 'string' && n.body.includes(r.time),
+          )
+          if (existingKeys.has(key) || covered) continue
           existingKeys.add(key)
           notifications.push({
             id: `rem-${r.id}`,
