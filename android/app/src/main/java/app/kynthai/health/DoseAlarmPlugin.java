@@ -114,7 +114,63 @@ public class DoseAlarmPlugin extends Plugin {
     call.resolve(ret);
   }
 
-  /** Opens system screen so user can turn allowNoti=true when previously denied. */
+  /**
+   * Native-side FCM token registration — called from Java, not from the remote
+   * page's JS. Bypasses the timing issue where PushNotifications.register() fails
+   * silently in the Capacitor WebView.
+   */
+  @PluginMethod
+  public void registerFcmToken(PluginCall call) {
+    String token = call.getString("token");
+    if (token == null || token.length() < 20) {
+      call.reject("Missing or invalid FCM token");
+      return;
+    }
+    // Store token locally for persistence across restarts
+    try {
+      SharedPreferences sp = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+      sp.edit().putString("fcm_token", token).apply();
+    } catch (Exception ignored) {}
+
+    // Notify JS layer (if bridge is up) so it can POST to server
+    JSObject data = new JSObject();
+    data.put("token", token);
+    notifyListeners("fcmTokenAvailable", data);
+    call.resolve(data);
+  }
+
+  /**
+   * Read the FCM token stored in SharedPreferences by MainActivity
+   * or by registerFcmToken(). Called from fcm.ts as a fallback when
+   * the PushNotifications plugin isn't available.
+   */
+  @PluginMethod
+  public void getFcmToken(PluginCall call) {
+    String token = null;
+    // Check SharedPreferences first (written by MainActivity or registerFcmToken)
+    try {
+      SharedPreferences sp = getContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+      token = sp.getString("fcm_token", null);
+    } catch (Exception ignored) {}
+
+    // Fallback: check the KynthaiFCM prefs file (written by MainActivity)
+    if (token == null) {
+      try {
+        SharedPreferences sp = getContext().getSharedPreferences("KynthaiFCM", Context.MODE_PRIVATE);
+        token = sp.getString("fcm_token", null);
+      } catch (Exception ignored) {}
+    }
+
+    JSObject data = new JSObject();
+    data.put("token", token);
+    data.put("found", token != null && token.length() > 20);
+    call.resolve(data);
+  }
+
+  /**
+   * Open Android system notification settings for this app.
+   * Opens system screen so user can turn allowNoti=true when previously denied.
+   */
   @PluginMethod
   public void openNotificationSettings(PluginCall call) {
     try {

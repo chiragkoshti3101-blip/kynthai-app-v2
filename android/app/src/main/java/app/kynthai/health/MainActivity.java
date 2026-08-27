@@ -6,10 +6,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.splashscreen.SplashScreen;
 import com.getcapacitor.BridgeActivity;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 /**
  * Android 12+ sticks on the green splash unless SplashScreen is installed and
@@ -42,6 +44,26 @@ public class MainActivity extends BridgeActivity {
     }, 2500);
 
     requestNotificationPermissionIfNeeded();
+
+    // FCM token registration — runs from native Java, independent of remote web page timing.
+    // When the app opens, this gets the Firebase device token and stores it in
+    // SharedPreferences so the web layer can POST it to the server when the bridge
+    // is ready with proper auth cookies.
+    new Handler(Looper.getMainLooper()).postDelayed(() -> {
+      FirebaseMessaging.getInstance().getToken()
+        .addOnSuccessListener(token -> {
+          if (token == null || token.isEmpty()) return;
+          Log.d("MainActivity", "FCM token obtained: " + token.substring(0, Math.min(20, token.length())) + "...");
+          // Store in SharedPreferences so fcm.ts can read it via Capacitor Preferences
+          try {
+            getSharedPreferences("KynthaiFCM", MODE_PRIVATE)
+              .edit().putString("fcm_token", token).apply();
+          } catch (Exception e) {
+            Log.e("MainActivity", "Failed to store FCM token in prefs: " + e.getMessage());
+          }
+        })
+        .addOnFailureListener(e -> Log.e("MainActivity", "FCM getToken failed: " + e.getMessage()));
+    }, 5000); // 5s delay to let the bridge fully initialize
   }
 
   private void requestNotificationPermissionIfNeeded() {
