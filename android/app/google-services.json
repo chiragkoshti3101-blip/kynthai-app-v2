@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "296600341600",
+    "project_id": "kynthai",
+    "storage_bucket": "kynthai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:296600341600:android:db981687c6b9e8e32d4705",
+        "android_client_info": {
+          "package_name": "app.kynthai.health"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAyBs6Ogaiirs1lxa58I5U5u6OnTcSWWqU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
