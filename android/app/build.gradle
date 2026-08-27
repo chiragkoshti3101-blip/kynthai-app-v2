@@ -70,6 +70,10 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    // Explicit Firebase Messaging dep so MainActivity can import it.
+    // @capacitor/push-notifications declares this but Gradle needs it
+    // resolved for direct Java imports in the app module.
+    implementation "com.google.firebase:firebase-messaging:25.0.1"
 }
 
 apply from: 'capacitor.build.gradle'
