@@ -159,6 +159,7 @@ const SYSTEM_API_PATHS = new Set([
   '/api/auth/logout',
   '/api/system/seed-demo',
   '/api/system/test-dose',
+  '/api/notifications/fcm-register',
 ]);
 
 function isSystemApi(pathname: string): boolean {
