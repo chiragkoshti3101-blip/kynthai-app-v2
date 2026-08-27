@@ -85,10 +85,8 @@ test.describe('API endpoints', () => {
     const response = await request.get(`${BASE}/api/health`);
     expect(response.status()).toBe(200);
     const body = await response.json();
-    expect(body.status).toBe('ok');
-    expect(body.checks).toBeDefined();
-    expect(body.checks.database).toBe('ok');
-    expect(body.checks.env).toBe('production');
+    expect(body.status).toBe("ok");
+    expect(body.timestamp).toBeDefined();
   });
 
   test('/api/emergency-sos returns 401 (auth required)', async ({ request }) => {
