@@ -45,7 +45,7 @@ async function ensureUserTimezoneColumn(): Promise<void> {
   if (userTzColumnReady !== null) return
   try {
     await db.$executeRawUnsafe(
-      `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "timezone" TEXT`
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "timezone" TEXT`
     )
     userTzColumnReady = true
   } catch (e) {
