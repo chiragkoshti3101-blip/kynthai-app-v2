@@ -109,7 +109,11 @@ export async function sendPushToUser(
       where: { userId },
       select: { id: true, endpoint: true, type: true, token: true, p256dh: true, auth: true },
     })
-    if (subs.length === 0) return { sent: 0, failed: 0 }
+    // FIX #9: Return explicit status when no subscriptions exist
+    if (subs.length === 0) {
+      logger.info('[push] No subscriptions found for user', { userId })
+      return { sent: 0, failed: 0, noSubs: true }
+    }
 
     const isClinical =
       payload.clinical === true ||

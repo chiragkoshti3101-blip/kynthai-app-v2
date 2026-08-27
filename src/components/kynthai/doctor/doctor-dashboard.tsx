@@ -741,7 +741,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
               <div className="hidden sm:block text-left">
                 <p className="text-xs text-muted-foreground leading-tight">{greeting}</p>
                 <p className="text-sm font-semibold leading-tight">
-                  Dr. {isDemo ? 'Guest' : (user.name?.split(' ').slice(-1)[0] ?? 'Doctor')}
+                  Dr. {isDemo ? 'Demo User' : (user.name?.split(' ').slice(-1)[0] ?? 'Doctor')}
                 </p>
               </div>
             </button>

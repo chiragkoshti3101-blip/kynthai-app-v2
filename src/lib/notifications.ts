@@ -153,14 +153,15 @@ export async function sendNotification(
       'appointment_update',
       'lab_booking',
     ])
+    // FIX #23: Don't send PHI (medication name/dosage) in push notifications
+    // Only send generic reminder to avoid lock screen privacy leaks
     const r = await sendPushToUser(target.userId, {
       title: payload.title,
       body: payload.body,
       tag: (payload.data?.type as string | undefined) || payload.type,
       url: (payload.data?.url as string | undefined) || undefined,
-      medName: payload.data?.medName as string | undefined,
+      // medName and dosage removed from push to protect PHI
       time: payload.data?.scheduledTime as string | undefined,
-      dosage: payload.data?.dosage as string | undefined,
       reminderId: payload.data?.reminderId as string | undefined,
       clinical: clinicalTypes.has(String(payload.type || '')),
     })

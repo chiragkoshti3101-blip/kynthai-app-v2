@@ -156,7 +156,7 @@ function PendingState({
             Verification in progress
           </Badge>
           <h1 className="text-2xl font-bold tracking-tight">
-            Hi Dr. {isDemo ? 'Guest' : (user.name?.split(' ').slice(-1)[0] ?? 'Doctor')}
+            Hi Dr. {isDemo ? 'Demo User' : (user.name?.split(' ').slice(-1)[0] ?? 'Doctor')}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Thanks for submitting your details. Our admin team is reviewing your profile and
