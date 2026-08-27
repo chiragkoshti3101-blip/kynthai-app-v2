@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { type Medication, type Reminder, type ReminderStats, getColorClasses } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { cachePatientData, getCachedPatientData } from '@/lib/offline-queue';
@@ -191,6 +192,48 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
     return () => window.removeEventListener('kynthai:reminder-updated', onUpdated)
   }, []);
 
+  // FIX #16: undo a mistaken Take/Skip — revert the dose back to pending
+  const undoStatus = async (reminder: Reminder, markedAs: 'taken' | 'skipped') => {
+    if (isDemo) {
+      setReminders(prev =>
+        prev.map(r => (r.id === reminder.id ? { ...r, status: 'pending' as const } : r))
+      );
+      setStats(prev =>
+        prev
+          ? {
+              ...prev,
+              taken: markedAs === 'taken' ? Math.max(0, prev.taken - 1) : prev.taken,
+              pending: prev.pending + 1,
+              adherence: Math.round(
+                ((prev.taken - (markedAs === 'taken' ? 1 : 0)) / prev.total) * 100
+              ),
+            }
+          : prev
+      );
+      return;
+    }
+    try {
+      const res = await fetch('/api/reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          medicationId: reminder.medicationId,
+          date: reminder.date,
+          time: reminder.time,
+          status: 'pending',
+        }),
+      });
+      if (!res.ok) throw new Error('Undo failed');
+      await load();
+    } catch {
+      toast({
+        title: 'Undo failed',
+        description: 'Could not revert the dose. Try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const updateStatus = async (reminder: Reminder, status: 'taken' | 'skipped') => {
     setUpdating(reminder.id);
     // Play success chime when marking taken
@@ -219,6 +262,11 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
           status === 'taken'
             ? `${reminder.medication?.name} — ${reminder.medication?.dosage}`
             : undefined,
+        action: (
+          <ToastAction altText="Undo dose status" onClick={() => void undoStatus(reminder, status)}>
+            Undo
+          </ToastAction>
+        ),
       });
       setUpdating(null);
       return;
@@ -241,6 +289,11 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
           status === 'taken'
             ? `${reminder.medication?.name} — ${reminder.medication?.dosage}`
             : undefined,
+        action: (
+          <ToastAction altText="Undo dose status" onClick={() => void undoStatus(reminder, status)}>
+            Undo
+          </ToastAction>
+        ),
       });
       await load();
     } catch (e) {
@@ -713,18 +766,19 @@ function ReminderRow({
                 disabled={updating}
                 onClick={() => onStatus(reminder, 'skipped')}
                 title="Skip"
+                className="h-11 min-h-11 px-4"
               >
                 <SkipForward className="h-4 w-4" />
-                <span className="sr-only">Skip</span>
+                <span className="ml-1">Skip</span>
               </Button>
               <Button
                 size="sm"
                 disabled={updating}
                 onClick={() => onStatus(reminder, 'taken')}
-                className="bg-primary"
+                className="h-11 min-h-11 px-4 bg-primary"
               >
                 <CheckCircle2 className="h-4 w-4" />
-                <span className="ml-1 hidden sm:inline">Take</span>
+                <span className="ml-1">Take</span>
               </Button>
             </>
           )}

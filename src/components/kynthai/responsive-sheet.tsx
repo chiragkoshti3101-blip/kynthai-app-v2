@@ -48,7 +48,7 @@ export function ResponsiveSheet({
       <SheetContent
         side={isMobile ? 'bottom' : 'right'}
         className={cn(
-          'overflow-y-auto custom-scroll p-0',
+          'overflow-y-auto custom-scroll overscroll-behavior-contain p-0',
           isMobile
             ? cn(
                 mobileHeight,

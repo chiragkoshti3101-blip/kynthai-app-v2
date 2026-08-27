@@ -12,6 +12,7 @@ import {
   audit,
 } from '@/lib/api-helpers';
 import { updateMedicationSchema } from '@/lib/schemas';
+import { toISODateTime } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 // GET /api/medications/[id]
@@ -93,6 +94,34 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.stockRemaining !== undefined) data.stockRemaining = Number(body.stockRemaining) ?? null;
 
   const updated = await db.medication.update({ where: { id }, data });
+
+  // FIX #10: when dose times change, stale pending reminder rows keep firing
+  // the OLD schedule while the med list shows the new one (and GET
+  // /api/reminders then creates BOTH, which is the reported "two schedules for
+  // one drug" bug). Drop pending rows from today onward — taken/missed history
+  // is preserved — and regenerate today's rows from the new times immediately
+  // (future days regenerate via the daily schedule cron/GET auto-create).
+  if (body.times !== undefined) {
+    try {
+      const todayDate = new Date();
+      todayDate.setHours(0, 0, 0, 0);
+      await db.reminder.deleteMany({
+        where: { medicationId: id, date: { gte: todayDate }, status: 'pending' },
+      });
+      const times = parseTimes(updated.times);
+      const todayIso = new Date(toISODateTime(todayDate.toISOString().slice(0, 10)));
+      for (const t of times) {
+        await db.reminder.upsert({
+          where: { medicationId_date_time: { medicationId: id, date: todayIso, time: t } },
+          update: {},
+          create: { medicationId: id, date: todayIso, time: t, status: 'pending' },
+        });
+      }
+    } catch (e) {
+      console.warn('[medications] reminder regeneration failed', e);
+    }
+  }
+
   await logAudit(u.id, 'medication.update', `med=${id} fields=${Object.keys(data).join(',')}`);
   return jsonOk({ ...updated, times: parseTimes(updated.times) });
 }

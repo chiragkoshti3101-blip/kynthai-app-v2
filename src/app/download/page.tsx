@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Download, Bell, Shield } from 'lucide-react'
+import { Download, Bell, Shield, Battery } from 'lucide-react'
 import { KynthaiBrand } from '@/components/kynthai/logo'
 
 export const metadata: Metadata = {
@@ -77,6 +77,34 @@ export default function DownloadPage() {
             <li>If no dialog appears: Settings → Apps → Kynthai → Notifications → turn On</li>
             <li>Sign in with your account</li>
           </ol>
+        </div>
+
+        <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-xs text-slate-600 space-y-2 leading-relaxed">
+          <p className="font-semibold text-slate-800 flex items-center gap-2">
+            <Battery className="h-4 w-4 shrink-0 text-emerald-600" />
+            Notifications killed by your phone?
+          </p>
+          <p>
+            Some Android phones (Xiaomi, Oppo, Vivo, Realme, Huawei, Samsung) force-stop apps to
+            save battery. If reminders arrive late or not at all:
+          </p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Open Settings → Apps → Kynthai → Battery → Allow background activity / Unrestricted</li>
+            <li>Disable battery optimization for Kynthai</li>
+            <li>On Xiaomi/OPPO/Realme also enable Autostart and lock the app in Recents</li>
+            <li>Keep the app installed — alarms are scheduled on-device and survive restarts</li>
+          </ol>
+          <p>
+            Full per-brand guides:{' '}
+            <a
+              href="https://dontkillmyapp.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-emerald-700 hover:underline"
+            >
+              dontkillmyapp.com
+            </a>
+          </p>
         </div>
 
         <p className="text-center text-xs text-slate-500 leading-relaxed">

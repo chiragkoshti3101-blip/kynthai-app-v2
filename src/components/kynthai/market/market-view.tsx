@@ -41,6 +41,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { generateSlots, type SlotOption } from '@/lib/booking-slots'
 import { useAppStore } from '@/lib/store'
 
 /* ----------------------------------- Data ----------------------------------- */
@@ -115,7 +116,8 @@ const LABS = [
   },
 ]
 
-const TIME_SLOTS = ['09:00 AM', '10:30 AM', '12:00 PM', '02:30 PM', '04:00 PM', '05:30 PM']
+// FIX #6: real slot options come from GET /api/doctors/[id]/slots?date= expanded
+// client-side via generateSlots (availability windows + booked instants).
 
 /* --------------------------------- Main view -------------------------------- */
 
@@ -131,15 +133,15 @@ export function MarketView() {
 
       <Tabs defaultValue="doctors" className="w-full">
         <TabsList className="grid w-full grid-cols-3 h-auto p-1">
-          <TabsTrigger value="doctors" className="py-1.5 text-xs">
+          <TabsTrigger value="doctors" className="py-1.5 text-xs min-h-11 flex items-center justify-center">
             <Stethoscope className="h-3.5 w-3.5" />
             Doctors
           </TabsTrigger>
-          <TabsTrigger value="medicines" className="py-1.5 text-xs">
+          <TabsTrigger value="medicines" className="py-1.5 text-xs min-h-11 flex items-center justify-center">
             <Pill className="h-3.5 w-3.5" />
             Medicines
           </TabsTrigger>
-          <TabsTrigger value="labs" className="py-1.5 text-xs">
+          <TabsTrigger value="labs" className="py-1.5 text-xs min-h-11 flex items-center justify-center">
             <FlaskConical className="h-3.5 w-3.5" />
             Lab Tests
           </TabsTrigger>
@@ -331,7 +333,9 @@ function BookingDialog({
   const [slot, setSlot] = React.useState('')
   const [reason, setReason] = React.useState('')
   const [loading, setLoading] = React.useState(false)
-  const [doctorSlots, setDoctorSlots] = React.useState<Array<{ day: string; start: string; end: string }>>([])
+  // FIX #6: real slot options from availability windows + booked instants.
+  const [slots, setSlots] = React.useState<SlotOption[]>([])
+  const [loadingSlots, setLoadingSlots] = React.useState(false)
 
   React.useEffect(() => {
     if (doctor) {
@@ -340,33 +344,37 @@ function BookingDialog({
       setDate(tomorrow.toISOString().slice(0, 10))
       setSlot('')
       setReason('')
-      setDoctorSlots([])
-      fetch(`/api/doctors/${doctor.id}/availability`)
-        .then((r) => r.ok ? r.json() : Promise.resolve([]))
-        .then((data) => {
-          const arr = Array.isArray(data) ? data : (data.data ?? data.slots ?? [])
-          setDoctorSlots(arr)
-        })
-        .catch(() => {
-          setDoctorSlots([])
-        })
     }
   }, [doctor])
+
+  React.useEffect(() => {
+    if (!doctor?.id || !date) return
+    let cancelled = false
+    setLoadingSlots(true)
+    fetch(`/api/doctors/${doctor.id}/slots?date=${encodeURIComponent(date)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('slots unavailable'))))
+      .then((data: { windows?: Parameters<typeof generateSlots>[0]; booked?: string[] }) => {
+        if (cancelled) return
+        const next = generateSlots(data.windows ?? [], date, { booked: data.booked ?? [] })
+        setSlots(next)
+        setSlot((prev) => (prev && next.some((s) => s.value === prev && s.available) ? prev : ''))
+        setLoadingSlots(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setSlots(generateSlots([], date))
+        setLoadingSlots(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [doctor?.id, date])
 
   const [consent, setConsent] = React.useState(false)
 
   React.useEffect(() => {
     if (doctor) setConsent(false)
   }, [doctor])
-
-  const parseSlotTo24 = (s: string) => {
-    const [time, modifier] = s.split(' ')
-    const timeValue = time ?? ''
-    let [hours, minutes] = timeValue.split(':').map(Number) as [number, number]
-    if (modifier === 'PM' && hours !== 12) hours += 12
-    if (modifier === 'AM' && hours === 12) hours = 0
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`
-  }
 
   const submit = async () => {
     if (!doctor?.id || !date || !slot) return
@@ -377,7 +385,8 @@ function BookingDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           doctorId: doctor.id,
-          scheduledAt: new Date(`${date}T${parseSlotTo24(slot)}`).toISOString(),
+          // `slot` is an HH:MM value from the availability-aware slot grid.
+          scheduledAt: new Date(`${date}T${slot}:00`).toISOString(),
           type: 'video',
           reason: reason.trim() || 'Video consultation',
           consultationConsent: true,
@@ -419,22 +428,44 @@ function BookingDialog({
           </div>
           <div className="space-y-1.5">
             <Label>Time slot</Label>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {(doctorSlots.length > 0 ? doctorSlots.map((sl) => `${sl.start} - ${sl.end}`) : TIME_SLOTS).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSlot(s)}
-                  className={cn(
-                    'rounded-lg border py-2 text-xs font-medium transition-all',
-                    slot === s
-                      ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                      : 'border-border hover:border-emerald-500/40'
-                  )}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            {loadingSlots ? (
+              <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Checking availability…
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {slots.map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => s.available && setSlot(s.value)}
+                    disabled={!s.available}
+                    title={
+                      s.available
+                        ? 'Available'
+                        : s.reason === 'booked'
+                          ? 'Already booked'
+                          : 'Past time'
+                    }
+                    className={cn(
+                      'min-h-[44px] rounded-lg border text-xs font-medium transition-all',
+                      slot === s.value
+                        ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                        : s.available
+                          ? 'border-border hover:border-emerald-500/40'
+                          : 'border-border/60 text-muted-foreground/50 line-through cursor-not-allowed bg-muted/30',
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+                {slots.length === 0 && (
+                  <p className="col-span-full text-sm text-muted-foreground py-2">
+                    No slots for this day — try another date.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="appt-reason">Reason for visit</Label>
@@ -452,7 +483,7 @@ function BookingDialog({
           <label className="flex items-start gap-2 text-xs text-muted-foreground">
             <input
               type="checkbox"
-              className="mt-0.5 h-4 w-4 rounded border-border"
+              className="mt-0.5 h-6 w-6 accent-emerald-600 cursor-pointer"
               checked={consent}
               onChange={(e) => setConsent(e.target.checked)}
             />

@@ -252,7 +252,7 @@ export function LabResultsViewer({ isDemo }: { isDemo: boolean }) {
                     <FlaskConical className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate">{b.labName}</p>
+                    <p className="text-sm font-semibold line-clamp-2 break-words">{b.labName}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {b.tests.map(t => t.name).join(', ') || 'Lab test'}
                       {b.homeCollection && ' · Home collection'}

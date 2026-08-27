@@ -25,6 +25,19 @@ export async function GET(req: NextRequest) {
     const weekStart = startOfWeek();
 
     if (isDemo) {
+      // FIX #8: demo accounts used to return before the HealthScore upsert,
+      // so the profile card stayed on "No data yet" forever. Persist the demo
+      // score the same way the real path persists its computed score.
+      const demoBreakdown = { adherence: 32, streak: 16, journal: 10, symptoms: 8, ai: 6 };
+      db.healthScore
+        .upsert({
+          where: { userId_date: { userId, date: today } },
+          create: { userId, date: today, score: 78, breakdown: JSON.stringify(demoBreakdown) },
+          update: { score: 78, breakdown: JSON.stringify(demoBreakdown) },
+        })
+        .catch(() => {
+          /* non-fatal */
+        });
       return jsonOk({
         score: 78,
         breakdown: { adherence: 32, streak: 16, journal: 10, symptoms: 8, ai: 6 },

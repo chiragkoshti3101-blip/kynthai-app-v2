@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Loader2, Sparkles, X, Clock } from 'lucide-react'
+import { Plus, Loader2, Sparkles, X, Clock, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -340,19 +340,22 @@ export function AddMedication({ onAdded, onClose, familyMemberId, isDemo, onCrea
             </div>
             <div className="space-y-1">
               <Label className="text-[11px]">Repeat reminder every</Label>
-              <select
-                value={reminderInterval}
-                onChange={(e) => setReminderInterval(Number(e.target.value))}
-                className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none"
-              >
-                <option value={5}>5 minutes</option>
-                <option value={10}>10 minutes</option>
-                <option value={15}>15 minutes</option>
-                <option value={20}>20 minutes</option>
-                <option value={30}>30 minutes</option>
-                <option value={60}>60 minutes</option>
-                <option value={0}>Don't repeat</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={reminderInterval}
+                  onChange={(e) => setReminderInterval(Number(e.target.value))}
+                  className="w-full appearance-none rounded-md border border-input bg-background px-2 py-1.5 pr-8 text-sm"
+                >
+                  <option value={5}>5 minutes</option>
+                  <option value={10}>10 minutes</option>
+                  <option value={15}>15 minutes</option>
+                  <option value={20}>20 minutes</option>
+                  <option value={30}>30 minutes</option>
+                  <option value={60}>60 minutes</option>
+                  <option value={0}>Don't repeat</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
               <p className="text-[10px] text-muted-foreground">Alarm repeats until taken or window closes</p>
             </div>
           </div>
