@@ -1,4 +1,11 @@
 apply plugin: 'com.android.application'
+// Firebase Cloud Messaging — wires google-services.json (native FCM push that
+// delivers reminders to the OS even when the app process is dead). Applied
+// only when the file is present so the build stays green until FCM is configured.
+def googleServicesFile = file("google-services.json")
+if (googleServicesFile.exists()) {
+    apply plugin: 'com.google.gms.google-services'
+}
 
 android {
     namespace = "app.kynthai.health"

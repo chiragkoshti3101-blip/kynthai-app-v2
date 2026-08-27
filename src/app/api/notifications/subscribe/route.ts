@@ -18,6 +18,8 @@ async function ensurePushTable(): Promise<boolean> {
         "id" TEXT NOT NULL,
         "userId" TEXT NOT NULL,
         "endpoint" TEXT NOT NULL,
+        "type" TEXT NOT NULL DEFAULT 'webpush',
+        "token" TEXT,
         "p256dh" TEXT NOT NULL,
         "auth" TEXT NOT NULL,
         "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -25,8 +27,12 @@ async function ensurePushTable(): Promise<boolean> {
       );
     `)
     await db.$executeRawUnsafe(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_endpoint_key"
-      ON "push_subscriptions"("userId", "endpoint");
+      CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_endpoint_type_key"
+      ON "push_subscriptions"("userId", "endpoint", "type");
+    `)
+    await db.$executeRawUnsafe(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_type_token_key"
+      ON "push_subscriptions"("userId", "type", "token");
     `)
     await db.$executeRawUnsafe(`
       CREATE INDEX IF NOT EXISTS "push_subscriptions_userId_idx"
@@ -56,10 +62,11 @@ export async function POST(req: NextRequest) {
   // Upsert: same endpoint for same user → update, else create
   try {
     await db.pushSubscription.upsert({
-      where: { userId_endpoint: { userId: user.id, endpoint: body.endpoint } },
+      where: { userId_endpoint_type: { userId: user.id, endpoint: body.endpoint, type: 'webpush' } },
       create: {
         userId: user.id,
         endpoint: body.endpoint,
+        type: 'webpush',
         p256dh: body.keys?.p256dh ?? '',
         auth: body.keys?.auth ?? '',
       },
@@ -74,10 +81,11 @@ export async function POST(req: NextRequest) {
     if (!ok) return jsonError('Failed to store subscription', 500)
     try {
       await db.pushSubscription.upsert({
-        where: { userId_endpoint: { userId: user.id, endpoint: body.endpoint } },
+        where: { userId_endpoint_type: { userId: user.id, endpoint: body.endpoint, type: 'webpush' } },
         create: {
           userId: user.id,
           endpoint: body.endpoint,
+          type: 'webpush',
           p256dh: body.keys?.p256dh ?? '',
           auth: body.keys?.auth ?? '',
         },
