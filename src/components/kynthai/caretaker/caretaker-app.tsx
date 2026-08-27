@@ -1265,6 +1265,19 @@ function AddMemberDialog({
 
   const submit = async () => {
     if (!name || !relation) return;
+    // Backend contract: POST /api/family/invite requires email for the
+    // 'invite' action (invite/route.ts: "Email, name, relation required").
+    // The form used to submit without email → silent 400 → member appeared
+    // added locally but the invite never went out. Validate up front instead.
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      showToast({
+        title: 'Email required',
+        description: 'Enter the email address to send the family invite to.',
+        variant: 'destructive',
+      });
+      return;
+    }
     const parsedAge = parseInt(age, 10);
     const clampedAge = Number.isFinite(parsedAge) ? Math.max(0, Math.min(parsedAge, 150)) : 0;
 
@@ -1272,22 +1285,16 @@ function AddMemberDialog({
       id: `fm_${Date.now()}`,
       name,
       relation,
-      email: email || undefined,
+      email: trimmedEmail,
       phone: phone || undefined,
       age: clampedAge,
       adherence: 100,
       pending: 0,
       lowStock: 0,
     };
-    onAdd(newMember);
-    onClose();
-    setName('');
-    setRelation('spouse');
-    setAge('');
-    setEmail('');
-    setPhone('');
 
-    // Persist via API — call POST /api/family/invite
+    // Persist via API FIRST — only add the member to the UI after the invite
+    // actually succeeds, so the list never shows a member whose invite failed.
     try {
       const csrf = await fetch('/api/auth/csrf', { credentials: 'include' })
         .then(r => r.json())
@@ -1298,7 +1305,7 @@ function AddMemberDialog({
         credentials: 'include',
         body: JSON.stringify({
           action: 'invite',
-          email: email || undefined,
+          email: trimmedEmail,
           name,
           relation,
         }),
@@ -1310,14 +1317,22 @@ function AddMemberDialog({
           description: data.error || 'Could not send invite.',
           variant: 'destructive',
         });
-        return;
+        return; // keep the dialog open so the user can fix and retry
       }
       const data = await res.json().catch(() => ({}));
+      onAdd(newMember);
+      onClose();
+      setName('');
+      setRelation('spouse');
+      setAge('');
+      setEmail('');
+      setPhone('');
       showToast({ title: 'Invite sent', description: data.message || `${name} has been invited.` });
     } catch {
       showToast({
-        title: 'Invite sent (offline)',
-        description: `${name} will be synced when you're back online.`,
+        title: 'Could not reach the server',
+        description: 'Check your connection and try again — the member was not added yet.',
+        variant: 'destructive',
       });
     }
   };
@@ -1374,14 +1389,16 @@ function AddMemberDialog({
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="fm-email">Email</Label>
+            <Label htmlFor="fm-email">Email *</Label>
             <Input
               id="fm-email"
               type="email"
+              required
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="e.g. aarav@example.com"
             />
+            <p className="text-[11px] text-muted-foreground">The family invite is sent to this address.</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="fm-phone">Phone</Label>
@@ -1399,7 +1416,7 @@ function AddMemberDialog({
           </Button>
           <Button
             onClick={submit}
-            disabled={!name || !relation}
+            disabled={!name || !relation || !email.trim()}
             className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white"
           >
             <Plus className="h-4 w-4" />
