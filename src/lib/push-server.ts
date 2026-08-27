@@ -61,7 +61,7 @@ function getFcmMessaging(): { send: (m: unknown) => Promise<{ messageId?: string
 
 async function sendFcm(token: string, message: string, isClinical: boolean): Promise<void> {
   const messaging = getFcmMessaging()
-  if (!messaging) { console.error("[fcm] messaging null — env vars or require failed"); return; }
+  if (!messaging) return
   let parsed: { title?: string; body?: string; data?: Record<string, unknown> }
   try {
     parsed = JSON.parse(message)
@@ -109,7 +109,7 @@ export async function sendPushToUser(
       where: { userId },
       select: { id: true, endpoint: true, type: true, token: true, p256dh: true, auth: true },
     })
-    console.log("[fcm] subs found:", subs.length, "types:", subs.map(s=>s.type)); if (subs.length === 0) return { sent: 0, failed: 0 }
+    if (subs.length === 0) return { sent: 0, failed: 0 }
 
     const isClinical =
       payload.clinical === true ||
