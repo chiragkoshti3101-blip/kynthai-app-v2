@@ -82,12 +82,26 @@ export async function bootstrapNativeShell(): Promise<void> {
 
   // Native FCM device token registration — delivers reminders straight to the
   // OS even when the app process is dead (Zomato/Swiggy-class channel).
-  try {
-    const { registerFcmDevice } = await import('@/lib/fcm')
-    void registerFcmDevice()
-  } catch {
-    /* FCM not configured yet — existing Web Push + native alarm path stays */
+  // Retry with delays: the Capacitor bridge takes a few seconds to inject
+  // into a remote-loaded page (server.url mode).
+  const attemptFcm = async (attempt: number): Promise<void> => {
+    try {
+      const { registerFcmDevice } = await import('@/lib/fcm')
+      const ok = await registerFcmDevice()
+      if (ok) {
+        console.log('[native-shell] FCM registered on attempt', attempt)
+        return
+      }
+    } catch {
+      // module not available
+    }
+    if (attempt < 5) {
+      await new Promise((r) => setTimeout(r, 3000)) // 3s between retries
+      return attemptFcm(attempt + 1)
+    }
   }
+  // Fire and forget — first attempt at 5s (after bridge init), retries at 8s, 11s, 14s, 17s
+  new Promise((r) => setTimeout(r, 5000)).then(() => attemptFcm(1))
 
   try {
     const { Haptics, ImpactStyle } = await import('@capacitor/haptics')
