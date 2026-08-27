@@ -31,7 +31,10 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: 'DARK',
-      backgroundColor: '#10b981',
+      // Overlay OFF so the native status bar reserves its own strip and the
+      // WebView content never draws under it (no white/emerald gap at top).
+      overlaysWebView: false,
+      backgroundColor: '#f9fdfb',
     },
   },
   android: {
