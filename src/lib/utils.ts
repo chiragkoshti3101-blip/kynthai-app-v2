@@ -11,9 +11,24 @@ export function toISODateTime(dateStr: string): string {
 }
 
 export function todayStr(): string {
-  const d = new Date()
-  const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return toISODateTime(dateStr)
+  // Must match the date key used by the cron send loop (America/New_York,
+  // then other US zones). Using server-local time here means reminder rows
+  // get created under a different calendar date than the send loop queries
+  // near midnight, silently missing doses. Derive from ET so schedule/ensure
+  // and send agree.
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/New_York',
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(new Date())
+    const map = Object.fromEntries(parts.map((p) => [p.type, p.value]))
+    const dateStr = `${map.year}-${map.month}-${map.day}`
+    return toISODateTime(dateStr)
+  } catch {
+    const d = new Date()
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    return toISODateTime(dateStr)
+  }
 }
 
 export function yesterdayStr(): string {
