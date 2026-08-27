@@ -10,45 +10,30 @@ export async function POST(req: NextRequest) {
   const { response, user } = await requireAdmin(req);
   if (response || !user) return response!;
 
-  const body = await req.json().catch(() => ({}));
   const out: any = {};
 
-  if (body.mode === 'alltables') {
-    const tables: any[] = await db.$queryRaw`SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name`;
-    out.tables = tables.map(t => t.table_name);
-  }
+  const doctorUser = await db.user.findUnique({ where: { email: 'doctor@kynthai.app' }, select: { id: true } });
+  const patient = await db.user.findUnique({ where: { email: 'patient@kynthai.app' }, select: { id: true } });
+  if (!doctorUser || !patient) return jsonOk({ rx: 'no users found' });
+  const profile = await db.doctorProfile.findUnique({ where: { userId: doctorUser.id }, select: { id: true } });
+  if (!profile) return jsonOk({ rx: 'no doctor profile' });
 
-  if (body.mode === 'test-prescribe-writes') {
-    // Simulate the writes the prescribe flow does, but harmless
-    const writes: string[] = [];
-    // notificationLog
-    try {
-      const n = await db.notificationLog.create({ data: {
-        userId: 'cmtaf5yqb000jib04hegbpwk1', channel: 'in-app', type: 'test',
-        title: 't', body: 'b', recipient: 'x@y.com', status: 'sent', cost: 0,
-      }});
-      writes.push('notificationLog.create OK');
-      await db.notificationLog.delete({ where: { id: n.id } });
-    } catch(e:any) { writes.push('notificationLog FAIL: ' + e?.message?.slice(0,100)); }
-    // auditLog
-    try {
-      await db.auditLog.create({ data: { userId: user.id, action: 'test' }});
-      writes.push('auditLog.create OK');
-      await db.auditLog.deleteMany({ where: { action: 'test' }});
-    } catch(e:any) { writes.push('auditLog FAIL: ' + e?.message?.slice(0,100)); }
-    out.writes = writes;
-  }
-
-  if (body.mode === 'test-medication-create') {
-    try {
-      const m = await db.medication.create({ data: {
-        userId: user.id, name: 'Test Med', dosage: '10mg',
-        times: JSON.stringify(['08:00']), frequency: 'Daily',
-        instructions: 'test',
-      }});
-      out.medResult = 'OK id=' + m.id;
-      await db.medication.delete({ where: { id: m.id } });
-    } catch(e:any) { out.medResult = 'FAIL: ' + e?.message?.slice(0,150); }
+  try {
+    const rx = await db.prescription.create({
+      data: {
+        doctorId: profile.id,
+        patientId: patient.id,
+        notes: 'test rx',
+        medications: JSON.stringify([{id:'m1',name:'Amoxicillin',dosage:'500mg',times:['08:00'],frequency:'Daily',instructions:'x'}]),
+        inviteToken: 'testtoken123',
+        inviteStatus: 'sent',
+        inviteExpiresAt: new Date(),
+      },
+    });
+    out.rx = 'OK id=' + rx.id;
+    await db.prescription.delete({ where: { id: rx.id } });
+  } catch(e:any) {
+    out.rx = 'FAIL: ' + e?.message?.slice(0,200);
   }
 
   return jsonOk(out);
