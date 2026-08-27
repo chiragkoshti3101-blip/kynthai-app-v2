@@ -20,10 +20,6 @@
     {
       "path": "/api/appointment-reminders",
       "schedule": "0 8 * * *"
-    },
-    {
-      "path": "/api/reminders/send?mode=tick",
-      "schedule": "*/5 * * * *"
     }
   ],
   "headers": [
