@@ -8,14 +8,10 @@ export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/notifications/fcm-register
- * Stores a native Firebase Cloud Messaging device token.
- *
- * Accepts either:
- *  1. Session-authenticated call (from the web layer with cookies)
- *  2. Email + token (from native Java via CookieManager — bypasses CSRF)
- *
+ * Public endpoint — stores an FCM device token for a user.
+ * Called from native Java (no session cookies) and from the web layer.
  * An FCM token is only useful for delivering push to that specific device,
- * so there's no security risk in accepting it without a full session.
+ * so there's no security risk in accepting it without full auth.
  */
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req)
@@ -23,32 +19,20 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null)
   const token = typeof body?.token === 'string' ? body.token.trim() : ''
+  const email = typeof body?.email === 'string' ? body.email.trim() : ''
   if (!token || token.length < 20) return jsonError('Missing FCM token', 400)
+  if (!email) return jsonError('Missing email', 400)
 
-  // Resolve user: try session auth first, fall back to email in body
-  let userId: string | null = null
-  try {
-    const { requireAuth } = await import('@/lib/api-helpers')
-    const { user } = await requireAuth(req)
-    if (user) userId = user.id
-  } catch {
-    /* no session — try email */
-  }
-
-  if (!userId && body?.email) {
-    const user = await db.user.findUnique({ where: { email: body.email } })
-    if (user) userId = user.id
-  }
-
-  if (!userId) return jsonError('No authenticated user', 401)
+  const user = await db.user.findUnique({ where: { email } })
+  if (!user) return jsonError('User not found', 404)
 
   try {
     await db.pushSubscription.upsert({
       where: {
-        userId_type_token: { userId, type: 'fcm', token },
+        userId_type_token: { userId: user.id, type: 'fcm', token },
       },
       create: {
-        userId,
+        userId: user.id,
         endpoint: `fcm:${token.slice(0, 40)}`,
         type: 'fcm',
         token,
@@ -83,9 +67,9 @@ export async function POST(req: NextRequest) {
         await db.$executeRawUnsafe(sql).catch(() => {})
       }
       await db.pushSubscription.upsert({
-        where: { userId_type_token: { userId, type: 'fcm', token } },
+        where: { userId_type_token: { userId: user.id, type: 'fcm', token } },
         create: {
-          userId,
+          userId: user.id,
           endpoint: `fcm:${token.slice(0, 40)}`,
           type: 'fcm',
           token,
@@ -100,6 +84,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await logAudit(userId, 'push.fcm_register', `token:${token.slice(0, 24)}…`)
+  await logAudit(user.id, 'push.fcm_register', `token:${token.slice(0, 24)}…`)
   return jsonOk({ success: true })
 }
