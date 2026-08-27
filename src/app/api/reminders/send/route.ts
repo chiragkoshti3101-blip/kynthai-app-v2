@@ -64,7 +64,7 @@ async function loadUserTimezones(userIds: string[]): Promise<Map<string, string>
     const placeholders = chunk.map((_, idx) => `$${idx + 1}`).join(',')
     try {
       const rows = await db.$queryRawUnsafe<Array<{ id: string; timezone: string | null }>>(
-        `SELECT id, timezone FROM "User" WHERE id IN (${placeholders})`,
+        `SELECT id, timezone FROM "users" WHERE id IN (${placeholders})`,
         ...chunk
       )
       for (const row of rows) {
