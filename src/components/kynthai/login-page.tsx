@@ -389,7 +389,9 @@ export function LoginPage({
         }
       }
 
-      const data = (await apiCall('/auth/login', { email, password, captchaToken: effectiveCaptcha })) as AuthUser & { isUserMinor?: boolean; consentAccepted?: boolean; dataProcessingConsent?: boolean; aiTrainingConsent?: boolean };
+      // Timezone rides with login so the reminder cron fires doses on the
+      // user's local wall clock — every login self-heals scheduling accuracy.
+      const data = (await apiCall('/auth/login', { email, password, captchaToken: effectiveCaptcha, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })) as AuthUser & { isUserMinor?: boolean; consentAccepted?: boolean; dataProcessingConsent?: boolean; aiTrainingConsent?: boolean };
       const user: AuthUser = {
         id: data.id,
         email: data.email,
