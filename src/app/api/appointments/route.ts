@@ -163,9 +163,9 @@ export async function POST(req: NextRequest) {
       return jsonError('Doctor is not available for booking', 400);
     }
 
-    // Double-booking guard: check for overlapping active appointments
-    const windowStart = new Date(date.getTime() - 60 * 60 * 1000);
-    const windowEnd = new Date(date.getTime() + 60 * 60 * 1000);
+    // FIX #6: Narrowed conflict window from 2hr to ±30min for accuracy
+    const windowStart = new Date(date.getTime() - 30 * 60 * 1000);
+    const windowEnd = new Date(date.getTime() + 30 * 60 * 1000);
     const conflict = await db.appointment.findFirst({
       where: {
         doctorId,

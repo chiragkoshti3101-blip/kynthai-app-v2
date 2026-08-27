@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { ToastAction } from '@/components/ui/toast'
 import { useAppStore } from '@/lib/store'
 import {
   playProfessionalRingtone,
@@ -133,7 +134,7 @@ export function FamilyMemberSchedule({ memberName, meds, onUpdate }: Props) {
     if (onUpdate) onUpdate(med, status)
     if (status === 'taken' && alarmEnabled) playSuccessChime()
     // FIX #16: Add undo capability to dose logging
-    const undoStatus = status === 'taken' ? 'pending' : 'pending'
+    const undoStatus = status === 'taken' ? 'skipped' : 'taken'
     toast({ 
       title: status === 'taken' ? 'Marked as taken' : 'Skipped', 
       description: status === 'taken' ? `${med.name} — ${med.dosage}` : undefined,

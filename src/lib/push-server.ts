@@ -112,7 +112,7 @@ export async function sendPushToUser(
     // FIX #9: Return explicit status when no subscriptions exist
     if (subs.length === 0) {
       logger.info('[push] No subscriptions found for user', { userId })
-      return { sent: 0, failed: 0, noSubs: true }
+      return { sent: 0, failed: 0 }
     }
 
     const isClinical =
