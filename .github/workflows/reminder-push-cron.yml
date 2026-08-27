@@ -1,20 +1,32 @@
 # Closed-app medication pushes (works when Chrome/Safari are fully closed).
 #
-# WHY THIS SHAPE: GitHub's scheduler delays `schedule:` starts unpredictably
-# (minutes to hours), so a plain `* * * * *` cron is NOT minute-accurate.
-# Instead each run SELF-LOOPS for ~28 minutes, pinging the tick endpoint every
-# 60s. We only need two reliable starts per hour (03/33 past), and the loop
-# provides true minute-level coverage in between. Repo is public => unlimited
-# free Actions minutes. Vercel Hobby only allows 1 cron/day, so this Action is
-# the minute-level engine; the 4-hourly Vercel catch-up crons are the backstop.
+# WHY THIS SHAPE: GitHub's scheduler drops/delays `schedule:` starts
+# unpredictably (observed: 29h with zero scheduled starts), so relying on
+# anchors alone leaves multi-hour dead zones with NO ticks => missed doses.
+# Therefore each run now SELF-PERPETUATES: it loops ~5.5 hours pinging the
+# tick endpoint every 60s, then dispatches its own successor via the API
+# (DISPATCH_TOKEN secret) before exiting. One manual start => an unbroken
+# minute-level chain. The schedule anchors and manual dispatch remain as
+# restart paths if a chain ever breaks (concurrency group makes overlaps
+# safe: a newer run cancels the older one cleanly).
 #
-# Secrets: CRON_SECRET, APP_URL=https://kynthai.app
+# Repo is public => unlimited free Actions minutes.
+# Vercel Hobby cannot do */5 crons; the 4-hourly Vercel catch-up crons stay
+# as the final backstop behind this engine.
+#
+# Secrets: CRON_SECRET, APP_URL=https://kynthai.app, DISPATCH_TOKEN (fine-
+# grained PAT with Actions:write — used ONLY to re-dispatch this workflow).
 name: Reminder push (closed-app)
 
 on:
   schedule:
     - cron: '3,33 * * * *'
   workflow_dispatch:
+    inputs:
+      chained_from:
+        description: 'Run id of the predecessor chain link (diagnostics only)'
+        required: false
+        default: ''
 
 concurrency:
   group: reminder-tick
@@ -23,12 +35,17 @@ concurrency:
 jobs:
   send:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # 330-min loop + schedule call + 3 chain retries stays well under the
+    # 6-hour GitHub job ceiling.
+    timeout-minutes: 345
     steps:
-      - name: Tick reminders every minute for ~28 minutes
+      - name: Tick reminders every minute, then chain to the successor run
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           APP_URL: ${{ secrets.APP_URL }}
+          DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           set -uo pipefail
           if [ -z "${CRON_SECRET:-}" ] || [ -z "${APP_URL:-}" ]; then
@@ -37,16 +54,38 @@ jobs:
           fi
           auth=(-H "Authorization: Bearer ${CRON_SECRET}" -H "Accept: application/json")
 
+          chain() {
+            # Re-arm the engine: dispatch the successor run (3 retries).
+            if [ -z "${DISPATCH_TOKEN:-}" ]; then
+              echo "[chain] DISPATCH_TOKEN missing — cannot self-perpetuate"
+              return 1
+            fi
+            for i in 1 2 3; do
+              code=$(curl -sS -o /tmp/chain.json -w "%{http_code}" --max-time 30 \
+                -X POST \
+                -H "Authorization: Bearer ${DISPATCH_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                "https://api.github.com/repos/${GH_REPO}/actions/workflows/reminder-push-cron.yml/dispatches" \
+                -d "{\"ref\":\"main\",\"inputs\":{\"chained_from\":\"${RUN_ID}\"}}" || echo "000")
+              echo "[chain] attempt ${i} HTTP ${code}"
+              if [ "$code" = "204" ]; then return 0; fi
+              head -c 300 /tmp/chain.json || true; echo
+              sleep 30
+            done
+            return 1
+          }
+
           # Ensure today's reminder rows exist once per cycle (idempotent).
           curl -sS -o /tmp/sched.json -w "schedule HTTP %{http_code}\n" \
             "${auth[@]}" "${APP_URL}/api/reminders/schedule" || true
           head -c 300 /tmp/sched.json || true
           echo
 
-          # Minute-level tick loop: 28 pings, then hand over to the next start.
-          end=$((SECONDS + 28 * 60))
+          # Minute-level tick loop: ~5.5h of coverage per run.
+          end=$((SECONDS + 330 * 60))
           n=0
           fail=0
+          consec=0
           while [ "$SECONDS" -lt "$end" ]; do
             n=$((n + 1))
             code=$(curl -sS -o /tmp/tick.json -w "%{http_code}" \
@@ -54,13 +93,26 @@ jobs:
               "${auth[@]}" "${APP_URL}/api/reminders/send?mode=tick" || echo "000")
             if [ "$code" != "200" ] && [ "$code" != "204" ]; then
               fail=$((fail + 1))
-              echo "[tick $n] HTTP $code (will retry next minute)"
+              consec=$((consec + 1))
+              echo "[tick $n] HTTP $code (consecutive failures: $consec)"
               head -c 300 /tmp/tick.json || true
               echo
+              if [ "$consec" -ge 5 ]; then
+                echo "5 consecutive failures — chaining successor early, exiting"
+                chain || true
+                exit 0
+              fi
             else
-              due=$(sed -n 's/.*"sent":\([0-9]*\).*/sent=\1/p' /tmp/tick.json | head -1)
-              echo "[tick $n] HTTP $code ${due:-}"
+              consec=0
+              due=$(sed -n 's/.*"due":\([0-9]*\).*/due=\1/p' /tmp/tick.json | head -1)
+              sent=$(sed -n 's/.*"sent":\([0-9]*\).*/sent=\1/p' /tmp/tick.json | head -1)
+              echo "[tick $n] HTTP $code ${due:-} ${sent:-}"
             fi
             sleep 60
           done
-          echo "Loop complete: $n ticks, $fail failures"
+          echo "Loop complete: $n ticks, $fail failures — dispatching successor"
+          if chain; then
+            echo "[chain] successor dispatched — chain continues"
+          else
+            echo "[chain] FAILED — schedule anchors remain as fallback"
+          fi
