@@ -11,7 +11,7 @@
  * Exit 1 = an un-allowlisted high/critical advisory (blocks release).
  */
 import { execFileSync } from 'node:child_process';
-import { isAllowlistedAdvisory } from './check-deps.mjs';
+import { isAllowlistedAdvisory, isAllowlistedPackage } from './check-deps.mjs';
 
 let raw;
 try {
@@ -57,7 +57,12 @@ for (const [name, info] of Object.entries(vulnerabilities)) {
     }
   }
   const ghsaList = Array.from(ghsas);
-  const allowed = ghsaList.length > 0 && ghsaList.every((g) => isAllowlistedAdvisory(g));
+  // Allow when every GHSA is known-allowlisted, OR when the advisory surfaces
+  // without any GHSA id against a package-level allowlist entry (e.g. `prisma`
+  // reporting GHSA-ggr8-5vv4-36mx with an empty via id — see check-deps.mjs).
+  const allowed =
+    (ghsaList.length > 0 && ghsaList.every((g) => isAllowlistedAdvisory(g))) ||
+    (ghsaList.length === 0 && isAllowlistedPackage(name));
   (allowed ? allowlisted : blockers).push({
     name,
     severity: sev,
