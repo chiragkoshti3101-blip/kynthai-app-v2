@@ -8,6 +8,7 @@ import { writeFile, mkdir, chmod } from 'fs/promises';
 import { join } from 'path';
 import { encrypt as encryptPayload } from '@/lib/encryption'; // ENCRYPTION-AT-REST
 import { scanBuffer } from '@/lib/antivirus';
+import { logger } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
 /**
@@ -143,7 +144,21 @@ export async function POST(req: NextRequest) {
 
   // Read raw bytes, then ENCRYPT BEFORE writing to disk.
   const rawBuffer = fullBuffer; // already read for the malware scan above
-  const encryptedBuffer = encryptBuffer(rawBuffer); // ENCRYPTION-AT-REST applied here
+  let encryptedBuffer: Buffer;
+  try {
+    encryptedBuffer = encryptBuffer(rawBuffer); // ENCRYPTION-AT-REST applied here
+  } catch (err) {
+    // lib/encryption.getKey() THROWS in production when ENCRYPTION_KEY is not
+    // set (or SESSION_SECRET is missing). Previously this escaped as an
+    // unhandled 500 with no explanation — lab result uploads failed with a
+    // generic "failed" toast and were impossible to diagnose.
+    logger.phiSafeError(err, 'upload.encrypt');
+    return jsonError(
+      'Upload failed: server-side encrypted storage is not configured (missing ENCRYPTION_KEY). Please contact support.',
+      503,
+      'ENCRYPTION_NOT_CONFIGURED'
+    );
+  }
   await writeFile(filepath, encryptedBuffer);
 
   // ENCRYPTION-AT-REST: restrict file to owner-only — health files must never
