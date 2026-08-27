@@ -205,7 +205,6 @@ public class DoseAlarmPlugin extends Plugin {
       am.setExact(AlarmManager.RTC_WAKEUP, trigger, pi);
     }
   }
-}
 
   @PluginMethod
   public void restore(PluginCall call) {
@@ -216,3 +215,4 @@ public class DoseAlarmPlugin extends Plugin {
       call.reject("restore failed: " + e.getMessage());
     }
   }
+}
