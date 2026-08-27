@@ -1,38 +1,66 @@
 # Closed-app medication pushes (works when Chrome/Safari are fully closed).
-# Vercel Hobby = 1 cron/day only. This Action is the minute-level engine.
+#
+# WHY THIS SHAPE: GitHub's scheduler delays `schedule:` starts unpredictably
+# (minutes to hours), so a plain `* * * * *` cron is NOT minute-accurate.
+# Instead each run SELF-LOOPS for ~28 minutes, pinging the tick endpoint every
+# 60s. We only need two reliable starts per hour (03/33 past), and the loop
+# provides true minute-level coverage in between. Repo is public => unlimited
+# free Actions minutes. Vercel Hobby only allows 1 cron/day, so this Action is
+# the minute-level engine; the 4-hourly Vercel catch-up crons are the backstop.
 #
 # Secrets: CRON_SECRET, APP_URL=https://kynthai.app
 name: Reminder push (closed-app)
 
 on:
   schedule:
-    - cron: '* * * * *'
+    - cron: '3,33 * * * *'
   workflow_dispatch:
+
+concurrency:
+  group: reminder-tick
+  cancel-in-progress: true
 
 jobs:
   send:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 35
     steps:
-      - name: Ensure today's reminder rows + send due pushes
+      - name: Tick reminders every minute for ~28 minutes
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           APP_URL: ${{ secrets.APP_URL }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           if [ -z "${CRON_SECRET:-}" ] || [ -z "${APP_URL:-}" ]; then
             echo "Missing CRON_SECRET or APP_URL secret"
             exit 0
           fi
           auth=(-H "Authorization: Bearer ${CRON_SECRET}" -H "Accept: application/json")
+
+          # Ensure today's reminder rows exist once per cycle (idempotent).
           curl -sS -o /tmp/sched.json -w "schedule HTTP %{http_code}\n" \
             "${auth[@]}" "${APP_URL}/api/reminders/schedule" || true
-          cat /tmp/sched.json || true
+          head -c 300 /tmp/sched.json || true
           echo
-          code=$(curl -sS -o /tmp/out.json -w "%{http_code}" \
-            "${auth[@]}" "${APP_URL}/api/reminders/send?mode=tick" || true)
-          echo "send HTTP $code"
-          cat /tmp/out.json || true
-          if [ "$code" != "200" ] && [ "$code" != "204" ]; then
-            echo "Non-OK (will retry next tick)"
-          fi
+
+          # Minute-level tick loop: 28 pings, then hand over to the next start.
+          end=$((SECONDS + 28 * 60))
+          n=0
+          fail=0
+          while [ "$SECONDS" -lt "$end" ]; do
+            n=$((n + 1))
+            code=$(curl -sS -o /tmp/tick.json -w "%{http_code}" \
+              --max-time 30 \
+              "${auth[@]}" "${APP_URL}/api/reminders/send?mode=tick" || echo "000")
+            if [ "$code" != "200" ] && [ "$code" != "204" ]; then
+              fail=$((fail + 1))
+              echo "[tick $n] HTTP $code (will retry next minute)"
+              head -c 300 /tmp/tick.json || true
+              echo
+            else
+              due=$(sed -n 's/.*"sent":\([0-9]*\).*/sent=\1/p' /tmp/tick.json | head -1)
+              echo "[tick $n] HTTP $code ${due:-}"
+            fi
+            sleep 60
+          done
+          echo "Loop complete: $n ticks, $fail failures"
