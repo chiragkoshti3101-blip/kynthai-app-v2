@@ -139,6 +139,31 @@ export function AuthGuard({ redirectTo = '/login', onUnauthorized, disableMountC
           }
           login(authUser)
         }
+        // Best-effort: sync the browser's IANA timezone so the reminder cron
+        // fires doses on the user's local wall clock (not New York time).
+        // Runs at most once per session; silent on any failure.
+        try {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+          const key = 'kynthai_tz_synced'
+          if (tz && userData.id && sessionStorage.getItem(key) !== userData.id) {
+            const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' })
+            const csrf = (await csrfRes.json().catch(() => null))?.token
+            if (csrf) {
+              const put = await fetch('/api/user/timezone', {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRF-Token': csrf,
+                },
+                credentials: 'include',
+                body: JSON.stringify({ timezone: tz }),
+              })
+              if (put.ok) sessionStorage.setItem(key, userData.id)
+            }
+          }
+        } catch {
+          /* timezone sync is best-effort only */
+        }
       } catch {
         // Network error — ignore; don't bounce the user on flaky connections.
       }
