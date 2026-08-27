@@ -39,7 +39,7 @@ function isValidTimeZone(tz: string): boolean {
 
 async function ensureTimezoneColumn(): Promise<boolean> {
   try {
-    await db.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "timezone" TEXT`)
+    await db.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "timezone" TEXT`)
     return true
   } catch {
     return false
