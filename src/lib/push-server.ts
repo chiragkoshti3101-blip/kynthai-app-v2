@@ -61,7 +61,7 @@ function getFcmMessaging(): { send: (m: unknown) => Promise<{ messageId?: string
 
 async function sendFcm(token: string, message: string, isClinical: boolean): Promise<void> {
   const messaging = getFcmMessaging()
-  if (!messaging) { console.error("[FCM-DIAG] messaging is null — check FIREBASE env vars on Vercel"); return; }
+  if (!messaging) return
   let parsed: { title?: string; body?: string; data?: Record<string, unknown> }
   try {
     parsed = JSON.parse(message)
