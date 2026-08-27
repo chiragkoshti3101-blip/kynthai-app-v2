@@ -11,6 +11,7 @@ export type PushPayload = {
   time?: string
   dosage?: string
   reminderId?: string
+  medicationId?: string
   /** Clinical dose / emergency — max priority, short TTL */
   clinical?: boolean
 }
@@ -132,6 +133,7 @@ export async function sendPushToUser(
       time: payload.time,
       dosage: payload.dosage,
       reminderId: payload.reminderId,
+      medicationId: payload.medicationId,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       silent: false,
@@ -144,6 +146,7 @@ export async function sendPushToUser(
         time: payload.time,
         dosage: payload.dosage,
         reminderId: payload.reminderId,
+        medicationId: payload.medicationId,
         isDose: isClinical,
         isClinical,
       },
@@ -177,7 +180,15 @@ export async function sendPushToUser(
           return { ok: true as const, id: sub.id }
         } catch (err: unknown) {
           const statusCode = (err as { statusCode?: number })?.statusCode
-          if (statusCode === 404 || statusCode === 410) {
+          const fcmCode = (err as { code?: string })?.code || ''
+          const deadToken =
+            statusCode === 404 ||
+            statusCode === 410 ||
+            fcmCode === 'messaging/registration-token-not-registered' ||
+            fcmCode === 'messaging/invalid-registration-token'
+          if (deadToken) {
+            // FIX #9 (FCM half): prune dead tokens so dashboards stop counting
+            // undeliverable devices as reachable.
             await db.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {})
           } else {
             logger.phiSafeError(err, 'push.send')

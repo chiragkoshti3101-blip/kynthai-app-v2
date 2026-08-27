@@ -163,6 +163,7 @@ export async function sendNotification(
       // medName and dosage removed from push to protect PHI
       time: payload.data?.scheduledTime as string | undefined,
       reminderId: payload.data?.reminderId as string | undefined,
+      medicationId: payload.data?.medicationId as string | undefined,
       clinical: clinicalTypes.has(String(payload.type || '')),
     })
     const cost = CHANNEL_COST.push
@@ -302,7 +303,11 @@ async function loadUserTarget(userId: string): Promise<NotificationTarget> {
   }
 }
 
-/** Send a medication reminder to a user. */
+/** Send a medication reminder to a user.
+ *  FIX #23: title/body that reach the lock screen are GENERIC (no drug name or
+ *  dose) — the identifiable details travel only in the unrendered push `data`
+ *  block and in the in-app inbox merge. `extraData` threads reminder/medication
+ *  ids so deep links and the alarm host can act on the exact dose. */
 export async function sendReminder(
   userId: string,
   medName: string,
@@ -310,18 +315,24 @@ export async function sendReminder(
   scheduledTime: string,
   overrides: Partial<NotificationTarget> = {},
   dedupeKey?: string,
+  extraData?: { reminderId?: string; medicationId?: string },
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(userId)), ...overrides }
+  const alarmParams = new URLSearchParams({ alarm: '1', time: scheduledTime, med: medName.slice(0, 80) })
+  if (extraData?.reminderId) alarmParams.set('rid', extraData.reminderId)
+  if (extraData?.medicationId) alarmParams.set('mid', extraData.medicationId)
   return sendNotification(target, {
-    title: `Time to take ${medName}`,
-    body: `${dosage ? dosage + ' · ' : ''}${scheduledTime} — Open for full-screen alarm. Mark Taken or Skip.`,
+    title: 'Medication reminder',
+    body: `A dose is due now · ${scheduledTime}. Tap to open.`,
     type: 'reminder',
     data: {
       medName,
       scheduledTime,
       dosage,
       type: 'reminder',
-      url: '/patient?alarm=1',
+      url: `/patient?${alarmParams.toString()}`,
+      ...(extraData?.reminderId ? { reminderId: extraData.reminderId } : {}),
+      ...(extraData?.medicationId ? { medicationId: extraData.medicationId } : {}),
     },
     dedupeKey,
   })

@@ -39,7 +39,7 @@ type HostReminder = {
   id: string
   time: string
   status: string
-  medication?: { name?: string; dosage?: string } | null
+  medication?: { id?: string; name?: string; dosage?: string } | null
 }
 
 /** Default grace before escalating a still-pending dose to caretakers (ms). */
@@ -48,6 +48,16 @@ const DEFAULT_ESCALATION_GRACE_MS = 15 * 60 * 1000
 function todayLocal() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** "13:00" → "1:00 PM" (falls back to the raw value for odd strings). */
+function formatTime12(t: string) {
+  const m = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(t ?? '')
+  if (!m) return t
+  let h = parseInt(m[1] ?? '0', 10)
+  const suffix = h >= 12 ? 'PM' : 'AM'
+  h = h % 12 || 12
+  return `${h}:${m[2]} ${suffix}`
 }
 
 function hashId(s: string): number {
@@ -142,6 +152,12 @@ export function MedicationAlarmHost({
   const scheduleRef = React.useRef<() => void>(() => {})
   const recorded = React.useRef<Set<string>>(new Set())
   const escalated = React.useRef<Set<string>>(new Set())
+  // Mirror of `reminders` for event listeners that would otherwise close over
+  // stale state — lets push/deep-link/native alarms hydrate real med ids.
+  const remindersRef = React.useRef<HostReminder[]>([])
+  React.useEffect(() => {
+    remindersRef.current = reminders
+  }, [reminders])
 
   const load = React.useCallback(async () => {
     if (isDemo) {
@@ -288,7 +304,7 @@ export function MedicationAlarmHost({
         else playProfessionalRingtone()
       }
       const medName = due.medication?.name ?? 'Medication'
-      void notifyReminderViaSW('Time to take medication', `${medName} · ${due.time}`)
+      void notifyReminderViaSW('Medication reminder', `${formatTime12(due.time)} · dose due — open to act`)
       if (!recorded.current.has(due.id) && !isDemo) {
         recorded.current.add(due.id)
         void recordInApp(
@@ -330,10 +346,17 @@ export function MedicationAlarmHost({
         const nid = Math.abs(hashId(r.id)) % 2000000000
         void scheduleNativeAlarm({
           id: nid,
-          title: `Time to take ${medName}`,
-          body: `${r.medication?.dosage ?? ''} · ${r.time}`.trim() || 'Open Taken / Skip',
+          // FIX #23: keep the lock screen generic; the med name rides in the
+          // extra payload so the in-app alarm can still show it after unlock.
+          title: 'Medication reminder',
+          body: `Dose due · ${formatTime12(r.time)}`.trim(),
           at,
           medName,
+          extra: {
+            medicationId: r.medication?.id || '',
+            reminderId: r.id,
+            time: r.time,
+          },
         })
       } catch {
         /* ignore */
@@ -401,25 +424,30 @@ export function MedicationAlarmHost({
       new CustomEvent('kynthai:reminder-updated', { detail: { id: reminder.id, status } }),
     )
     if (!isDemo && !reminder.id.startsWith('host-')) {
-      try {
-        const csrf = await getCsrf()
-        await fetch('/api/reminders', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
-          },
-          body: JSON.stringify({
-            medicationId: reminder.id,
-            reminderId: reminder.id,
-            date: todayLocal(),
-            time: reminder.time,
-            status,
-          }),
-        })
-      } catch {
-        /* ignore */
+      // FIX #1: the API upserts by MEDICATION id — posting the reminder cuid
+      // 404'd and the overlay's Taken/Skip never reached the DB.
+      const medId = reminder.medication?.id
+      if (medId) {
+        try {
+          const csrf = await getCsrf()
+          await fetch('/api/reminders', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+            },
+            body: JSON.stringify({
+              medicationId: medId,
+              reminderId: reminder.id,
+              date: todayLocal(),
+              time: reminder.time,
+              status,
+            }),
+          })
+        } catch {
+          /* ignore */
+        }
       }
     }
     // If user explicitly skipped, still notify caretaker in family context
@@ -436,12 +464,20 @@ export function MedicationAlarmHost({
     let unsub = () => {}
     void bindNativeNotificationOpen((payload) => {
       unlockAudio()
-      setAlarmTarget({
-        id: `native-${Date.now()}`,
-        time: new Date().toTimeString().slice(0, 5),
-        status: 'pending',
-        medication: { name: payload.medName || payload.title || 'Medication', dosage: '' },
-      })
+      const name = payload.medName || payload.title || 'Medication'
+      // Hydrate a real reminder (with medication id) so Take/Skip persists.
+      const match =
+        remindersRef.current.find(
+          (r) => r.status === 'pending' && r.medication?.id && r.medication?.name === name,
+        ) || null
+      setAlarmTarget(
+        match ?? {
+          id: `native-${Date.now()}`,
+          time: new Date().toTimeString().slice(0, 5),
+          status: 'pending',
+          medication: { name, dosage: '' },
+        },
+      )
       if (!isAlarmRinging()) {
         if (alarmMode === 'alert') playAlertRingtone()
         else playProfessionalRingtone()
@@ -460,15 +496,20 @@ export function MedicationAlarmHost({
       const d = event.data
       if (!d || d.type !== 'SHOW_MED_ALARM') return
       unlockAudio()
-      const synthetic: HostReminder = {
-        id: d.reminderId || `push-${Date.now()}`,
-        time: d.time || new Date().toTimeString().slice(0, 5),
-        status: 'pending',
-        medication: {
-          name: d.medName || d.title || 'Medication',
-          dosage: d.dosage || '',
-        },
-      }
+      const rid = typeof d.reminderId === 'string' && d.reminderId ? d.reminderId : null
+      const mid = typeof d.medicationId === 'string' && d.medicationId ? d.medicationId : null
+      const match = (rid && remindersRef.current.find((r) => r.id === rid)) || null
+      const synthetic: HostReminder =
+        match ?? {
+          id: rid || `push-${Date.now()}`,
+          time: d.time || new Date().toTimeString().slice(0, 5),
+          status: 'pending',
+          medication: {
+            id: mid || undefined,
+            name: d.medName || d.title || 'Medication',
+            dosage: d.dosage || '',
+          },
+        }
       setAlarmTarget(synthetic)
       if (!isAlarmRinging()) {
         if (alarmMode === 'alert') playAlertRingtone()
@@ -482,14 +523,20 @@ export function MedicationAlarmHost({
     try {
       const params = new URLSearchParams(window.location.search)
       if (params.get('alarm') === '1') {
+        const rid = params.get('rid')
+        const mid = params.get('mid')
+        const t = params.get('time') || ''
         const med = params.get('med') || 'Medication'
         unlockAudio()
-        setAlarmTarget({
-          id: `url-alarm-${Date.now()}`,
-          time: new Date().toTimeString().slice(0, 5),
-          status: 'pending',
-          medication: { name: med, dosage: '' },
-        })
+        const match = (rid && remindersRef.current.find((r) => r.id === rid)) || null
+        setAlarmTarget(
+          match ?? {
+            id: rid || `url-alarm-${Date.now()}`,
+            time: /^\d{2}:\d{2}$/.test(t) ? t : new Date().toTimeString().slice(0, 5),
+            status: 'pending',
+            medication: { id: mid || undefined, name: med, dosage: '' },
+          },
+        )
         if (!isAlarmRinging()) {
           if (alarmMode === 'alert') playAlertRingtone()
           else playProfessionalRingtone()
@@ -497,6 +544,9 @@ export function MedicationAlarmHost({
         // Clean query so refresh does not re-fire forever
         params.delete('alarm')
         params.delete('med')
+        params.delete('rid')
+        params.delete('mid')
+        params.delete('time')
         const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}`
         window.history.replaceState({}, '', next)
       }
@@ -579,7 +629,7 @@ export function MedicationAlarmHost({
             Time to take {medName}
           </h2>
           <p id="dose-alarm-desc" className="text-sm text-emerald-100/80">
-            {alarmTarget.time}
+            {formatTime12(alarmTarget.time)}
             {dosage ? ` · ${dosage}` : ''}
           </p>
         </div>

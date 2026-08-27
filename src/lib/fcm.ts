@@ -27,12 +27,13 @@ async function postTokenToServer(token: string): Promise<boolean> {
   if (!token || token.length < 20) return false
   try {
     // Get CSRF token from cookie (set by session) or from API
-    const csrfRes = await fetch('/api/auth/csrf')
+    const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' })
     const { token: csrfToken } = await csrfRes.json().catch(() => ({ token: '' }))
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (csrfToken) headers['X-CSRF-Token'] = csrfToken
     const res = await fetch('/api/notifications/fcm-register', {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: JSON.stringify({ token }),
     })

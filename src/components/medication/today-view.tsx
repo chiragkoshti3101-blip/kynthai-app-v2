@@ -304,9 +304,8 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
       if (!isAlarmRinging()) {
         playProfessionalRingtone();
       }
-      const medName =
-        (due.medication as { name?: string } | undefined)?.name ?? 'Medication';
-      notifyReminder('Time to take medication', `${medName} · ${due.time}`);
+      // FIX #23: local notification body is generic; the name stays in-app.
+      notifyReminder('Medication reminder', `${formatTime(due.time)} · dose due — open to act`);
 
       // Repeat every N minutes until taken/skipped (default 10)
       const intervalMin =
@@ -413,7 +412,7 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
                 {(alarmTarget.medication as { name?: string })?.name ?? 'Medication'}
               </p>
               <p className="text-xs text-muted-foreground">
-                {alarmTarget.time} · {(alarmTarget.medication as { dosage?: string })?.dosage ?? ''}
+                {formatTime(alarmTarget.time)} · {(alarmTarget.medication as { dosage?: string })?.dosage ?? ''}
               </p>
             </div>
           </div>

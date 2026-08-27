@@ -68,9 +68,17 @@ export function DrugInteractions({ familyMemberId }: { familyMemberId?: string }
       const url = familyMemberId ? `/api/medications?userId=${encodeURIComponent(familyMemberId)}` : '/api/medications'
       const res = await fetch(url)
       if (!res.ok) return
-      const meds = await res.json()
+      const payload = await res.json()
+      // FIX #7: the GET returns a paginated envelope ({ data: [...], meta }) —
+      // reading it as a bare array crashed meds.filter and the tool showed
+      // "No active medications" even when meds existed.
+      const meds: Array<{ active: boolean; name: string; dosage: string }> = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : []
       setMedNames(
-        meds.filter((m: { active: boolean }) => m.active).map((m: { name: string; dosage: string }) => `${m.name} (${m.dosage})`)
+        meds.filter((m) => m.active).map((m) => `${m.name} (${m.dosage})`),
       )
     } catch {
       /* ignore */
