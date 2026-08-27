@@ -37,7 +37,11 @@ export async function runDemoLogin(role: DemoRole): Promise<boolean> {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-      body: JSON.stringify({ email, password: 'Demo@2024' }),
+      body: JSON.stringify({
+        email,
+        password: 'Demo@2024',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      }),
     })
     if (!res.ok) return false
 

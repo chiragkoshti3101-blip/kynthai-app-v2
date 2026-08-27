@@ -4,6 +4,9 @@ export const loginSchema = z.object({
   email: z.string().email('Valid email is required').max(254),
   password: z.string().min(1, 'Password is required').max(200),
   captchaToken: z.string().optional(),
+  // Best-effort device IANA timezone (e.g. "Asia/Kolkata") — persisted so the
+  // reminder cron fires doses on the user's local wall clock, not New York's.
+  timezone: z.string().max(64).optional(),
 })
 
 export const registerSchema = z.object({

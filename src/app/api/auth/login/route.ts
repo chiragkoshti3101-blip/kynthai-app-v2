@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       }
       return jsonError('Validation failed', 422, 'VALIDATION_ERROR', { fields });
     }
-    const { email, password, captchaToken } = loginResult.data;
+    const { email, password, captchaToken, timezone } = loginResult.data;
     if (!isValidEmail(email)) return jsonError('Valid email is required', 400);
 
 
@@ -222,6 +222,30 @@ export async function POST(req: NextRequest) {
     }
 
     await logAudit(user.id, 'auth.login', `role=${user.role}`);
+
+    // Best-effort: persist the device's IANA timezone so the reminder cron
+    // fires doses on the user's local wall clock (NOT New York fallback).
+    // Login is the one event every user performs (web AND Android APK), so
+    // this self-heals scheduling accuracy for every active account without
+    // waiting for any other code path. Never blocks or fails the login.
+    if (timezone) {
+      try {
+        new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+        await db.$executeRawUnsafe(
+          `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "timezone" TEXT`
+        );
+        const updated = await db.$executeRawUnsafe(
+          `UPDATE "users" SET "timezone" = $1 WHERE id = $2`,
+          timezone,
+          user.id
+        );
+        if (updated > 0) {
+          await logAudit(user.id, 'user.timezone.set', timezone);
+        }
+      } catch (tzError) {
+        logger.phiSafeError(tzError, 'login.timezone');
+      }
+    }
 
     // Store device fingerprint in audit log metadata for future reference
     try {
