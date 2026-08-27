@@ -39,10 +39,11 @@ async function postTokenToServer(token: string): Promise<boolean> {
 
 export async function registerFcmDevice(): Promise<boolean> {
   if (typeof window === 'undefined' || registered) return false
-  if (!isNativeShell()) return false
   registered = true
 
-  // Path 1: try the Capacitor PushNotifications plugin (works when bridge is ready)
+  // Always attempt — succeeds in Capacitor native shell, fails silently in browser.
+  // The isNativeShell() check was gating this but the Capacitor bridge isn't ready
+  // when the remote-loaded page first runs (server.url mode), so it always returned false.
   try {
     const { PushNotifications } = await import('@capacitor/push-notifications')
 
