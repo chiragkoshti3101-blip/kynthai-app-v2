@@ -4,6 +4,11 @@ import { requireAdmin, jsonOk, jsonError } from '@/lib/api-helpers';
 import { rateLimit } from '@/lib/security';
 export const dynamic = 'force-dynamic';
 
+// Refresh: list Prisma client model names via introspection of the DB
+// Compare information_schema columns vs what Prisma expects is impossible
+// statically, so we scan the actual DB tables against schema.prisma.
+// Instead: dump all columns present in each key table so we can see gaps.
+
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, 5, 60000);
   if (limited) return limited;
@@ -11,26 +16,31 @@ export async function POST(req: NextRequest) {
   if (response || !user) return response!;
 
   try {
-    const results: string[] = [];
-    
-    // Test: can we read appointments with patient relation?
-    try {
-      const appts = await db.appointment.findMany({ take: 1, include: { patient: true } });
-      results.push('appointment read: OK, count=' + appts.length);
-    } catch (e: any) {
-      results.push('appointment read FAIL: ' + (e?.message?.slice(0, 200) || 'unknown'));
+    const body = await req.json().catch(() => ({}));
+    const mode = body.mode || 'columns';
+    const out: any = { mode };
+
+    if (mode === 'columns') {
+      // Dump actual columns for key tables
+      const tables = [
+        'appointments','users','medications','prescriptions','reminders',
+        'doctor_profiles','lab_profiles','lab_bookings','chat_messages',
+        'consult_messages','family_members','notifications','payments'
+      ];
+      for (const t of tables) {
+        try {
+          const cols: any[] = await db.$queryRawUnsafe(
+            `SELECT column_name FROM information_schema.columns WHERE table_name = '${t}' ORDER BY ordinal_position`
+          );
+          out[t] = cols.map(c => c.column_name);
+        } catch (e: any) {
+          out[t] = 'ERROR: ' + (e?.message?.slice(0, 80) || 'unknown');
+        }
+      }
     }
 
-    // Test: can we read doctorProfile?
-    try {
-      const doc = await db.doctorProfile.findFirst({ include: { user: true } });
-      results.push('doctorProfile read: OK, name=' + (doc?.user?.name || 'none'));
-    } catch (e: any) {
-      results.push('doctorProfile read FAIL: ' + (e?.message?.slice(0, 200) || 'unknown'));
-    }
-
-    return jsonOk({ results });
+    return jsonOk(out);
   } catch (error: any) {
-    return jsonError(error?.message?.slice(0, 200), 500);
+    return jsonError(error?.message?.slice(0, 300), 500);
   }
 }
