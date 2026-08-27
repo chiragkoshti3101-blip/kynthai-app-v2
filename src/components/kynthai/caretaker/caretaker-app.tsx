@@ -18,6 +18,7 @@ import {
   Activity,
   Clock,
   Phone,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -1359,21 +1360,24 @@ function AddMemberDialog({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="fm-rel">Relation</Label>
-              <select
-                id="fm-rel"
-                value={relation}
-                onChange={e => setRelation(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none"
-              >
-                <option value="self">Self</option>
-                <option value="spouse">Spouse</option>
-                <option value="parent">Parent</option>
-                <option value="child">Child</option>
-                <option value="sibling">Sibling</option>
-                <option value="grandparent">Grandparent</option>
-                <option value="grandchild">Grandchild</option>
-                <option value="other">Other</option>
-              </select>
+              <div className="relative">
+                <select
+                  id="fm-rel"
+                  value={relation}
+                  onChange={e => setRelation(e.target.value)}
+                  className="w-full appearance-none rounded-md border border-input bg-background px-2 py-1.5 pr-8 text-sm"
+                >
+                  <option value="self">Self</option>
+                  <option value="spouse">Spouse</option>
+                  <option value="parent">Parent</option>
+                  <option value="child">Child</option>
+                  <option value="sibling">Sibling</option>
+                  <option value="grandparent">Grandparent</option>
+                  <option value="grandchild">Grandchild</option>
+                  <option value="other">Other</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="fm-age">Age</Label>

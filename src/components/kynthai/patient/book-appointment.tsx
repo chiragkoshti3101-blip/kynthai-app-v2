@@ -17,6 +17,9 @@ import {
 } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+// FIX #6: real slots come from GET /api/doctors/[id]/slots?date= (availability
+// windows + booked instants) expanded client-side via generateSlots.
+import { generateSlots, type SlotOption } from '@/lib/booking-slots';
 
 interface Doctor {
   id: string;
@@ -30,15 +33,6 @@ interface Doctor {
   videoCallEnabled: boolean;
   available?: boolean;
 }
-
-const TIME_SLOTS = [
-  '09:00 AM',
-  '10:30 AM',
-  '12:00 PM',
-  '02:30 PM',
-  '04:00 PM',
-  '05:30 PM',
-];
 
 type Step = 'list' | 'form' | 'success';
 
@@ -57,6 +51,8 @@ export function BookAppointment({ open, onOpenChange }: Props) {
   const [reason, setReason] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [step, setStep] = React.useState<Step>('list');
+  const [slots, setSlots] = React.useState<SlotOption[]>([]);
+  const [loadingSlots, setLoadingSlots] = React.useState(false);
 
   React.useEffect(() => {
     if (!open) return;
@@ -83,6 +79,31 @@ export function BookAppointment({ open, onOpenChange }: Props) {
     }
   }, [open]);
 
+  // FIX #6: fetch the doctor's real availability + booked times whenever the
+  // selected doctor or date changes, and rebuild the slot grid from them.
+  React.useEffect(() => {
+    if (step !== 'form' || !selectedDoctor || !date) return;
+    let cancelled = false;
+    setLoadingSlots(true);
+    fetch(`/api/doctors/${selectedDoctor.id}/slots?date=${encodeURIComponent(date)}`, { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('slots unavailable'))))
+      .then((data: { windows?: Parameters<typeof generateSlots>[0]; booked?: string[] }) => {
+        if (cancelled) return;
+        const next = generateSlots(data.windows ?? [], date, { booked: data.booked ?? [] });
+        setSlots(next);
+        setTime(prev => (prev && next.some(s => s.value === prev && s.available) ? prev : ''));
+        setLoadingSlots(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSlots(generateSlots([], date));
+        setLoadingSlots(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, selectedDoctor, date]);
+
   function handleSelectDoctor(doctor: Doctor) {
     setSelectedDoctor(doctor);
     const tomorrow = new Date();
@@ -95,12 +116,9 @@ export function BookAppointment({ open, onOpenChange }: Props) {
     if (!selectedDoctor || !date || !time) return;
     setSubmitting(true);
     try {
-      const [hours, minutes] = time
-        .replace(/\s?(AM|PM)/, '')
-        .split(':')
-        .map(Number);
-      const h = time.includes('PM') && (hours ?? 0) !== 12 ? (hours ?? 0) + 12 : time.includes('AM') && (hours ?? 0) === 12 ? 0 : (hours ?? 0);
-      const scheduledAt = new Date(`${date}T${String(h).padStart(2, '0')}:${String(minutes ?? 0).padStart(2, '0')}:00`).toISOString();
+      // `time` is an HH:MM value from the slot grid — construct the local
+      // instant directly (the old AM/PM string parsing is no longer needed).
+      const scheduledAt = new Date(`${date}T${time}:00`).toISOString();
 
       const res = await fetch('/api/appointments', {
         method: 'POST',
@@ -224,22 +242,45 @@ export function BookAppointment({ open, onOpenChange }: Props) {
 
               <div className="space-y-1.5">
                 <Label>Time slot</Label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                  {TIME_SLOTS.map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setTime(s)}
-                      className={cn(
-                        'rounded-lg border py-2 text-xs font-medium transition-all',
-                        time === s
-                          ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                          : 'border-border hover:border-emerald-500/40'
-                      )}
-                    >
-                      {s}
-                    </button>
-                  ))}
-                </div>
+                {loadingSlots ? (
+                  <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" /> Checking availability…
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {slots.map(s => (
+                      <button
+                        key={s.value}
+                        type="button"
+                        onClick={() => s.available && setTime(s.value)}
+                        disabled={!s.available}
+                        title={
+                          s.available
+                            ? 'Available'
+                            : s.reason === 'booked'
+                              ? 'Already booked'
+                              : 'Past time'
+                        }
+                        className={cn(
+                          // FIX #17: 44px minimum tap target.
+                          'min-h-[44px] rounded-lg border text-xs font-medium transition-all',
+                          time === s.value
+                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            : s.available
+                              ? 'border-border hover:border-emerald-500/40'
+                              : 'border-border/60 text-muted-foreground/50 line-through cursor-not-allowed bg-muted/30',
+                        )}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                    {slots.length === 0 && (
+                      <p className="col-span-full text-sm text-muted-foreground py-2">
+                        No slots for this day — try another date.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">

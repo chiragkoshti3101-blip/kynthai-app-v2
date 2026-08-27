@@ -344,7 +344,7 @@ function ApptRow({
         <CalendarDays className="h-5 w-5" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-base font-medium truncate">
+        <p className="text-base font-medium line-clamp-2 break-words">
           {appt.doctor}{' '}
           <span className="text-muted-foreground font-normal">· {appt.specialty}</span>
         </p>
@@ -367,7 +367,7 @@ function ApptRow({
         <button
           onClick={() => onCancel(appt.id)}
           disabled={cancellingId === appt.id}
-          className="shrink-0 rounded-lg border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 disabled:opacity-50"
+          className="shrink-0 rounded-lg border border-rose-300 px-4 py-1.5 text-xs font-medium min-h-11 text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 disabled:opacity-50"
         >
           {cancellingId === appt.id ? '...' : 'Cancel'}
         </button>
@@ -522,13 +522,13 @@ function HomeTab({
           <div className="flex items-center gap-2">
             <button
               onClick={() => setBookingOpen(true)}
-              className="text-xs text-emerald-600 font-medium hover:underline"
+              className="inline-flex items-center min-h-[44px] px-2 -mx-2 text-xs text-emerald-600 font-medium hover:underline"
             >
               + Book
             </button>
             <button
               onClick={() => onNavigate('market')}
-              className="text-xs text-emerald-600 hover:underline"
+              className="inline-flex items-center min-h-[44px] px-2 -mx-2 text-xs text-emerald-600 hover:underline"
             >
               See all
             </button>
@@ -1031,9 +1031,10 @@ function SosTab() {
                 size="lg"
                 className="w-full h-14 text-base bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800"
               >
-                <Phone className="h-5 w-5" /> Call 911 — US emergency number
+                <Phone className="h-5 w-5" /> Call 911
               </Button>
             </a>
+            <p className="text-[11px] text-muted-foreground mt-1">US emergency number</p>
             {callContact ? (
               <a href={`tel:${callContact.phone}`} aria-label={`Call ${callContact.name}`} className="block">
                 <Button
@@ -1422,7 +1423,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
 
       {/* Bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/90 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/80 pb-safe">
-        <div className="mx-auto flex max-w-3xl items-stretch justify-around gap-1 overflow-x-auto px-2 py-2 scrollbar-none">
+        <div className="mx-auto flex max-w-3xl items-stretch justify-around gap-1 overflow-x-auto px-2 py-1 scrollbar-none">
           {TABS.map(t => {
             const active = tab === t.id;
             const Icon = t.icon;
@@ -1432,8 +1433,9 @@ export function PatientApp({ user }: { user: AuthUser }) {
                 onClick={() => setTab(t.id)}
                 aria-label={t.label}
                 aria-current={active ? 'page' : undefined}
+                title={active ? undefined : t.label}
                 className={cn(
-                  'flex flex-1 flex-col items-center gap-0.5 rounded-xl py-1.5 min-h-11 text-[11px] font-medium transition-all',
+                  'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 min-h-11 min-w-[44px] text-[11px] font-medium transition-all',
                   t.id === 'sos'
                     ? active
                       ? 'text-rose-600 dark:text-rose-400'
@@ -1445,7 +1447,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
               >
                 <span
                   className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-xl transition-all',
+                    'flex h-8 w-8 items-center justify-center rounded-xl transition-all',
                     t.id === 'sos'
                       ? active
                         ? 'bg-rose-500/15 text-rose-600'
@@ -1457,7 +1459,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
                 >
                   <Icon className="h-4 w-4" />
                 </span>
-                {t.label}
+                {active && t.label}
               </button>
             );
           })}

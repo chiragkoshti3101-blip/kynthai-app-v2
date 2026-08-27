@@ -347,7 +347,8 @@ export default function SettingsClient() {
                 {initial}
               </div>
               <div>
-                <p className="font-semibold">{isDemo ? 'Guest' : user.name}</p>
+                {/* FIX #8: one name source everywhere — the account name. */}
+                <p className="font-semibold">{user.name || 'User'}</p>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
                 <Badge variant="secondary" className="mt-1 capitalize">{user.role}</Badge>
               </div>
