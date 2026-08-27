@@ -56,18 +56,17 @@ export async function POST(req: NextRequest) {
           CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY ("id")
         );
       `)
-      await db.$executeRawUnsafe(`
-        CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_endpoint_type_key"
-        ON "push_subscriptions"("userId", "endpoint", "type");
-      `)
-      await db.$executeRawUnsafe(`
-        CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_type_token_key"
-        ON "push_subscriptions"("userId", "type", "token");
-      `)
-      await db.$executeRawUnsafe(`
-        CREATE INDEX IF NOT EXISTS "push_subscriptions_userId_idx"
-        ON "push_subscriptions"("userId");
-      `)
+      // Idempotent upgrade for a pre-existing table (pre-FCM).
+      for (const sql of [
+        `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'webpush'`,
+        `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "token" TEXT`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_endpoint_type_key" ON "push_subscriptions"("userId", "endpoint", "type")`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_type_token_key" ON "push_subscriptions"("userId", "type", "token")`,
+        `CREATE INDEX IF NOT EXISTS "push_subscriptions_userId_idx" ON "push_subscriptions"("userId")`,
+        `DROP INDEX IF EXISTS "push_subscriptions_userId_endpoint_key"`,
+      ]) {
+        await db.$executeRawUnsafe(sql).catch(() => {})
+      }
       await db.pushSubscription.upsert({
         where: { userId_type_token: { userId: user.id, type: 'fcm', token } },
         create: {
