@@ -33,16 +33,26 @@ function getFcmMessaging(): { send: (m: unknown) => Promise<{ messageId?: string
     if (!projectId || !clientEmail || !privateKey) return null
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const admin = require('firebase-admin')
-    if (!admin.apps?.length) {
+    // firebase-admin v14 API: top-level `cert` + `getApps()`; messaging resolves
+    // from the `firebase-admin/messaging` submodule's getMessaging(app).
+    const cert = admin.cert
+    const apps = admin.getApps || (() => admin.apps ?? [])
+    if (!apps().length) {
       admin.initializeApp({
-        credential: admin.credential.cert({
+        credential: cert({
           projectId,
           clientEmail,
           privateKey: privateKey.replace(/\\n/g, '\n'),
         }),
       })
     }
-    _fcmMessaging = admin.messaging()
+    const app = (admin.getApps()[0] || admin.getApp()) as unknown as ReturnType<
+      typeof admin.initializeApp
+    >
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const m = require('firebase-admin/messaging')
+    const getMessaging = m.getMessaging || m.default?.getMessaging
+    _fcmMessaging = getMessaging ? getMessaging(app) : null
   } catch {
     _fcmMessaging = null
   }
