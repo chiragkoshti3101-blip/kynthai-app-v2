@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
 
   // IDOR: verify this doctor actually treats this patient
   const treatmentLink = await db.appointment.findFirst({
-    where: { doctorId: profile.id, patientId: patient.id, status: { in: ['booked', 'completed'] as AppointmentStatus[] } },
+    where: { doctorId: profile.id, patientId: patient.id, status: { in: ['confirmed', 'completed', 'pending'] as AppointmentStatus[] } },
   })
   if (!treatmentLink) return jsonError('Forbidden — you do not treat this patient', 403)
 

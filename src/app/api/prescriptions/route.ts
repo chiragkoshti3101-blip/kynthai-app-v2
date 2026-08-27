@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     }
     if (patientId !== u.id && u.role === 'doctor') {
       const treatmentLink = await db.appointment.findFirst({
-        where: { patientId, doctor: { userId: u.id }, status: { in: ['booked', 'completed'] as any } },
+        where: { patientId, doctor: { userId: u.id }, status: { in: ['confirmed', 'completed', 'pending'] as any } },
       })
       if (!treatmentLink) {
         return jsonError('Forbidden — you do not treat this patient', 403)
