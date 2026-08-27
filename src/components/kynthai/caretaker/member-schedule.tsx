@@ -132,7 +132,17 @@ export function FamilyMemberSchedule({ memberName, meds, onUpdate }: Props) {
     setUpdating(med.id)
     if (onUpdate) onUpdate(med, status)
     if (status === 'taken' && alarmEnabled) playSuccessChime()
-    toast({ title: status === 'taken' ? 'Marked as taken' : 'Skipped', description: status === 'taken' ? `${med.name} — ${med.dosage}` : undefined })
+    // FIX #16: Add undo capability to dose logging
+    const undoStatus = status === 'taken' ? 'pending' : 'pending'
+    toast({ 
+      title: status === 'taken' ? 'Marked as taken' : 'Skipped', 
+      description: status === 'taken' ? `${med.name} — ${med.dosage}` : undefined,
+      action: (
+        <ToastAction altText="Undo" onClick={() => {
+          updateMed(med, undoStatus)
+        }}>Undo</ToastAction>
+      )
+    })
     setUpdating(null)
   }
 
@@ -159,7 +169,7 @@ export function FamilyMemberSchedule({ memberName, meds, onUpdate }: Props) {
               <p className="text-sm font-bold">{alarmTarget.name}</p>
               <p className="text-xs text-muted-foreground">{alarmTarget.dosage} · {formatTime(alarmTarget.time)}</p>
             </div>
-            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleAlarmAction(alarmTarget, 'skipped')} disabled={updating === alarmTarget.id}>
+            <Button size="sm" variant="ghost" className="h-11 w-11 p-0" onClick={() => handleAlarmAction(alarmTarget, 'skipped')} disabled={updating === alarmTarget.id}>
               {updating === alarmTarget.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}
             </Button>
             <Button size="sm" className="h-8 bg-emerald-600 text-white text-xs" onClick={() => handleAlarmAction(alarmTarget, 'taken')} disabled={updating === alarmTarget.id}>
@@ -180,7 +190,7 @@ export function FamilyMemberSchedule({ memberName, meds, onUpdate }: Props) {
         {pending.map(m => (
           <Card key={m.id} className="border-amber-500/20">
             <CardContent className="flex items-center gap-2.5 p-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
                 <Pill className="h-4 w-4" />
               </span>
               <div className="min-w-0 flex-1">

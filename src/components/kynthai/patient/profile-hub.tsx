@@ -299,7 +299,7 @@ export function ProfileHub({
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold truncate">{isDemo ? 'Guest' : user.name}</h2>
+              <h2 className="text-lg font-bold truncate">{isDemo ? 'Demo User' : user.name}</h2>
               <div className="mt-1 flex items-center gap-2">
                 <Badge className="bg-white/20 text-white border-0 capitalize">{user.role}</Badge>
                 <Badge className="bg-white/20 text-white border-0">{tierInfo.name}</Badge>

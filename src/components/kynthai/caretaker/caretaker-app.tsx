@@ -482,7 +482,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
   );
 
   const initial = isDemo ? 'K' : (user.name?.[0] ?? 'C').toUpperCase();
-  const familyName = isDemo ? 'Guest' : (user.name?.split(' ').slice(-1)[0] ?? 'Family');
+  const familyName = isDemo ? 'Demo User' : (user.name?.split(' ').slice(-1)[0] ?? 'Family');
   const displayName = familyName === 'Family' ? 'My Family' : `The ${familyName} Family`;
 
   const dismissAlert = (id: string) => setAlerts(p => p.filter(a => a.id !== id));
@@ -493,9 +493,8 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
 
   return (
     <div className="relative min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
+      {/* FIX #20: Consolidated into single NotificationBanner */}
       <NotificationPermissionBanner />
-      <InstallAppBanner />
-      <WebAlertsBanner />
       {selectedMember && (
         <MedicationAlarmHost
           isDemo={isDemo}
