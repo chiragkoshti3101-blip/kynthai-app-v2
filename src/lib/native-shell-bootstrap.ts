@@ -16,8 +16,16 @@ export async function bootstrapNativeShell(): Promise<void> {
 
   try {
     const { StatusBar, Style } = await import('@capacitor/status-bar')
-    await StatusBar.setStyle({ style: Style.Dark }).catch(() => {})
-    await StatusBar.setBackgroundColor({ color: '#f9fdfb' }).catch(() => {})
+    // Match the status bar + system UI to the active theme so there is
+    // never a light strip above dark content (or vice-versa) in the shell.
+    const dark =
+      (typeof window !== 'undefined' &&
+        document.documentElement.classList.contains('dark')) ||
+      (typeof window !== 'undefined' &&
+        window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+    const bg = dark ? '#070f0c' : '#f9fdfb'
+    await StatusBar.setStyle({ style: dark ? Style.Light : Style.Dark }).catch(() => {})
+    await StatusBar.setBackgroundColor({ color: bg }).catch(() => {})
   } catch {
     /* plugin optional */
   }
