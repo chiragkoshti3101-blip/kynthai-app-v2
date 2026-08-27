@@ -57,6 +57,7 @@ interface MedInput {
 // POST /api/doctors/prescribe
 // Prescribes medications to a patient: auto-creates Medication rows + invite token + follow-up appointment.
 export async function POST(req: NextRequest) {
+  try {
   const limited = rateLimit(req)
   if (limited) return limited
 
@@ -238,4 +239,8 @@ export async function POST(req: NextRequest) {
     medications: createdMeds.map((m) => ({ ...m, times: JSON.parse(m.times) })),
     followUp,
   })
+  } catch (error: any) {
+    logger.phiSafeError(error, 'doctors.prescribe');
+    return jsonError(error?.message?.slice(0, 300) || 'Failed to create prescription', 500);
+  }
 }
