@@ -4,53 +4,52 @@ import { requireAdmin, jsonOk, jsonError } from '@/lib/api-helpers';
 import { rateLimit } from '@/lib/security';
 export const dynamic = 'force-dynamic';
 
-// One-time schema-fix endpoint: adds columns the Prisma schema declares
-// but no migration ever created (matches the updatedAt/trigger class of bug).
-
-const FIXES: Array<{ table: string; column: string; ddl: string }> = [
-  // appointments
-  { table: 'appointments', column: 'lastReminderSentAt', ddl: `ALTER TABLE "appointments" ADD COLUMN "lastReminderSentAt" TIMESTAMP(3)` },
-  // lab_bookings (8 missing)
-  { table: 'lab_bookings', column: 'deliveryAddress', ddl: `ALTER TABLE "lab_bookings" ADD COLUMN "deliveryAddress" TEXT` },
-  { table: 'lab_bookings', column: 'deliveryCity', ddl: `ALTER TABLE "lab_bookings" ADD COLUMN "deliveryCity" TEXT` },
-  { table: 'lab_bookings', column: 'deliveryZip', ddl: `ALTER TABLE "lab_bookings" ADD COLUMN "deliveryZip" TEXT` },
-  { table: 'lab_bookings', column: 'deliveryDistanceMi', ddl: `ALTER TABLE "lab_bookings" ADD COLUMN "deliveryDistanceMi" DOUBLE PRECISION` },
-  { table: 'lab_bookings', column: 'deliveryFee', ddl: `ALTER TABLE "lab_bookings" ADD COLUMN "deliveryFee" INTEGER NOT NULL DEFAULT 0` },
-  { table: 'lab_bookings', column: 'deliveryPlatformFee', ddl: `ALTER TABLE "lab_bookings" ADD COLUMN "deliveryPlatformFee" INTEGER NOT NULL DEFAULT 0` },
-  { table: 'lab_bookings', column: 'stripePaymentIntentId', ddl: `ALTER TABLE "lab_bookings" ADD COLUMN "stripePaymentIntentId" TEXT` },
-  { table: 'lab_bookings', column: 'paymentStatus', ddl: `ALTER TABLE "lab_bookings" ADD COLUMN "paymentStatus" TEXT NOT NULL DEFAULT 'pending'` },
-];
-
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req, 5, 60000);
   if (limited) return limited;
   const { response, user } = await requireAdmin(req);
   if (response || !user) return response!;
 
-  const results: string[] = [];
-  for (const fix of FIXES) {
+  const body = await req.json().catch(() => ({}));
+  const out: any = {};
+
+  if (body.mode === 'alltables') {
+    const tables: any[] = await db.$queryRaw`SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name`;
+    out.tables = tables.map(t => t.table_name);
+  }
+
+  if (body.mode === 'test-prescribe-writes') {
+    // Simulate the writes the prescribe flow does, but harmless
+    const writes: string[] = [];
+    // notificationLog
     try {
-      const colExists: any[] = await db.$queryRawUnsafe(
-        `SELECT column_name FROM information_schema.columns WHERE table_name = '${fix.table}' AND column_name = '${fix.column}'`
-      );
-      if (colExists.length === 0) {
-        await db.$executeRawUnsafe(fix.ddl);
-        results.push(`ADDED ${fix.table}.${fix.column}`);
-      } else {
-        results.push(`exists ${fix.table}.${fix.column}`);
-      }
-    } catch (e: any) {
-      results.push(`SKIP ${fix.table}.${fix.column}: ${e?.message?.slice(0, 100) || 'unknown'}`);
-    }
+      const n = await db.notificationLog.create({ data: {
+        userId: 'cmtaf5yqb000jib04hegbpwk1', channel: 'in-app', type: 'test',
+        title: 't', body: 'b', recipient: 'x@y.com', status: 'sent', cost: 0,
+      }});
+      writes.push('notificationLog.create OK');
+      await db.notificationLog.delete({ where: { id: n.id } });
+    } catch(e:any) { writes.push('notificationLog FAIL: ' + e?.message?.slice(0,100)); }
+    // auditLog
+    try {
+      await db.auditLog.create({ data: { userId: user.id, action: 'test' }});
+      writes.push('auditLog.create OK');
+      await db.auditLog.deleteMany({ where: { action: 'test' }});
+    } catch(e:any) { writes.push('auditLog FAIL: ' + e?.message?.slice(0,100)); }
+    out.writes = writes;
   }
 
-  // Verify the appointments read now works
-  try {
-    const appts = await db.appointment.findMany({ take: 1, include: { patient: true } });
-    results.push('appointment read: OK, count=' + appts.length);
-  } catch (e: any) {
-    results.push('appointment read FAIL: ' + (e?.message?.slice(0, 120) || 'unknown'));
+  if (body.mode === 'test-medication-create') {
+    try {
+      const m = await db.medication.create({ data: {
+        userId: user.id, name: 'Test Med', dosage: '10mg',
+        times: JSON.stringify(['08:00']), frequency: 'Daily',
+        instructions: 'test',
+      }});
+      out.medResult = 'OK id=' + m.id;
+      await db.medication.delete({ where: { id: m.id } });
+    } catch(e:any) { out.medResult = 'FAIL: ' + e?.message?.slice(0,150); }
   }
 
-  return jsonOk({ results });
+  return jsonOk(out);
 }
