@@ -16,6 +16,68 @@ export type PushPayload = {
 }
 
 /**
+ * Send via Firebase Cloud Messaging to a native device token.
+ * firebase-admin is lazy-loaded; absent credentials = silent no-op so the
+ * existing Web Push path keeps working.
+ */
+let _fcmMessaging: unknown = null
+let _fcmChecked = false
+function getFcmMessaging(): { send: (m: unknown) => Promise<{ messageId?: string }> } | null {
+  if (_fcmChecked) return _fcmMessaging as never
+  _fcmChecked = true
+  try {
+    if (typeof window !== 'undefined') return null
+    const projectId = process.env.FIREBASE_PROJECT_ID
+    const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY
+    if (!projectId || !clientEmail || !privateKey) return null
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const admin = require('firebase-admin')
+    if (!admin.apps?.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId,
+          clientEmail,
+          privateKey: privateKey.replace(/\\n/g, '\n'),
+        }),
+      })
+    }
+    _fcmMessaging = admin.messaging()
+  } catch {
+    _fcmMessaging = null
+  }
+  return _fcmMessaging as never
+}
+
+async function sendFcm(token: string, message: string, isClinical: boolean): Promise<void> {
+  const messaging = getFcmMessaging()
+  if (!messaging) return
+  let parsed: { title?: string; body?: string; data?: Record<string, unknown> }
+  try {
+    parsed = JSON.parse(message)
+  } catch {
+    parsed = { title: 'Kynthai', body: message }
+  }
+  await messaging.send({
+    token,
+    notification: { title: parsed.title || 'Kynthai', body: parsed.body || '' },
+    android: {
+      priority: isClinical ? 'high' : 'normal',
+      notification: {
+        channelId: 'kynthai_dose_alarm',
+        sound: isClinical ? 'med_chime' : 'default',
+        priority: isClinical ? 'high' : 'default',
+      },
+    },
+    apns: {
+      headers: { 'apns-priority': isClinical ? '10' : '5', 'apns-push-type': 'alert' },
+      payload: { aps: { sound: 'default', 'content-available': 1 } },
+    },
+    data: (parsed.data || {}) as Record<string, string>,
+  })
+}
+
+/**
  * Instant push to all of a user's devices.
  * Clinical (dose) uses Urgency: high + short TTL so carriers deliver immediately
  * (same class of signal messaging apps use for priority traffic).
@@ -35,7 +97,7 @@ export async function sendPushToUser(
 
     const subs = await db.pushSubscription.findMany({
       where: { userId },
-      select: { id: true, endpoint: true, p256dh: true, auth: true },
+      select: { id: true, endpoint: true, type: true, token: true, p256dh: true, auth: true },
     })
     if (subs.length === 0) return { sent: 0, failed: 0 }
 
@@ -73,10 +135,17 @@ export async function sendPushToUser(
       },
     })
 
-    // Parallel fan-out — no sequential delay across devices
+    // Parallel fan-out — no sequential delay across devices.
+    // FCM device tokens (native APK/iOS) and Web Push subscriptions are
+    // both dispatched. FCM delivers to the OS even when the app process
+    // is dead — the Zomato/Swiggy-class channel.
     const results = await Promise.all(
       subs.map(async (sub) => {
         try {
+          if (sub.type === 'fcm' && sub.token) {
+            await sendFcm(sub.token, message, isClinical)
+            return { ok: true as const, id: sub.id }
+          }
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
             message,

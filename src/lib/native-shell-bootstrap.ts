@@ -80,6 +80,15 @@ export async function bootstrapNativeShell(): Promise<void> {
     /* plugin optional */
   }
 
+  // Native FCM device token registration — delivers reminders straight to the
+  // OS even when the app process is dead (Zomato/Swiggy-class channel).
+  try {
+    const { registerFcmDevice } = await import('@/lib/fcm')
+    void registerFcmDevice()
+  } catch {
+    /* FCM not configured yet — existing Web Push + native alarm path stays */
+  }
+
   try {
     const { Haptics, ImpactStyle } = await import('@capacitor/haptics')
     // Expose light haptic for Taken / Skip without importing everywhere
