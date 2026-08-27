@@ -83,6 +83,7 @@ model User {
   dataProcessingConsent      Boolean          @default(false)
   aiTrainingConsent          Boolean          @default(false) // explicit opt-in for AI model training
   notificationPrefs          String?
+  timezone                   String?          // IANA zone for reminder delivery (e.g. America/New_York); null = America/New_York. Column is also bootstrapped idempotently by /api/reminders/send.
   emailOptOut                Boolean          @default(false) // CAN-SPAM: user unsubscribed from marketing emails
   isDemo                     Boolean          @default(false) // demo/seed account flag
   failedLoginAttempts        Int              @default(0)
