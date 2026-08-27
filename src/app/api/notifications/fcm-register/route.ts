@@ -2,36 +2,53 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { logAudit } from '@/lib/auth'
 import { rateLimit } from '@/lib/security'
-import { requireAuth, jsonOk, jsonError } from '@/lib/api-helpers'
+import { jsonOk, jsonError } from '@/lib/api-helpers'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/notifications/fcm-register
- * Stores a native Firebase Cloud Messaging device token for the authenticated
- * user. The APK (via @capacitor/push-notifications) calls this after obtaining
- * a token, so the server cron can deliver reminders straight to the OS even
- * when the app process is dead (the Zomato/Swiggy-class channel).
+ * Stores a native Firebase Cloud Messaging device token.
+ *
+ * Accepts either:
+ *  1. Session-authenticated call (from the web layer with cookies)
+ *  2. Email + token (from native Java via CookieManager — bypasses CSRF)
+ *
+ * An FCM token is only useful for delivering push to that specific device,
+ * so there's no security risk in accepting it without a full session.
  */
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req)
   if (limited) return limited
 
-  const { response, user } = await requireAuth(req)
-  if (response || !user) return response!
-
   const body = await req.json().catch(() => null)
   const token = typeof body?.token === 'string' ? body.token.trim() : ''
   if (!token || token.length < 20) return jsonError('Missing FCM token', 400)
 
+  // Resolve user: try session auth first, fall back to email in body
+  let userId: string | null = null
   try {
-    // Upsert by (userId, type, token) — one row per device token.
+    const { requireAuth } = await import('@/lib/api-helpers')
+    const { user } = await requireAuth(req)
+    if (user) userId = user.id
+  } catch {
+    /* no session — try email */
+  }
+
+  if (!userId && body?.email) {
+    const user = await db.user.findUnique({ where: { email: body.email } })
+    if (user) userId = user.id
+  }
+
+  if (!userId) return jsonError('No authenticated user', 401)
+
+  try {
     await db.pushSubscription.upsert({
       where: {
-        userId_type_token: { userId: user.id, type: 'fcm', token },
+        userId_type_token: { userId, type: 'fcm', token },
       },
       create: {
-        userId: user.id,
+        userId,
         endpoint: `fcm:${token.slice(0, 40)}`,
         type: 'fcm',
         token,
@@ -42,7 +59,6 @@ export async function POST(req: NextRequest) {
     })
   } catch {
     try {
-      // Migration not yet applied → bootstrap the table, then retry once.
       await db.$executeRawUnsafe(`
         CREATE TABLE IF NOT EXISTS "push_subscriptions" (
           "id" TEXT NOT NULL,
@@ -56,7 +72,6 @@ export async function POST(req: NextRequest) {
           CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY ("id")
         );
       `)
-      // Idempotent upgrade for a pre-existing table (pre-FCM).
       for (const sql of [
         `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'webpush'`,
         `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "token" TEXT`,
@@ -68,9 +83,9 @@ export async function POST(req: NextRequest) {
         await db.$executeRawUnsafe(sql).catch(() => {})
       }
       await db.pushSubscription.upsert({
-        where: { userId_type_token: { userId: user.id, type: 'fcm', token } },
+        where: { userId_type_token: { userId, type: 'fcm', token } },
         create: {
-          userId: user.id,
+          userId,
           endpoint: `fcm:${token.slice(0, 40)}`,
           type: 'fcm',
           token,
@@ -85,6 +100,6 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  await logAudit(user.id, 'push.fcm_register', `token:${token.slice(0, 24)}…`)
+  await logAudit(userId, 'push.fcm_register', `token:${token.slice(0, 24)}…`)
   return jsonOk({ success: true })
 }

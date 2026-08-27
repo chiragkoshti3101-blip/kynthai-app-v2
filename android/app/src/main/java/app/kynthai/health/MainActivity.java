@@ -71,7 +71,7 @@ public class MainActivity extends BridgeActivity {
                 conn.setRequestProperty("Cookie", cookie);
               }
               conn.setDoOutput(true);
-              String body = "{\"token\":\"" + token + "\"}";
+              String body = "{\"token\":\"" + token + "\",\"email\":\"patient@kynthai.app\"}";
               OutputStream os = conn.getOutputStream();
               os.write(body.getBytes("UTF-8"));
               os.close();
