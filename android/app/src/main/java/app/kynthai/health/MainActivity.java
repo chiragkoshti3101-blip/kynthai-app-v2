@@ -12,6 +12,10 @@ import androidx.core.content.ContextCompat;
 import androidx.core.splashscreen.SplashScreen;
 import com.getcapacitor.BridgeActivity;
 import com.google.firebase.messaging.FirebaseMessaging;
+import android.webkit.CookieManager;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 /**
  * Android 12+ sticks on the green splash unless SplashScreen is installed and
@@ -46,24 +50,42 @@ public class MainActivity extends BridgeActivity {
     requestNotificationPermissionIfNeeded();
 
     // FCM token registration — runs from native Java, independent of remote web page timing.
-    // When the app opens, this gets the Firebase device token and stores it in
-    // SharedPreferences so the web layer can POST it to the server when the bridge
-    // is ready with proper auth cookies.
+    // Posts the token directly to the server using session cookies from CookieManager.
+    // This bypasses the web bridge timing issue where PushNotifications.register() fails
+    // because the Capacitor bridge isn't ready when the remote-loaded page runs.
     new Handler(Looper.getMainLooper()).postDelayed(() -> {
       FirebaseMessaging.getInstance().getToken()
         .addOnSuccessListener(token -> {
           if (token == null || token.isEmpty()) return;
           Log.d("MainActivity", "FCM token obtained: " + token.substring(0, Math.min(20, token.length())) + "...");
-          // Store in SharedPreferences so fcm.ts can read it via Capacitor Preferences
-          try {
-            getSharedPreferences("KynthaiFCM", MODE_PRIVATE)
-              .edit().putString("fcm_token", token).apply();
-          } catch (Exception e) {
-            Log.e("MainActivity", "Failed to store FCM token in prefs: " + e.getMessage());
-          }
+          // POST token to server in background thread
+          new Thread(() -> {
+            try {
+              String cookie = CookieManager.getInstance().getCookie("https://kynthai.app");
+              URL url = new URL("https://kynthai.app/api/notifications/fcm-register");
+              HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+              conn.setRequestMethod("POST");
+              conn.setRequestProperty("Content-Type", "application/json");
+              conn.setRequestProperty("Accept", "application/json");
+              if (cookie != null && !cookie.isEmpty()) {
+                conn.setRequestProperty("Cookie", cookie);
+              }
+              conn.setDoOutput(true);
+              String body = "{\"token\":\"" + token + "\"}";
+              OutputStream os = conn.getOutputStream();
+              os.write(body.getBytes("UTF-8"));
+              os.close();
+              int code = conn.getResponseCode();
+              String resp = new String(conn.getInputStream().readAllBytes(), "UTF-8");
+              Log.d("MainActivity", "FCM register POST " + code + ": " + resp.substring(0, Math.min(100, resp.length())));
+              conn.disconnect();
+            } catch (Exception e) {
+              Log.e("MainActivity", "FCM register failed: " + e.getMessage());
+            }
+          }).start();
         })
         .addOnFailureListener(e -> Log.e("MainActivity", "FCM getToken failed: " + e.getMessage()));
-    }, 5000); // 5s delay to let the bridge fully initialize
+    }, 8000); // 8s delay to let WebView load + user login + cookies settle
   }
 
   private void requestNotificationPermissionIfNeeded() {
