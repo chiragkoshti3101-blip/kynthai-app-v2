@@ -126,7 +126,7 @@ interface Prescription {
 
 const APPOINTMENTS: Appointment[] = [
   {
-    id: 'a1',
+    id: 'demo_a1',
     patientName: 'Alex Johnson',
     time: '10:30 AM',
     date: 'Today',
@@ -135,7 +135,7 @@ const APPOINTMENTS: Appointment[] = [
     fee: 75,
   },
   {
-    id: 'a2',
+    id: 'demo_a2',
     patientName: 'Jordan Smith',
     time: '12:00 PM',
     date: 'Today',
@@ -144,7 +144,7 @@ const APPOINTMENTS: Appointment[] = [
     fee: 75,
   },
   {
-    id: 'a3',
+    id: 'demo_a3',
     patientName: 'Casey Lee',
     time: '09:00 AM',
     date: 'Yesterday',
@@ -153,7 +153,7 @@ const APPOINTMENTS: Appointment[] = [
     fee: 75,
   },
   {
-    id: 'a4',
+    id: 'demo_a4',
     patientName: 'Taylor Reed',
     time: '02:00 PM',
     date: 'Yesterday',
@@ -162,7 +162,7 @@ const APPOINTMENTS: Appointment[] = [
     fee: 55,
   },
   {
-    id: 'a5',
+    id: 'demo_a5',
     patientName: 'Morgan Patel',
     time: '03:30 PM',
     date: 'Today',
@@ -174,7 +174,7 @@ const APPOINTMENTS: Appointment[] = [
 
 const PRESCRIPTIONS: Prescription[] = [
   {
-    id: 'rx1',
+    id: 'demo_rx1',
     patientId: 'p1',
     patientName: 'Alex Johnson',
     medication: 'Lisinopril 10mg',
@@ -184,7 +184,7 @@ const PRESCRIPTIONS: Prescription[] = [
     medications: [{ name: 'Lisinopril', dosage: '10mg', frequency: 'Once daily' }],
   },
   {
-    id: 'rx2',
+    id: 'demo_rx2',
     patientId: 'p2',
     patientName: 'Jordan Smith',
     medication: 'Atorvastatin 20mg',
@@ -194,7 +194,7 @@ const PRESCRIPTIONS: Prescription[] = [
     medications: [{ name: 'Atorvastatin', dosage: '20mg', frequency: 'Once daily' }],
   },
   {
-    id: 'rx3',
+    id: 'demo_rx3',
     patientId: 'p3',
     patientName: 'Casey Lee',
     medication: 'Amoxicillin 500mg',
@@ -424,6 +424,22 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   // patient-side tier), so we keep a local flag and let the doctor flip it
   // from the paywall for demo purposes.
   const [isPro, setIsPro] = React.useState(false);
+  
+  React.useEffect(() => {
+    // Fetch real pro status from API
+    const fetchProStatus = async () => {
+      try {
+        const res = await fetch('/api/doctors/me', { credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          setIsPro(data?.profile?.isPro || false);
+        }
+      } catch (err) {
+        console.error('[dashboard] Failed to fetch pro status:', err);
+      }
+    };
+    fetchProStatus();
+  }, []);
   const [renewsAt] = React.useState(() => {
     const d = new Date();
     d.setFullYear(d.getFullYear() + 1);
@@ -449,9 +465,9 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
     if (isRefresh) setRefreshing(true);
     if (isDemo) {
       const demoPatients = [
-        { id: 'dp1', name: 'Alex Johnson' },
-        { id: 'dp2', name: 'Jordan Smith' },
-        { id: 'dp3', name: 'Casey Lee' },
+        { id: 'demo_dp1', name: 'Alex Johnson' },
+        { id: 'demo_dp2', name: 'Jordan Smith' },
+        { id: 'demo_dp3', name: 'Casey Lee' },
       ];
       const completedN = APPOINTMENTS.filter(a => a.status === 'completed').length;
       const upcomingN = APPOINTMENTS.filter(
@@ -683,9 +699,9 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   const livePatients = isRealData
     ? (dashboardData?.patients ?? [])
     : [
-        { id: 'dp1', name: 'Alex Johnson' },
-        { id: 'dp2', name: 'Jordan Smith' },
-        { id: 'dp3', name: 'Casey Lee' },
+        { id: 'demo_dp1', name: 'Alex Johnson' },
+        { id: 'demo_dp2', name: 'Jordan Smith' },
+        { id: 'demo_dp3', name: 'Casey Lee' },
       ];
 
   // Loyalty tier — derived from lifetime fulfilled orders.

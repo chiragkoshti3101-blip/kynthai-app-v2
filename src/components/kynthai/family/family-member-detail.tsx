@@ -57,9 +57,9 @@ export default function FamilyMemberDetailClient({ memberId, user }: { memberId:
   const load = React.useCallback(async () => {
     setLoading(true)
     const DEMO_MEMBERS: Record<string, MemberData> = {
-      fm1: { id: 'fm1', name: 'Robert Wilson', relation: 'Father', age: 62, role: 'member', color: 'emerald', conditions: ['Type 2 diabetes', 'Hypertension'], photoUrl: null, medications: [], reminders: [] },
-      fm2: { id: 'fm2', name: 'Emma Wilson', relation: 'Mother', age: 58, role: 'member', color: 'teal', conditions: ['Hypothyroidism'], photoUrl: null, medications: [], reminders: [] },
-      fm3: { id: 'fm3', name: 'Noah Wilson', relation: 'Child', age: 12, role: 'member', color: 'cyan', conditions: ['Seasonal allergies'], photoUrl: null, medications: [], reminders: [] },
+      fm1: { id: 'demo_fm1', name: 'Robert Wilson', relation: 'Father', age: 62, role: 'member', color: 'emerald', conditions: ['Type 2 diabetes', 'Hypertension'], photoUrl: null, medications: [], reminders: [] },
+      fm2: { id: 'demo_fm2', name: 'Emma Wilson', relation: 'Mother', age: 58, role: 'member', color: 'teal', conditions: ['Hypothyroidism'], photoUrl: null, medications: [], reminders: [] },
+      fm3: { id: 'demo_fm3', name: 'Noah Wilson', relation: 'Child', age: 12, role: 'member', color: 'cyan', conditions: ['Seasonal allergies'], photoUrl: null, medications: [], reminders: [] },
     }
     if (demoAccount && DEMO_MEMBERS[memberId]) {
       setData(DEMO_MEMBERS[memberId]!)

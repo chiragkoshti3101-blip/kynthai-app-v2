@@ -94,7 +94,7 @@ interface FamilyMember {
 
 const SAMPLE_FAMILY: FamilyMember[] = [
   {
-    id: 'fm1',
+    id: 'demo_fm1',
     name: 'Robert Wilson',
     relation: 'Father',
     email: 'robert@example.com',
@@ -105,7 +105,7 @@ const SAMPLE_FAMILY: FamilyMember[] = [
     age: 62,
   },
   {
-    id: 'fm2',
+    id: 'demo_fm2',
     name: 'Emma Wilson',
     relation: 'Mother',
     email: 'emma@example.com',
@@ -116,7 +116,7 @@ const SAMPLE_FAMILY: FamilyMember[] = [
     age: 58,
   },
   {
-    id: 'fm3',
+    id: 'demo_fm3',
     name: 'Noah Wilson',
     relation: 'Child',
     email: 'noah@example.com',
@@ -139,16 +139,16 @@ interface EscalatedAlert {
 
 const SAMPLE_ALERTS: EscalatedAlert[] = [
   {
-    id: 'a1',
-    memberId: 'fm1',
+    id: 'demo_a1',
+    memberId: 'demo_fm1',
     memberName: 'Robert Wilson',
     message: 'Missed Lisinopril (morning dose)',
     severity: 'high',
     time: '2h ago',
   },
   {
-    id: 'a2',
-    memberId: 'fm3',
+    id: 'demo_a2',
+    memberId: 'demo_fm3',
     memberName: 'Noah Wilson',
     message: 'Albuterol inhaler running low (3 doses left)',
     severity: 'medium',
@@ -263,9 +263,9 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
     // Demo accounts: use sample data immediately — no API call, no loading.
     if (isDemo) {
       setFamilyPulse([
-        { memberId: 'fm1', name: 'Robert Wilson', relation: 'Father', color: 'emerald', score: 85, adherence: 85, total: 4, taken: 3, missed: 1, status: 'all_taken', lastTaken: null, conditions: [] },
-        { memberId: 'fm2', name: 'Emma Wilson', relation: 'Mother', color: 'teal', score: 78, adherence: 78, total: 2, taken: 1, missed: 1, status: 'in_progress', lastTaken: null, conditions: [] },
-        { memberId: 'fm3', name: 'Noah Wilson', relation: 'Child', color: 'cyan', score: 100, adherence: 100, total: 1, taken: 1, missed: 0, status: 'all_taken', lastTaken: null, conditions: [] },
+        { memberId: 'demo_fm1', name: 'Robert Wilson', relation: 'Father', color: 'emerald', score: 85, adherence: 85, total: 4, taken: 3, missed: 1, status: 'all_taken', lastTaken: null, conditions: [] },
+        { memberId: 'demo_fm2', name: 'Emma Wilson', relation: 'Mother', color: 'teal', score: 78, adherence: 78, total: 2, taken: 1, missed: 1, status: 'in_progress', lastTaken: null, conditions: [] },
+        { memberId: 'demo_fm3', name: 'Noah Wilson', relation: 'Child', color: 'cyan', score: 100, adherence: 100, total: 1, taken: 1, missed: 0, status: 'all_taken', lastTaken: null, conditions: [] },
       ]);
       return;
     }
