@@ -91,9 +91,9 @@ const STATUS_CFG: Record<string, { label: string; icon: any; bg: string; color: 
 // so the demo dashboard never shows stale 15% numbers.
 const DEMO_COMMISSION_PCT = LAB_BASE_FEE_PCT
 const DEMO_BOOKINGS: BookingRow[] = [
-  { id: 'demo-b1', patientName: 'Sarah Johnson', tests: [{ name: 'Complete Blood Count', price: 3500 }], scheduledAt: '2026-07-20T09:00:00Z', status: 'pending', price: 3500, commission: Math.round(3500 * DEMO_COMMISSION_PCT / 100), homeCollection: false },
-  { id: 'demo-b2', patientName: 'James Carter', tests: [{ name: 'Lipid Panel', price: 4900 }], scheduledAt: '2026-07-22T14:00:00Z', status: 'sample_collected', price: 4900, commission: Math.round(4900 * DEMO_COMMISSION_PCT / 100), homeCollection: true },
-  { id: 'demo-b3', patientName: 'Mia Carter', tests: [{ name: 'HbA1c', price: 3900 }, { name: 'Vitamin D', price: 4500 }], scheduledAt: '2026-07-25T10:30:00Z', status: 'completed', price: 8400, commission: Math.round(8400 * DEMO_COMMISSION_PCT / 100), homeCollection: false, hasResultsFile: true },
+  { id: 'demo_booking_1', patientName: 'Sarah Johnson', tests: [{ name: 'Complete Blood Count', price: 3500 }], scheduledAt: '2026-07-20T09:00:00Z', status: 'pending', price: 3500, commission: Math.round(3500 * DEMO_COMMISSION_PCT / 100), homeCollection: false },
+  { id: 'demo_booking_2', patientName: 'James Carter', tests: [{ name: 'Lipid Panel', price: 4900 }], scheduledAt: '2026-07-22T14:00:00Z', status: 'sample_collected', price: 4900, commission: Math.round(4900 * DEMO_COMMISSION_PCT / 100), homeCollection: true },
+  { id: 'demo_booking_3', patientName: 'Mia Carter', tests: [{ name: 'HbA1c', price: 3900 }, { name: 'Vitamin D', price: 4500 }], scheduledAt: '2026-07-25T10:30:00Z', status: 'completed', price: 8400, commission: Math.round(8400 * DEMO_COMMISSION_PCT / 100), homeCollection: false, hasResultsFile: true },
 ]
 
 export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {

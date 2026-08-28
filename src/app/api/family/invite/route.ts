@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       family = await db.family.create({ data: { name: `${u.name}'s Family`, ownerId: u.id } });
 
     const count = await db.familyMember.count({ where: { familyId: family.id } });
-    if (count >= 10) return jsonError('Maximum 10 family members', 400);
+    if (count >= 4) return jsonError('Maximum 4 family members', 400);
 
     const existing = await db.familyMember.findFirst({
       where: { familyId: family.id, inviteEmail: email },
