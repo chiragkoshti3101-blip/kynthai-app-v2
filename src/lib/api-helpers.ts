@@ -245,8 +245,27 @@ export async function requireAuth(
   let userId: string | null = null
   if (error || !supabaseUser) {
     const kynthaiSession = req.cookies.get('kynthai-session')
-    if (kynthaiSession?.value) userId = await verifySessionToken(kynthaiSession.value)
-    // verifySessionToken returns null on any tampering — fail closed (treat as unauth)
+    if (kynthaiSession?.value) {
+      userId = await verifySessionToken(kynthaiSession.value)
+      // verifySessionToken returns null on any tampering — fail closed (treat as unauth)
+      // Revocation check (Node runtime — Edge middleware cannot run Prisma):
+      // an unexpired revoked_sessions row invalidates the fallback session
+      // (bounded by the row's 7-day expiresAt TTL). Fail-open on DB error —
+      // the profile lookup below fails the request anyway if the DB is down.
+      if (userId) {
+        try {
+          const { db } = await import('@/lib/db')
+          const revoked = await db.revokedSession.findFirst({
+            where: { userId, expiresAt: { gt: new Date() } },
+            orderBy: { revokedAt: 'desc' },
+            take: 1,
+          })
+          if (revoked) userId = null
+        } catch (err) {
+          console.error('[auth] Revocation check failed (failing open):', err)
+        }
+      }
+    }
   } else {
     userId = supabaseUser.id
   }
