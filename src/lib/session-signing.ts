@@ -17,6 +17,8 @@
  * forged payloads.
  */
 
+import { db } from '@/lib/db'
+
 function getSigningSecret(): string | null {
   const env = process.env;
   if (env.SESSION_SIGNING_SECRET) return env.SESSION_SIGNING_SECRET;
@@ -85,7 +87,7 @@ export async function verifySessionToken(signed: string): Promise<string | null>
   try {
     const revoked = await db.revokedSession.findFirst({
       where: { userId, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { revokedAt: 'desc' },
       take: 1,
     });
     if (revoked) return null;

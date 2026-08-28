@@ -111,6 +111,12 @@ async function run(req: NextRequest) {
         where: {
           date: { in: dates },
           status: 'pending',
+          // Only fire reminders for ACTIVE medications. Rows created before a
+          // med was deactivated linger as status=pending for the rest of the
+          // day — without this filter every catchup/tick re-fires them (the
+          // Aug-28 FCMCHECK/PHONEPUSH test-med debris kept firing until the
+          // 20h NotificationLog dedupe window saved us).
+          medication: { is: { active: true } },
           ...(mode === 'catchup'
             ? { time: { lte: clock.timeStr } }
             : { time: { in: nearbyTimeStrings(tz, new Date(), 8) } }),
