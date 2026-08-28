@@ -59,7 +59,6 @@ import { useOfflineQueue } from '@/hooks/use-offline-queue';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FadeIn } from '@/components/kynthai/animations';
 import type { PulseMember } from '@/components/kynthai/family/family-circle';
-import { isDemoEnabled } from '@/lib/demo-mode'
 
 const MarketView = dynamic(
   () => import('@/components/kynthai/market/market-view')
@@ -261,13 +260,31 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
 
   // Load family pulse data for the health circle
   React.useEffect(() => {
-    // Demo accounts: use sample data immediately — no API call, no loading.
+    // Demo accounts: derive the pulse from SAMPLE_FAMILY — the SAME source the
+    // member cards use. Previously the circle hardcoded Noah at 100% while his
+    // card showed 72%, a visible contradiction on one screen (wave-8).
     if (isDemo) {
-      setFamilyPulse([
-        { memberId: 'fm1', name: 'Robert Wilson', relation: 'Father', color: 'emerald', score: 85, adherence: 85, total: 4, taken: 3, missed: 1, status: 'all_taken', lastTaken: null, conditions: [] },
-        { memberId: 'fm2', name: 'Emma Wilson', relation: 'Mother', color: 'teal', score: 78, adherence: 78, total: 2, taken: 1, missed: 1, status: 'in_progress', lastTaken: null, conditions: [] },
-        { memberId: 'fm3', name: 'Noah Wilson', relation: 'Child', color: 'cyan', score: 100, adherence: 100, total: 1, taken: 1, missed: 0, status: 'all_taken', lastTaken: null, conditions: [] },
-      ]);
+      const demoColors = ['emerald', 'teal', 'cyan'];
+      setFamilyPulse(
+        SAMPLE_FAMILY.map((m, i) => {
+          const total = 4;
+          const taken = Math.round((total * m.adherence) / 100);
+          return {
+            memberId: m.id,
+            name: m.name,
+            relation: m.relation,
+            color: demoColors[i % demoColors.length] ?? 'emerald',
+            score: m.adherence,
+            adherence: m.adherence,
+            total,
+            taken,
+            missed: total - taken,
+            status: (taken >= total ? 'all_taken' : 'in_progress') as 'all_taken' | 'in_progress',
+            lastTaken: null,
+            conditions: [],
+          };
+        })
+      );
       return;
     }
     let cancelled = false;
@@ -463,7 +480,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
           const csrf = await fetch('/api/auth/csrf', { credentials: 'include' })
             .then(r => r.json())
             .then(d => d.token);
-          await fetch('/api/reminders', {
+          const res = await fetch('/api/reminders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'x-csrf-token': csrf },
             credentials: 'include',
@@ -474,12 +491,30 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
               status,
             }),
           });
-        } catch {
-          /* ignore */
+          // Wave-8: the response used to be ignored — the optimistic row kept
+          // showing "taken" with a success toast even when the server
+          // rejected the write, silently reverting on reload.
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err?.error || 'Could not save');
+          }
+        } catch (err) {
+          // Revert the optimistic update so the UI matches the server.
+          setMemberMeds(prev => ({
+            ...prev,
+            [memberId]: prev[memberId]?.map(m =>
+              m.id === med.id ? { ...m, status: 'pending' as const } : m
+            ) ?? [],
+          }));
+          toast({
+            title: 'Could not update dose',
+            description: err instanceof Error ? err.message : 'Please try again.',
+            variant: 'destructive',
+          });
         }
       }
     },
-    []
+    [toast]
   );
 
   const initial = isDemo ? 'K' : (user.name?.[0] ?? 'C').toUpperCase();
@@ -489,7 +524,14 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
   const dismissAlert = (id: string) => setAlerts(p => p.filter(a => a.id !== id));
   const resolveAlert = (id: string) => {
     setAlerts(p => p.filter(a => a.id !== id));
-    toast({ title: 'Marked as taken', description: 'Reminder resolved for family member.' });
+    // Alert rows only exist in demo sessions (real escalations have no data
+    // source yet) — keep the toast honest about that.
+    toast({
+      title: isDemo ? 'Marked as taken (demo)' : 'Marked as taken',
+      description: isDemo
+        ? 'Simulated — sample alerts reset on reload.'
+        : 'Reminder resolved for family member.',
+    });
   };
 
   return (
@@ -536,7 +578,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
       </header>
 
       {/* Demo banner */}
-      {isDemo && isDemoEnabled() && (
+      {isDemo && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-1.5 text-center text-[11px] text-amber-700 dark:text-amber-300">
           Demo mode — sample data, changes won&apos;t be saved
         </div>
@@ -586,9 +628,11 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
           )}
           {tab === 'market' && (
             <FadeIn key="market">
-              <ScopedTab members={family} selected={selectedMember} onSelect={setSelectedMember}>
-                <MarketView />
-              </ScopedTab>
+              {/* Wave-8: this tab previously wrapped MarketView in ScopedTab,
+                  but MarketView takes no member prop — the chips changed
+                  nothing (dead UI). The member selector stays live in the
+                  Meds/Tools/Family Alert tabs where it is actually consumed. */}
+              <MarketView />
             </FadeIn>
           )}
           {tab === 'ai' && (
@@ -840,7 +884,7 @@ function FamilyTab({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 text-xs"
+                      className="min-h-11 text-xs"
                       onClick={() => onResolve(a.id)}
                     >
                       <CheckCircle2 className="h-3 w-3" />
@@ -849,7 +893,7 @@ function FamilyTab({
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 text-xs text-muted-foreground"
+                      className="min-h-11 text-xs text-muted-foreground"
                       onClick={() => onDismiss(a.id)}
                     >
                       <XCircle className="h-3 w-3" />

@@ -173,7 +173,7 @@ export function FamilyMemberSchedule({ memberName, meds, onUpdate }: Props) {
             <Button size="sm" variant="ghost" className="h-11 w-11 p-0" onClick={() => handleAlarmAction(alarmTarget, 'skipped')} disabled={updating === alarmTarget.id}>
               {updating === alarmTarget.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-4 w-4 text-muted-foreground" />}
             </Button>
-            <Button size="sm" className="h-8 bg-emerald-600 text-white text-xs" onClick={() => handleAlarmAction(alarmTarget, 'taken')} disabled={updating === alarmTarget.id}>
+            <Button size="sm" className="min-h-11 bg-emerald-600 text-white text-xs" onClick={() => handleAlarmAction(alarmTarget, 'taken')} disabled={updating === alarmTarget.id}>
               <CheckCircle2 className="h-3.5 w-3.5" /> Take
             </Button>
           </div>
@@ -202,10 +202,10 @@ export function FamilyMemberSchedule({ memberName, meds, onUpdate }: Props) {
                 </p>
               </div>
               <div className="flex gap-1">
-                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleAlarmAction(m, 'skipped')} disabled={updating === m.id}>
+                <Button size="sm" variant="ghost" className="h-11 w-11 p-0" onClick={() => handleAlarmAction(m, 'skipped')} disabled={updating === m.id}>
                   {updating === m.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground" />}
                 </Button>
-                <Button size="sm" className="h-7 px-2 text-[10px] bg-emerald-600 text-white" onClick={() => handleAlarmAction(m, 'taken')} disabled={updating === m.id}>
+                <Button size="sm" className="min-h-11 px-3 text-xs bg-emerald-600 text-white" onClick={() => handleAlarmAction(m, 'taken')} disabled={updating === m.id}>
                   <CheckCircle2 className="h-3 w-3" /> Take
                 </Button>
               </div>

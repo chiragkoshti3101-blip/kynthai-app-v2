@@ -99,7 +99,7 @@ export function SosToast({ alert, onDismiss, onNavigate }: SosToastProps) {
                     window.location.href = 'tel:911';
                   }
                 }}
-                className="h-9 w-9 rounded-full"
+                className="h-11 w-11 rounded-full"
                 aria-label="Call 911"
               >
                 <Phone className="h-4 w-4 text-rose-600" />

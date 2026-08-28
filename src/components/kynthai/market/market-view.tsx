@@ -57,13 +57,6 @@ const SPECIALIZATIONS = [
   'ENT',
 ]
 
-const DOCTORS = [
-  { id: 'd1', name: 'Dr. Sarah Johnson', specialization: 'Family Medicine', rating: 4.8, reviews: 124, experience: 12, fee: 150, available: true, city: 'Austin, TX' },
-  { id: 'd2', name: 'Dr. Michael Chen', specialization: 'Internal Medicine', rating: 4.9, reviews: 312, experience: 18, fee: 175, available: true, city: 'Chicago, IL' },
-  { id: 'd3', name: 'Dr. Emily Rodriguez', specialization: 'Dermatology', rating: 4.7, reviews: 89, experience: 9, fee: 150, available: false, city: 'San Francisco, CA' },
-  { id: 'd4', name: 'Dr. David Kim', specialization: 'Pediatrics', rating: 4.9, reviews: 156, experience: 14, fee: 140, available: true, city: 'Dallas, TX' },
-]
-
 const MED_CATEGORIES = ['All', 'Diabetes', 'Cardiac', 'Pain Relief', 'Vitamins', 'Antibiotics', 'Digestive']
 const MEDICINES = [
   { id: 'm1', name: 'Metformin 500mg', category: 'Diabetes', price: 35, unit: 'strip of 10', stock: 'In stock' },
@@ -74,47 +67,18 @@ const MEDICINES = [
   { id: 'm6', name: 'Pantoprazole 40mg', category: 'Digestive', price: 95, unit: 'strip of 15', stock: 'In stock' },
 ]
 
-const LABS = [
-  {
-    id: 'l1',
-    name: 'HealthStreet Labs',
-    city: 'Austin, TX',
-    zip: '78701',
-    homeCollection: true,
-    rating: 4.7,
-    tests: [
-      { name: 'Complete Blood Count', price: 35 },
-      { name: 'Lipid Panel', price: 49 },
-      { name: 'HbA1c', price: 39 },
-      { name: 'Thyroid Panel', price: 59 },
-    ],
-  },
-  {
-    id: 'l2',
-    name: 'National Diagnostic Network',
-    city: 'Dallas, TX',
-    zip: '75201',
-    homeCollection: true,
-    rating: 4.8,
-    tests: [
-      { name: 'Vitamin D', price: 45 },
-      { name: 'Liver Function Panel', price: 49 },
-      { name: 'Kidney Function Panel', price: 49 },
-    ],
-  },
-  {
-    id: 'l3',
-    name: 'MediCore Reference Labs',
-    city: 'Chicago, IL',
-    zip: '60601',
-    homeCollection: false,
-    rating: 4.6,
-    tests: [
-      { name: 'Full Body Health Screening', price: 149 },
-      { name: 'Diabetes Screening', price: 39 },
-    ],
-  },
-]
+// Wave-8: the labs catalog used to be three hardcoded fake labs (HealthStreet/
+// National Diagnostic/MediCore) with unbookable ids l1/l2/l3 — booking them
+// always failed with 404 "Lab not found" and the prices were invented.
+interface LabCard {
+  id: string
+  name: string
+  city: string
+  zip: string
+  homeCollection: boolean
+  rating: number
+  tests: Array<{ name: string; price: number }>
+}
 
 // FIX #6: real slot options come from GET /api/doctors/[id]/slots?date= expanded
 // client-side via generateSlots (availability windows + booked instants).
@@ -169,7 +133,7 @@ function DoctorsTab() {
   const [query, setQuery] = React.useState('')
   const [spec, setSpec] = React.useState<string>('all')
   const [bookingDoctor, setBookingDoctor] = React.useState<{ id: string; name: string; specialization: string; rating: number; reviewCount: number; experience: number; consultationFee: number; city: string; videoCallEnabled: boolean; available?: boolean } | null>(null)
-  const [liveDoctors, setLiveDoctors] = React.useState<Array<{ id: string; name: string; specialization: string; rating: number; reviewCount: number; experience: number; consultationFee: number; city: string; videoCallEnabled: boolean }>>([])
+  const [liveDoctors, setLiveDoctors] = React.useState<Array<{ id: string; name: string; specialization: string; rating: number; reviewCount: number; experience: number; consultationFee: number; city: string; videoCallEnabled: boolean; available?: boolean }>>([])
   const [loadingDoctors, setLoadingDoctors] = React.useState(true)
   const [doctorsError, setDoctorsError] = React.useState<string | null>(null)
 
@@ -191,19 +155,10 @@ function DoctorsTab() {
       })
   }, [spec, query])
 
-  // Merge live doctors with demo fallback
-  const allDoctors: Array<{ id: string; name: string; specialization: string; rating: number; reviewCount: number; experience: number; consultationFee: number; city: string; videoCallEnabled: boolean; available?: boolean }> = liveDoctors.length > 0 ? liveDoctors : DOCTORS.map((d) => ({
-    id: d.id,
-    name: d.name,
-    specialization: d.specialization,
-    rating: d.rating,
-    reviewCount: d.reviews,
-    experience: d.experience,
-    consultationFee: d.fee,
-    city: d.city,
-    videoCallEnabled: true,
-    available: d.available,
-  }))
+  // Wave-8: no more fake-doctor fallback — when the API is empty the user
+  // sees an honest empty state instead of four fictional doctors they cannot
+  // actually book.
+  const allDoctors = liveDoctors
 
   const filtered = allDoctors.filter((d) => {
     if (!doctorOnline) return false
@@ -240,7 +195,7 @@ function DoctorsTab() {
       {doctorsError && (
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-center gap-3">
           <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-          <p className="text-xs text-amber-700 dark:text-amber-300">Could not load live doctor data. Showing sample data.</p>
+          <p className="text-xs text-amber-700 dark:text-amber-300">Could not load doctors. Please try again shortly.</p>
         </div>
       )}
       {filtered.length === 0 && !doctorsError && (
@@ -525,10 +480,60 @@ function MedicinesTab() {
 function LabsTab() {
   const { toast } = useToast()
   const { labOnline } = useAppStore()
-  const [bookingLab, setBookingLab] = React.useState<(typeof LABS)[number] | null>(null)
+  const [bookingLab, setBookingLab] = React.useState<LabCard | null>(null)
   const [selectedTests, setSelectedTests] = React.useState<string[]>([])
+  const [liveLabs, setLiveLabs] = React.useState<LabCard[]>([])
+  const [loadingLabs, setLoadingLabs] = React.useState(true)
+  const [labsError, setLabsError] = React.useState(false)
 
-  const filteredLabs = labOnline ? LABS : []
+  // Wave-8: real verified labs from GET /api/labs. Empty DB → honest empty
+  // state, not fictional labs.
+  React.useEffect(() => {
+    let cancelled = false
+    setLoadingLabs(true)
+    fetch('/api/labs', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('Failed to load labs'))))
+      .then((data: unknown) => {
+        if (cancelled) return
+        const rows = Array.isArray(data)
+          ? data
+          : Array.isArray((data as { data?: unknown[] })?.data)
+            ? (data as { data: unknown[] }).data
+            : []
+        const mapped: LabCard[] = (rows as Record<string, unknown>[]).map((l) => ({
+          id: String(l.id ?? ''),
+          name: String(l.labName ?? l.name ?? 'Lab'),
+          city: String(l.city ?? ''),
+          zip: '', // public listing does not expose zip
+          homeCollection: Boolean(l.homeCollection),
+          rating: Number(l.rating ?? 0),
+          tests: (Array.isArray(l.testsOffered) ? (l.testsOffered as Record<string, unknown>[]) : [])
+            .map((t) => ({ name: String(t.name ?? 'Test'), price: Number(t.price ?? 0) }))
+            .filter((t) => t.name),
+        }))
+        setLiveLabs(mapped)
+        setLabsError(false)
+        setLoadingLabs(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setLabsError(true)
+        setLoadingLabs(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const filteredLabs = labOnline ? liveLabs : []
+
+  if (loadingLabs) {
+    return (
+      <div className="flex items-center justify-center py-10 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -587,8 +592,18 @@ function LabsTab() {
         </Card>
       ))}
 
-      {filteredLabs.length === 0 && labOnline && (
-        <EmptyState icon={FlaskConical} text="No labs available" />
+      {!loadingLabs && labsError && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-center gap-3">
+          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">Could not load labs. Please try again shortly.</p>
+        </div>
+      )}
+      {!loadingLabs && !labsError && filteredLabs.length === 0 && labOnline && (
+        <EmptyState
+          icon={FlaskConical}
+          text="No labs onboarded yet"
+          subtext="Verified labs appear here as they join Kynthai."
+        />
       )}
       {!labOnline && (
         <EmptyState icon={FlaskConical} text="No labs online" />
@@ -652,7 +667,7 @@ function LabBookingDialog({
   onClose,
   onConfirm,
 }: {
-  lab: (typeof LABS)[number] | null
+  lab: LabCard | null
   selected: string[]
   onToggle: (name: string) => void
   onClose: () => void

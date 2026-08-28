@@ -103,11 +103,11 @@ export function NotificationPermissionBanner() {
           <p className="text-sm font-semibold text-foreground">Turn on notifications</p>
           <p className="text-xs leading-relaxed text-muted-foreground">{msg}</p>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" className="h-9 gap-1.5" disabled={busy} onClick={() => void onEnable()}>
+            <Button size="sm" className="min-h-11 gap-1.5" disabled={busy} onClick={() => void onEnable()}>
               <Bell className="h-3.5 w-3.5" />
               {busy ? 'Requesting…' : 'Allow notifications'}
             </Button>
-            <Button size="sm" variant="ghost" className="h-9" onClick={dismiss}>
+            <Button size="sm" variant="ghost" className="min-h-11" onClick={dismiss}>
               Later
             </Button>
           </div>

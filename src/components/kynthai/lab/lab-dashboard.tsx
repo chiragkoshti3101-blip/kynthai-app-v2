@@ -61,6 +61,12 @@ const STATUS_CFG: Record<string, { label: string; icon: any; bg: string; color: 
     bg: 'bg-blue-50/60 dark:bg-blue-950/30',
     color: 'text-blue-700 dark:text-blue-300',
   },
+  confirmed: {
+    label: 'Confirmed',
+    icon: CalendarCheck,
+    bg: 'bg-sky-50/60 dark:bg-sky-950/30',
+    color: 'text-sky-700 dark:text-sky-300',
+  },
   processing: {
     label: 'Processing',
     icon: Loader2,
@@ -92,6 +98,7 @@ const DEMO_BOOKINGS: BookingRow[] = [
 
 export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
   const router = useRouter()
+  const isDemoAccount = user.isDemo || user.email?.endsWith('@kynthai.app') || false
   const [labOnline, setLabOnline] = React.useState(true)
   const [tab, setTab] = React.useState<LabTab>('overview')
   const [profileOpen, setProfileOpen] = React.useState(false)
@@ -116,7 +123,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
 
   const fetchData = React.useCallback(async () => {
     // Demo mode: use sample data directly — skip API calls that fail without a real DB
-    if (user.isDemo || user.email?.endsWith('@kynthai.app')) {
+    if (isDemoAccount) {
       // Mirror the production /api/labs/dashboard calc: revenue = Σ(price − commission) over completed
       setStats({
         bookingsTotal: DEMO_BOOKINGS.length,
@@ -146,7 +153,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
     } catch {
       toast({title: 'Failed to load data', variant: 'destructive'})
     } finally { setLoading(false) }
-  }, [toast, user.isDemo, user.email])
+  }, [toast, isDemoAccount])
 
   React.useEffect(() => { fetchData() }, [fetchData])
 
@@ -160,9 +167,12 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
   }, [])
 
   const updateBookingStatus = async (id: string, status: string) => {
-    if (id.startsWith('demo-') || user.isDemo || user.email?.endsWith('@kynthai.app')) {
+    if (id.startsWith('demo-') || isDemoAccount) {
       setBookings(prev => prev.map(b => b.id === id ? { ...b, status } : b))
-      toast({title: 'Updated to ' + ((STATUS_CFG[status]?.label ?? status))})
+      toast({
+        title: `Simulated: marked as ${STATUS_CFG[status]?.label ?? status}`,
+        description: 'Demo session — changes are not persisted and reset on reload.',
+      })
       return
     }
     try {
@@ -205,8 +215,13 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
     finally { setUploadingFor(null) }
   }
 
-  const canAdvance = (s: string) => ['pending', 'sample_collected'].includes(s)
-  const nextStatus = (s: string) => s === 'pending' ? 'sample_collected' : 'completed'
+  // Wave-8: aligned with the server transition table in
+  // /api/lab-bookings/[id] (pending→confirmed→sample_collected→completed).
+  // The old machine skipped 'confirmed' entirely, so a fresh booking's
+  // "Mark as Sample collected" always bounced off the server with 400
+  // INVALID_STATUS_TRANSITION.
+  const canAdvance = (s: string) => ['pending', 'confirmed', 'sample_collected'].includes(s)
+  const nextStatus = (s: string) => s === 'pending' ? 'confirmed' : s === 'confirmed' ? 'sample_collected' : 'completed'
 
   const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
@@ -307,6 +322,13 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
       </div>
 
       <main className="mx-auto max-w-3xl w-full flex-1 px-4 pt-safe pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
+        {/* Wave-8: honest demo banner — demo sessions were silently mutating
+            local state with success toasts while nothing was persisted. */}
+        {isDemoAccount && (
+          <div className="mb-3 rounded-xl border border-amber-500/30 bg-amber-50/70 px-4 py-2.5 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/30 dark:text-amber-300">
+            Demo session — booking updates are simulated and reset on reload. No real data is changed.
+          </div>
+        )}
         {/* OVERVIEW */}
         {tab === 'overview' && (
           <div className="space-y-4">
@@ -418,12 +440,22 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                       </div>
                     </div>
                     {advance && (
-                      <button
-                        onClick={() => updateBookingStatus(b.id, nextStatus(b.status))}
-                        className="w-full inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-                      >
-                        Mark as {STATUS_CFG[nextStatus(b.status)]?.label ?? nextStatus(b.status)}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => updateBookingStatus(b.id, nextStatus(b.status))}
+                          className="flex-1 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                        >
+                          Mark as {STATUS_CFG[nextStatus(b.status)]?.label ?? nextStatus(b.status)}
+                        </button>
+                        {(b.status === 'pending' || b.status === 'confirmed') && (
+                          <button
+                            onClick={() => updateBookingStatus(b.id, 'cancelled')}
+                            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-rose-300 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 )
