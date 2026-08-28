@@ -72,9 +72,24 @@ export async function getAuthUser(): Promise<AuthUser | null> {
     const localSessionCookie = cookieStore.get('kynthai-session');
     if (localSessionCookie?.value) {
       const userId = await verifySessionToken(localSessionCookie.value);
+      // Revocation check (Node runtime — see lib/api-helpers.ts requireAuth):
+      // unexpired revoked_sessions rows invalidate the fallback session.
+      let active = userId;
       if (userId) {
+        try {
+          const revoked = await db.revokedSession.findFirst({
+            where: { userId, expiresAt: { gt: new Date() } },
+            orderBy: { revokedAt: 'desc' },
+            take: 1,
+          });
+          if (revoked) active = null;
+        } catch (err) {
+          console.error('[auth] Revocation check failed (failing open):', err);
+        }
+      }
+      if (active) {
         const user = await db.user.findUnique({
-          where: { id: userId },
+          where: { id: active },
           select: { id: true, email: true, role: true, name: true },
         });
         if (user) {
