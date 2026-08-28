@@ -88,10 +88,41 @@ export async function GET(req: NextRequest) {
       `SELECT COUNT(*)::int AS n FROM "${remTable}"
        WHERE "status" = 'pending' AND "deletedAt" IS NULL`
     )
+    // Drift diagnostics: full-table truth + physical columns. If the table
+    // is empty while dose sends happen via the synthetic fallback, these
+    // reveal whether reminder-row creation is silently failing.
+    out.remindersTotalRows = await safeCount(
+      `SELECT COUNT(*)::int AS n FROM "${remTable}"`
+    )
+    out.remindersAllByStatus = await safeGroup(
+      `SELECT "status" AS k, COUNT(*)::int AS n FROM "${remTable}" GROUP BY 1`
+    )
+    out.remindersDateRange = await safeCount(
+      `SELECT 1 AS n FROM "${remTable}" WHERE "date" IS NOT NULL`
+    ) !== null
+      ? (
+          await db
+            .$queryRawUnsafe<Array<{ mn: Date | null; mx: Date | null }>>(
+              `SELECT MIN("date") AS mn, MAX("date") AS mx FROM "${remTable}"`
+            )
+            .catch(() => [{ mn: null, mx: null }])
+        )[0]
+      : null
+    const colRows = await safeGroup(
+      `SELECT column_name AS k, 1 AS n FROM information_schema.columns
+       WHERE table_name = '${remTable}' ORDER BY ordinal_position`
+    )
+    out.reminderColumns = colRows ? colRows.map((x) => x.k) : null
   } else {
     out.reminders24hByStatus = null
     out.remindersPendingTotal = null
   }
+
+  // ── 3b. Medications — the fuel for the whole pipeline ───────────────────
+  out.medicationsTotal = await safeCount(`SELECT COUNT(*)::int AS n FROM "medications"`)
+  out.medicationsActive = await safeCount(
+    `SELECT COUNT(*)::int AS n FROM "medications" WHERE "active" = true`
+  )
 
   // ── 4. Notification traffic — what the engine actually delivered ────────
   out.notifs24hByChannel = await safeGroup(
