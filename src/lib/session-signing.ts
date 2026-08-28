@@ -77,6 +77,21 @@ export async function verifySessionToken(signed: string): Promise<string | null>
     diff |= (provided[i]!) ^ (expected[i]!);
   }
   if (diff !== 0) return null;
+  
+  // Check if session has been revoked
+  try {
+    const revoked = await db.revokedSession.findFirst({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    if (revoked) return null;
+  } catch (err) {
+    console.error('[session] Revocation check failed:', err);
+    // Fail closed on database error
+    return null;
+  }
+  
   return userId;
 }
 

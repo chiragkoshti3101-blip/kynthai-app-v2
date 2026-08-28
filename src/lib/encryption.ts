@@ -58,7 +58,7 @@ function getKey(): Buffer {
     );
   }
 
-  _KEY = Buffer.from(trimmed.slice(0, 32), 'utf-8');
+  _KEY = Buffer.from(trimmed.slice(0, 32), 'hex');
   return _KEY;
 }
 
@@ -230,7 +230,8 @@ export function decryptValue(encrypted: string): string {
   try {
     const buffer = Buffer.from(encrypted, 'utf8');
     return decrypt(buffer);
-  } catch {
-    return '';
+  } catch (err) {
+    console.error('[encryption] Failed to decrypt:', err);
+    throw new Error('Failed to decrypt data - possible tampering or wrong key');
   }
 }

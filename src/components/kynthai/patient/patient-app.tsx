@@ -222,7 +222,7 @@ interface Appointment {
 
 const DEMO_APPOINTMENTS: Appointment[] = [
   {
-    id: 'a1',
+    id: 'demo_a1',
     doctor: 'Dr. Sarah Chen',
     specialty: 'Cardiology',
     date: '2026-07-16',
@@ -231,7 +231,7 @@ const DEMO_APPOINTMENTS: Appointment[] = [
     status: 'confirmed',
   },
   {
-    id: 'a2',
+    id: 'demo_a2',
     doctor: 'Dr. James Miller',
     specialty: 'General Care',
     date: '2026-07-22',
@@ -240,7 +240,7 @@ const DEMO_APPOINTMENTS: Appointment[] = [
     status: 'upcoming',
   },
   {
-    id: 'a3',
+    id: 'demo_a3',
     doctor: 'Dr. Priya Gupta',
     specialty: 'Dermatology',
     date: '2026-07-25',
@@ -405,7 +405,8 @@ function HomeTab({
   const [bookingOpen, setBookingOpen] = React.useState(false);
   const { toast } = useToast();
   const appointments = DEMO_APPOINTMENTS.filter(a => a.status !== 'completed');
-  const adherence = 92;
+  // TODO: Fetch real adherence from API
+  const adherence = 0;
   const avgMood: JournalEntry['mood'] = 'good';
 
   // Achievement celebration state (defined before JSX for proper closure)
@@ -646,8 +647,8 @@ function HomeTab({
             <Button
               className="w-full"
               onClick={async () => {
-                const t = (document.getElementById('j-title') as HTMLInputElement | null)?.value?.trim() || '';
-                const b = (document.getElementById('j-body') as HTMLTextAreaElement | null)?.value?.trim() || '';
+                const t = titleInput.trim();
+                const b = bodyInput.trim();
                 if (!t && !b) {
                   toast({ title: 'Write something first', variant: 'destructive' });
                   return;

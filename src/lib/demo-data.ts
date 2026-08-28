@@ -136,7 +136,7 @@ export function makeDemoReminders(date: string): Reminder[] {
 
 export const DEMO_APPOINTMENTS: Appointment[] = [
   {
-    id: 'a1',
+    id: 'demo_a1',
     doctor: 'Dr. Sarah Chen',
     specialty: 'Cardiology',
     date: '2026-07-16',
@@ -145,7 +145,7 @@ export const DEMO_APPOINTMENTS: Appointment[] = [
     status: 'confirmed',
   },
   {
-    id: 'a2',
+    id: 'demo_a2',
     doctor: 'Dr. James Miller',
     specialty: 'General Care',
     date: '2026-07-22',
@@ -192,7 +192,7 @@ export const DEMO_JOURNAL: JournalEntry[] = [
 
 export const DEMO_DOCTOR_APPOINTMENTS: Appointment[] = [
   {
-    id: 'a1',
+    id: 'demo_a1',
     patientName: 'Alex Johnson',
     time: '10:30 AM',
     date: 'Today',
@@ -201,7 +201,7 @@ export const DEMO_DOCTOR_APPOINTMENTS: Appointment[] = [
     fee: 75,
   },
   {
-    id: 'a2',
+    id: 'demo_a2',
     patientName: 'Jordan Smith',
     time: '12:00 PM',
     date: 'Today',
@@ -210,7 +210,7 @@ export const DEMO_DOCTOR_APPOINTMENTS: Appointment[] = [
     fee: 75,
   },
   {
-    id: 'a3',
+    id: 'demo_a3',
     patientName: 'Casey Lee',
     time: '09:00 AM',
     date: 'Yesterday',
@@ -219,7 +219,7 @@ export const DEMO_DOCTOR_APPOINTMENTS: Appointment[] = [
     fee: 75,
   },
   {
-    id: 'a4',
+    id: 'demo_a4',
     patientName: 'Taylor Reed',
     time: '02:00 PM',
     date: 'Yesterday',
@@ -231,7 +231,7 @@ export const DEMO_DOCTOR_APPOINTMENTS: Appointment[] = [
 
 export const DEMO_DOCTOR_PRESCRIPTIONS: Prescription[] = [
   {
-    id: 'rx1',
+    id: 'demo_rx1',
     patientId: 'p1',
     patientName: 'Alex Johnson',
     medication: 'Lisinopril 10mg',
@@ -241,7 +241,7 @@ export const DEMO_DOCTOR_PRESCRIPTIONS: Prescription[] = [
     medications: [{ name: 'Lisinopril', dosage: '10mg', frequency: 'Once daily' }],
   },
   {
-    id: 'rx2',
+    id: 'demo_rx2',
     patientId: 'p2',
     patientName: 'Jordan Smith',
     medication: 'Atorvastatin 20mg',
@@ -251,7 +251,7 @@ export const DEMO_DOCTOR_PRESCRIPTIONS: Prescription[] = [
     medications: [{ name: 'Atorvastatin', dosage: '20mg', frequency: 'Once daily' }],
   },
   {
-    id: 'rx3',
+    id: 'demo_rx3',
     patientId: 'p3',
     patientName: 'Casey Lee',
     medication: 'Amoxicillin 500mg',
@@ -917,7 +917,7 @@ export interface Priority {
 export function getDemoPriorities(onNavigate?: (tab: string) => void): Priority[] {
   return [
     {
-      id: 'dp1',
+      id: 'demo_dp1',
       title: 'Take Metformin 500mg',
       description: 'Due at 8:00 AM — take after breakfast',
       priority: 'high',
@@ -925,7 +925,7 @@ export function getDemoPriorities(onNavigate?: (tab: string) => void): Priority[
       action: onNavigate ? { label: 'Mark taken', onClick: () => onNavigate('meds') } : undefined,
     },
     {
-      id: 'dp2',
+      id: 'demo_dp2',
       title: 'Log your symptoms',
       description: "Track how you're feeling today",
       priority: 'medium',
@@ -935,7 +935,7 @@ export function getDemoPriorities(onNavigate?: (tab: string) => void): Priority[
         : undefined,
     },
     {
-      id: 'dp3',
+      id: 'demo_dp3',
       title: 'Chat with Dr. Kynthai',
       description: 'Ask about side effects or drug interactions',
       priority: 'low',
