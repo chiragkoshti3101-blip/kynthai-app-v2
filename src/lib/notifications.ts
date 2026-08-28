@@ -269,14 +269,17 @@ export async function sendNotification(
     })
   }
 
-  // Audit row for the external channel that actually delivered (if any)
+  // Audit row for the external channel that actually delivered (if any).
+  // Body MUST carry the same [ref:dedupeKey] as the in-app row — the reminder
+  // cron dedupes against channel='push' rows, so without the key a delivered
+  // dose would be re-pushed by every subsequent tick/catchup.
   if (delivered && usedChannel !== 'none') {
     await logNotification({
       userId: target.userId,
       channel: usedChannel,
       type: payload.type,
       title: payload.title,
-      body: payload.body,
+      body: payload.dedupeKey ? `${payload.body}\n[ref:${payload.dedupeKey}]` : payload.body,
       recipient,
       status: 'sent',
       cost: usedCost,

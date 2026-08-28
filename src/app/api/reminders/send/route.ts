@@ -265,9 +265,14 @@ async function run(req: NextRequest) {
         // unique per dose — two meds at the same HH:MM no longer collide, and a
         // frequently-running tick cron sends each dose at most ONCE per day
         // while the same HH:MM tomorrow (a fresh reminder row) still fires.
+        // Dedupe matches ONLY successful PUSH deliveries (channel='push') —
+        // the in-app inbox row (channel='in-app') always exists and must NOT
+        // block retries, otherwise a dose whose push failed (dead device
+        // token, offline browser) would never retry despite staying pending.
         const already = await db.notificationLog.findFirst({
           where: {
             userId,
+            channel: 'push',
             type: 'reminder',
             title,
             body: { contains: `dose:${String(reminder.id)}` },
