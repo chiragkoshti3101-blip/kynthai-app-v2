@@ -93,6 +93,8 @@ interface Appointment {
   type: 'video' | 'in-person';
   status: 'pending' | 'confirmed' | 'rescheduled' | 'completed' | 'cancelled' | 'no_show';
   fee: number;
+  /** Raw ISO timestamp (real API rows only) — used for the date-bucketed "today" stat. */
+  scheduledAt?: string;
 }
 
 // ponytail: dashboard API returns raw scheduledAt ISO strings; format once here instead of per-render.
@@ -111,6 +113,14 @@ const formatApptDate = (v: unknown): string => {
   if (diff === 1) return 'Tomorrow';
   if (diff === -1) return 'Yesterday';
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+// Wave-8: the Rx list used to render raw "2026-08-27T18:22:33.000Z" because the
+// server sends createdAt and Prescription has no date column. Format ISO here.
+const formatRxDate = (v: unknown): string => {
+  const s = v ? String(v) : '';
+  if (!s) return 'Today';
+  if (!/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s; // already a display string
+  return new Date(s).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
 interface Prescription {
@@ -435,7 +445,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
     appointments: typeof APPOINTMENTS;
     patients: { id: string; name: string }[];
     prescriptions: typeof PRESCRIPTIONS;
-    stats: { completed: number; upcoming: number; grossEarnings: number };
+    stats: { completed: number; upcoming: number; grossEarnings: number; today?: number };
     revenue?: { thisMonth: number; lastMonth: number; total: number; changePercent: number };
     alerts?: Array<{ type: string; severity: string; message: string; count: number }>;
     priorityList?: Array<{ type: string; priority: string; patientName: string; message: string; scheduledAt: string }>;
@@ -462,7 +472,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         appointments: APPOINTMENTS,
         patients: demoPatients,
         prescriptions: PRESCRIPTIONS,
-        stats: { completed: completedN, upcoming: upcomingN, grossEarnings: gross },
+        stats: { completed: completedN, upcoming: upcomingN, grossEarnings: gross, today: upcomingN },
       });
       setPatientCount(demoPatients.length);
       setApiLoaded(true);
@@ -490,6 +500,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
             type: (rec.type ?? 'video') as 'video' | 'in-person',
             status: (rec.status ?? 'confirmed') as Appointment['status'],
             fee: Number(rec.fee ?? rec.price ?? 0),
+            scheduledAt: rec.scheduledAt ? String(rec.scheduledAt) : undefined,
           };
         }
       );
@@ -531,7 +542,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
               dosage: m.dosage ?? '',
               frequency: m.frequency ?? '',
             })),
-            date: String(rec.date ?? rec.createdAt ?? 'Today'),
+            date: formatRxDate(rec.date ?? rec.createdAt),
             followUpDate: rec.followUpDate ? String(rec.followUpDate) : null,
             status: String(rec.inviteStatus ?? 'active'),
           };
@@ -547,11 +558,30 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
       const grossEarnings = appointments
         .filter(a => a.status === 'completed')
         .reduce((s, a) => s + a.fee, 0);
+      // Wave-8: date-bucketed "today" count. Prefer the server's stats.today
+      // (it buckets by local calendar day server-side); fall back to a client
+      // recompute over the raw ISO timestamps. Fixes the "upcoming today"
+      // label that was actually an any-date status count.
+      const serverStats = (dashData as Record<string, unknown>).stats as
+        | { today?: number }
+        | undefined;
+      const clientToday = appointments.filter(a => {
+        if (a.status !== 'pending' && a.status !== 'confirmed') return false;
+        const d = a.scheduledAt ? new Date(a.scheduledAt) : null;
+        if (!d || isNaN(d.getTime())) return false;
+        const now = new Date();
+        return (
+          d.getFullYear() === now.getFullYear() &&
+          d.getMonth() === now.getMonth() &&
+          d.getDate() === now.getDate()
+        );
+      }).length;
+      const todayCount = typeof serverStats?.today === 'number' ? serverStats.today : clientToday;
       setDashboardData({
         appointments,
         patients,
         prescriptions,
-        stats: { completed, upcoming, grossEarnings },
+        stats: { completed, upcoming, grossEarnings, today: todayCount },
         revenue: (dashData as Record<string, unknown>).revenue as typeof dashboardData extends null ? never : NonNullable<typeof dashboardData>['revenue'],
         alerts: (dashData as Record<string, unknown>).alerts as typeof dashboardData extends null ? never : NonNullable<typeof dashboardData>['alerts'],
         priorityList: (dashData as Record<string, unknown>).priorityList as typeof dashboardData extends null ? never : NonNullable<typeof dashboardData>['priorityList'],
@@ -674,6 +704,11 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   const grossEarnings = isRealData
     ? (dashboardData?.stats?.grossEarnings ?? 0)
     : APPOINTMENTS.filter(a => a.status === 'completed').reduce((s, a) => s + a.fee, 0);
+  // Wave-8: "upcoming today" now shows the date-bucketed count (demo rows are
+  // all "Today", so the demo constant equals its own today count).
+  const todayCount = isRealData
+    ? (dashboardData?.stats?.today ?? upcoming)
+    : upcoming;
   const liveAppointments = isRealData ? (dashboardData?.appointments ?? []) : APPOINTMENTS;
   const livePrescriptions = isRealData ? (dashboardData?.prescriptions ?? []) : PRESCRIPTIONS;
   const hasRealData =
@@ -853,7 +888,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                       Dr. {user.name?.split(' ').slice(-1)[0] ?? 'Doctor'}
                     </h1>
                     <p className="mt-1 text-sm opacity-90">
-                      {upcoming} upcoming today · {completed} completed recently
+                      {todayCount} upcoming today · {completed} completed recently
                     </p>
                   </div>
                 </div>
@@ -1245,7 +1280,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs gap-1"
+                        className="min-h-11 text-xs gap-1"
                         onClick={() => {
                           setEditSchedule(schedule);
                           setAvailOpen(true);
@@ -1326,7 +1361,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                               min={0}
                               autoFocus
                             />
-                            <Button size="sm" variant="ghost" onClick={handleSaveFee} disabled={savingFee} className="h-7 text-xs">
+                            <Button size="sm" variant="ghost" onClick={handleSaveFee} disabled={savingFee} className="min-h-11 text-xs">
                               {savingFee ? 'Saving…' : '✓'}
                             </Button>
                           </div>
@@ -1483,11 +1518,13 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                               </Badge>
                             </div>
                           </CardContent>
-                          {a.status === 'pending' && (
+                          {/* Wave-8: demo rows (a1..a5) hit /api/appointments/a5 → 404
+                              and fake WebRTC rooms → 403. Demo sessions are read-only. */}
+                          {a.status === 'pending' && !isDemo && (
                             <div className="px-3 pb-3 flex gap-2">
                               <Button
                                 size="sm"
-                                className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                className="flex-1 min-h-11 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                                 disabled={updatingApptId === a.id}
                                 onClick={() => handleAppointmentAction(a.id, 'confirmed')}
                               >
@@ -1500,7 +1537,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="flex-1 h-8 text-xs border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400"
+                                className="flex-1 min-h-11 text-xs border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400"
                                 disabled={updatingApptId === a.id}
                                 onClick={() => handleAppointmentAction(a.id, 'cancelled')}
                               >
@@ -1512,11 +1549,11 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                               </Button>
                             </div>
                           )}
-                          {(a.status === 'confirmed' || a.status === 'rescheduled') && (
+                          {(a.status === 'confirmed' || a.status === 'rescheduled') && !isDemo && (
                             <div className="px-3 pb-3 flex gap-2">
                               <Button
                                 size="sm"
-                                className="flex-1 h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                className="flex-1 min-h-11 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
                                 disabled={updatingApptId === a.id}
                                 onClick={() => handleAppointmentAction(a.id, 'completed')}
                               >
@@ -1532,7 +1569,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="flex-1 h-8 text-xs"
+                                className="flex-1 min-h-11 text-xs"
                                 onClick={() => setJoiningCallApptId(a.id)}
                               >
                                 <Video className="h-3 w-3" />
@@ -1541,11 +1578,18 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 text-xs text-muted-foreground"
+                                className="min-h-11 text-xs text-muted-foreground"
                                 onClick={() => setRescheduleApptId(a.id)}
                               >
                                 {t('reschedule')}
                               </Button>
+                            </div>
+                          )}
+                          {isDemo && (a.status === 'pending' || a.status === 'confirmed' || a.status === 'rescheduled') && (
+                            <div className="px-3 pb-3">
+                              <p className="text-[11px] text-muted-foreground">
+                                Demo session — appointment actions are disabled.
+                              </p>
                             </div>
                           )}
                         </Card>
@@ -1641,7 +1685,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 text-xs"
+                          className="min-h-11 text-xs"
                           onClick={() => setView('patients')}
                         >
                           <Pill className="h-3 w-3" />
@@ -1650,7 +1694,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                         <Button
                           size="sm"
                           variant="ghost"
-                          className="h-7 text-xs text-muted-foreground"
+                          className="min-h-11 text-xs text-muted-foreground"
                           onClick={async () => {
                             setNotesPatientId(rx.patientId ?? '');
                             setNotesContent('');
@@ -1663,8 +1707,16 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-7 text-xs gap-1"
+                          className="min-h-11 text-xs gap-1"
                           onClick={async () => {
+                            if (isDemo) {
+                              toast({
+                                title: 'Demo data',
+                                description: 'This prescription is demo data — PDF preview needs a real prescription.',
+                                variant: 'destructive',
+                              });
+                              return;
+                            }
                             await downloadPdf(rx.id);
                           }}
                           disabled={downloadingPdfId === rx.id}

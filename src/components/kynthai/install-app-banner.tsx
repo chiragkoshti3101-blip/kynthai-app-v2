@@ -128,31 +128,31 @@ export function InstallAppBanner({ className }: { className?: string }) {
                 <strong>Add to Home Screen</strong> → Add. Open from the icon and allow notifications.
               </p>
               <div className="flex flex-wrap gap-2 pt-1">
-                <Button size="sm" variant="secondary" className="h-9 gap-1.5" asChild>
+                <Button size="sm" variant="secondary" className="min-h-11 gap-1.5" asChild>
                   <a href="/download">Install guide</a>
                 </Button>
-                <Button size="sm" variant="ghost" className="h-9" onClick={dismiss}>
+                <Button size="sm" variant="ghost" className="min-h-11" onClick={dismiss}>
                   Got it
                 </Button>
               </div>
             </>
           ) : (
             <div className="flex flex-wrap gap-2 pt-1">
-              <Button size="sm" className="h-9 gap-1.5" asChild>
+              <Button size="sm" className="min-h-11 gap-1.5" asChild>
                 <a href={APK_URL} download="Kynthai.apk">
                   <Download className="h-3.5 w-3.5" />
                   Download APK
                 </a>
               </Button>
-              <Button size="sm" variant="secondary" className="h-9 gap-1.5" asChild>
+              <Button size="sm" variant="secondary" className="min-h-11 gap-1.5" asChild>
                 <a href="/download">Install guide</a>
               </Button>
               {hasInstallPrompt && (
-                <Button size="sm" variant="secondary" className="h-9 gap-1.5" onClick={() => void installPwa()}>
+                <Button size="sm" variant="secondary" className="min-h-11 gap-1.5" onClick={() => void installPwa()}>
                   Install (Chrome)
                 </Button>
               )}
-              <Button size="sm" variant="ghost" className="h-9" onClick={dismiss}>
+              <Button size="sm" variant="ghost" className="min-h-11" onClick={dismiss}>
                 Later
               </Button>
             </div>

@@ -126,7 +126,7 @@ export default function FamilyPortalClient({ user }: { user: { id: string; name?
               <p className="text-xs text-muted-foreground">Welcome, {user.name ?? 'User'}</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="gap-1.5">
+          <Button variant="ghost" size="sm" className="min-h-11 gap-1.5">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">{(user.name && user.name.charAt(0)) || '?'}</span>
             </Button>
@@ -143,7 +143,7 @@ export default function FamilyPortalClient({ user }: { user: { id: string; name?
                   variant={tab === t.id ? 'secondary' : 'ghost'}
                   size="sm"
                   onClick={() => setTab(t.id)}
-                  className="gap-1.5 shrink-0"
+                  className="min-h-11 gap-1.5 shrink-0"
                 >
                   <Icon className="h-4 w-4" />
                   <span className="hidden sm:inline">{t.label}</span>

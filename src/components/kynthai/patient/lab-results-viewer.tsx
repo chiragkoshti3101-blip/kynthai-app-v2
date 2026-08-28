@@ -154,26 +154,58 @@ export function LabResultsViewer({ isDemo }: { isDemo: boolean }) {
       if (!res.ok) throw new Error('Failed to fetch results');
       const data: LabResults = await res.json();
 
-      if (!data.hasResultsFile) {
+      if (data.hasResultsFile) {
+        // Real file download — the server authorizes via the booking, decrypts
+        // the stored envelope and streams the original PDF/JPG/PNG bytes.
+        const fileRes = await fetch(`/api/lab-bookings/${bookingId}/results/file`);
+        if (!fileRes.ok) {
+          const errJson = await fileRes.json().catch(() => null);
+          throw new Error(
+            (errJson && typeof errJson.error === 'string' && errJson.error) ||
+              'Failed to download the results file'
+          );
+        }
+        const blob = await fileRes.blob();
+        const ctype = fileRes.headers.get('Content-Type') || '';
+        const ext = ctype.includes('pdf')
+          ? 'pdf'
+          : ctype.includes('jpeg')
+            ? 'jpg'
+            : ctype.includes('png')
+              ? 'png'
+              : 'bin';
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `lab-results-${bookingId}.${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        if (data.resultsNote) setExpandedResults(data);
         toast({
-          title: 'No results file',
-          description: 'Results have not been uploaded yet.',
+          title: 'Results downloaded',
+          description: 'The report has been saved to your downloads folder.',
         });
         return;
       }
 
       if (data.resultsNote) {
         setExpandedResults(data);
+        toast({
+          title: 'No file attached',
+          description: 'Showing the result summary provided by your lab.',
+        });
       } else {
         toast({
-          title: 'Results available',
-          description: 'Results file is ready. Contact your lab for a copy.',
+          title: 'No results yet',
+          description: 'Results have not been uploaded yet.',
         });
       }
-    } catch {
+    } catch (err: unknown) {
       toast({
         title: 'Error',
-        description: 'Could not load results. Try again later.',
+        description: err instanceof Error ? err.message : 'Could not load results. Try again later.',
         variant: 'destructive',
       });
     } finally {

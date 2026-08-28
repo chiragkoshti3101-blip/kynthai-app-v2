@@ -411,7 +411,11 @@ export function LoginPage({
         useAppStore.getState().completeOnboarding(user.role);
       }
 
-      if (mode === 'signin') {
+      // Wave-8: the pending family-invite check used to fire on EVERY form
+      // sign-in for all five portals. It is only meaningful for the roles with
+      // family UX (patient / caretaker) — doctor and lab logins no longer make
+      // this request. Invitees are matched by email and may hold either role.
+      if (mode === 'signin' && (user.role === 'patient' || user.role === 'caretaker')) {
         setInvitesLoading(true);
         try {
           const invRes = await fetch('/api/family/invite', { credentials: 'include' });

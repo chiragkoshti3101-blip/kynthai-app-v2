@@ -235,6 +235,13 @@ interface Appointment {
   status: 'pending' | 'upcoming' | 'confirmed' | 'completed' | 'cancelled';
 }
 
+// Wave-8: no more raw ISO strings in the UI — dates render through formatters.
+function formatApptDay(value: string): string {
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return value;
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 const DEMO_APPOINTMENTS: Appointment[] = [
   {
     id: 'a1',
@@ -346,6 +353,9 @@ function ApptRow({
   onCancel?: (id: string) => void;
   cancellingId?: string | null;
 }) {
+  // Demo rows carry fictional ids (a1/a3/...) — actions that would PATCH
+  // /api/appointments/{demo-id} or open a fake WebRTC room are simply not
+  // rendered (handlers are passed as undefined for demo sessions).
   const sc: Record<string, string> = {
     pending: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
     confirmed: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
@@ -364,7 +374,8 @@ function ApptRow({
           <span className="text-muted-foreground font-normal">· {appt.specialty}</span>
         </p>
         <p className="text-sm text-muted-foreground">
-          {appt.date} · {appt.type === 'video' ? '📹 Video' : '📍 In-person'}
+          {formatApptDay(appt.date)}
+          {appt.time ? ` · ${appt.time}` : ''} · {appt.type === 'video' ? '📹 Video' : '📍 In-person'}
         </p>
       </div>
       <Badge variant="secondary" className={`text-[0.625rem] shrink-0 ${sc[appt.status] ?? sc.pending}`}>
@@ -406,6 +417,7 @@ function HomeTab({
   onJoinCall,
   onCancelAppointment,
   cancellingApptId,
+  appointmentsVersion,
 }: {
   user: AuthUser;
   isFree: boolean;
@@ -414,14 +426,93 @@ function HomeTab({
   onJoinCall: (id: string) => void;
   onCancelAppointment?: (id: string) => void;
   cancellingApptId?: string | null;
+  appointmentsVersion?: number;
 }) {
   const greeting = useGreeting();
   const [journalOpen, setJournalOpen] = React.useState(false);
   const [bookingOpen, setBookingOpen] = React.useState(false);
   const { toast } = useToast();
-  const appointments = DEMO_APPOINTMENTS.filter(a => a.status !== 'completed');
-  const adherence = 92;
+  // Wave-8 single source of truth: appointments / adherence / streak all come
+  // from the real APIs. The hardcoded demo constants are only a fallback for
+  // demo sessions when the API has nothing to show — and demo rows never get
+  // action buttons (their ids are fictional).
+  const [liveAppointments, setLiveAppointments] = React.useState<Appointment[]>([]);
+  const [apptsLoaded, setApptsLoaded] = React.useState(false);
+  const [adherence, setAdherence] = React.useState<number | null>(null);
+  const [streakDays, setStreakDays] = React.useState(0);
   const avgMood: JournalEntry['mood'] = 'good';
+
+  const loadHome = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/appointments', { credentials: 'include', cache: 'no-store' });
+      if (res.ok) {
+        const payload = await res.json().catch(() => null);
+        const rows: unknown[] = Array.isArray(payload)
+          ? payload
+          : Array.isArray((payload as { data?: unknown[] })?.data)
+            ? (payload as { data: unknown[] }).data
+            : [];
+        const now = Date.now();
+        const mapped: Appointment[] = rows
+          .map(r => r as Record<string, unknown>)
+          .filter(r => r.status === 'pending' || r.status === 'confirmed')
+          .filter(r => {
+            const t = new Date(String(r.scheduledAt ?? '')).getTime();
+            return !isNaN(t) && t > now - 60 * 60 * 1000; // keep appts that just started
+          })
+          .sort(
+            (a, b) =>
+              new Date(String(a.scheduledAt)).getTime() - new Date(String(b.scheduledAt)).getTime()
+          )
+          .slice(0, 5)
+          .map(r => ({
+            id: String(r.id),
+            doctor: String(r.doctorName ?? 'Your doctor'),
+            specialty: String(r.specialization ?? 'General Care'),
+            date: String(r.scheduledAt ?? ''),
+            time: '',
+            type: r.type === 'video' ? ('video' as const) : ('in-person' as const),
+            status: r.status === 'pending' ? ('pending' as const) : ('confirmed' as const),
+          }));
+        setLiveAppointments(mapped);
+      }
+    } catch {
+      /* keep whatever we have */
+    } finally {
+      setApptsLoaded(true);
+    }
+    // Real weekly adherence from the reminder log (no more hardcoded 92).
+    try {
+      const res = await fetch(`/api/reminders/stats?userId=${encodeURIComponent(user.id)}`, {
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const s = await res.json();
+        if (typeof s?.weeklyAdherence === 'number') setAdherence(s.weeklyAdherence);
+      }
+    } catch {
+      /* keep null — renders as an honest “not tracked yet” */
+    }
+    // Real daily-meds streak (demo accounts get the curated demo streak).
+    try {
+      const res = await fetch('/api/streaks', { credentials: 'include' });
+      if (res.ok) {
+        const s = await res.json();
+        const list = Array.isArray(s?.streaks) ? s.streaks : [];
+        const daily = list.find((x: { type?: string; count?: number }) => x?.type === 'daily_meds');
+        if (daily && typeof daily.count === 'number') setStreakDays(daily.count);
+      }
+    } catch {
+      /* keep 0 */
+    }
+  }, [user.id]);
+
+  React.useEffect(() => {
+    loadHome();
+  }, [loadHome, appointmentsVersion]);
+
+  const demoAppointments = DEMO_APPOINTMENTS.filter(a => a.status !== 'completed');
+  const appointments = isDemo && !apptsLoaded ? demoAppointments : liveAppointments;
 
   // Achievement celebration state (defined before JSX for proper closure)
   const achievementState = React.useState({ show: false, type: 'adherence' as const, milestone: 0 });
@@ -434,17 +525,18 @@ function HomeTab({
   // user opens the app (or returns to Home) is noise, not a reward. Persist
   // the last celebration date so it can't nag day after day either.
   const [celebratedDate, setCelebratedDate] = React.useState<string | null>(null);
+  const displayAdherence = adherence ?? 0;
   React.useEffect(() => {
-    if (adherence < 80) return;
+    if (displayAdherence < 80) return;
     const today = new Date().toISOString().slice(0, 10);
     let last: string | null = null;
     try {
       last = window.localStorage.getItem('kynthai:lastAchievementShown');
     } catch { /* storage unavailable */ }
     if (last === today) return; // already celebrated today
-    setAchievement({ show: true, type: 'adherence' as const, milestone: adherence });
+    setAchievement({ show: true, type: 'adherence' as const, milestone: displayAdherence });
     setCelebratedDate(today);
-  }, [adherence]);
+  }, [displayAdherence]);
 
   // Persist the celebration date the moment it actually appears (so a
   // dismissed popup doesn't re-trigger on the next render in the same session).
@@ -473,7 +565,9 @@ function HomeTab({
             <p className="text-sm text-muted-foreground mt-0.5">
               {appointments.length > 0
                 ? `${appointments.length} upcoming appointment${appointments.length > 1 ? 's' : ''}`
-                : 'All clear — no upcoming appointments'}
+                : apptsLoaded
+                  ? 'All clear — no upcoming appointments'
+                  : 'Loading appointments…'}
             </p>
             {appointments.length === 0 && (
               <button
@@ -485,7 +579,7 @@ function HomeTab({
             )}
           </div>
           <div className="flex flex-col items-center">
-            <StreakRing days={adherence} />
+            <StreakRing days={streakDays} />
             <span className="text-[0.625rem] text-muted-foreground mt-0.5">day streak</span>
           </div>
         </div>
@@ -516,17 +610,20 @@ function HomeTab({
         </FadeIn>
       )}
 
-      {/* Vitals grid */}
-      <FadeIn delay={0.1}>
-        <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
-          Today&apos;s Vitals
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {METRICS.map((m, i) => (
-            <MetricCard key={m.label} m={m} index={i} />
-          ))}
-        </div>
-      </FadeIn>
+      {/* Vitals grid — demo tour content only. Real users never see
+          fabricated blood-pressure/heart-rate numbers (wave-8). */}
+      {isDemo && (
+        <FadeIn delay={0.1}>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+            Today&apos;s Vitals
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {METRICS.map((m, i) => (
+              <MetricCard key={m.label} m={m} index={i} />
+            ))}
+          </div>
+        </FadeIn>
+      )}
 
       {/* Appointments */}
       <FadeIn delay={0.12}>
@@ -555,14 +652,14 @@ function HomeTab({
               <ApptRow
                 key={a.id}
                 appt={a}
-                onJoinCall={onJoinCall}
-                onCancel={onCancelAppointment}
+                onJoinCall={isDemo ? undefined : onJoinCall}
+                onCancel={isDemo ? undefined : onCancelAppointment}
                 cancellingId={cancellingApptId}
               />
             ))
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              No upcoming appointments
+              {apptsLoaded ? 'No upcoming appointments' : 'Loading…'}
             </p>
           )}
         </div>
@@ -575,19 +672,25 @@ function HomeTab({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-base font-semibold">Med Adherence</h3>
-                <p className="text-sm text-muted-foreground mt-0.5">Great progress this week!</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {adherence === null
+                    ? 'Log your doses to start tracking'
+                    : displayAdherence >= 80
+                      ? 'Great progress this week!'
+                      : 'Every dose counts — keep going!'}
+                </p>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {adherence}%
+                  {adherence === null ? '—' : `${displayAdherence}%`}
                 </span>
                 <p className="text-[0.625rem] text-muted-foreground">
-                  {adherence >= 80 ? '🔥' : ''}
-                  {adherence}%
+                  {displayAdherence >= 80 && adherence !== null ? '🔥' : ''}
+                  {adherence === null ? '' : `${displayAdherence}%`}
                 </p>
               </div>
             </div>
-            <Progress value={adherence} className="mt-3 h-2" />
+            <Progress value={displayAdherence} className="mt-3 h-2" />
           </CardContent>
         </Card>
       </FadeIn>
@@ -921,7 +1024,7 @@ function JournalTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">Health Journal</h2>
-        <Button size="sm" onClick={() => setOpen(true)} className="gap-1.5">
+        <Button size="sm" onClick={() => setOpen(true)} className="min-h-11 gap-1.5">
           <Plus className="h-3.5 w-3.5" /> New
         </Button>
       </div>
@@ -954,7 +1057,9 @@ function JournalTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-base font-semibold">{e.title}</p>
-                      <span className="text-[0.625rem] text-muted-foreground shrink-0">{e.date}</span>
+                      <span className="text-[0.625rem] text-muted-foreground shrink-0">
+                        {formatApptDay(e.date)}
+                      </span>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{e.body}</p>
                   </div>
@@ -1228,6 +1333,8 @@ export function PatientApp({ user }: { user: AuthUser }) {
   const [joiningCallApptId, setJoiningCallApptId] = React.useState<string | null>(null);
   const [cancellingApptId, setCancellingApptId] = React.useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = React.useState<string | null>(null);
+  // Bumped after a successful cancel so HomeTab refetches live appointments.
+  const [apptsVersion, setApptsVersion] = React.useState(0);
   // null = unknown (assume working); false = server has no funded AI key.
   const [aiAvailable, setAiAvailable] = React.useState<boolean | null>(null);
 
@@ -1373,6 +1480,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
           const data = await res.json().catch(() => ({}));
           throw new Error(data?.error || 'Failed to cancel appointment');
         }
+        setApptsVersion(v => v + 1);
         toast({ title: 'Appointment cancelled' });
       } catch (error) {
         toast({
@@ -1454,6 +1562,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
                 onJoinCall={setJoiningCallApptId}
                 onCancelAppointment={(id) => setCancelConfirmId(id)}
                 cancellingApptId={cancellingApptId}
+                appointmentsVersion={apptsVersion}
               />
             </FadeIn>
           )}
@@ -1531,13 +1640,14 @@ export function PatientApp({ user }: { user: AuthUser }) {
         </FadeIn>
       )}
 
-      {/* Share sheet */}
+      {/* Share sheet — wave-8: no fabricated streak/adherence numbers in
+          shared content; the share text is honest app promotion. */}
       {shareOpen && (
         <ShareSheet
           open={shareOpen}
           onOpenChange={setShareOpen}
-          title="Share your health summary"
-          shareText={`${user.name}'s health summary — 7 day streak, 92% adherence`}
+          title="Share Kynthai"
+          shareText={`${user.name ?? 'I'} use${user.name ? 's' : ''} Kynthai to stay on top of medications — dose reminders, family updates and doctor consults in one app.`}
         />
       )}
 

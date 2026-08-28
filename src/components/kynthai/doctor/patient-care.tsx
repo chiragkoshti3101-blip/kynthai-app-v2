@@ -131,9 +131,10 @@ export function PatientCare({ onPatientClick, isDemo = false }: { onPatientClick
   const handleNudge = React.useCallback(
     async (p: PatientAdherence) => {
       if (isDemo || p.id.startsWith('dp')) {
+        // Wave-8 honesty: the demo patient is fictional — nobody was notified.
         toast({
-          title: t('nudge_sent'),
-          description: `${p.name.split(' ')[0]} ${t('has_been_notified')}`,
+          title: `${t('nudge_sent')} (demo)`,
+          description: `Simulated for ${p.name.split(' ')[0]} — demo patients are fictional and no notification is sent.`,
         })
         return
       }
@@ -147,13 +148,20 @@ export function PatientCare({ onPatientClick, isDemo = false }: { onPatientClick
             channel: 'in-app',
           }),
         })
-        if (!res.ok) throw new Error('Failed')
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data?.error || 'Failed to send nudge')
+        }
         toast({
           title: t('nudge_sent'),
           description: `${p.name.split(' ')[0]} ${t('has_been_notified')}`,
         })
-      } catch {
-        toast({ title: t('could_not_nudge'), description: t('try_again_later'), variant: 'destructive' })
+      } catch (err) {
+        toast({
+          title: t('could_not_nudge'),
+          description: err instanceof Error ? err.message : t('try_again_later'),
+          variant: 'destructive',
+        })
       }
     },
     [toast, isDemo],
