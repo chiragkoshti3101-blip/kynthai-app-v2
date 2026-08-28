@@ -66,17 +66,21 @@ export async function GET(req: NextRequest) {
     `SELECT COUNT(DISTINCT "userId")::int AS n FROM "push_subscriptions"`
   )
 
-  // ── 3. Reminder rows in the last 24h by status ──────────────────────────
-  // NOTE: the Reminder model has no @@map in schema.prisma, so depending on
-  // how the database was created the physical table may be "reminders" or
-  // the Prisma-default "Reminder". Probe once and reuse whichever exists.
+  // ── 3. Reminder rows ────────────────────────────────────────────────────
+  // CRITICAL: the Reminder model has no @@map, so Prisma Client reads/writes
+  // the Prisma-default table "Reminder". An empty snake_case "reminders"
+  // table ALSO exists in this database (legacy bootstrap artifact). Report
+  // BOTH so the real store is never confused with the decoy.
+  const remindersSnake = await safeCount(`SELECT COUNT(*)::int AS n FROM "reminders"`)
+  const remindersPascal = await safeCount(`SELECT COUNT(*)::int AS n FROM "Reminder"`)
+  out.tableRemindersSnake = remindersSnake
+  out.tableReminderPascal = remindersPascal
   let remTable: 'reminders' | 'Reminder' | null = null
-  const probe = await safeCount(`SELECT COUNT(*)::int AS n FROM "reminders"`)
-  if (probe !== null) {
-    remTable = 'reminders'
-  } else if ((await safeCount(`SELECT COUNT(*)::int AS n FROM "Reminder"`)) !== null) {
-    remTable = 'Reminder'
-  }
+  // Prefer the table that actually has rows; fall back to Prisma default.
+  if (remindersPascal !== null && remindersPascal > 0) remTable = 'Reminder'
+  else if (remindersSnake !== null && remindersSnake > 0) remTable = 'reminders'
+  else if (remindersPascal !== null) remTable = 'Reminder'
+  else if (remindersSnake !== null) remTable = 'reminders'
   out.reminderTable = remTable ?? 'not-found'
   if (remTable) {
     out.reminders24hByStatus = await safeGroup(
