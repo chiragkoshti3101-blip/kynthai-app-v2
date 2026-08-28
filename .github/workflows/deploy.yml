@@ -262,7 +262,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The deploy runs only when VERCEL_TOKEN exists. Without the token the
+      # job succeeds with a warning (CI stays green on pushes; the operator
+      # ships via the CLI) and the very same run auto-deploys the moment the
+      # VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID secrets are added.
+      - name: Check for VERCEL_TOKEN
+        id: token_check
+        env:
+          VERCEL_TOKEN_PRESENT: ${{ secrets.VERCEL_TOKEN != '' && 'true' || 'false' }}
+        run: echo "available=${VERCEL_TOKEN_PRESENT}" >> "$GITHUB_OUTPUT"
+
+      - name: Skip notice (no VERCEL_TOKEN secret)
+        if: steps.token_check.outputs.available != 'true'
+        run: |
+          echo "::warning::VERCEL_TOKEN secret is not set — skipping Vercel production deploy. Add VERCEL_TOKEN (+ VERCEL_ORG_ID / VERCEL_PROJECT_ID) repo secrets and this same workflow will deploy on every push to main."
+
       - name: Deploy to Vercel (Production)
+        if: steps.token_check.outputs.available == 'true'
         run: npx vercel@latest deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

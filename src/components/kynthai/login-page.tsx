@@ -716,7 +716,7 @@ export function LoginPage({
                           <span className="font-semibold text-foreground">18 years or older</span>.
                           By proceeding, you confirm that you meet this age requirement.
                         </p>
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-[0.6875rem] text-muted-foreground">
                           If you are under 18, a parent or legal guardian must create and manage
                           your account through the{' '}
                           <span className="text-emerald-600">Family portal</span>.
@@ -747,7 +747,7 @@ export function LoginPage({
                   >
                     <p className="font-semibold">Could not sign in</p>
                     <p className="mt-0.5 text-xs opacity-90">{formError}</p>
-                    <p className="mt-1 text-[11px] opacity-80">Your email was kept — fix the password and try again.</p>
+                    <p className="mt-1 text-[0.6875rem] opacity-80">Your email was kept — fix the password and try again.</p>
                   </div>
                 )}
                   {/* Registration fields - always rendered, hidden when mode === 'signin' */}
@@ -859,7 +859,7 @@ export function LoginPage({
                         <button
                           type="button"
                           onClick={() => router.push('/forgot-password')}
-                          className="min-h-11 min-w-11 rounded-md px-1 -mx-1 py-2 -my-2 text-[13px] font-medium text-emerald-600 underline-offset-2 hover:text-emerald-700 hover:underline"
+                          className="min-h-11 min-w-11 rounded-md px-1 -mx-1 py-2 -my-2 text-[0.8125rem] font-medium text-emerald-600 underline-offset-2 hover:text-emerald-700 hover:underline"
                         >
                           Forgot password?
                         </button>
@@ -907,7 +907,7 @@ export function LoginPage({
                         onCheckedChange={v => setTermsConsent(v === true)}
                         className="mt-0.5"
                       />
-                      <span className="text-[13px] text-muted-foreground leading-relaxed">
+                      <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
                         I agree to the{' '}
                         <button
                           type="button"
@@ -933,7 +933,7 @@ export function LoginPage({
                         onCheckedChange={v => setDataConsent(v === true)}
                         className="mt-0.5"
                       />
-                      <span className="text-[13px] text-muted-foreground leading-relaxed">
+                      <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
                         I consent to processing of my personal and health data under US health
                         data laws.{' '}
                         <span className="font-medium text-foreground">Privacy-first</span>.
@@ -945,7 +945,7 @@ export function LoginPage({
                         onCheckedChange={v => setAiTrainingConsent(v === true)}
                         className="mt-0.5"
                       />
-                      <span className="text-[13px] text-muted-foreground leading-relaxed">
+                      <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
                         I consent to letting Kynthai use <em>de-identified</em> health data to
                         improve AI features. My personal data is never shared or identifiable. See
                         the{' '}

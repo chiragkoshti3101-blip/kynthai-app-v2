@@ -9,7 +9,11 @@
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:statusBarColor">@color/colorPrimary</item>
+        <!-- Status-bar tint synced with the app header (#f9fdfb) so the native
+             bar never looks like a stray emerald strip above the UI. On
+             Android 15+ edge-to-edge is enforced and this is ignored there;
+             it still fixes the tint on Android 10–14. -->
+        <item name="android:statusBarColor">@color/app_background</item>
         <item name="android:navigationBarColor">@android:color/black</item>
         <item name="android:windowBackground">@color/app_background</item>
     </style>

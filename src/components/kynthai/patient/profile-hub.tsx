@@ -313,7 +313,7 @@ export function ProfileHub({
       {/* Health Score Ring */}
       <div className="px-5 mt-4">
         <div className="rounded-2xl border border-border/60 bg-card/60 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
             Overall Health Score
           </p>
           <div className="flex items-center gap-4">
@@ -334,7 +334,7 @@ export function ProfileHub({
                     ? `${healthScore}/100`
                     : 'No data yet'}
               </p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[0.6875rem] text-muted-foreground">
                 {healthScore !== null && healthScore >= 80
                   ? 'Excellent health metrics'
                   : healthScore !== null && healthScore >= 60
@@ -363,7 +363,7 @@ export function ProfileHub({
           </span>
           <div className="flex-1 text-left">
             <p className="text-sm font-medium">{editingProfile ? 'Cancel editing' : 'Edit profile'}</p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-[0.6875rem] text-muted-foreground">
               {editingProfile ? 'Discard changes' : 'Update your name, phone, and date of birth'}
             </p>
           </div>
@@ -676,7 +676,7 @@ export function ProfileHub({
         >
           Legal & Privacy
         </a>
-        <p suppressHydrationWarning className="mt-2 text-[11px] text-muted-foreground">
+        <p suppressHydrationWarning className="mt-2 text-[0.6875rem] text-muted-foreground">
           © {new Date().getFullYear()} Kynthai™. All rights reserved.
         </p>
       </div>
@@ -697,7 +697,7 @@ export function ProfileHub({
           <LogOut className="h-4 w-4" />
           Log out
         </Button>
-        <p className="mt-3 text-center text-[11px] text-muted-foreground">
+        <p className="mt-3 text-center text-[0.6875rem] text-muted-foreground">
           Kynthai v3 · Data encrypted in transit &amp; at rest
         </p>
       </div>
@@ -879,7 +879,7 @@ function ConsentManager({ consentFlags }: ConsentManagerProps) {
           })}
         </CardContent>
       </Card>
-      <p className="mt-2 text-[10px] text-muted-foreground">
+      <p className="mt-2 text-[0.625rem] text-muted-foreground">
         Withdrawing any consent is immediate and recorded in the audit log.
       </p>
     </div>
@@ -901,7 +901,7 @@ function ContactRow({
         <Icon className="h-4 w-4" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] text-muted-foreground">{label}</p>
+        <p className="text-[0.6875rem] text-muted-foreground">{label}</p>
         <p className="text-sm font-medium truncate">{value}</p>
       </div>
     </div>

@@ -62,6 +62,16 @@ function isUpcoming(time: string) {
   return target.getTime() >= now.getTime() - 60 * 1000;
 }
 
+// Founder P1: micro-confirmation — a 10ms tick on dose actions (Vibration
+// API). Best-effort: silently ignored where unsupported (iOS Safari, desktop).
+function haptic(pattern: number | number[] = 10) {
+  try {
+    navigator.vibrate?.(pattern);
+  } catch {
+    /* unsupported — no-op */
+  }
+}
+
 export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?: string; isDemo?: boolean; onLoaded?: () => void; externalAlarm?: boolean } = {}) {
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [stats, setStats] = useState<ReminderStats | null>(null);
@@ -194,6 +204,7 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
 
   // FIX #16: undo a mistaken Take/Skip — revert the dose back to pending
   const undoStatus = async (reminder: Reminder, markedAs: 'taken' | 'skipped') => {
+    haptic(10);
     if (isDemo) {
       setReminders(prev =>
         prev.map(r => (r.id === reminder.id ? { ...r, status: 'pending' as const } : r))
@@ -236,6 +247,7 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
 
   const updateStatus = async (reminder: Reminder, status: 'taken' | 'skipped') => {
     setUpdating(reminder.id);
+    haptic(status === 'taken' ? [12, 40, 12] : 10);
     // Play success chime when marking taken
     if (status === 'taken' && alarmEnabled) {
       playSuccessChime();
@@ -488,7 +500,7 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
               Take
             </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground text-center">
+          <p className="text-[0.625rem] text-muted-foreground text-center">
             Alarm will repeat until taken. Tap Take or Skip.
           </p>
         </div>

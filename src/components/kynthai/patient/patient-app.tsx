@@ -27,6 +27,7 @@ import {
   Plus,
   ChevronRight,
   FlaskConical,
+  LayoutGrid,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -55,7 +56,7 @@ import { cn } from '@/lib/utils';
 import { useAppStore, type AuthUser } from '@/lib/store';
 import { KynthaiBrand } from '@/components/kynthai/logo';
 import { useRouter } from 'next/navigation';
-import { isDemoUser } from '@/lib/demo-mode';
+import { isDemoUser, isDemoEnabled } from '@/lib/demo-mode';
 import { useGreeting } from '@/lib/greeting';
 import { AchievementCelebration } from '@/components/kynthai/achievement-celebration';
 import { useToast } from '@/hooks/use-toast';
@@ -105,7 +106,14 @@ const MarketView = dynamic(
       })),
   {
     ssr: false,
-    loading: () => <div className="text-sm text-muted-foreground text-center py-8">Loading…</div>,
+    // Founder P1: skeleton instead of text — feels instant even on 3G.
+    loading: () => (
+      <div className="space-y-3" aria-hidden>
+        <div className="h-24 rounded-2xl bg-muted animate-pulse" />
+        <div className="h-40 rounded-2xl bg-muted animate-pulse" />
+        <div className="h-40 rounded-2xl bg-muted animate-pulse" />
+      </div>
+    ),
   }
 );
 
@@ -113,18 +121,25 @@ const MarketView = dynamic(
 // types & data
 // ════════════════════════════════════════════════════════════════════════════
 
-type Tab = 'home' | 'meds' | 'market' | 'lab' | 'ai' | 'journal' | 'tools' | 'sos';
+type Tab = 'home' | 'meds' | 'market' | 'lab' | 'ai' | 'journal' | 'tools' | 'sos' | 'more';
 type TabVariant = Tab;
 
+// Founder UX wave: 5 bottom tabs (native convention) + SOS as a floating
+// emergency action. AI / Journal / Tools / SOS live inside the More hub and
+// remain valid routes for notifications & quick links.
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'home', label: 'Home', icon: Home },
   { id: 'meds', label: 'Meds', icon: Pill },
   { id: 'market', label: 'Care', icon: ShoppingBag },
   { id: 'lab', label: 'Lab', icon: FlaskConical },
-  { id: 'ai', label: 'AI', icon: Sparkles },
-  { id: 'journal', label: 'Journal', icon: BookOpen },
-  { id: 'tools', label: 'Tools', icon: HeartPulse },
-  { id: 'sos', label: 'SOS', icon: Siren },
+  { id: 'more', label: 'More', icon: LayoutGrid },
+];
+
+const MORE_ITEMS: { id: Tab; label: string; desc: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: 'ai', label: 'AI Assistant', desc: 'Ask about meds, symptoms & health', icon: Sparkles },
+  { id: 'journal', label: 'Health Journal', desc: 'Track how you feel each day', icon: BookOpen },
+  { id: 'tools', label: 'Care Tools', desc: 'Family care & health checks', icon: HeartPulse },
+  { id: 'sos', label: 'Emergency SOS', desc: 'Alert your trusted contacts', icon: Siren },
 ];
 
 interface HealthMetric {
@@ -287,7 +302,7 @@ function StreakRing({ days, target }: { days: number; target?: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{days}</span>
-        <span className="text-[10px] text-muted-foreground">days</span>
+        <span className="text-[0.625rem] text-muted-foreground">days</span>
       </div>
     </div>
   );
@@ -305,10 +320,10 @@ function MetricCard({ m, index }: { m: HealthMetric; index: number }) {
             <Icon className="h-5 w-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] text-muted-foreground">{m.label}</p>
+            <p className="text-[0.6875rem] text-muted-foreground">{m.label}</p>
             <div className="flex items-baseline gap-1">
               <span className="text-base font-semibold">{m.value}</span>
-              <span className="text-[10px] text-muted-foreground">{m.unit}</span>
+              <span className="text-[0.625rem] text-muted-foreground">{m.unit}</span>
             </div>
           </div>
           <TrendingUp
@@ -352,7 +367,7 @@ function ApptRow({
           {appt.date} · {appt.type === 'video' ? '📹 Video' : '📍 In-person'}
         </p>
       </div>
-      <Badge variant="secondary" className={`text-[10px] shrink-0 ${sc[appt.status] ?? sc.pending}`}>
+      <Badge variant="secondary" className={`text-[0.625rem] shrink-0 ${sc[appt.status] ?? sc.pending}`}>
         {appt.status}
       </Badge>
       {appt.type === 'video' && appt.status === 'confirmed' && onJoinCall && (
@@ -471,7 +486,7 @@ function HomeTab({
           </div>
           <div className="flex flex-col items-center">
             <StreakRing days={adherence} />
-            <span className="text-[10px] text-muted-foreground mt-0.5">day streak</span>
+            <span className="text-[0.625rem] text-muted-foreground mt-0.5">day streak</span>
           </div>
         </div>
       </FadeIn>
@@ -490,7 +505,7 @@ function HomeTab({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">Upgrade to Plus — $9/mo</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[0.6875rem] text-muted-foreground">
                     Unlimited AI, lab booking & advanced analytics
                   </p>
                 </div>
@@ -566,7 +581,7 @@ function HomeTab({
                 <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                   {adherence}%
                 </span>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[0.625rem] text-muted-foreground">
                   {adherence >= 80 ? '🔥' : ''}
                   {adherence}%
                 </p>
@@ -593,7 +608,7 @@ function HomeTab({
                   ? '😊 Feeling good — how about you?'
                   : 'How are you feeling today?'}
               </p>
-              <p className="text-[11px] text-muted-foreground">Tap to add a journal entry</p>
+              <p className="text-[0.6875rem] text-muted-foreground">Tap to add a journal entry</p>
             </div>
             <Plus className="ml-auto h-4 w-4 text-muted-foreground" />
           </div>
@@ -687,11 +702,14 @@ function HomeTab({
 }
 
 // ── Meds tab ────────────────────────────────────────────────────────────────
-function MedsTab({ userId, isDemo }: { userId: string; isDemo: boolean }) {
+function MedsTab({ userId, isDemo, showDebugAlarm }: { userId: string; isDemo: boolean; showDebugAlarm: boolean }) {
   return (
     <div className="space-y-5">
       <h2 className="text-xl font-bold">My Medications</h2>
-      {isDemo && (
+      {/* Founder P0: QA debug tools must never render in production builds.
+          isDemoEnabled() is build-time gated (false when NODE_ENV=production),
+          so the demo alarm-test button only exists in local development. */}
+      {showDebugAlarm && (
         <button
           type="button"
           className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-md active:scale-[0.99]"
@@ -735,26 +753,112 @@ function LabTab({ isDemo }: { isDemo: boolean }) {
 }
 
 // ── AI tab ──────────────────────────────────────────────────────────────────
-function AiTab({ onNavigate }: { onNavigate: (t: Tab) => void }) {
+function AiTab({ onNavigate, aiAvailable }: { onNavigate: (t: Tab) => void; aiAvailable: boolean | null }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-bold">AI Assistant</h2>
-        {/* ponytail: backend is NVIDIA NIM (see src/app/api/chat/route.ts —
-            getNvidia / NVIDIA_MODEL). Don't claim a specific vendor in the UI
-            because the provider may change; show the assistant's own name. */}
-        <Badge
-          variant="secondary"
-          className="text-[10px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
-        >
-          Kynthai AI
-        </Badge>
+        {aiAvailable === false ? (
+          <Badge
+            variant="secondary"
+            className="text-[0.625rem] bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400"
+          >
+            Being set up
+          </Badge>
+        ) : (
+          /* ponytail: backend is NVIDIA NIM (see src/app/api/chat/route.ts —
+              getNvidia / NVIDIA_MODEL). Don't claim a specific vendor in the UI
+              because the provider may change; show the assistant's own name. */
+          <Badge
+            variant="secondary"
+            className="text-[0.625rem] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400"
+          >
+            Kynthai AI
+          </Badge>
+        )}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Ask about symptoms, meds, or general health. Triage only — not a diagnosis.
-      </p>
-      <AiChat onNavigate={(t) => onNavigate(t as Tab)} />
+      {aiAvailable === false ? (
+        /* Founder P0: never show a composer that 402s. When the server has no
+           funded AI key, be honest — no marketing badge, no dead composer. */
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 text-center">
+          <Sparkles className="mx-auto h-8 w-8 text-amber-600 dark:text-amber-400" aria-hidden />
+          <h3 className="mt-2 text-sm font-semibold">Kynthai AI is being set up</h3>
+          <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+            Our health assistant is finishing configuration and will be back shortly. Meanwhile you can
+            review your medications or note how you feel in your Health Journal.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+            <Button size="sm" variant="outline" className="min-h-11" onClick={() => onNavigate('meds')}>
+              <Pill className="h-4 w-4" /> My Meds
+            </Button>
+            <Button size="sm" variant="outline" className="min-h-11" onClick={() => onNavigate('journal')}>
+              <BookOpen className="h-4 w-4" /> Journal
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-muted-foreground">
+            Ask about symptoms, meds, or general health. Triage only — not a diagnosis.
+          </p>
+          <AiChat onNavigate={(t) => onNavigate(t as Tab)} />
+        </>
+      )}
 
+    </div>
+  );
+}
+
+// ── More hub ────────────────────────────────────────────────────────────────
+// Founder UX: AI / Journal / Tools / SOS live here so the bottom bar stays at
+// the native 5-tab convention. SOS is ALSO a floating red action on every tab.
+function MoreTab({ onNavigate, aiAvailable }: { onNavigate: (t: Tab) => void; aiAvailable: boolean | null }) {
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold">More</h2>
+      <div className="grid gap-2">
+        {MORE_ITEMS.map(item => {
+          const Icon = item.icon;
+          const settingUp = item.id === 'ai' && aiAvailable === false;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onNavigate(item.id)}
+              aria-label={item.label}
+              className={cn(
+                'flex min-h-11 items-center gap-3 rounded-2xl border border-border/60 bg-card p-4 text-left transition-colors hover:bg-accent/50',
+                item.id === 'sos' && 'border-rose-500/25 bg-rose-500/[0.03] hover:bg-rose-500/10'
+              )}
+            >
+              <span
+                className={cn(
+                  'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                  item.id === 'sos'
+                    ? 'bg-rose-500/10 text-rose-600'
+                    : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                )}
+              >
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-foreground">{item.label}</span>
+                  {settingUp && (
+                    <Badge variant="secondary" className="text-[0.625rem] text-amber-700 dark:text-amber-400">
+                      Setting up
+                    </Badge>
+                  )}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {settingUp ? 'AI is being configured — check back soon' : item.desc}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -850,7 +954,7 @@ function JournalTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-base font-semibold">{e.title}</p>
-                      <span className="text-[10px] text-muted-foreground shrink-0">{e.date}</span>
+                      <span className="text-[0.625rem] text-muted-foreground shrink-0">{e.date}</span>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{e.body}</p>
                   </div>
@@ -1034,7 +1138,7 @@ function SosTab() {
                 <Phone className="h-5 w-5" /> Call 911
               </Button>
             </a>
-            <p className="text-[11px] text-muted-foreground mt-1">US emergency number</p>
+            <p className="text-[0.6875rem] text-muted-foreground mt-1">US emergency number</p>
             {callContact ? (
               <a href={`tel:${callContact.phone}`} aria-label={`Call ${callContact.name}`} className="block">
                 <Button
@@ -1046,7 +1150,7 @@ function SosTab() {
                 </Button>
               </a>
             ) : (
-              <p className="text-[11px] text-muted-foreground text-center">
+              <p className="text-[0.6875rem] text-muted-foreground text-center">
                 No contact number on file — add one in your family profile to enable one-tap
                 calling.
               </p>
@@ -1124,6 +1228,36 @@ export function PatientApp({ user }: { user: AuthUser }) {
   const [joiningCallApptId, setJoiningCallApptId] = React.useState<string | null>(null);
   const [cancellingApptId, setCancellingApptId] = React.useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = React.useState<string | null>(null);
+  // null = unknown (assume working); false = server has no funded AI key.
+  const [aiAvailable, setAiAvailable] = React.useState<boolean | null>(null);
+
+  // Founder P0: AI tab must never be a silent 402. One cheap status probe per
+  // session tells the UI to show the honest "being set up" panel instead.
+  React.useEffect(() => {
+    let cancelled = false;
+    fetch('/api/ai/status', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : { available: true }))
+      .then(d => {
+        if (!cancelled) setAiAvailable(!!d?.available);
+      })
+      .catch(() => {
+        // Status probe failing should never break the AI tab itself.
+        if (!cancelled) setAiAvailable(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Founder P1: kill the tab-switch "white pop" — preload the heaviest
+  // dynamic tab chunk (Care/Market) once the dashboard is idle. The dynamic()
+  // import above dedupes, so this warms the cache before first navigation.
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      import('@/components/kynthai/market/market-view').catch(() => {});
+    }, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   // Missed-dose escalation: when a real patient opens their dashboard,
   // surface overdue reminders (self-nudge) and alert linked caretakers.
@@ -1255,6 +1389,8 @@ export function PatientApp({ user }: { user: AuthUser }) {
 
   const isFree = (user?.subscriptionTier ?? 'free') === 'free';
   const isDemo = isDemoUser(user);
+  // QA debug tools exist only for demo accounts in non-production builds.
+  const showDebugAlarm = isDemo && isDemoEnabled();
   const initial = isDemo ? 'K' : (user?.name?.[0] ?? 'U').toUpperCase();
 
   const handleLogout = React.useCallback(async () => {
@@ -1323,7 +1459,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
           )}
           {tab === 'meds' && (
             <FadeIn key="meds">
-              <MedsTab userId={user.id} isDemo={isDemo} />
+              <MedsTab userId={user.id} isDemo={isDemo} showDebugAlarm={showDebugAlarm} />
             </FadeIn>
           )}
           {tab === 'market' && (
@@ -1338,7 +1474,12 @@ export function PatientApp({ user }: { user: AuthUser }) {
           )}
           {tab === 'ai' && (
             <FadeIn key="ai">
-              <AiTab onNavigate={setTab} />
+              <AiTab onNavigate={setTab} aiAvailable={aiAvailable} />
+            </FadeIn>
+          )}
+          {tab === 'more' && (
+            <FadeIn key="more">
+              <MoreTab onNavigate={setTab} aiAvailable={aiAvailable} />
             </FadeIn>
           )}
           {tab === 'journal' && (
@@ -1361,6 +1502,19 @@ export function PatientApp({ user }: { user: AuthUser }) {
 
       {/* Spacer pushes gradient to fill viewport behind fixed bottom nav */}
       <div className="h-20 shrink-0" aria-hidden />
+
+      {/* Floating SOS — emergency actions stay in thumb reach on every tab
+          (founder P1). Hidden while the SOS view itself is open. */}
+      {tab !== 'sos' && (
+        <button
+          type="button"
+          onClick={() => setTab('sos')}
+          aria-label="Emergency SOS"
+          className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-rose-600 text-white shadow-lg shadow-rose-600/40 transition-transform active:scale-95"
+        >
+          <Siren className="h-6 w-6" aria-hidden />
+        </button>
+      )}
 
       {/* Minimal legal footer */}
 
@@ -1421,7 +1575,8 @@ export function PatientApp({ user }: { user: AuthUser }) {
         </DialogContent>
       </Dialog>
 
-      {/* Bottom nav */}
+      {/* Bottom nav — 5 tabs (Home · Meds · Care · Lab · More), labels always
+          visible (native convention), icon+text thumb targets ≥44px */}
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/90 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/80 pb-safe">
         <div className="mx-auto flex max-w-3xl items-stretch justify-around gap-1 overflow-x-auto px-2 py-1 scrollbar-none">
           {TABS.map(t => {
@@ -1435,31 +1590,23 @@ export function PatientApp({ user }: { user: AuthUser }) {
                 aria-current={active ? 'page' : undefined}
                 title={active ? undefined : t.label}
                 className={cn(
-                  'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 min-h-11 min-w-[44px] text-[11px] font-medium transition-all',
-                  t.id === 'sos'
-                    ? active
-                      ? 'text-rose-600 dark:text-rose-400'
-                      : 'text-rose-500/80 hover:text-rose-600'
-                    : active
-                      ? 'text-emerald-600 dark:text-emerald-400'
-                      : 'text-muted-foreground'
+                  'flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 min-h-11 min-w-[44px] text-[0.625rem] font-medium transition-all',
+                  active
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-muted-foreground'
                 )}
               >
                 <span
                   className={cn(
                     'flex h-8 w-8 items-center justify-center rounded-xl transition-all',
-                    t.id === 'sos'
-                      ? active
-                        ? 'bg-rose-500/15 text-rose-600'
-                        : 'bg-rose-500/10 text-rose-500'
-                      : active
-                        ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                        : 'bg-transparent'
+                    active
+                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                      : 'bg-transparent'
                   )}
                 >
                   <Icon className="h-4 w-4" />
                 </span>
-                {active && t.label}
+                {t.label}
               </button>
             );
           })}

@@ -329,17 +329,17 @@ export function AddMedication({ onAdded, onClose, familyMemberId, isDemo, onCrea
           </p>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-[11px]">Must take before</Label>
+              <Label className="text-[0.6875rem]">Must take before</Label>
               <input
                 type="time"
                 value={timeWindowEnd}
                 onChange={(e) => setTimeWindowEnd(e.target.value)}
                 className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm outline-none"
               />
-              <p className="text-[10px] text-muted-foreground">If not taken by this time, caretaker is notified</p>
+              <p className="text-[0.625rem] text-muted-foreground">If not taken by this time, caretaker is notified</p>
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px]">Repeat reminder every</Label>
+              <Label className="text-[0.6875rem]">Repeat reminder every</Label>
               <div className="relative">
                 <select
                   value={reminderInterval}
@@ -356,7 +356,7 @@ export function AddMedication({ onAdded, onClose, familyMemberId, isDemo, onCrea
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               </div>
-              <p className="text-[10px] text-muted-foreground">Alarm repeats until taken or window closes</p>
+              <p className="text-[0.625rem] text-muted-foreground">Alarm repeats until taken or window closes</p>
             </div>
           </div>
         </div>
