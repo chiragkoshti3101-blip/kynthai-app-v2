@@ -77,6 +77,25 @@ export async function verifySessionToken(signed: string): Promise<string | null>
     diff |= (provided[i]!) ^ (expected[i]!);
   }
   if (diff !== 0) return null;
+  
+  // Check if this user's fallback-signed session has been revoked.
+  // The signed token carries no per-session jti, so revocation is
+  // all-sessions-for-user, bounded by the row's 7-day expiresAt TTL —
+  // after expiry the user can sign in again (matches the revoke route).
+  try {
+    const revoked = await db.revokedSession.findFirst({
+      where: { userId, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    if (revoked) return null;
+  } catch (err) {
+    // Fail OPEN on database error: this check runs in middleware on EVERY
+    // request — a transient DB blip must not log out every user (the HMAC
+    // itself has already verified integrity above).
+    console.error('[session] Revocation check failed (failing open):', err);
+  }
+  
   return userId;
 }
 

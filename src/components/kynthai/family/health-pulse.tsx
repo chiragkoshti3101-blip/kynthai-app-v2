@@ -40,7 +40,7 @@ export function FamilyHealthPulse({ onDataLoaded }: { onDataLoaded?: (members: F
         overallScore: 78,
         members: [
           {
-            id: 'fm1',
+            id: 'demo_fm1',
             name: 'Robert Wilson',
             relation: 'Father',
             color: '#10b981',
@@ -49,7 +49,7 @@ export function FamilyHealthPulse({ onDataLoaded }: { onDataLoaded?: (members: F
             adherenceScore: 85,
           },
           {
-            id: 'fm2',
+            id: 'demo_fm2',
             name: 'Emma Wilson',
             relation: 'Mother',
             color: '#0d9488',
@@ -58,7 +58,7 @@ export function FamilyHealthPulse({ onDataLoaded }: { onDataLoaded?: (members: F
             adherenceScore: 65,
           },
           {
-            id: 'fm3',
+            id: 'demo_fm3',
             name: 'Noah Wilson',
             relation: 'Child',
             color: '#0891b2',

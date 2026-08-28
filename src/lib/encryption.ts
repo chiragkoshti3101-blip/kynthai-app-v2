@@ -58,6 +58,12 @@ function getKey(): Buffer {
     );
   }
 
+  // NOTE: derivation MUST stay 'utf-8' slice(0,32) — every _enc column in the
+  // live database was produced under this exact key bytes. Switching to
+  // Buffer.from(..., 'hex') yields a DIFFERENT 32-byte key and silently makes
+  // ALL existing ciphertext undecryptable. If the master key is a 64-char hex
+  // string (openssl rand -hex 32), migrating to hex parsing requires a
+  // read-under-old-key → re-encrypt-under-new-key data migration FIRST.
   _KEY = Buffer.from(trimmed.slice(0, 32), 'utf-8');
   return _KEY;
 }
@@ -230,7 +236,11 @@ export function decryptValue(encrypted: string): string {
   try {
     const buffer = Buffer.from(encrypted, 'utf8');
     return decrypt(buffer);
-  } catch {
+  } catch (err) {
+    // Log loudly for observability, but degrade gracefully (''): a med-reminder
+    // app must keep rendering when a single legacy/undecryptable field appears.
+    // Throwing here would crash whole pages over one bad row (availability >).
+    console.error('[encryption] Failed to decrypt a value:', err);
     return '';
   }
 }

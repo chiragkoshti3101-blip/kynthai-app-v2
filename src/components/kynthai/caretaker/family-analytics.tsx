@@ -99,7 +99,7 @@ export function FamilyAnalytics() {
         family: { id: 'demo-family', name: 'Demo Family' },
         members: [
           {
-            id: 'fm1',
+            id: 'demo_fm1',
             name: 'Robert Wilson',
             relation: 'Father',
             color: 'emerald',
@@ -111,7 +111,7 @@ export function FamilyAnalytics() {
             conditions: ['Hypertension'],
           },
           {
-            id: 'fm2',
+            id: 'demo_fm2',
             name: 'Emma Wilson',
             relation: 'Mother',
             color: 'teal',
@@ -123,7 +123,7 @@ export function FamilyAnalytics() {
             conditions: ['Thyroid'],
           },
           {
-            id: 'fm3',
+            id: 'demo_fm3',
             name: 'Noah Wilson',
             relation: 'Child',
             color: 'cyan',
