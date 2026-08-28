@@ -31,6 +31,12 @@ import { usePathname, useRouter } from 'next/navigation'
 const CONSENT_KEY = 'kynthai-cookie-consent-v1'
 const CONSENT_EXPIRY_MS = 365 * 24 * 60 * 60 * 1000 // 12 months
 
+// Founder P0: the banner must ask ONCE per session, not re-prompt after every
+// navigation/tab switch. Until the user answers, this sessionStorage flag
+// keeps the banner from re-showing for the rest of the browsing session.
+// After an answer, the 12-month localStorage record handles it permanently.
+const SESSION_SHOWN_KEY = 'kynthai-cookie-banner-shown-session-v1'
+
 // Public routes where a cookie banner would obscure essential UX.
 const PUBLIC_PATHS = ['/login', '/register', '/pricing', '/checkout', '/privacy', '/terms', '/cookies', '/accessibility', '/medical-disclaimer', '/grievance', '/refund-cancellation', '/forgot-password', '/reset-password']
 
@@ -126,8 +132,22 @@ export function CookieConsent() {
     // Suppress when a full-screen medication alarm is active — stacking the
     // cookie banner under a z-9999 alarm overlay is a terrible first impression.
     const alarmActive = typeof document !== 'undefined' && !!document.querySelector('[role="alertdialog"]')
-    if (!stored && !isPublic && !inOnboarding && !alarmActive) {
-      const timer = setTimeout(() => setVisible(true), 1500)
+    // Already surfaced this session? Never nag again until it is answered.
+    let shownThisSession = false
+    try {
+      shownThisSession = sessionStorage.getItem(SESSION_SHOWN_KEY) === '1'
+    } catch {
+      shownThisSession = false
+    }
+    if (!stored && !shownThisSession && !isPublic && !inOnboarding && !alarmActive) {
+      const timer = setTimeout(() => {
+        try {
+          sessionStorage.setItem(SESSION_SHOWN_KEY, '1')
+        } catch {
+          /* storage unavailable — banner still shows this mount */
+        }
+        setVisible(true)
+      }, 1500)
       return () => clearTimeout(timer)
     }
     setVisible(false)

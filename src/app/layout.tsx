@@ -101,7 +101,11 @@ export const viewport = {
     { media: '(prefers-color-scheme: dark)', color: '#070f0c' },
   ],
   viewportFit: 'cover',
-};
+  // Founder P0 (APK): resizes the layout viewport when the soft keyboard opens
+  // so the AI composer / inputs stay visible instead of being covered.
+  // (Android Chromium ≥108; pairs with adjustResize in AndroidManifest.xml.)
+  interactiveWidget: 'resizes-content',
+} as const;
 
 export default async function RootLayout({
   children,

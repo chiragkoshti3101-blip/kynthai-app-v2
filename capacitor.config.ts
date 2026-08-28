@@ -16,6 +16,13 @@ const config: CapacitorConfig = {
     ],
   },
   plugins: {
+    // Capacitor 8 built-in SystemBars: injects --safe-area-inset-* CSS
+    // variables (real pixel insets) into the WebView. globals.css consumes
+    // them for the Android 15+/16 edge-to-edge layout (targetSdk 36).
+    // 'css' is the default — pinned explicitly to protect the behaviour.
+    SystemBars: {
+      insetsHandling: 'css',
+    },
     LocalNotifications: {
       smallIcon: 'ic_launcher',
       iconColor: '#10b981',

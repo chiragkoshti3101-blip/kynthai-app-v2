@@ -465,37 +465,47 @@ html:not(.dark) .phone-frame {
  * `h-safe-bottom` for spacer divs at the foot of scroll containers.
  * ------------------------------------------------------------------------- */
 @layer utilities {
+  /* Two-tier safe-area strategy (Capacitor 8 / Android 15+ edge-to-edge fix):
+     1. env(safe-area-inset-*) — correct on iOS Safari / PWA browsers.
+     2. --safe-area-inset-* — injected as real pixel values by Capacitor 8's
+        built-in SystemBars plugin when the WebView is drawn edge-to-edge
+        (targetSdk 35/36 enforces it) and the page opts in via
+        viewport-fit=cover. Android's WebView reports env() as 0, so without
+        the injected variable every APK page drew UNDER the status bar. */
   .pt-safe {
-    padding-top: env(safe-area-inset-top);
+    padding-top: var(--safe-area-inset-top, env(safe-area-inset-top));
   }
-  /* Capacitor Android/iOS already overlays the status bar natively.
-     env(safe-area-inset-top) still reports the status bar height in the
-     WebView, creating a visible white gap at the top of every page.
-     Zero it out on native shells — the web PWA still gets the padding. */
+  /* Capacitor 7 legacy: with overlaysWebView:false the WebView did NOT extend
+     under the status bar, but env() still reported the inset → double gap.
+     Keep the native-shell override, but let the Capacitor 8 injected variable
+     win: var present → real inset (no overlap, no gap); var absent → 0
+     (identical to the old behaviour, so nothing regresses on old shells). */
   .plt-capacitor .pt-safe,
   html.plt-capacitor .pt-safe {
-    padding-top: 0;
+    padding-top: var(--safe-area-inset-top, 0px);
   }
   .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom));
   }
   .pl-safe {
-    padding-left: env(safe-area-inset-left);
+    padding-left: var(--safe-area-inset-left, env(safe-area-inset-left));
   }
   .pr-safe {
-    padding-right: env(safe-area-inset-right);
+    padding-right: var(--safe-area-inset-right, env(safe-area-inset-right));
   }
   .h-safe-top {
-    height: env(safe-area-inset-top);
+    height: var(--safe-area-inset-top, env(safe-area-inset-top));
   }
   .h-safe-bottom {
-    height: env(safe-area-inset-bottom);
+    height: var(--safe-area-inset-bottom, env(safe-area-inset-bottom));
   }
   /* Combo: full inset padding for sheet/drawer content that must clear all
      four edges (rare — usually you want top OR bottom only). */
   .p-safe {
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-      env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: var(--safe-area-inset-top, env(safe-area-inset-top))
+      var(--safe-area-inset-right, env(safe-area-inset-right))
+      var(--safe-area-inset-bottom, env(safe-area-inset-bottom))
+      var(--safe-area-inset-left, env(safe-area-inset-left));
   }
 
   /* Mobile touch targets: enforce 44pt minimum height for interactive elements
