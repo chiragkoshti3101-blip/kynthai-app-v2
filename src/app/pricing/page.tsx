@@ -4,10 +4,10 @@ import { ErrorBoundary } from '@/components/kynthai/error-boundary'
 
 export const metadata: Metadata = {
   title: 'Pricing',
-  description: 'Kynthai pricing plans — Free, Plus, and Family Pro health management plans for US families. Secure card and ACH billing.',
+  description: 'Kynthai pricing plans — Free, Plus, and Family Pro health management plans for families everywhere. Secure card and ACH billing.',
   openGraph: {
-    title: 'Kynthai Pricing — AI Health Plans for American Families',
-    description: 'Free, Plus ($9.99/mo), Family Pro ($19.99/mo) with secure card and ACH billing. AI health plans for US families.',
+    title: 'Kynthai Pricing — AI Health Plans for Families Everywhere',
+    description: 'Free, Plus ($9.99/mo), Family Pro ($19.99/mo) with secure card and ACH billing. AI health plans for families everywhere.',
     images: ['/og-image.png'],
   },
   twitter: {
