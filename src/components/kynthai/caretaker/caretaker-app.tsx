@@ -1119,13 +1119,13 @@ function SosTab({
           data.summary ??
           (anyOk
             ? `${selected.name} — emergency SOS sent to your family and linked doctors.`
-            : 'SOS alert could not be sent. Call 911 or your local emergency number immediately.'),
+            : 'SOS alert could not be sent. Contact local emergency services immediately.'),
       });
       setStage('triggered');
       if (anyOk) {
         const desc =
           tier === 'critical'
-            ? 'Family and linked doctors alerted. Call 911 yourself if life-threatening.'
+            ? 'Family and linked doctors alerted. Contact local emergency services if life-threatening.'
             : 'Caretaker notified — they will reach out shortly.';
         toast({
           title: `${tier === 'critical' ? 'Critical' : 'Family'} SOS triggered`,
@@ -1136,14 +1136,14 @@ function SosTab({
         toast({
           title: 'SOS alert could not be sent',
           description:
-            lastError || 'Call 911 or your local emergency number immediately.',
+            lastError || 'Contact local emergency services immediately.',
           variant: 'destructive',
         });
       }
     } catch {
       setResponse({
         notifiedDoctors: [],
-        summary: `${selected.name} — SOS alert could not be sent. Call 911 yourself if life-threatening.`,
+        summary: `${selected.name} — SOS alert could not be sent. Contact local emergency services if life-threatening.`,
       });
       setStage('triggered');
     }
@@ -1174,12 +1174,12 @@ function SosTab({
             <div className="mt-5 space-y-3">
               {/* Always-available 911 call — never hidden behind the trigger
                   state so a family member can always dial emergency services. */}
-              <a href="tel:911" aria-label="Call 911, the US emergency number" className="block">
+              <a href="tel:911" aria-label="Call emergency services" className="block">
                 <Button
                   size="lg"
                   className="w-full h-14 text-base bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800"
                 >
-                  <Phone className="h-5 w-5" /> Call 911 — US emergency number
+                  <Phone className="h-5 w-5" /> Call emergency services
                 </Button>
               </a>
               <Button
@@ -1191,7 +1191,7 @@ function SosTab({
                 SOS -- Critical
               </Button>
               <p className="text-[11px] text-muted-foreground text-center">
-                Alerts family + linked doctors — call 911 yourself if life-threatening
+                Alerts family + linked doctors — contact local emergency services if life-threatening
               </p>
 
               <Button
@@ -1213,7 +1213,7 @@ function SosTab({
             <AlertTriangle className="h-3.5 w-3.5 inline-block -mt-0.5 mr-1 text-amber-600 dark:text-amber-400" />
             <span className="font-semibold text-amber-700 dark:text-amber-400">Important:</span>{' '}
             Kynthai cannot place calls or dispatch responders. In a life-threatening emergency,
-            always <span className="font-semibold text-foreground">call 911 (US) or your local emergency number yourself</span> and
+            always <span className="font-semibold text-foreground">contact local emergency services yourself</span> and
             call the hospital directly. Kynthai sends alerts and reminder texts to your listed
             contacts, but it is not a replacement for emergency services.
           </div>
