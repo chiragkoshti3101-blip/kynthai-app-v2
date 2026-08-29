@@ -72,6 +72,7 @@ import { CareHub } from '@/components/kynthai/caretaker/care-hub';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
 import { OfflineIndicator } from '@/components/kynthai/offline-indicator';
 import { ProfileHub } from '@/components/kynthai/patient/profile-hub';
+import { EmergencyCountrySelector, useEmergencyCountry } from '@/components/kynthai/emergency-country-selector';
 import { ShareSheet } from '@/components/kynthai/share-sheet';
 import { FadeIn } from '@/components/kynthai/animations';
 import { LabResultsViewer } from '@/components/kynthai/patient/lab-results-viewer';
@@ -1164,6 +1165,7 @@ function SosTab() {
   } | null>(null);
   // First family member with a phone number on file = the patient's entered contact.
   const [callContact, setCallContact] = React.useState<{ name: string; phone: string } | null>(null);
+  const { countryCode, country, selectCountry } = useEmergencyCountry();
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1195,7 +1197,7 @@ function SosTab() {
           'Content-Type': 'application/json',
           ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
         },
-        body: JSON.stringify({ location: 'Patient app', notes: 'Emergency SOS', medicalInfo: '' }),
+        body: JSON.stringify({ location: 'Patient app', notes: 'Emergency SOS', medicalInfo: '', emergencyNumber: country.dialNumber }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
@@ -1235,12 +1237,13 @@ function SosTab() {
           </p>
           {/* Always-available call actions — never hidden behind the trigger state */}
           <div className="space-y-3">
-            <a href="tel:911" aria-label="Call emergency services" className="block">
+            <EmergencyCountrySelector countryCode={countryCode} onChange={selectCountry} />
+            <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
               <Button
                 size="lg"
                 className="w-full h-14 text-base bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800"
               >
-                <Phone className="h-5 w-5" /> Contact local emergency services
+                <Phone className="h-5 w-5" /> Call {country.number}
               </Button>
             </a>
             <p className="text-[0.6875rem] text-muted-foreground mt-1">Use your local emergency number</p>
