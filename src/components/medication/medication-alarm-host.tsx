@@ -76,7 +76,7 @@ async function getCsrf(): Promise<string | null> {
   }
 }
 
-async function recordInApp(title: string, body: string, type = 'reminder') {
+async function recordInApp(title: string, body: string, type = 'reminder', dedupeKey?: string) {
   try {
     const csrf = await getCsrf()
     await fetch('/api/notifications/in-app', {
@@ -86,7 +86,7 @@ async function recordInApp(title: string, body: string, type = 'reminder') {
         'Content-Type': 'application/json',
         ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
       },
-      body: JSON.stringify({ title, body, type }),
+      body: JSON.stringify({ title, body, type, ...(dedupeKey ? { dedupeKey } : {}) }),
     })
   } catch {
     /* best-effort */
@@ -310,6 +310,8 @@ export function MedicationAlarmHost({
         void recordInApp(
           `Time to take ${medName}`,
           `${due.medication?.dosage ?? ''} · ${due.time}`.trim(),
+          'reminder',
+          `dose:${due.id}`,
         )
       }
       // Schedule caretaker escalation if still pending after grace
