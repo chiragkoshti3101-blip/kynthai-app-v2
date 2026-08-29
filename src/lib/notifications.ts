@@ -92,8 +92,9 @@ async function logNotification(input: {
   title: string
   body: string
   recipient: string
-  status: 'sent' | 'failed' | 'skipped'
+  status: 'sent' | 'failed' | 'skipped' | 'processing'
   cost: number
+  dedupeKey?: string
 }): Promise<string | undefined> {
   try {
     const row = await db.notificationLog.create({
@@ -106,12 +107,80 @@ async function logNotification(input: {
         recipient: input.recipient,
         status: input.status,
         cost: input.cost,
+        ...(input.dedupeKey ? { dedupeKey: input.dedupeKey } : {}),
       },
     })
     return row.id
   } catch (e) {
     console.warn('[notifications] Failed to write notification log', e)
     return undefined
+  }
+}
+
+// The deploy pipeline generates Prisma but does not run migrations. Keep the
+// dedupe storage self-healing so the first reminder after deploy cannot fall
+// back to the old body-only behavior. The unique index is per user/channel:
+// one in-app row and one push audit row are valid, but two push sends are not.
+let notificationDedupeReady: boolean | null = null
+export async function ensureNotificationDedupeStorage(): Promise<void> {
+  if (notificationDedupeReady !== null) return
+  try {
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "notification_logs" ADD COLUMN IF NOT EXISTS "dedupeKey" TEXT`,
+    )
+    await db.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "notification_logs_user_channel_dedupe_key" ON "notification_logs" ("userId", "channel", "dedupeKey") WHERE "dedupeKey" IS NOT NULL`,
+    )
+    notificationDedupeReady = true
+  } catch (e) {
+    notificationDedupeReady = false
+    console.warn('[notifications] Dedupe storage bootstrap failed', e)
+  }
+}
+
+async function claimPushDelivery(input: {
+  userId: string
+  dedupeKey: string
+  title: string
+  body: string
+  recipient: string
+}): Promise<string | undefined> {
+  const staleBefore = new Date(Date.now() - 10 * 60 * 1000)
+  try {
+    const row = await db.notificationLog.create({
+      data: {
+        userId: input.userId,
+        channel: 'push',
+        type: 'reminder',
+        title: input.title,
+        body: input.body,
+        recipient: input.recipient,
+        status: 'processing',
+        cost: 0,
+        dedupeKey: input.dedupeKey,
+      },
+      select: { id: true },
+    })
+    return row.id
+  } catch {
+    // A concurrent tick can already own this dose. Reuse only a stale claim;
+    // an active claim must not result in a second push.
+    const existing = await db.notificationLog.findFirst({
+      where: {
+        userId: input.userId,
+        channel: 'push',
+        dedupeKey: input.dedupeKey,
+      },
+      select: { id: true, status: true, createdAt: true },
+    }).catch(() => null)
+    if (!existing) return undefined
+    if (existing.status === 'sent') return undefined
+    if (existing.status === 'processing' && existing.createdAt > staleBefore) return undefined
+    await db.notificationLog.update({
+      where: { id: existing.id },
+      data: { status: 'processing', createdAt: new Date() },
+    }).catch(() => {})
+    return existing.id
   }
 }
 
@@ -127,6 +196,9 @@ export async function sendNotification(
   let delivered = false
   let usedChannel: NotificationChannel | 'none' = 'none'
   let usedCost = 0
+  let claimedPushLogId: string | undefined
+
+  if (payload.dedupeKey) await ensureNotificationDedupeStorage()
 
   // Resolve email from DB when callers only pass userId (doctor/lab/family paths)
   if (target.userId && !target.email) {
@@ -143,6 +215,21 @@ export async function sendNotification(
 
   // 1. PUSH (cheapest, $0) — uses VAPID web-push, not Firebase FCM
   if (target.userId && isPushEnabled()) {
+    const pushRecipient = target.pushToken || target.userId
+    if (payload.dedupeKey) {
+      claimedPushLogId = await claimPushDelivery({
+        userId: target.userId,
+        dedupeKey: payload.dedupeKey,
+        title: payload.title,
+        body: payload.body,
+        recipient: pushRecipient,
+      })
+      // Another request is already sending or has sent this dose. Do not call
+      // the provider a second time. The in-app row below remains idempotent.
+      if (!claimedPushLogId) {
+        return { delivered: false, channel: 'none', cost: 0, results }
+      }
+    }
     const clinicalTypes = new Set([
       'reminder',
       'missed_dose',
@@ -252,28 +339,54 @@ export async function sendNotification(
   const recipient = target.pushToken || target.email || target.userId || 'unknown'
   let logId: string | undefined
   if (target.userId) {
-    // dedupeKey is appended to the stored body so reminder-send cron ticks can
-    // detect an already-sent dose via body-contains lookup.
-    const storedBody = payload.dedupeKey
-      ? `${payload.body}\n[ref:${payload.dedupeKey}]`
-      : payload.body
-    logId = await logNotification({
-      userId: target.userId,
-      channel: 'in-app',
-      type: payload.type,
-      title: payload.title,
-      body: storedBody,
-      recipient: target.userId,
-      status: 'sent',
-      cost: 0,
-    })
+    // The browser alarm and server sender share the same dose key. Reuse an
+    // existing in-app row rather than creating a second named notification.
+    const existingInApp = payload.dedupeKey
+      ? await db.notificationLog.findFirst({
+          where: {
+            userId: target.userId,
+            channel: 'in-app',
+            OR: [
+              { dedupeKey: payload.dedupeKey },
+              { body: { contains: `[ref:${payload.dedupeKey}]` } },
+            ],
+          },
+          select: { id: true },
+        }).catch(() => null)
+      : null
+    if (existingInApp) {
+      logId = existingInApp.id
+    } else {
+      const storedBody = payload.dedupeKey
+        ? `${payload.body}\n[ref:${payload.dedupeKey}]`
+        : payload.body
+      logId = await logNotification({
+        userId: target.userId,
+        channel: 'in-app',
+        type: payload.type,
+        title: payload.title,
+        body: storedBody,
+        recipient: target.userId,
+        status: 'sent',
+        cost: 0,
+        dedupeKey: payload.dedupeKey,
+      })
+    }
   }
 
-  // Audit row for the external channel that actually delivered (if any).
+  // Finalize the atomic push claim, or log a non-deduped external delivery.
   // Body MUST carry the same [ref:dedupeKey] as the in-app row — the reminder
   // cron dedupes against channel='push' rows, so without the key a delivered
   // dose would be re-pushed by every subsequent tick/catchup.
-  if (delivered && usedChannel !== 'none') {
+  if (claimedPushLogId) {
+    await db.notificationLog.update({
+      where: { id: claimedPushLogId },
+      data: {
+        status: delivered ? 'sent' : 'failed',
+        cost: delivered ? usedCost : 0,
+      },
+    }).catch(() => {})
+  } else if (delivered && usedChannel !== 'none') {
     await logNotification({
       userId: target.userId,
       channel: usedChannel,
