@@ -330,6 +330,7 @@ export function LoginPage({
     if (
       mode === 'register' &&
       (!name ||
+        !phone ||
         !dateOfBirth ||
         !termsConsent ||
         !dataConsent ||
@@ -339,8 +340,8 @@ export function LoginPage({
       toast({
         title: 'Almost there',
         description: !aiTrainingConsent
-          ? 'Please accept the AI training consent, add your name, date of birth, accept the checkboxes, and provide an emergency contact.'
-          : 'Please add your name, date of birth, accept the consent checkboxes, and provide an emergency contact.',
+          ? 'Please accept the AI training consent, add your name, phone number, date of birth, accept the checkboxes, and provide an emergency contact.'
+          : 'Please add your name, phone number, date of birth, accept the consent checkboxes, and provide an emergency contact.',
         variant: 'destructive',
       });
       return;
@@ -368,7 +369,7 @@ export function LoginPage({
           password,
           name,
           role: active.id,
-          phone: phone ? `+${phone.replace(/\D/g, '')}` || undefined : undefined,
+          phone: `+${phone.replace(/\D/g, '')}`,
           dateOfBirth: dateOfBirth || undefined,
           consentAccepted: termsConsent,
           dataProcessingConsent: dataConsent,
@@ -773,17 +774,18 @@ export function LoginPage({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="phone">Phone (optional)</Label>
+                      <Label htmlFor="phone">Phone number <span className="text-rose-500">*</span></Label>
                       <Input
                         id="phone"
                         type="tel"
-                        placeholder="+1 (555) 123-4567"
+                        placeholder="+91 98765 43210"
                         value={phone}
                         onChange={e => setPhone(e.target.value)}
                         autoComplete="tel"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Used only for account security and care-team alerts.
+                        Required for account security and to set your local emergency number automatically.
+                        You cannot change the emergency country inside SOS.
                       </p>
                     </div>
                     <div className="space-y-1.5">
@@ -811,7 +813,7 @@ export function LoginPage({
                       <Input
                         id="emergency1"
                         type="tel"
-                        placeholder="+1 (555) 123-4567"
+                        placeholder="+91 98765 43210"
                         value={emergencyContact1}
                         onChange={e => setEmergencyContact1(e.target.value)}
                         autoComplete="tel"
@@ -824,7 +826,7 @@ export function LoginPage({
                       <Input
                         id="emergency2"
                         type="tel"
-                        placeholder="+1 (555) 123-4567"
+                        placeholder="+91 98765 43210"
                         value={emergencyContact2}
                         onChange={e => setEmergencyContact2(e.target.value)}
                         autoComplete="tel"
