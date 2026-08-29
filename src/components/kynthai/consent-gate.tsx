@@ -111,7 +111,7 @@ export function ConsentGate({
           </div>
 
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Your data is protected under US privacy and applicable US privacy law. We only process your
+            Your data is protected under applicable privacy law in your jurisdiction. We only process your
             health information to provide care services. You can withdraw consent at any time from
             your profile settings.
           </p>

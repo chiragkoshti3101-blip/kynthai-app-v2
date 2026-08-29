@@ -171,7 +171,7 @@ Return ONLY valid JSON (no markdown) with this exact shape:
   "motivationalNote": "A warm, personalized message encouraging the patient"
 }
 
-Be thorough, specific, and reference actual data. Use US clinical context and standard US preventive care guidance where relevant.`,
+Be thorough, specific, and reference actual data. Use relevant clinical context and region-appropriate preventive-care guidance where relevant.`,
           },
           {
             role: 'user',

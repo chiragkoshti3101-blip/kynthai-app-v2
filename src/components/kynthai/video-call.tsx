@@ -356,7 +356,7 @@ export function VideoCall({
             <ul className="list-disc pl-5 space-y-1">
               <li>This consultation is not recorded</li>
               <li>Your health information may be shared with the consulting doctor</li>
-              <li>This is not an emergency service — call 911 for emergencies</li>
+              <li>This is not an emergency service — contact local emergency services for emergencies</li>
               <li>Prescriptions issued are valid for 30 days</li>
             </ul>
           </div>

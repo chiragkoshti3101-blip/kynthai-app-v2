@@ -24,7 +24,7 @@ export function MedicalDisclaimer({
     return (
       <p className={cn('text-[10px] text-muted-foreground italic', className)}>
         <AlertTriangle className="inline h-3 w-3 mr-1" />
-        AI-generated informational content only. Not medical advice. Consult a qualified healthcare professional. In a medical emergency, call 911 or your local emergency number immediately. Kynthai SOS is a separate in-app alert tool and does not connect to emergency dispatch services.
+        AI-generated informational content only. Not medical advice. Consult a qualified healthcare professional. In a medical emergency, contact local emergency services immediately. Kynthai SOS is a separate in-app alert tool and does not connect to emergency dispatch services.
       </p>
     )
   }

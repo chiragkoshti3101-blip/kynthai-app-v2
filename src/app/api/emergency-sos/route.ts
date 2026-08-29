@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     if (smsTargets.length > 0 && isSMSEnabled()) {
       const base = `Kynthai SOS alert: ${user.name} needs help.`
       const where = location ? ` Location: ${location}.` : ''
-      const tail = ` Please check on them right away. Kynthai cannot dispatch responders - call 911 or your local emergency number if needed.`
+      const tail = ` Please check on them right away. Kynthai cannot dispatch responders — contact local emergency services if needed.`
       for (const t of smsTargets) {
         try {
           const r = await sendSMSReal({ to: t.phone, body: base + where + tail })
@@ -175,11 +175,11 @@ export async function POST(req: NextRequest) {
       success: true,
       alertCount: alerts.length,
       message: 'SOS alert sent to all family members',
-      emergencyNumber: '911',
+      emergencyNumber: 'local',
       notifiedDoctors: [],
       notifiedContacts,
       smsSent,
-      summary: `${user.name} — SOS alert sent to your family and listed contacts${smsSent > 0 ? ` (${smsSent} reminder text sent)` : ''}. Call 911 yourself if this is life-threatening.`,
+      summary: `${user.name} — SOS alert sent to your family and listed contacts${smsSent > 0 ? ` (${smsSent} reminder text sent)` : ''}. Contact local emergency services if this is life-threatening.`,
       ...(isMinor
         ? { minorNotice: 'Guardian notification attempted. A minor has triggered a SOS alert — guardian should respond immediately and contact emergency services if needed.' }
         : {}),

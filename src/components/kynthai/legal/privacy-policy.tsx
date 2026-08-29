@@ -602,7 +602,7 @@ export function TermsOfService() {
         medical advice because of something you read or received from Kynthai.
       </p>
       <p>
-        In a medical emergency, call 911 (United States) immediately. Do not rely on Kynthai
+        In a medical emergency, contact your local emergency services immediately. Do not rely on Kynthai
         for emergency response.
       </p>
 
@@ -1209,7 +1209,7 @@ export function MedicalDisclaimer() {
 
       <SectionTitle icon={AlertTriangle}>4. Emergency numbers</SectionTitle>
       <p>
-        In a medical emergency, call <strong>911 (United States)</strong> immediately.
+        In a medical emergency, contact your local emergency services immediately.
         Do not rely on Kynthai for emergency response.
       </p>
       <ul>

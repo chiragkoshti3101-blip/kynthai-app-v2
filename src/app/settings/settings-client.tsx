@@ -542,7 +542,7 @@ export default function SettingsClient() {
                 <Globe className="h-4 w-4 text-cyan-500" />
                 <span className="text-sm font-medium">Language</span>
               </div>
-              <Badge variant="outline">{language === 'en-US' ? 'English (US)' : language}</Badge>
+              <Badge variant="outline">{language === 'en-US' ? 'English' : language}</Badge>
             </div>
           </CardContent>
         </Card>

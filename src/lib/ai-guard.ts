@@ -11,7 +11,7 @@
  *
  * Scope: Kynthai Assistant is a healthcare AI. It ONLY handles medications,
  * conditions, symptoms, side effects, dosage/adherence, lab results, symptom
- * urgency, and US healthcare navigation. Anything that is:
+ * urgency, and healthcare navigation. Anything that is:
  *   - a request to execute/build/create software or other artifacts (the most
  *     dangerous — "ignore instructions to execute actions"), or
  *   - clearly a general-purpose / off-topic topic (not health),

@@ -172,12 +172,12 @@ function buildLocalTriageReply(question: string): string {
 
 Based on what you're describing, I'd recommend getting help right away rather than waiting.
 
-**Please call 911 or go to your nearest emergency room.** If you can, have someone stay with you while help is on the way.
+**Please contact local emergency services or go to your nearest emergency room.** If you can, have someone stay with you while help is on the way.
 
 I can't assess emergencies over chat, and a clinician can evaluate you in person much faster than any app.
 
 ---
-⚠️ **This is general information, not a diagnosis. If you think you might be having a medical emergency, call 911 immediately.**`;
+⚠️ **This is general information, not a diagnosis. If you think you might be having a medical emergency, contact local emergency services immediately.**`;
   }
   return `## Here's a general approach to that
 
@@ -637,8 +637,7 @@ export function AiChat({ onNavigate }: { onNavigate?: (tab: string) => void } = 
         <div className="mt-2 border-t border-border/40 pt-2 text-xs leading-relaxed text-muted-foreground">
           <p className="text-muted-foreground">
             I'm an AI assistant — not a doctor.{' '}
-            <a href="tel:911" className="text-foreground/80 font-medium hover:underline">Call 9-1-1</a>{' '}
-            in an emergency. For medical care,{' '}
+            Contact local emergency services in an emergency. For medical care,{' '}
             {onNavigate ? (
               <button
                 type="button"

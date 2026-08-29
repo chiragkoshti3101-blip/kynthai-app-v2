@@ -717,7 +717,7 @@ const MEDICINE_DB: Record<string, MedicineInfo> = {
       'Heartburn (NOTE: Recalled by FDA in 2020 due to NDMA contamination)',
     ],
     dosage:
-      'NOTE: This medication has been recalled in the US and many countries. Consult your doctor for alternatives like Famotidine.',
+      'NOTE: This medication has been recalled in many countries, including the US. Consult your doctor for alternatives like Famotidine.',
     sideEffects: ['Recalled — do not use', 'Previously: headache, constipation, diarrhea'],
     foodInteractions: ['Recalled — do not use'],
     timing: 'Recalled — consult doctor for alternatives.',
