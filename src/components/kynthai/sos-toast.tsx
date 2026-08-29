@@ -18,10 +18,11 @@ interface SosToastProps {
   };
   onDismiss: () => void;
   onNavigate?: (tab: string) => void;
+  phone?: string | null;
 }
 
-export function SosToast({ alert, onDismiss, onNavigate }: SosToastProps) {
-  const { country } = useEmergencyCountry();
+export function SosToast({ alert, onDismiss, onNavigate, phone }: SosToastProps) {
+  const { country } = useEmergencyCountry(phone);
 
   return (
     <AnimatePresence>
