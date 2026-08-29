@@ -126,7 +126,7 @@ export default function FamilyPortalClient({ user }: { user: { id: string; name?
               <p className="text-xs text-muted-foreground">Welcome, {user.name ?? 'User'}</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="min-h-11 gap-1.5">
+          <Button variant="ghost" size="sm" className="min-h-11 gap-1.5" onClick={() => router.push('/settings')} aria-label="Profile and settings">
               <User className="h-4 w-4" />
               <span className="hidden sm:inline">{(user.name && user.name.charAt(0)) || '?'}</span>
             </Button>

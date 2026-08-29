@@ -81,9 +81,9 @@ export default function SettingsClient() {
 
   // Consent
   const [consentFlags, setConsentFlags] = React.useState({
-    consentAccepted: user?.consentAccepted ?? true,
-    dataProcessingConsent: user?.dataProcessingConsent ?? true,
-    aiTrainingConsent: user?.aiTrainingConsent ?? true,
+    consentAccepted: user?.consentAccepted ?? false,
+    dataProcessingConsent: user?.dataProcessingConsent ?? false,
+    aiTrainingConsent: user?.aiTrainingConsent ?? false,
   });
 
   // Delete account
@@ -111,6 +111,43 @@ export default function SettingsClient() {
 
   const isDemo = !!user.isDemo;
   const initial = isDemo ? 'K' : (user.name?.[0] ?? 'U').toUpperCase();
+  const isProfessional = user.role === 'doctor' || user.role === 'lab';
+  const isFamilyManager = user.role === 'caretaker';
+  const roleTitle = user.role === 'doctor'
+    ? 'Doctor account'
+    : user.role === 'lab'
+      ? 'Laboratory account'
+      : user.role === 'caretaker'
+        ? 'Family account'
+        : 'Personal health account';
+  const notificationItems = user.role === 'doctor'
+    ? [
+        { key: 'reminders', label: 'Appointment reminders', desc: 'Upcoming consultations' },
+        { key: 'family', label: 'Patient messages', desc: 'Updates from your patients' },
+        { key: 'insights', label: 'Practice insights', desc: 'Weekly practice updates' },
+        { key: 'emergency', label: 'Urgent alerts', desc: 'Time-sensitive care updates' },
+      ]
+    : user.role === 'lab'
+      ? [
+          { key: 'reminders', label: 'Booking reminders', desc: 'Upcoming lab bookings' },
+          { key: 'labResults', label: 'Result upload alerts', desc: 'When results need attention' },
+          { key: 'insights', label: 'Business insights', desc: 'Weekly lab updates' },
+          { key: 'emergency', label: 'Urgent alerts', desc: 'Time-sensitive service updates' },
+        ]
+      : user.role === 'caretaker'
+        ? [
+            { key: 'family', label: 'Family updates', desc: 'Care updates for your family' },
+            { key: 'reminders', label: 'Medication reminders', desc: 'Reminders for family members' },
+            { key: 'emergency', label: 'Family alerts', desc: 'Emergency and critical updates' },
+            { key: 'insights', label: 'Care insights', desc: 'Weekly family health updates' },
+          ]
+        : [
+            { key: 'reminders', label: 'Medication reminders', desc: 'Take-your-med alerts' },
+            { key: 'labResults', label: 'Lab results', desc: 'When results are ready' },
+            { key: 'emergency', label: 'Emergency alerts', desc: 'Critical updates from your care team' },
+            { key: 'insights', label: 'AI insights', desc: 'Weekly health reports' },
+            { key: 'family', label: 'Family updates', desc: 'Caretaker notifications' },
+          ];
 
   // ── Handlers ────────────────────────────────────────────────────────────
 
@@ -350,7 +387,7 @@ export default function SettingsClient() {
                 {/* FIX #8: one name source everywhere — the account name. */}
                 <p className="font-semibold">{user.name || 'User'}</p>
                 <p className="text-sm text-muted-foreground">{user.email}</p>
-                <Badge variant="secondary" className="mt-1 capitalize">{user.role}</Badge>
+                <Badge variant="secondary" className="mt-1">{roleTitle}</Badge>
               </div>
             </div>
 
@@ -368,11 +405,12 @@ export default function SettingsClient() {
               <Input id="phone" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+15551234567" />
             </div>
 
-            {/* Date of Birth */}
-            <div className="space-y-2">
-              <Label htmlFor="dob">Date of Birth (optional)</Label>
-              <Input id="dob" type="date" value={editDob} onChange={e => setEditDob(e.target.value)} />
-            </div>
+            {!isProfessional && (
+              <div className="space-y-2">
+                <Label htmlFor="dob">Date of Birth (optional)</Label>
+                <Input id="dob" type="date" value={editDob} onChange={e => setEditDob(e.target.value)} />
+              </div>
+            )}
 
             <Button onClick={handleSaveProfile} disabled={saving} className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
@@ -380,6 +418,40 @@ export default function SettingsClient() {
             </Button>
           </CardContent>
         </Card>
+
+        {isFamilyManager && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Heart className="h-4 w-4" /> Family access
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">Manage family members</p>
+                <p className="text-sm text-muted-foreground">Invite members and manage care access from your Family portal.</p>
+              </div>
+              <Button variant="outline" onClick={() => router.push('/caretaker')}>Open</Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {isProfessional && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Shield className="h-4 w-4" /> Professional profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="font-medium">{user.role === 'doctor' ? 'Doctor workspace' : 'Laboratory workspace'}</p>
+              <p className="text-sm text-muted-foreground">Manage your verification, services, availability, and professional profile from the {user.role === 'doctor' ? 'Doctor' : 'Lab'} portal.</p>
+              <Button variant="outline" className="w-full" onClick={() => router.push(user.role === 'doctor' ? '/doctor' : '/lab')}>
+                Open {user.role === 'doctor' ? 'Doctor' : 'Lab'} portal
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Subscription */}
         <Card>
@@ -487,13 +559,7 @@ export default function SettingsClient() {
               <p className="mb-2 text-xs font-medium text-muted-foreground">This device</p>
               <PushNotificationToggle />
             </div>
-            {[
-              { key: 'reminders', label: 'Medication reminders', desc: 'Take-your-med alerts' },
-              { key: 'labResults', label: 'Lab results', desc: 'When results are ready' },
-              { key: 'emergency', label: 'Emergency alerts', desc: 'SOS & critical updates' },
-              { key: 'insights', label: 'AI insights', desc: 'Weekly health reports' },
-              { key: 'family', label: 'Family updates', desc: 'Caretaker notifications' },
-            ].map(item => (
+            {notificationItems.map(item => (
               <div key={item.key} className="flex min-h-14 items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium leading-snug">{item.label}</p>
