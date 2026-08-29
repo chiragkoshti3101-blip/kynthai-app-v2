@@ -100,7 +100,7 @@ export function SosToast({ alert, onDismiss, onNavigate }: SosToastProps) {
                   }
                 }}
                 className="h-11 w-11 rounded-full"
-                aria-label="Call 911"
+                aria-label="Call emergency services"
               >
                 <Phone className="h-4 w-4 text-rose-600" />
               </Button>
