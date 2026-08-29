@@ -1,9 +1,9 @@
 /**
  * Kynthai Currency System
  * -----------------------------
- * All prices shown to users are USD.
+ * Prices use the user's selected currency.
  * No country-specific tax is included in displayed prices.
- * US sales tax, if applicable, is collected at checkout per state regulations.
+ * Taxes or local charges, where applicable, are shown at checkout.
  */
 
 export type Currency = 'USD' | 'EUR' | 'GBP'
@@ -19,7 +19,7 @@ export const CURRENCIES: Record<
 
 export const CURRENCY_ORDER: Currency[] = ['USD', 'EUR', 'GBP']
 
-/** Patient subscription prices — in USD per month (no tax) */
+/** Patient subscription prices — per month, before local taxes */
 export const PRICING: Record<
   Currency,
   {
@@ -41,7 +41,7 @@ export const PRICING: Record<
   },
 }
 
-/** Early Adopter prices — in USD per month (no tax) */
+/** Early Adopter prices — per month, before local taxes */
 export const EARLY_ADOPTER_PRICING = {
   USD: {
     individual: { monthly: 9.99, yearly: 99.99 },
@@ -63,10 +63,15 @@ export function yearlySavingsPct(currency: Currency, tier: 'plus' | 'family_pro'
   return Math.round((1 - p.yearly / monthlyAnnual) * 100)
 }
 
-/** Auto-detect currency from browser locale + timezone. Falls back to USD. */
+/** Auto-detect a supported currency from the browser region. Falls back to USD. */
 export function detectCurrency(): Currency {
   if (typeof navigator === 'undefined') return 'USD'
-  // US-first deployment — always return USD regardless of locale
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
+  const region = (navigator.language || '').split('-')[1]?.toUpperCase()
+  if (region === 'GB' || timezone === 'Europe/London') return 'GBP'
+  const euroRegions = new Set(['AT', 'BE', 'CY', 'DE', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PT', 'SI', 'SK'])
+  if (region && euroRegions.has(region)) return 'EUR'
+  if (timezone.startsWith('Europe/') && !timezone.startsWith('Europe/London')) return 'EUR'
   return 'USD'
 }
 
