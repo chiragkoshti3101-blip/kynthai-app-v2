@@ -22,7 +22,7 @@ export function LaunchCTA({ onPickPortal }: { onPickPortal: (portal: LoginPortal
           Available now
         </Badge>
         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Kynthai is live <span className="text-emerald-600">for US families</span>
+          Kynthai is live <span className="text-emerald-600">for families everywhere</span>
         </h2>
         <p className="mt-3 text-muted-foreground">
           Start managing your family&apos;s health today — free to sign up, no credit card required.

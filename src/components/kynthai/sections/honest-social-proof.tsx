@@ -35,7 +35,7 @@ function HonestSocialProof() {
                 variant="secondary"
                 className="mb-3 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium"
               >
-                Built for American families
+                Built for families everywhere
               </Badge>
               <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
                 A health companion <span className="text-emerald-600">you can trust</span>
@@ -49,7 +49,7 @@ function HonestSocialProof() {
 
             <div className="grid grid-cols-2 gap-3 sm:gap-5">
               {[
-                { value: 'Live now', label: 'Available today for US families', icon: Sparkles },
+                { value: 'Live now', label: 'Designed for families everywhere', icon: Sparkles },
                 { value: 'No VC', label: 'Built for users, not investors', icon: DollarSign },
                 { value: 'Multi-generational', label: 'For families of all ages', icon: Users },
               ].map(s => (

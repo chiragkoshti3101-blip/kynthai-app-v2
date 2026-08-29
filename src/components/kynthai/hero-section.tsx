@@ -70,32 +70,32 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
               className="mb-3 sm:mb-4 gap-1.5 border-emerald-500/35 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 font-medium text-[11px] sm:text-sm"
             >
               <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-              Built for the US · Privacy-first · Secure billing
+              Privacy-first · Secure billing
             </Badge>
           </div>
 
           {/* H1 — dominant, high-contrast */}
           <h1 className="text-balance text-[2rem] leading-[1.08] font-bold tracking-tight sm:text-5xl lg:text-[3.7rem]">
-            America&apos;s AI health companion
+            Your family's health,
             <br />
             <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 bg-clip-text text-transparent">
-              for every member of your family.
+              connected.
             </span>
           </h1>
 
           {/* Gradient subline — higher visual rank than plain text */}
           <p className="mt-3 text-base font-semibold sm:mt-4 sm:text-xl lg:text-2xl">
             <span className="bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">
-              Smart reminders, verified doctors &amp; lab tests
+              Smart reminders, doctor consultations, and lab tests
             </span>
-            <span className="text-foreground"> — all in one trusted app.</span>
+            <span className="text-foreground">— all in one place.</span>
           </p>
 
           {/* Body copy — relaxed leading, muted opacity */}
           <p className="mt-2 max-w-xl text-pretty text-sm leading-relaxed text-foreground/75 sm:mt-3 sm:text-base lg:text-lg">
             Missed doses, confusing labels, scheduling headaches — Kynthai brings smart reminders,
-            AI-guided medication information, verified consults, and home diagnostic tests together.
-            Built for US families, in USD, with privacy-first safeguards.
+            AI-guided medication information, doctor consultations, and lab tests together in one calm,
+            connected experience. Built for families everywhere, with privacy-first safeguards.
           </p>
           <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
             Kynthai is a health management tool — not a doctor, hospital, or emergency service.

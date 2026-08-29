@@ -26,7 +26,7 @@ const WEBAPP_SCHEMA = {
   name: 'Kynthai',
   alternateName: 'Kynthai Health',
   description:
-    'AI-powered health management platform for US patients, families, doctors, and labs. Medicine reminders, doctor consultations, lab bookings, and family health coordination.',
+    "Your family's connected health companion for smart reminders, doctor consultations, lab tests, and family care.",
   url: 'https://kynthai.app',
   applicationCategory: 'HealthApplication',
   operatingSystem: 'iOS, Android, Web',
@@ -49,7 +49,7 @@ const WEBAPP_SCHEMA = {
     },
   ],
   availableOnDemand: true,
-  inLanguage: ['en-US'],
+  inLanguage: ['en'],
   author: {
     '@type': 'Organization',
     '@id': 'https://kynthai.app/#organization',
@@ -64,12 +64,12 @@ const MEDICAL_ORG_SCHEMA = {
   '@id': 'https://kynthai.app/#medicalorganization',
   name: 'Kynthai',
   description:
-    'AI-powered health management platform for patients, families, doctors, and labs in the United States.',
+    "Kynthai connects patients, families, doctors, and labs in one privacy-first care experience.",
   url: 'https://kynthai.app',
   ...KYNETHA_CONTACT,
   foundingDate: '2025',
   ...(SOCIAL_PROFILES.length ? { sameAs: [...SOCIAL_PROFILES] } : {}),
-  areaServed: { '@type': 'Country', name: 'United States' },
+  areaServed: { '@type': 'Place', name: 'Worldwide' },
 } as const;
 
 const ORG_SCHEMA = {
@@ -109,11 +109,11 @@ const WEBPAGE_SCHEMA = {
   '@context': 'https://schema.org',
   '@type': 'WebPage',
   '@id': 'https://kynthai.app/#webpage',
-  name: 'Kynthai — AI Health Management for US Families',
+  name: "Kynthai — Your family's health, connected.",
   description:
-    'AI-powered health management for patients and families in the United States. Medicine reminders, doctor consultations, lab bookings.',
+    "Smart reminders, doctor consultations, and lab tests—all in one place.",
   url: 'https://kynthai.app',
-  inLanguage: 'en-US',
+  inLanguage: 'en',
   isAccessibleForFree: true,
   accessibilitySummary: 'Designed for keyboard navigation and screen readers; accessibility is an ongoing effort.',
 } as const;

@@ -15,7 +15,6 @@ import {
   Heart,
   Sparkles,
   Users,
-  ArrowLeftRight,
   UserCircle,
   Download,
   Trash2,
@@ -56,8 +55,6 @@ interface ProfileHubProps {
   onLogout: () => void;
   onShowPricing: () => void;
   onShowPrivacy: () => void;
-  /** Called when the user wants to switch to a different portal role. */
-  onSwitchPortal?: () => void;
   /** Opens the full role-aware Settings page. */
   onOpenSettings?: () => void;
   professionalProfile?: ProfessionalProfile;
@@ -114,7 +111,6 @@ export function ProfileHub({
   onLogout,
   onShowPricing,
   onShowPrivacy,
-  onSwitchPortal,
   onOpenSettings,
   professionalProfile,
 }: ProfileHubProps) {
@@ -169,21 +165,6 @@ export function ProfileHub({
             { key: 'insights', label: 'AI insights', desc: 'Weekly health reports' },
             { key: 'family', label: 'Family updates', desc: 'Caretaker notifications' },
           ];
-  const publicPortals = ['caretaker', 'patient', 'doctor', 'lab'];
-  const switchablePortals = isAdmin ? [...publicPortals, 'admin'] : publicPortals;
-  const switchLabel = switchablePortals
-    .map(id => {
-      const map: Record<string, string> = {
-        caretaker: 'Family',
-        patient: 'Patient',
-        doctor: 'Doctor',
-        lab: 'Lab',
-        admin: 'Admin',
-      };
-      return map[id];
-    })
-    .join(' · ');
-
   // ── Edit Profile state ─────────────────────────────────────────────────
   const [editingProfile, setEditingProfile] = React.useState(false);
   const [profileSaving, setProfileSaving] = React.useState(false);
@@ -682,28 +663,13 @@ export function ProfileHub({
         </Card>
       </div>
 
-      {/* Privacy + Switch portal */}
+      {/* Account */}
       <div className="px-5 mt-5">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
           Account
         </h3>
         <Card>
           <CardContent className="p-0 divide-y divide-border/60">
-            {onSwitchPortal && (
-              <button
-                onClick={onSwitchPortal}
-                className="flex w-full items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
-                  <ArrowLeftRight className="h-4 w-4" />
-                </span>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Switch portal</p>
-                  <p className="text-xs text-muted-foreground">{switchLabel}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
             {onOpenSettings && (
               <button
                 onClick={onOpenSettings}

@@ -19,7 +19,7 @@ export function ValueStatements() {
     },
     {
       title: 'Catch dangerous interactions',
-      body: 'AI cross-checks medications for drug-drug, drug-food, and timing conflicts — with severity tags and suggested alternatives (informational only, not medical advice). Works with common US medications.',
+      body: 'AI cross-checks medications for drug-drug, drug-food, and timing conflicts — with severity tags and suggested alternatives (informational only, not medical advice). Works with common medications.',
       icon: AlertTriangle,
       accent: 'from-amber-500 to-orange-600',
     },
@@ -73,7 +73,7 @@ export function ValueStatements() {
         </div>
 
         <p className="mx-auto mt-8 max-w-xl text-center text-xs text-muted-foreground">
-          Join families across America managing medications smarter with AI-powered health tools.
+          Join families everywhere managing medications smarter with AI-powered health tools.
         </p>
       </div>
     </section>

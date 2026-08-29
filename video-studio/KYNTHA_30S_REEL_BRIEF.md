@@ -42,13 +42,13 @@ ON-SCREEN TEXT OVERLAYS (centered, bold, white, soft shadow)
 | 8.5s  | 1.0 | "Records... lost on your phone."                            |
 | 9.5s  | 1.5 | "Doctor calls... missed. Mom's BP... in a notebook."        |
 | 13.5s | 2.0 | "Introducing Kynthai."                                      |
-| 15.5s | 2.0 | "America's AI health companion for families."               |
+| 15.5s | 2.0 | "Your family’s health, connected."               |
 | 17.0s | 1.2 | "✓ Medicine reminders"                                      |
 | 17.4s | 1.2 | "✓ Video calls with your doctor"                            |
 | 17.8s | 1.2 | "✓ Lab tests, booked in 2 taps"                             |
 | 18.2s | 1.2 | "✓ Mom, Dad, Kids — one shared home"                        |
 | 19.5s | 1.5 | "Encrypted end-to-end."                                     |
-| 20.5s | 1.5 | "Built for American families."                              |
+| 20.5s | 1.5 | "Built for families everywhere."                              |
 | 21.5s | 1.5 | "Powered by privacy-first AI."                              |
 | 26.5s | 2.5 | "Less chaos.  More calm.  The whole family — covered."     |
 | 28.5s | 1.5 | "kynthai.app"                                                |
