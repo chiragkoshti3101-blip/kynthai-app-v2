@@ -252,24 +252,6 @@ export function ProfileHub({
     }
   }
 
-  React.useEffect(() => {
-    const fetchScore = async () => {
-      try {
-        const res = await fetch('/api/health/score?days=1');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.scores && data.scores.length > 0) {
-            setHealthScore(data.scores[data.scores.length - 1].score);
-          }
-        }
-      } catch {
-        /* ignore */
-      }
-      setScoreLoading(false);
-    };
-    fetchScore();
-  }, [user.id]);
-
   return (
     <ResponsiveSheet open={open} onOpenChange={onOpenChange}>
       <SheetHeader className="px-5 pt-3 pb-3">
