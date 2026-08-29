@@ -586,7 +586,7 @@ export function ProfileHub({
               icon={Globe}
               label="Language"
               tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
-              value="English (US)"
+              value="English"
             >
               <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setLanguage('en-US')}>EN</Button>
             </SettingRow>
