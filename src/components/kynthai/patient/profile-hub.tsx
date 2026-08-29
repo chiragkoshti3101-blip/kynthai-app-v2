@@ -57,6 +57,8 @@ interface ProfileHubProps {
   onShowPrivacy: () => void;
   /** Called when the user wants to switch to a different portal role. */
   onSwitchPortal?: () => void;
+  /** Opens the full role-aware Settings page. */
+  onOpenSettings?: () => void;
 }
 
 type TierInfo = {
@@ -95,6 +97,7 @@ export function ProfileHub({
   onShowPricing,
   onShowPrivacy,
   onSwitchPortal,
+  onOpenSettings,
 }: ProfileHubProps) {
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
@@ -118,6 +121,35 @@ export function ProfileHub({
   const TierIcon = tierInfo.icon;
   const userRole = user.role;
   const isAdmin = userRole === 'admin';
+  const isProfessional = userRole === 'doctor' || userRole === 'lab';
+  const notificationItems = userRole === 'doctor'
+    ? [
+        { key: 'reminders', label: 'Appointment reminders', desc: 'Upcoming consultations' },
+        { key: 'family', label: 'Patient messages', desc: 'Updates from your patients' },
+        { key: 'insights', label: 'Practice insights', desc: 'Weekly practice updates' },
+        { key: 'emergency', label: 'Urgent alerts', desc: 'Time-sensitive care updates' },
+      ]
+    : userRole === 'lab'
+      ? [
+          { key: 'reminders', label: 'Booking reminders', desc: 'Upcoming lab bookings' },
+          { key: 'labResults', label: 'Result upload alerts', desc: 'When results need attention' },
+          { key: 'insights', label: 'Business insights', desc: 'Weekly lab updates' },
+          { key: 'emergency', label: 'Urgent alerts', desc: 'Time-sensitive service updates' },
+        ]
+      : userRole === 'caretaker'
+        ? [
+            { key: 'family', label: 'Family updates', desc: 'Care updates for your family' },
+            { key: 'reminders', label: 'Medication reminders', desc: 'Reminders for family members' },
+            { key: 'emergency', label: 'Family alerts', desc: 'Emergency and critical updates' },
+            { key: 'insights', label: 'Care insights', desc: 'Weekly family health updates' },
+          ]
+        : [
+            { key: 'reminders', label: 'Medication reminders', desc: 'Take-your-med alerts' },
+            { key: 'labResults', label: 'Lab results', desc: 'When results are ready' },
+            { key: 'emergency', label: 'Emergency alerts', desc: 'Critical updates from your care team' },
+            { key: 'insights', label: 'AI insights', desc: 'Weekly health reports' },
+            { key: 'family', label: 'Family updates', desc: 'Caretaker notifications' },
+          ];
   const publicPortals = ['caretaker', 'patient', 'doctor', 'lab'];
   const switchablePortals = isAdmin ? [...publicPortals, 'admin'] : publicPortals;
   const switchLabel = switchablePortals
@@ -426,13 +458,7 @@ export function ProfileHub({
                 </div>
               </div>
               <div className="ml-12 space-y-1">
-                {([
-                  { key: 'reminders', label: 'Medication reminders', desc: 'Take-your-med alerts' },
-                  { key: 'labResults', label: 'Lab results', desc: 'When results are ready' },
-                  { key: 'emergency', label: 'Family alerts', desc: 'Emergency and critical updates' },
-                  { key: 'insights', label: 'AI insights', desc: 'Weekly health reports' },
-                  { key: 'family', label: 'Family updates', desc: 'Caretaker notifications' },
-                ] as const).map(item => (
+                {notificationItems.map(item => (
                   <div key={item.key} className="flex min-h-14 items-center justify-between gap-3 py-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium leading-snug">{item.label}</p>
@@ -440,7 +466,7 @@ export function ProfileHub({
                     </div>
                     <Switch
                       aria-label={item.label}
-                      checked={notifPrefs[item.key]}
+                      checked={(notifPrefs as Record<string, boolean>)[item.key]}
                       onCheckedChange={async c => {
                         setNotifPrefs(p => ({ ...p, [item.key]: c }));
                         try {
@@ -482,9 +508,9 @@ export function ProfileHub({
       {/* ── Consent Manager ─────────────────────────────────────────────── */}
       <ConsentManager
         consentFlags={{
-          consentAccepted: user.consentAccepted ?? true,
-          dataProcessingConsent: user.dataProcessingConsent ?? true,
-          aiTrainingConsent: user.aiTrainingConsent ?? true,
+          consentAccepted: user.consentAccepted ?? false,
+          dataProcessingConsent: user.dataProcessingConsent ?? false,
+          aiTrainingConsent: user.aiTrainingConsent ?? false,
         }}
       />
 
@@ -566,6 +592,21 @@ export function ProfileHub({
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                className="flex w-full items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-500/10 text-slate-600 dark:text-slate-400">
+                  <Shield className="h-4 w-4" />
+                </span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Account settings</p>
+                  <p className="text-xs text-muted-foreground">Role-specific preferences and security</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
             <button
               onClick={onShowPrivacy}
               className="flex w-full items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors"
@@ -575,7 +616,7 @@ export function ProfileHub({
               </span>
               <div className="flex-1">
                 <p className="text-sm font-medium">Privacy &amp; Security</p>
-                <p className="text-xs text-muted-foreground">US privacy · data export</p>
+                <p className="text-xs text-muted-foreground">Privacy choices · data export</p>
               </div>
               <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </button>
