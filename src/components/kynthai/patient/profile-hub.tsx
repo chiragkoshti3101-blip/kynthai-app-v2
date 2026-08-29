@@ -59,7 +59,24 @@ interface ProfileHubProps {
   onSwitchPortal?: () => void;
   /** Opens the full role-aware Settings page. */
   onOpenSettings?: () => void;
+  professionalProfile?: ProfessionalProfile;
+  /** Opens the role's professional profile editor. */
+  onOpenProfessionalProfile?: () => void;
 }
+
+type ProfessionalProfile = {
+  id?: string;
+  specialization?: string;
+  licenseNumber?: string;
+  experience?: number;
+  consultationFee?: number;
+  city?: string;
+  bio?: string;
+  labName?: string;
+  address?: string;
+  homeCollection?: boolean;
+  verified?: boolean;
+};
 
 type TierInfo = {
   name: string;
@@ -98,6 +115,8 @@ export function ProfileHub({
   onShowPrivacy,
   onSwitchPortal,
   onOpenSettings,
+  professionalProfile,
+  onOpenProfessionalProfile,
 }: ProfileHubProps) {
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
@@ -390,6 +409,40 @@ export function ProfileHub({
           </Card>
         </div>
       )}
+
+        {isProfessional && professionalProfile && (
+          <div className="px-5 mt-5">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Professional profile
+            </h3>
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {userRole === 'doctor' ? (
+                    <>
+                      <ContactRow icon={UserCircle} label="Specialty" value={professionalProfile.specialization || 'Not added'} />
+                      <ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} />
+                      <ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} />
+                      <ContactRow icon={Crown} label="Consultation fee" value={professionalProfile.consultationFee != null ? `$${professionalProfile.consultationFee}` : 'Not added'} />
+                    </>
+                  ) : (
+                    <>
+                      <ContactRow icon={UserCircle} label="Laboratory" value={professionalProfile.labName || 'Not added'} />
+                      <ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} />
+                      <ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} />
+                      <ContactRow icon={Heart} label="Collection" value={professionalProfile.homeCollection ? 'Home collection' : 'In-lab only'} />
+                    </>
+                  )}
+                </div>
+                {onOpenProfessionalProfile && (
+                  <Button variant="outline" className="w-full" onClick={onOpenProfessionalProfile}>
+                    Edit professional profile
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
       {/* Subscription */}
       <div className="px-5 mt-5">
