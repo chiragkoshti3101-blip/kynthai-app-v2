@@ -6,10 +6,7 @@ export type EmergencyCountry = {
   note?: string
 }
 
-// Curated from national emergency services and ITU E.129 references.
-// A country may have separate police/fire/ambulance numbers; where that is
-// true, the displayed value keeps the alternatives visible and dialNumber
-// chooses the most broadly useful emergency route for a health app.
+// Curated emergency-service routes for countries in the current launch scope.
 export const EMERGENCY_COUNTRIES: EmergencyCountry[] = [
   { code: 'AR', name: 'Argentina', number: '911', dialNumber: '911' },
   { code: 'AU', name: 'Australia', number: '000', dialNumber: '000' },
@@ -41,29 +38,34 @@ export const EMERGENCY_COUNTRIES: EmergencyCountry[] = [
   { code: 'AE', name: 'United Arab Emirates', number: '998 / 999', dialNumber: '998', note: 'Ambulance / police' },
   { code: 'GB', name: 'United Kingdom', number: '999 / 112', dialNumber: '999' },
   { code: 'US', name: 'United States', number: '911', dialNumber: '911' },
-  { code: 'ZZ', name: 'Other / international', number: '112', dialNumber: '112', note: 'Use 112 only where supported; check local guidance' },
+  { code: 'ZZ', name: 'Other / international', number: '112', dialNumber: '112', note: 'Verify local support before relying on this fallback' },
 ]
 
 export const DEFAULT_EMERGENCY_COUNTRY = 'ZZ'
-const STORAGE_KEY = 'kynthai:emergency-country'
+
+const CALLING_CODES: Array<[string, string]> = [
+  ['971', 'AE'], ['351', 'PT'], ['353', 'IE'], ['358', 'FI'], ['972', 'IL'],
+  ['974', 'QA'], ['975', 'BT'], ['976', 'MN'], ['977', 'NP'], ['880', 'BD'],
+  ['92', 'PK'], ['91', 'IN'], ['86', 'CN'], ['81', 'JP'], ['82', 'KR'],
+  ['65', 'SG'], ['60', 'MY'], ['62', 'ID'], ['55', 'BR'], ['52', 'MX'],
+  ['27', 'ZA'], ['33', 'FR'], ['49', 'DE'], ['39', 'IT'], ['34', 'ES'],
+  ['31', 'NL'], ['32', 'BE'], ['43', 'AT'], ['41', 'CH'], ['46', 'SE'],
+  ['64', 'NZ'], ['61', 'AU'], ['44', 'GB'], ['1', 'US'],
+]
 
 export function getEmergencyCountry(code: string): EmergencyCountry {
   return EMERGENCY_COUNTRIES.find(country => country.code === code)
     ?? EMERGENCY_COUNTRIES.find(country => country.code === DEFAULT_EMERGENCY_COUNTRY)!
 }
 
-export function getStoredEmergencyCountry(): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const code = window.localStorage.getItem(STORAGE_KEY)
-    return code && EMERGENCY_COUNTRIES.some(country => country.code === code) ? code : null
-  } catch {
-    return null
-  }
+export function getEmergencyCountryFromPhone(phone?: string | null): EmergencyCountry {
+  const digits = String(phone ?? '').replace(/\D/g, '')
+  const match = CALLING_CODES.find(([callingCode]) => digits.startsWith(callingCode))
+  return getEmergencyCountry(match?.[1] ?? DEFAULT_EMERGENCY_COUNTRY)
 }
 
-export function detectEmergencyCountry(): string {
-  if (typeof navigator === 'undefined') return DEFAULT_EMERGENCY_COUNTRY
+export function detectEmergencyCountry(): EmergencyCountry {
+  if (typeof navigator === 'undefined') return getEmergencyCountry(DEFAULT_EMERGENCY_COUNTRY)
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''
   const timezoneCountry: Array<[string, string]> = [
     ['Australia/', 'AU'], ['Pacific/Auckland', 'NZ'], ['Asia/Kolkata', 'IN'],
@@ -75,17 +77,7 @@ export function detectEmergencyCountry(): string {
     ['Europe/London', 'GB'], ['Europe/Dublin', 'IE'], ['Europe/', 'ZZ'],
   ]
   const byTimezone = timezoneCountry.find(([prefix]) => timezone.startsWith(prefix))
-  if (byTimezone) return byTimezone[1]
+  if (byTimezone) return getEmergencyCountry(byTimezone[1])
   const region = (navigator.language || '').split('-')[1]?.toUpperCase()
-  if (region && EMERGENCY_COUNTRIES.some(country => country.code === region)) return region
-  return DEFAULT_EMERGENCY_COUNTRY
-}
-
-export function setStoredEmergencyCountry(code: string): void {
-  if (typeof window === 'undefined' || !EMERGENCY_COUNTRIES.some(country => country.code === code)) return
-  try {
-    window.localStorage.setItem(STORAGE_KEY, code)
-  } catch {
-    // Storage can be unavailable in private browsing; in-memory state still works.
-  }
+  return getEmergencyCountry(region && EMERGENCY_COUNTRIES.some(country => country.code === region) ? region : DEFAULT_EMERGENCY_COUNTRY)
 }
