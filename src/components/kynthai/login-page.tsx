@@ -813,7 +813,7 @@ export function LoginPage({
                       <Input
                         id="emergency1"
                         type="tel"
-                        placeholder="+1 (555) 123-4567"
+                        placeholder="+91 98765 43210"
                         value={emergencyContact1}
                         onChange={e => setEmergencyContact1(e.target.value)}
                         autoComplete="tel"
