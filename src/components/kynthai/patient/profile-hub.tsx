@@ -782,7 +782,7 @@ function ConsentManager({ consentFlags }: ConsentManagerProps) {
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-500" />
               <p className="text-xs text-muted-foreground leading-relaxed">
                 <strong className="text-foreground">Some AI features are currently unavailable.</strong>{' '}
-                Re-enable the &ldquo;AI training data&rdquo; consent below to access AI-powered
+                Re-enable AI data sharing below if you want KynthAI to use de-identified data to improve
                 insights, chat, and health recommendations.
               </p>
             </div>
