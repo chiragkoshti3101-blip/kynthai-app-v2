@@ -368,7 +368,7 @@ export function ComplaintForm({ open, onOpenChange }: ComplaintFormProps) {
             <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-500/20 p-3">
               <p className="text-xs text-muted-foreground">
                 <strong className="text-foreground">Urgent medical emergency?</strong> Call{' '}
-                <strong>911</strong>. For identity/document verification issues, our team reviews
+                <strong>local emergency services</strong>. For identity/document verification issues, our team reviews
                 within 1 business day.
               </p>
             </div>
