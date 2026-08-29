@@ -46,6 +46,7 @@ import { logger } from '@/lib/logger';
 import { AiChat } from '@/components/medication/ai-chat';
 import { CareHub as CaretakerCareHub } from './care-hub';
 import { ProfileHub } from '@/components/kynthai/patient/profile-hub';
+import { EmergencyCountrySelector, useEmergencyCountry } from '@/components/kynthai/emergency-country-selector';
 import { FamilyMemberSchedule } from './member-schedule';
 import { MedicationsList } from '@/components/medication/medications-list';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
@@ -1074,6 +1075,7 @@ function SosTab({
     notifiedDoctors: { name: string; eta?: string }[];
     summary: string;
   } | null>(null);
+  const { countryCode, country, selectCountry } = useEmergencyCountry();
 
   const trigger = async (tier: 'critical' | 'family') => {
     setStage('triggering');
@@ -1097,6 +1099,7 @@ function SosTab({
           location: `Caretaker app — ${selected.name}`,
           notes: `${tier === 'critical' ? 'Critical' : 'Family'} SOS triggered from caretaker app`,
           medicalInfo: '',
+          emergencyNumber: country.dialNumber,
         }),
       });
       anyOk = sosRes.ok;
@@ -1172,14 +1175,15 @@ function SosTab({
 
           {stage === 'idle' && (
             <div className="mt-5 space-y-3">
-              {/* Always-available 911 call — never hidden behind the trigger
+              <EmergencyCountrySelector countryCode={countryCode} onChange={selectCountry} />
+              {/* Always-available emergency call — never hidden behind the trigger
                   state so a family member can always dial emergency services. */}
-              <a href="tel:911" aria-label="Call emergency services" className="block">
+              <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
                 <Button
                   size="lg"
                   className="w-full h-14 text-base bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800"
                 >
-                  <Phone className="h-5 w-5" /> Call emergency services
+                  <Phone className="h-5 w-5" /> Call {country.number}
                 </Button>
               </a>
               <Button
