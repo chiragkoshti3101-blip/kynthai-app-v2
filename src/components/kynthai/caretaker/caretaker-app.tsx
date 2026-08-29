@@ -46,7 +46,7 @@ import { logger } from '@/lib/logger';
 import { AiChat } from '@/components/medication/ai-chat';
 import { CareHub as CaretakerCareHub } from './care-hub';
 import { ProfileHub } from '@/components/kynthai/patient/profile-hub';
-import { EmergencyCountrySelector, useEmergencyCountry } from '@/components/kynthai/emergency-country-selector';
+import { EmergencyNumberCard, useEmergencyCountry } from '@/components/kynthai/emergency-country-selector';
 import { FamilyMemberSchedule } from './member-schedule';
 import { MedicationsList } from '@/components/medication/medications-list';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
@@ -666,7 +666,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
             <FadeIn key="sos">
               <>
                 {selectedMember ? (
-                  <SosTab members={family} selected={selectedMember} onSelect={setSelectedMember} />
+                  <SosTab members={family} selected={selectedMember} onSelect={setSelectedMember} phone={user.phone} />
                 ) : (
                   <Card>
                     <CardContent className="p-8 text-center text-muted-foreground">
@@ -1028,10 +1028,12 @@ function MemberSelector({
   members,
   selected,
   onSelect,
+  phone,
 }: {
   members: FamilyMember[];
   selected: FamilyMember | null;
   onSelect: (m: FamilyMember) => void;
+  phone?: string | null;
 }) {
   return (
     <div className="flex gap-2 overflow-x-auto custom-scroll pb-1">
@@ -1064,10 +1066,12 @@ function SosTab({
   members,
   selected,
   onSelect,
+  phone,
 }: {
   members: FamilyMember[];
   selected: FamilyMember;
   onSelect: (m: FamilyMember) => void;
+  phone?: string | null;
 }) {
   const { toast } = useToast();
   const [stage, setStage] = React.useState<'idle' | 'triggering' | 'triggered'>('idle');
@@ -1075,7 +1079,7 @@ function SosTab({
     notifiedDoctors: { name: string; eta?: string }[];
     summary: string;
   } | null>(null);
-  const { countryCode, country, selectCountry } = useEmergencyCountry();
+  const { country } = useEmergencyCountry(phone);
 
   const trigger = async (tier: 'critical' | 'family') => {
     setStage('triggering');
@@ -1099,8 +1103,7 @@ function SosTab({
           location: `Caretaker app — ${selected.name}`,
           notes: `${tier === 'critical' ? 'Critical' : 'Family'} SOS triggered from caretaker app`,
           medicalInfo: '',
-          emergencyNumber: country.dialNumber,
-        }),
+                  }),
       });
       anyOk = sosRes.ok;
       if (!sosRes.ok) lastError = ((await sosRes.json().catch(() => ({}))).error as string) || '';
@@ -1175,7 +1178,7 @@ function SosTab({
 
           {stage === 'idle' && (
             <div className="mt-5 space-y-3">
-              <EmergencyCountrySelector countryCode={countryCode} onChange={selectCountry} />
+              <EmergencyNumberCard phone={phone} />
               {/* Always-available emergency call — never hidden behind the trigger
                   state so a family member can always dial emergency services. */}
               <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
