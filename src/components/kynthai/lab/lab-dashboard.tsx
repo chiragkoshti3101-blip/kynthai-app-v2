@@ -248,6 +248,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
           <div className="flex items-center gap-1">
             <NotificationCenter role="lab"
               userId={user.id}
+              phone={user.phone}
               isDemo={!!user.isDemo || (user.email || '').endsWith('@kynthai.app')}
               onNavigate={(t: string) => {
                 if (t === 'meds' || t === 'care') setTab('bookings')
