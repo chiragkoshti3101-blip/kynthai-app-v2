@@ -3,7 +3,7 @@
  *
  * Soft-deleted records are retained for a bounded window to support:
  *  - Operational recovery (accidental deletes)
- *  - Compliance review (US privacy / Health Data Protection audit trails)
+ *  - Compliance review (applicable privacy / Health Data Protection audit trails)
  *
  * PURGE BOUNDARIES (see compliance review):
  *  - Standard soft-delete retention: 30 days
