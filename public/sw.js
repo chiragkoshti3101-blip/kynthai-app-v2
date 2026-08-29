@@ -223,6 +223,11 @@ self.addEventListener('push', (event) => {
     renotify: !isIOS,
     requireInteraction: isIOS ? false : isClinical,
     silent: false,
+    // Browsers that honor custom sounds use the clinical chime; Chrome/Android
+    // fall back to the system default (still audible because silent=false).
+    // iOS system banners are ALWAYS silent for web push (Apple platform
+    // limitation) — the chime rings in-app when the alarm screen opens.
+    sound: isClinical ? '/sounds/med-chime.wav' : undefined,
   }
   if (!isIOS) {
     options.vibrate = isClinical

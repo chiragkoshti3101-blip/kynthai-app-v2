@@ -115,7 +115,7 @@ export default function FamilyPortalClient({ user }: { user: { id: string; name?
   return (
     <ErrorBoundary>
       <div className="min-h-dvh flex flex-col bg-gradient-to-b from-background to-muted/30">
-          <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur">
+          <header className="sticky top-0 z-50 border-b bg-background">
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">

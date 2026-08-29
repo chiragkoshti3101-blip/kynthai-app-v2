@@ -216,19 +216,21 @@
 }
 
 /* ── Global horizontal-overflow guard ──────────────────────────────────────
- * Guarantees no horizontal scrolling at ANY viewport width (320px → 4K)
- * across every screen — landing, auth, legal, and all portal apps.
- * `clip` is preferred over `hidden`: it clips overflow without creating a
- * scroll container, so `position: sticky` headers keep working.
- * The `hidden` rule is a fallback for browsers without `overflow: clip`.
+ * NEVER put overflow-x (hidden OR clip) on html/body: root-level overflow
+ * propagates to the viewport and silently disables position:sticky for the
+ * WHOLE document — every portal header stopped pinning on scroll (iOS Safari,
+ * Android Chrome, desktop Chrome; founder bug "the top layer is not fixed",
+ * reproduced live 2026-02: headerTop -447 @ scrollY 600 with root clip,
+ * headerTop 0 with root visible).
+ * The guard lives on top-level page wrappers instead. `clip` (unlike
+ * `hidden`) creates no scroll container, so sticky/fixed keep working below
+ * this level; verified: clip on a non-root ancestor does NOT break sticky.
  * ------------------------------------------------------------------------- */
-html,
-body {
+body > div {
   overflow-x: hidden;
 }
 @supports (overflow-x: clip) {
-  html,
-  body {
+  body > div {
     overflow-x: clip;
   }
 }

@@ -1516,7 +1516,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
       <NotificationPermissionBanner />
       <MedicationAlarmHost userId={user.id} isDemo={isDemo} />
       </>
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 pt-safe">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background pt-safe">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <KynthaiBrand iconSize={30} />
           <div className="flex items-center gap-1">
@@ -1550,7 +1550,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
         </div>
       </header>
 
-      <main id="main-content" className="mx-auto max-w-3xl w-full flex-1 px-4 pt-safe pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
+      <main id="main-content" className="mx-auto max-w-3xl w-full flex-1 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
         <AnimatePresence initial={false}>
           {tab === 'home' && (
             <FadeIn key="home">
@@ -1687,7 +1687,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
 
       {/* Bottom nav — 5 tabs (Home · Meds · Care · Lab · More), labels always
           visible (native convention), icon+text thumb targets ≥44px */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/90 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/80 pb-safe">
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background pb-safe">
         <div className="mx-auto flex max-w-3xl items-stretch justify-around gap-1 overflow-x-auto px-2 py-1 scrollbar-none">
           {TABS.map(t => {
             const active = tab === t.id;

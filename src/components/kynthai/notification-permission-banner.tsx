@@ -27,15 +27,17 @@ export function NotificationPermissionBanner() {
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     if (!pushSupported()) return
-    if (!isIosStandalone()) {
-      setShow(true)
-      setMsg('iPhone: Share → Add to Home Screen, open from the icon, then allow notifications.')
-      return
-    }
+    // Session dismiss applies to EVERY variant (incl. the iOS hint below) —
+    // "Later" must silence the strip for the whole session.
     try {
       if (sessionStorage.getItem(DISMISS) === '1') return
     } catch {
       /* ignore */
+    }
+    if (!isIosStandalone()) {
+      setShow(true)
+      setMsg('iPhone: Share → Add to Home Screen, open from the icon, then allow notifications.')
+      return
     }
     const perm = permissionState()
     if (perm === 'granted') return

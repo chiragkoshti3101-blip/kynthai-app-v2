@@ -34,7 +34,16 @@ export function PushNotificationToggle({ className }: { className?: string }) {
     }
     const perm = permissionState()
     setEnabled(perm === 'granted')
-    if (perm === 'denied') {
+    if (perm === 'granted') {
+      // Honest expectation-setting: Apple never plays a sound (or vibrates)
+      // for web-push banners on iPhone — the full chime rings in-app when the
+      // dose alarm opens. Android plays the system/chime sound normally.
+      setHint(
+        isIosStandalone()
+          ? 'On. Note: iPhones stay silent for web notifications (Apple limitation) — open Kynthai and the dose alarm rings with the full chime.'
+          : null,
+      )
+    } else if (perm === 'denied') {
       setHint('Notifications blocked. Open system Settings → Apps → Kynthai → Notifications → Allow.')
     } else if (perm === 'default') {
       setHint('Tap Enable notifications so dose, doctor, and lab alerts can reach this phone.')
