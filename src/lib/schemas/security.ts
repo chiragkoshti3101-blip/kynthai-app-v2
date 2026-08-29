@@ -21,6 +21,7 @@ export const emergencySosSchema = z.object({
   location:    z.string().max(300).optional().nullable(),
   notes:       z.string().max(1000).optional().nullable(),
   medicalInfo: z.string().max(1000).optional().nullable(),
+  emergencyNumber: z.string().regex(/^\d{2,4}$/).optional().nullable(),
 })
 
 // ── Doctor: notes ────────────────────────────────────────────────────
