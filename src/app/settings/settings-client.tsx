@@ -325,10 +325,10 @@ export default function SettingsClient() {
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background pt-safe">
         <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-4">
-          <button onClick={() => router.back()} className="inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-xl hover:bg-accent">
+          <button aria-label="Go back" onClick={() => router.back()} className="inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-xl hover:bg-accent">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-lg font-bold">Settings</h1>
+          <h1 className="text-lg font-bold">Profile &amp; Settings</h1>
         </div>
       </header>
 
@@ -378,6 +378,22 @@ export default function SettingsClient() {
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
               {saving ? 'Saving...' : 'Save Profile'}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Subscription */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="h-4 w-4" /> Subscription
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium">{user.subscriptionTier ? user.subscriptionTier + ' plan' : 'Free plan'}</p>
+              <p className="text-sm text-muted-foreground">Manage your plan and included features.</p>
+            </div>
+            <Button variant="outline" onClick={() => router.push('/pricing')}>View plans</Button>
           </CardContent>
         </Card>
 
@@ -492,7 +508,7 @@ export default function SettingsClient() {
           </CardContent>
         </Card>
 
-        {/* Privacy & Consent */}
+        {/* Privacy &amp; AI */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
@@ -501,9 +517,7 @@ export default function SettingsClient() {
           </CardHeader>
           <CardContent className="space-y-3">
             {[
-              { key: 'consentAccepted', label: 'Terms of Service', desc: 'Kynthai Terms & Privacy Policy' },
-              { key: 'dataProcessingConsent', label: 'Data processing', desc: 'Store and process health data under US privacy' },
-              { key: 'aiTrainingConsent', label: 'AI training data', desc: 'Allow de-identified data to improve AI' },
+              { key: 'aiTrainingConsent', label: 'AI data sharing', desc: 'Allow de-identified data to improve KynthAI AI features. You can change this anytime.' },
             ].map(item => (
               <div key={item.key} className="flex min-h-14 items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
@@ -523,7 +537,7 @@ export default function SettingsClient() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Download className="h-4 w-4" /> Your Data
+              <Download className="h-4 w-4" /> Privacy &amp; Data
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -542,6 +556,21 @@ export default function SettingsClient() {
                 <p className="text-xs text-muted-foreground">Permanently erase all data</p>
               </div>
             </button>
+          </CardContent>
+        </Card>
+
+        {/* Support and legal */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Support &amp; Legal</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <a href="/about" className="flex items-center justify-between rounded-lg p-3 text-sm font-medium hover:bg-accent/40">
+              About KynthAI <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </a>
+            <a href="/legal" className="flex items-center justify-between rounded-lg p-3 text-sm font-medium hover:bg-accent/40">
+              Legal &amp; Privacy <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </a>
           </CardContent>
         </Card>
 
