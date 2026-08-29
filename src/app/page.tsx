@@ -73,15 +73,15 @@ export default function RootPage({ children }: RootPageProps) {
           'Lab Test Booking',
           'Privacy-first Healthcare',
         ],
-        areaServed: { '@type': 'Country', name: 'United States' },
+        areaServed: { '@type': 'Country', name: 'Worldwide', alternateName: ['United States', 'India', 'United Kingdom', 'UAE', 'Brazil'] },
       },
       {
         '@type': 'MedicalWebPage',
         '@id': BASE + '/#webpage',
         url: BASE,
-        name: "Kynthai - America's AI Health Companion for Families",
+        name: "Kynthai - Care Connected, Wherever You Are",
         description:
-          'AI-powered medicine reminders, doctor video consultations, lab tests and family health management for American households. Free to start. Privacy-first. Documents encrypted at rest; all traffic uses TLS.',
+          'AI-powered medicine reminders, doctor video consultations, lab tests and family medications and care from anywhere. Free to start. Privacy-first. Documents encrypted at rest; all traffic uses TLS.',
         isPartOf: { '@id': BASE + '/#website' },
         about: { '@id': BASE + '/#organization' },
         inLanguage: 'en-US',
@@ -91,7 +91,7 @@ export default function RootPage({ children }: RootPageProps) {
         audience: {
           '@type': 'Audience',
           audienceType: 'Patients, Families, Caretakers, Doctors, Labs',
-          geographicArea: { '@type': 'Country', name: 'United States' },
+          geographicArea: { '@type': 'Country', name: 'Worldwide', alternateName: ['United States', 'India', 'United Kingdom', 'UAE', 'Brazil'] },
         },
       },
     ],
