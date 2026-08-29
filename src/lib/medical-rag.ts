@@ -204,7 +204,7 @@ Women are more likely than men to experience shortness of breath, nausea/vomitin
     id: 'emergency-002',
     type: 'emergency',
     title: 'Stroke Warning Signs (FAST)',
-    content: `**Call 911 immediately** if you notice:
+    content: `**Contact your local emergency services immediately** if you notice:
 - **F**ace drooping: one side of the face droops or feels numb
 - **A**rm weakness: one arm drifts downward when raised
 - **S**peech difficulty: slured speech or trouble speaking/understanding
@@ -229,7 +229,7 @@ Additional signs: sudden numbness/weakness, confusion, trouble seeing, dizziness
     id: 'emergency-003',
     type: 'emergency',
     title: 'Anaphylaxis (Severe Allergic Reaction)',
-    content: `**Call 911 immediately**. Anaphylaxis is life-threatening.
+    content: `**Contact your local emergency services immediately**. Anaphylaxis is life-threatening.
 Signs: difficulty breathing, swelling of throat/tongue, hives, rapid pulse, dizziness/fainting, nausea/vomiting, wheezing.
 If the person has an epinephrine auto-injector (EpiPen), use it immediately while waiting for EMS. Do NOT drive yourself to the hospital.`,
     keywords: [
