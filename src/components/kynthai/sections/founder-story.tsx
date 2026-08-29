@@ -24,7 +24,7 @@ export function FounderStory() {
             Health management <span className="text-emerald-600">shouldn&apos;t be this hard</span>
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Millions of Americans manage medications for aging parents, young children, or their own
+            Families everywhere manage medications for aging parents, young children, or their own
             health — often juggling scattered notes, multiple pharmacy apps, and paper schedules.
             Kynthai brings everything into one place.
           </p>
@@ -52,7 +52,7 @@ export function FounderStory() {
               <div className="mt-5 flex flex-wrap gap-3">
                 {[
                   { label: 'Privacy-first from day one', icon: ShieldCheck },
-                  { label: 'Built for US families', icon: Server },
+                  { label: 'Built for families everywhere', icon: Server },
                   { label: 'No surprise billing', icon: DollarSign },
                   { label: 'You own your data', icon: Lock },
                 ].map(item => (
