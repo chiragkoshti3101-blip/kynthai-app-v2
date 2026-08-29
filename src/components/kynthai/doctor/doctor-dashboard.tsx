@@ -800,6 +800,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
               <NotificationCenter
               role="doctor"
                 userId={user.id}
+                phone={user.phone}
                 isDemo={isDemo}
                 onNavigate={(t: string) => {
                   if (t === 'meds' || t === 'care') setView('patients')
