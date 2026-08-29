@@ -60,8 +60,6 @@ interface ProfileHubProps {
   /** Opens the full role-aware Settings page. */
   onOpenSettings?: () => void;
   professionalProfile?: ProfessionalProfile;
-  /** Opens the role's professional profile editor. */
-  onOpenProfessionalProfile?: () => void;
 }
 
 type ProfessionalProfile = {
@@ -75,6 +73,8 @@ type ProfessionalProfile = {
   labName?: string;
   address?: string;
   homeCollection?: boolean;
+  tests?: { name: string; price: number }[];
+  testsOffered?: { name: string; price: number }[];
   verified?: boolean;
 };
 
@@ -116,7 +116,6 @@ export function ProfileHub({
   onSwitchPortal,
   onOpenSettings,
   professionalProfile,
-  onOpenProfessionalProfile,
 }: ProfileHubProps) {
   const { theme, setTheme } = useTheme();
   const isMobile = useIsMobile();
@@ -190,6 +189,60 @@ export function ProfileHub({
   const [editName, setEditName] = React.useState(user.name || '');
   const [editPhone, setEditPhone] = React.useState(user.phone || '');
   const [editDob, setEditDob] = React.useState('');
+
+  const [professionalEditing, setProfessionalEditing] = React.useState(false);
+  const [professionalSaving, setProfessionalSaving] = React.useState(false);
+  const [professionalDraft, setProfessionalDraft] = React.useState<ProfessionalProfile>(professionalProfile ?? {});
+
+  React.useEffect(() => {
+    setProfessionalDraft(professionalProfile ?? {});
+  }, [professionalProfile]);
+
+  async function handleSaveProfessionalProfile(): Promise<void> {
+    if (isDemo) {
+      toast({ title: 'Demo profile is read-only', description: 'Use a real account to edit professional details.' });
+      return;
+    }
+    setProfessionalSaving(true);
+    try {
+      const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
+      const { token } = await csrfRes.json().catch(() => ({}));
+      const isDoctor = userRole === 'doctor';
+      const body = isDoctor
+        ? {
+            specialization: professionalDraft.specialization || '',
+            city: professionalDraft.city || '',
+            bio: professionalDraft.bio || '',
+            experience: Number(professionalDraft.experience) || 0,
+            consultationFee: Number(professionalDraft.consultationFee) || 0,
+          }
+        : {
+            labName: professionalDraft.labName || '',
+            licenseNumber: professionalDraft.licenseNumber || '',
+            city: professionalDraft.city || '',
+            address: professionalDraft.address || '',
+            homeCollection: !!professionalDraft.homeCollection,
+            tests: professionalDraft.tests ?? professionalDraft.testsOffered ?? [],
+          };
+      const res = await fetch(isDoctor ? `/api/doctors/${professionalDraft.id || ''}` : '/api/labs', {
+        method: isDoctor ? 'PUT' : 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { 'X-CSRF-Token': token } : {}) },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Unable to save professional profile');
+      setProfessionalEditing(false);
+      toast({
+        title: isDoctor ? 'Doctor profile updated' : 'Lab profile submitted for review',
+        description: isDoctor ? 'Your professional details have been saved.' : 'Lab changes may require verification again.',
+      });
+    } catch (err) {
+      toast({ title: 'Profile update failed', description: err instanceof Error ? err.message : 'Please try again.', variant: 'destructive' });
+    } finally {
+      setProfessionalSaving(false);
+    }
+  }
 
   // ── Data Operations handlers ──────────────────────────────────────────
   const [exporting, setExporting] = React.useState(false);
@@ -410,39 +463,44 @@ export function ProfileHub({
         </div>
       )}
 
-        {isProfessional && professionalProfile && (
-          <div className="px-5 mt-5">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-              Professional profile
-            </h3>
-            <Card>
-              <CardContent className="space-y-3 p-4">
-                <div className="grid grid-cols-2 gap-3 text-sm">
+      {isProfessional && professionalProfile && (
+        <div className="px-5 mt-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Professional profile</h3>
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              {professionalEditing ? (
+                <div className="space-y-3">
                   {userRole === 'doctor' ? (
                     <>
-                      <ContactRow icon={UserCircle} label="Specialty" value={professionalProfile.specialization || 'Not added'} />
-                      <ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} />
-                      <ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} />
-                      <ContactRow icon={Crown} label="Consultation fee" value={professionalProfile.consultationFee != null ? `$${professionalProfile.consultationFee}` : 'Not added'} />
+                      <div className="space-y-1"><Label htmlFor="pro-specialty">Specialty</Label><Input id="pro-specialty" value={professionalDraft.specialization || ''} onChange={e => setProfessionalDraft(p => ({ ...p, specialization: e.target.value }))} /></div>
+                      <div className="space-y-1"><Label htmlFor="pro-city">City / region</Label><Input id="pro-city" value={professionalDraft.city || ''} onChange={e => setProfessionalDraft(p => ({ ...p, city: e.target.value }))} /></div>
+                      <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label htmlFor="pro-exp">Years experience</Label><Input id="pro-exp" type="number" min="0" value={professionalDraft.experience ?? 0} onChange={e => setProfessionalDraft(p => ({ ...p, experience: Number(e.target.value) }))} /></div><div className="space-y-1"><Label htmlFor="pro-fee">Consultation fee</Label><Input id="pro-fee" type="number" min="0" value={professionalDraft.consultationFee ?? 0} onChange={e => setProfessionalDraft(p => ({ ...p, consultationFee: Number(e.target.value) }))} /></div></div>
+                      <div className="space-y-1"><Label htmlFor="pro-bio">Professional bio</Label><Input id="pro-bio" value={professionalDraft.bio || ''} onChange={e => setProfessionalDraft(p => ({ ...p, bio: e.target.value }))} /></div>
                     </>
                   ) : (
                     <>
-                      <ContactRow icon={UserCircle} label="Laboratory" value={professionalProfile.labName || 'Not added'} />
-                      <ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} />
-                      <ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} />
-                      <ContactRow icon={Heart} label="Collection" value={professionalProfile.homeCollection ? 'Home collection' : 'In-lab only'} />
+                      <div className="space-y-1"><Label htmlFor="lab-name">Laboratory name</Label><Input id="lab-name" value={professionalDraft.labName || ''} onChange={e => setProfessionalDraft(p => ({ ...p, labName: e.target.value }))} /></div>
+                      <div className="space-y-1"><Label htmlFor="lab-license">License number</Label><Input id="lab-license" value={professionalDraft.licenseNumber || ''} onChange={e => setProfessionalDraft(p => ({ ...p, licenseNumber: e.target.value }))} /></div>
+                      <div className="space-y-1"><Label htmlFor="lab-city">City / region</Label><Input id="lab-city" value={professionalDraft.city || ''} onChange={e => setProfessionalDraft(p => ({ ...p, city: e.target.value }))} /></div>
+                      <div className="space-y-1"><Label htmlFor="lab-address">Address</Label><Input id="lab-address" value={professionalDraft.address || ''} onChange={e => setProfessionalDraft(p => ({ ...p, address: e.target.value }))} /></div>
+                      <label className="flex items-center justify-between rounded-lg border border-border/60 p-3 text-sm"><span>Home collection</span><Switch checked={!!professionalDraft.homeCollection} onCheckedChange={c => setProfessionalDraft(p => ({ ...p, homeCollection: c }))} /></label>
+                      <p className="text-xs text-amber-700 dark:text-amber-300">Saving lab details resubmits the profile for verification.</p>
                     </>
                   )}
+                  <div className="flex gap-2"><Button variant="outline" className="flex-1" onClick={() => { setProfessionalDraft(professionalProfile); setProfessionalEditing(false); }} disabled={professionalSaving}>Cancel</Button><Button className="flex-1" onClick={handleSaveProfessionalProfile} disabled={professionalSaving || isDemo}>{professionalSaving ? 'Saving...' : 'Save profile'}</Button></div>
                 </div>
-                {onOpenProfessionalProfile && (
-                  <Button variant="outline" className="w-full" onClick={onOpenProfessionalProfile}>
-                    Edit professional profile
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {userRole === 'doctor' ? (<><ContactRow icon={UserCircle} label="Specialty" value={professionalProfile.specialization || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Crown} label="Consultation fee" value={professionalProfile.consultationFee != null ? `$${professionalProfile.consultationFee}` : 'Not added'} /></>) : (<><ContactRow icon={UserCircle} label="Laboratory" value={professionalProfile.labName || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Heart} label="Collection" value={professionalProfile.homeCollection ? 'Home collection' : 'In-lab only'} /></>)}
+                  </div>
+                  <Button variant="outline" className="w-full" onClick={() => { setProfessionalDraft(professionalProfile); setProfessionalEditing(true); }} disabled={isDemo}>{isDemo ? 'Demo profile (read-only)' : 'Edit professional profile'}</Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Subscription */}
       <div className="px-5 mt-5">
