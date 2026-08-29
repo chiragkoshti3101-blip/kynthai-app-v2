@@ -274,8 +274,11 @@ async function run(req: NextRequest) {
             userId,
             channel: 'push',
             type: 'reminder',
-            title,
-            body: { contains: `dose:${String(reminder.id)}` },
+            status: 'sent',
+            OR: [
+              { dedupeKey: `dose:${String(reminder.id)}` },
+              { body: { contains: `dose:${String(reminder.id)}` } },
+            ],
             createdAt: { gte: new Date(Date.now() - 20 * 60 * 60 * 1000) },
           },
           select: { id: true },
