@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
     const email = sanitizeText(body.email, 254).toLowerCase();
     const password = String(body.password);
     const name = sanitizeText(body.name, 120);
-    const phone = body.phone ? sanitizeText(body.phone, 30) : '';
-    if (phone && !isValidE164(phone))
+    const phone = sanitizeText(body.phone, 30);
+    if (!isValidE164(phone))
       return jsonError('Phone must be in E.164 format (e.g. +15551234567)', 400);
 
     // Age verification
