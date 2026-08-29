@@ -938,8 +938,8 @@ export function LoginPage({
                         className="mt-0.5"
                       />
                       <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
-                        I consent to processing of my personal and health data under US health
-                        data laws.{' '}
+                        I consent to processing of my personal and health data under applicable
+                        health-data and privacy laws.{' '}
                         <span className="font-medium text-foreground">Privacy-first</span>.
                       </span>
                     </label>
