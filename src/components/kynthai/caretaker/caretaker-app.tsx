@@ -735,7 +735,6 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
         onShowPricing={() => router.push('/pricing')}
         onShowPrivacy={() => router.push('/privacy')}
         onOpenSettings={() => router.push('/settings')}
-        onSwitchPortal={() => router.push('/login')}
       />
       <AddMemberDialog
         open={addOpen}

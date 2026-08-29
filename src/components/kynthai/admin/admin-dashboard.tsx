@@ -19,7 +19,6 @@ import {
   Receipt,
   LayoutDashboard,
   LogOut,
-  ArrowLeftRight,
   Shield,
   UserCircle,
   Mail,
@@ -477,7 +476,6 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
         open={profileOpen}
         onOpenChange={setProfileOpen}
         user={user}
-        onSwitchPortal={() => router.push('/login')}
         onLogout={handleLogout}
       />
     </div>
@@ -490,13 +488,11 @@ function AdminProfileSheet({
   open,
   onOpenChange,
   user,
-  onSwitchPortal,
   onLogout,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   user: AuthUser;
-  onSwitchPortal: () => void;
   onLogout: () => void;
 }) {
   const initial = (user.name?.[0] ?? 'A').toUpperCase();
@@ -544,21 +540,6 @@ function AdminProfileSheet({
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Account</h3>
         <Card>
           <CardContent className="p-0 divide-y divide-border/60">
-            <button
-              onClick={() => {
-                onOpenChange(false);
-                onSwitchPortal();
-              }}
-              className="flex w-full items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400">
-                <ArrowLeftRight className="h-4 w-4" />
-              </span>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Switch portal</p>
-                <p className="text-xs text-muted-foreground">Patient · Doctor · Lab · Family · Admin</p>
-              </div>
-            </button>
             <button
               onClick={() => onOpenChange(false)}
               className="flex w-full items-center gap-3 p-4 text-left hover:bg-accent/40 transition-colors"

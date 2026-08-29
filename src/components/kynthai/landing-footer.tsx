@@ -24,7 +24,7 @@ export function LandingFooter() {
             <KynthaiBrand />
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
               Health management for families, patients, doctors and labs — in one app.
-              Built for families in the US.
+              Designed for families everywhere.
             </p>
             <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
@@ -116,8 +116,7 @@ export function LandingFooter() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-medium text-emerald-700 dark:text-emerald-300">
-              Built for America
-              <span aria-hidden="true">🇺🇸</span>
+              For families everywhere
             </span>
             <p className="flex items-center gap-1.5">
               Made with <HeartPulse className="h-3 w-3 text-emerald-600" /> for healthier families.

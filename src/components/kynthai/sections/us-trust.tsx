@@ -29,9 +29,9 @@ function USTrust() {
     },
     {
       icon: Globe,
-      label: 'US-Focused Product',
-      sub: 'Built for US families',
-      description: 'USD pricing · US-oriented workflows',
+      label: 'Family-First Product',
+      sub: 'Built for families everywhere',
+      description: 'Connected care · privacy controls',
     },
   ];
 
