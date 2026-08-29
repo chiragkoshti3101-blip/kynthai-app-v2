@@ -25,34 +25,29 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app';
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: "Kynthai — Care Connected, Wherever You Are",
+    default: "Kynthai — Your family's health, connected.",
     template: '%s | Kynthai',
   },
   description:
     'AI-powered medicine reminders, doctor consults, lab tests & family health management — families around the world. Free to start. Privacy-first.',
   keywords: [
     'Kynthai',
-    'AI health US',
-    'medicine reminder USA',
-    'family health app US',
-    'doctor consultation US',
-    'lab tests US',
-    'health reminders US',
-    'Privacy-first health app',
-    'AI healthcare US',
-    'medicine reminder app',
-    'health management US',
-    'telemedicine US',
-    'online pharmacy US',
-    'health tech US',
+    'family health management',
+    'medication reminder app',
+    'health companion',
+    'doctor consultation',
+    'lab test booking',
     'family medication management',
+    'privacy-first health app',
+    'AI health assistant',
+    'care coordination',
   ],
   authors: [{ name: 'Kynthai' }],
   manifest: '/manifest.json',
   openGraph: {
-    title: 'Kynthai — KynthAI — Care Connected, Wherever You Are',
+    title: "Kynthai — Your family's health, connected.",
     description:
-      "Manage your family's medications and care from anywhere.",
+      "Smart reminders, doctor consultations, and lab tests—all in one place.",
     images: [
       { url: '/og-image.webp', width: 1200, height: 630, type: 'image/webp' },
       { url: '/og-image.png', width: 1200, height: 630, type: 'image/png' },
@@ -63,20 +58,15 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: "Kynthai — Care Connected, Wherever You Are",
+    title: "Kynthai — Your family's health, connected.",
     description:
-      'AI-powered medicine reminders, doctor consults, lab tests & family health management families around the world.',
+      "Smart reminders, doctor consultations, and lab tests—all in one place. Privacy-first care for families everywhere.",
     images: ['/og-image.png'],
   },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'Kynthai',
-  },
-  other: {
-    'geo.region': 'US',
-    'geo.placename': 'United States',
-    // Verification codes: add after Google Search Console & Bing Webmaster Tools setup
   },
   icons: {
     icon: [
