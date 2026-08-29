@@ -919,7 +919,7 @@ Pharmacists can review all your medications, check for interactions, counsel on 
   {
     id: 'us-health-001',
     type: 'guideline',
-    title: 'US Prescription Assistance Programs',
+    title: 'Prescription Assistance Programs',
     content: `**If you can't afford your medications:**
 - **Partnership for Prescription Assistance (pparx.org)**: Free service connects to 475+ patient assistance programs
 - **NeedyMeds**: Government and nonprofit assistance programs database
@@ -948,7 +948,7 @@ Pharmacists can review all your medications, check for interactions, counsel on 
   {
     id: 'us-health-002',
     type: 'guideline',
-    title: 'US Health Insurance Basics for Patients',
+    title: 'Health Insurance Basics for Patients',
     content: `**Understanding your health insurance:**
 - **Premium**: Monthly payment — fixed regardless of healthcare usage
 - **Deductible**: Amount you pay before insurance covers services
