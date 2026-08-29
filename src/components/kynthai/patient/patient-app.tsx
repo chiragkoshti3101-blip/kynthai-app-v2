@@ -72,7 +72,7 @@ import { CareHub } from '@/components/kynthai/caretaker/care-hub';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
 import { OfflineIndicator } from '@/components/kynthai/offline-indicator';
 import { ProfileHub } from '@/components/kynthai/patient/profile-hub';
-import { EmergencyCountrySelector, useEmergencyCountry } from '@/components/kynthai/emergency-country-selector';
+import { useEmergencyCountry } from '@/components/kynthai/emergency-country-selector';
 import { ShareSheet } from '@/components/kynthai/share-sheet';
 import { FadeIn } from '@/components/kynthai/animations';
 import { LabResultsViewer } from '@/components/kynthai/patient/lab-results-viewer';
@@ -1157,7 +1157,7 @@ function JournalDialog({
 }
 
 // ── SOS tab ─────────────────────────────────────────────────────────────────
-function SosTab() {
+function SosTab({ phone }: { phone?: string | null }) {
   const [stage, setStage] = React.useState<'idle' | 'triggering' | 'triggered'>('idle');
   const [response, setResponse] = React.useState<{
     notifiedContacts: { name: string }[];
@@ -1165,7 +1165,7 @@ function SosTab() {
   } | null>(null);
   // First family member with a phone number on file = the patient's entered contact.
   const [callContact, setCallContact] = React.useState<{ name: string; phone: string } | null>(null);
-  const { countryCode, country, selectCountry } = useEmergencyCountry();
+  const { country } = useEmergencyCountry(phone);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1197,7 +1197,7 @@ function SosTab() {
           'Content-Type': 'application/json',
           ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
         },
-        body: JSON.stringify({ location: 'Patient app', notes: 'Emergency SOS', medicalInfo: '', emergencyNumber: country.dialNumber }),
+        body: JSON.stringify({ location: 'Patient app', notes: 'Emergency SOS', medicalInfo: '' }),
       });
       const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
       if (!res.ok) {
@@ -1237,7 +1237,6 @@ function SosTab() {
           </p>
           {/* Always-available call actions — never hidden behind the trigger state */}
           <div className="space-y-3">
-            <EmergencyCountrySelector countryCode={countryCode} onChange={selectCountry} />
             <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
               <Button
                 size="lg"
@@ -1606,7 +1605,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
           )}
           {tab === 'sos' && (
             <FadeIn key="sos">
-              <SosTab />
+              <SosTab phone={user.phone} />
             </FadeIn>
           )}
         </AnimatePresence>
