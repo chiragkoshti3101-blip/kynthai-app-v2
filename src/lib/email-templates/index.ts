@@ -32,7 +32,7 @@ function wrap(subject: string, body: string): { subject: string; html: string } 
     <tr>
       <td>
         <span style="font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.5px;">${BRAND}</span>
-        <span style="font-size:11px;color:rgba(255,255,255,.75);display:block;margin-top:2px;">AI Health Companion · Made in USA</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.75);display:block;margin-top:2px;">AI Health Companion · Connected worldwide</span>
       </td>
     </tr>
   </table>
