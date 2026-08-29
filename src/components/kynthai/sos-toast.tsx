@@ -6,6 +6,7 @@ import { Siren, X, MapPin, Phone, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { useEmergencyCountry } from '@/components/kynthai/emergency-country-selector';
 
 interface SosToastProps {
   alert: {
@@ -20,6 +21,8 @@ interface SosToastProps {
 }
 
 export function SosToast({ alert, onDismiss, onNavigate }: SosToastProps) {
+  const { country } = useEmergencyCountry();
+
   return (
     <AnimatePresence>
       <motion.div
@@ -96,11 +99,11 @@ export function SosToast({ alert, onDismiss, onNavigate }: SosToastProps) {
                 onClick={() => {
                   // Call emergency services
                   if (typeof window !== 'undefined') {
-                    window.location.href = 'tel:911';
+                    window.location.href = `tel:${country.dialNumber}`;
                   }
                 }}
                 className="h-11 w-11 rounded-full"
-                aria-label="Call emergency services"
+                aria-label={`Call emergency services at ${country.number}`}
               >
                 <Phone className="h-4 w-4 text-rose-600" />
               </Button>
