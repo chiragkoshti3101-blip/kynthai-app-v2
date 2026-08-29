@@ -1659,6 +1659,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
         onLogout={handleLogout}
         onShowPricing={() => router.push('/pricing')}
         onShowPrivacy={() => router.push('/privacy')}
+        onOpenSettings={() => router.push('/settings')}
       />
 
       {/* Cancel appointment confirmation dialog */}
