@@ -32,8 +32,8 @@ export function ProofStrip() {
     },
     {
       icon: Globe,
-      label: 'Built for US families',
-      sub: 'USD · US-oriented workflows · privacy controls',
+      label: 'Built for families everywhere',
+      sub: 'Family-first workflows · privacy controls',
       accent: 'border-emerald-500/30 bg-emerald-500/5',
     },
     {
