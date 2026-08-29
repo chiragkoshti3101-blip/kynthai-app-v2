@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Kynthai Pricing — AI Health Plans for American Families',
-    description: 'Free, Plus ($9.99/mo), Family Pro ($19.99/mo) with secure card and ACH billing. AI health plans for US families.',
+    title: 'Kynthai Pricing — AI Health Plans for Families Everywhere',
+    description: 'Free, Plus ($9.99/mo), Family Pro ($19.99/mo) with secure card and ACH billing. AI health plans for families everywhere.',
     images: ['/og-image.png'],
   },
   robots: { index: true, follow: true },
