@@ -569,6 +569,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
             <div className="flex items-center gap-1">
               <NotificationCenter role="caretaker"
                 userId={user.id}
+                phone={user.phone}
                 isDemo={isDemo}
                 onNavigate={(t: string) => setTab(t as Tab)}
               />
