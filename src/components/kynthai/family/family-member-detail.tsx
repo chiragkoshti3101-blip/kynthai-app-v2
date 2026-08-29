@@ -117,7 +117,7 @@ export default function FamilyMemberDetailClient({ memberId, user }: { memberId:
   return (
     <div className="max-w-4xl mx-auto space-y-6 py-6">
       {/* Sticky back button — always visible on mobile */}
-      <div className="sticky top-0 z-20 bg-background/80 backdrop-blur-xl -mx-4 px-4 py-2 border-b border-border/40">
+      <div className="sticky top-0 z-20 bg-background -mx-4 px-4 py-2 border-b border-border/40">
         <Button variant="ghost" size="sm" onClick={goBack}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Back to Family
         </Button>

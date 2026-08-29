@@ -242,7 +242,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
   return (
     <div className="relative min-h-dvh flex flex-col">
       {/* header */}
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/70 pt-safe">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background pt-safe">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           <KynthaiBrand iconSize={32} />
           <div className="flex items-center gap-1">
@@ -302,7 +302,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
       </header>
 
       {/* tab bar */}
-      <div className="sticky top-16 z-20 border-b border-border/40 bg-background/70 backdrop-blur-md">
+      <div className="sticky top-16 z-20 border-b border-border/40 bg-background">
         <div className="mx-auto flex max-w-3xl gap-1 px-4 py-1.5">
           {tabs.map(t => {
             const Icon = t.icon

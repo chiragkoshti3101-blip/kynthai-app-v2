@@ -323,7 +323,7 @@ export default function SettingsClient() {
     <ErrorBoundary>
     <div className="min-h-screen bg-background pb-safe">
       {/* Header */}
-      <header className="sticky top-0 z-30 border-b border-border/50 bg-background/80 backdrop-blur-2xl">
+      <header className="sticky top-0 z-30 border-b border-border/50 bg-background pt-safe">
         <div className="mx-auto flex max-w-2xl items-center gap-4 px-4 py-4">
           <button onClick={() => router.back()} className="inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-xl hover:bg-accent">
             <ArrowLeft className="h-5 w-5" />

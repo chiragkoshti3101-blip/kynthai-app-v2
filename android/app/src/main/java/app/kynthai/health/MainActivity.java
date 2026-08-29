@@ -1,7 +1,11 @@
 package app.kynthai.health;
 
 import android.Manifest;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.pm.PackageManager;
+import android.media.AudioAttributes;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -26,6 +30,41 @@ public class MainActivity extends BridgeActivity {
   private static final int REQ_NOTIFICATIONS = 1001;
   private boolean keepSplash = true;
 
+  /**
+   * MUST match the channelId the server sends in every FCM message
+   * (src/lib/push-server.ts → android.notification.channelId).
+   * Without this channel the FCM SDK drops pushes into its silent
+   * "Miscellaneous" fallback — notifications arrived with NO sound.
+   * Same soft chime + vibration as the local exact-alarm channel
+   * (DoseAlarmReceiver.CHANNEL_ID = kynthai_dose_chime_v3).
+   */
+  private static final String FCM_CHANNEL_ID = "kynthai_dose_alarm";
+
+  private void ensureFcmNotificationChannel() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+    NotificationManager nm = getSystemService(NotificationManager.class);
+    if (nm == null || nm.getNotificationChannel(FCM_CHANNEL_ID) != null) return;
+    NotificationChannel ch = new NotificationChannel(
+        FCM_CHANNEL_ID,
+        "Medication reminders",
+        NotificationManager.IMPORTANCE_HIGH);
+    ch.setDescription("Dose reminders that arrive while Kynthai is closed");
+    ch.enableVibration(true);
+    ch.setVibrationPattern(new long[]{0, 200, 120, 200});
+    try {
+      Uri chime = Uri.parse(
+          "android.resource://" + getPackageName() + "/" + R.raw.med_chime);
+      AudioAttributes aa = new AudioAttributes.Builder()
+          .setUsage(AudioAttributes.USAGE_NOTIFICATION_EVENT)
+          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+          .build();
+      ch.setSound(chime, aa);
+    } catch (Exception ignored) {
+      /* channel still created with the system default sound */
+    }
+    nm.createNotificationChannel(ch);
+  }
+
   @Override
   public void onCreate(Bundle savedInstanceState) {
     SplashScreen splash = SplashScreen.installSplashScreen(this);
@@ -36,6 +75,11 @@ public class MainActivity extends BridgeActivity {
 
     // Dismiss system splash as soon as the activity is up (WebView can load underneath).
     keepSplash = false;
+
+    // Sound-enabled channel for server-push (FCM) dose reminders — create
+    // before the first push can arrive (channel settings are immutable once
+    // created by an arriving notification's fallback).
+    ensureFcmNotificationChannel();
 
     // Safety net: if anything re-shows a splash layer, clear after 2.5s.
     new Handler(Looper.getMainLooper()).postDelayed(() -> {
