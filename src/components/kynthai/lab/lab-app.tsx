@@ -20,6 +20,7 @@ interface LabProfile {
   address: string;
   homeCollection: boolean;
   tests: { name: string; price: number }[];
+  testsOffered?: { name: string; price: number }[];
   verified: boolean;
 }
 
@@ -74,7 +75,7 @@ export function LabApp({ user }: { user: AuthUser }) {
       }
       if (!res.ok) throw new Error('Failed to load profile');
       const data = await res.json();
-      setProfile(data);
+      setProfile({ ...data, tests: data.tests ?? data.testsOffered ?? [] });
       setState('exists');
     } catch {
       // Backend not implemented — show the verification form by default
