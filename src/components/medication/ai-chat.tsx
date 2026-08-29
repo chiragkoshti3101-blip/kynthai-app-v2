@@ -172,12 +172,12 @@ function buildLocalTriageReply(question: string): string {
 
 Based on what you're describing, I'd recommend getting help right away rather than waiting.
 
-**Please call 911 or go to your nearest emergency room.** If you can, have someone stay with you while help is on the way.
+**Please contact local emergency services or go to your nearest emergency room.** If you can, have someone stay with you while help is on the way.
 
 I can't assess emergencies over chat, and a clinician can evaluate you in person much faster than any app.
 
 ---
-⚠️ **This is general information, not a diagnosis. If you think you might be having a medical emergency, call 911 immediately.**`;
+⚠️ **This is general information, not a diagnosis. If you think you might be having a medical emergency, contact local emergency services immediately.**`;
   }
   return `## Here's a general approach to that
 
