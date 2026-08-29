@@ -4,6 +4,7 @@ import { requireAuthWithCsrf, requireAuth, jsonError, readJson, isUserMinor } fr
 import { logAudit } from '@/lib/auth'
 import { sanitizeText } from '@/lib/security'
 import { emergencySosSchema } from '@/lib/schemas/security'
+import { getEmergencyCountryFromPhone } from '@/lib/emergency'
 import { sendSMSReal, isSMSEnabled } from '@/lib/integrations'
 import { logger } from '@/lib/logger'
 export const dynamic = 'force-dynamic'
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
     const location    = sanitizeText(body.location, 300)
     const notes       = sanitizeText(body.notes, 1000)
     const medicalInfo = sanitizeText(body.medicalInfo, 1000)
-    const emergencyNumber = sanitizeText(body.emergencyNumber, 20) || 'local'
+    const emergencyNumber = getEmergencyCountryFromPhone((user as { phone?: string | null }).phone).dialNumber
 
     // Get user's family memberships
     const memberships = await db.familyMember.findMany({
