@@ -1533,6 +1533,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
             <NotificationCenter
               role="patient"
               userId={user.id}
+              phone={user.phone}
               isDemo={isDemo}
               onNavigate={(t: string) => setTab(t as Tab)}
             />
