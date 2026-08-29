@@ -1,9 +1,10 @@
 /**
  * Time helpers for medication reminder cron + in-app inbox.
  *
- * Reminder rows store a local-looking "HH:MM" plus a date. The app is US-first,
- * so cron matching uses America/New_York unless a caller passes another zone.
- * Never use UTC clock parts for dose times — 08:00 ET is 12:00/13:00 UTC.
+ * Reminder rows store a local-looking "HH:MM" plus a date. New accounts sync their
+ * IANA timezone so cron matching follows the user's local wall clock. Legacy rows
+ * use the scheduler fallback timezone unless a caller passes another zone.
+ * Never use UTC clock parts for dose times when a local timezone is available.
  */
 
 export const DEFAULT_TZ = 'America/New_York'
