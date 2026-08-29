@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Kynthai — KynthAI — Care Connected, Wherever You Are',
     description:
-      'Manage your family's medications and care from anywhere.',
+      "Manage your family's medications and care from anywhere.",
     images: [
       { url: '/og-image.webp', width: 1200, height: 630, type: 'image/webp' },
       { url: '/og-image.png', width: 1200, height: 630, type: 'image/png' },
