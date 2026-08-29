@@ -461,7 +461,7 @@ export async function sendEmergency(
   const target = { ...(await loadUserTarget(reporterId)), ...overrides }
   const r = await sendNotification(target, {
     title: 'Emergency SOS received',
-    body: `Your SOS alert for ${memberName} has been sent to your caretaker and linked doctors. For ambulance or emergency services, call 911 immediately.${notes ? ` Notes: ${notes}` : ''}`,
+    body: `Your SOS alert for ${memberName} has been sent to your caretaker and linked doctors. For ambulance or emergency services, contact local emergency services immediately.${notes ? ` Notes: ${notes}` : ''}`,
     type: 'emergency',
     data: { memberName, notes },
   })
