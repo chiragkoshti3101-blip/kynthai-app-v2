@@ -671,7 +671,7 @@ export function PricingPage() {
               <ShieldCheck className="h-4 w-4 text-emerald-600" /> Privacy-first
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Built for US families
+              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Built for families everywhere
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Zap className="h-4 w-4 text-emerald-600" /> Cancel anytime
