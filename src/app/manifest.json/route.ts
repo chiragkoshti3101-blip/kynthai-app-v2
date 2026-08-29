@@ -7,7 +7,7 @@ const manifest = {
   name: 'Kynthai - Your Health Companion',
   short_name: 'Kynthai',
   description:
-    'AI-powered health assistant for medicines, appointments, and family care in the US',
+    'AI-powered health assistant for medicines, appointments, and connected family care worldwide',
   start_url: '/',
   scope: '/',
   display: 'standalone',
