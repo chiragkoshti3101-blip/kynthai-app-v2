@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Currency } from './currency';
+import { detectCurrency, type Currency } from './currency';
 import type { Locale } from './locales';
 import { detectLocale } from './locales';
 
@@ -115,7 +115,7 @@ export const useAppStore = create<AppState>()(
       checkoutFounder: false,
       onboardingComplete: false,
       onboardingRole: 'patient',
-      currency: 'USD',
+      currency: detectCurrency(),
       language: detectLocale(),
       doctorOnline: true,
       labOnline: true,
