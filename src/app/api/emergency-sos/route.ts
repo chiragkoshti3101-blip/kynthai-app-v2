@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     if (smsTargets.length > 0 && isSMSEnabled()) {
       const base = `Kynthai SOS alert: ${user.name} needs help.`
       const where = location ? ` Location: ${location}.` : ''
-      const tail = ` Please check on them right away. Kynthai cannot dispatch responders - call 911 or your local emergency number if needed.`
+      const tail = ` Please check on them right away. Kynthai cannot dispatch responders — contact local emergency services if needed.`
       for (const t of smsTargets) {
         try {
           const r = await sendSMSReal({ to: t.phone, body: base + where + tail })
