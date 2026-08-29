@@ -14,7 +14,7 @@ export const registerSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters').max(200),
   name:     z.string().min(1, 'Name is required').max(120),
   role:     z.enum(['patient', 'doctor', 'lab', 'caretaker']).optional().default('patient'),
-  phone:    z.string().regex(/^\+[1-9]\d{6,14}$/, 'Phone must be E.164, e.g. +15551234567').optional().nullable(),
+  phone:    z.string().regex(/^\+[1-9]\d{6,14}$/, 'Phone must be E.164 with country code, e.g. +919876543210'),
   dateOfBirth: z.string(),
   consentAccepted:         z.boolean().optional().default(false),
   dataProcessingConsent:   z.boolean().optional().default(false),
