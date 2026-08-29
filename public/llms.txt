@@ -1,6 +1,6 @@
-# Kynthai — AI-Powered Family Health for the United States
+# Kynthai — AI-Powered Family Health, Connected Worldwide
 
-Kynthai is a family-first AI health app built for US households. It combines medication adherence, drug-safety intelligence, doctor consults, and lab bookings — purpose-built for families where one person often manages health for 2–4 family members.
+Kynthai is a family-first AI health app designed for households worldwide. It combines medication adherence, drug-safety intelligence, doctor consults, and lab bookings — purpose-built for families where one person often manages health for 2–4 family members.
 
 ## What is Kynthai?
 Kynthai is a health-management platform operated by Kynthai Health Technologies. It brings together medicine reminders, AI health tools, video consultations with verified licensed doctors, lab test bookings, and family health management — all in one trusted app designed for families. Kynthai is not a HIPAA-covered entity and does not claim HIPAA compliance.
@@ -8,7 +8,7 @@ Kynthai is a health-management platform operated by Kynthai Health Technologies.
 ## Key Features
 - Smart medicine reminders with snooze, streaks, and caretaker alerts
 - AI Health Assistant (text-based Q&A about medicines, symptoms, and health)
-- Video consultations with US-licensed verified doctors
+- Video consultations with verified licensed doctors, where available
 - Lab test bookings with sample pickup (where available)
 - Drug & food interaction checker (AI-powered)
 - Family Care Hub (up to 4 members — parents, kids, elders in one dashboard)
@@ -21,8 +21,8 @@ Kynthai is a health-management platform operated by Kynthai Health Technologies.
 ## Target Users
 - Families managing multi-generational care (caretakers for parents/elders)
 - Individual patients with chronic conditions (diabetes, hypertension, thyroid)
-- US-licensed doctors seeking patient management and e-consultation tools
-- US diagnostic labs for home-sample booking
+- Licensed doctors seeking patient management and e-consultation tools
+- Diagnostic labs offering home-sample booking, where available
 
 ## Plans & Pricing (USD)
 - Free: 1 member, up to 10 medications, 3 AI chats/day, all reminders — $0/month
@@ -31,10 +31,10 @@ Kynthai is a health-management platform operated by Kynthai Health Technologies.
 - Early Founding Members: Locked at $9.99/mo (Plus) and $19.99/mo (Family Pro) — forever pricing
 
 ## Competitive Differentiation
-Unlike single-patient apps, Kynthai was built from day one for multi-member households. Your parents' medications and your kids' schedules live in the same dashboard with caretaker alerts. AI drug-interaction checking, prescription scanning via vision AI, and family health insights are features that no competitor currently offers at this depth in the US market.
+Unlike single-patient apps, Kynthai was built from day one for multi-member households. Your parents' medications and your kids' schedules live in the same dashboard with caretaker alerts. AI drug-interaction checking, prescription scanning via vision AI, and family health insights bring connected care to multi-member households worldwide.
 
 ## AI Safety & Compliance
-All AI features provide advisory information only — not medical advice. AI outputs are clearly labelled, and a licensed doctor should always be consulted before making medical decisions. All data is encrypted in transit (TLS 1.3); uploaded documents and prescription images are additionally encrypted at rest with AES-256-GCM. Kynthai is not a HIPAA-covered entity or business associate. Users can export or delete their data anytime. In a medical emergency, call 911.
+All AI features provide advisory information only — not medical advice. AI outputs are clearly labelled, and a licensed doctor should always be consulted before making medical decisions. All data is encrypted in transit (TLS 1.3); uploaded documents and prescription images are additionally encrypted at rest with AES-256-GCM. Kynthai is not a HIPAA-covered entity or business associate. Users can export or delete their data anytime. In a medical emergency, contact your local emergency services immediately.
 
 ## Technology
 - Built with Next.js 16, React 19, TypeScript, Tailwind CSS
@@ -44,7 +44,7 @@ All AI features provide advisory information only — not medical advice. AI out
 - Database: Prisma ORM
 - Caching: Upstash Redis
 - Error tracking: Sentry
-- Kynthai is not a HIPAA-covered entity or business associate; it follows applicable US consumer-privacy laws (FTC Health Breach Notification Rule and state consumer health privacy laws).
+- Kynthai is not a HIPAA-covered entity or business associate; it follows applicable privacy and consumer-health laws in the jurisdictions where it operates.
 
 ## Frequently Asked Questions
 Q: Is Kynthai free to use?
@@ -53,8 +53,8 @@ A: Yes. The Free tier includes 1 member profile, up to 10 medications, 3 AI chat
 Q: Is Kynthai a substitute for my doctor?
 A: No. Kynthai's AI answers are informational only. Always consult a licensed medical professional for diagnosis and treatment.
 
-Q: Which US states are supported?
-A: Kynthai is available nationwide. Lab test availability varies by location.
+Q: Which regions are supported?
+A: Kynthai is designed for families worldwide. Doctor and lab availability varies by location and local requirements.
 
 Q: Can I pay with cards and digital wallets?
 A: Yes. All major credit/debit cards, Apple Pay, Google Pay, and ACH are accepted via Stripe.
