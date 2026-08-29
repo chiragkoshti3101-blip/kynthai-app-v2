@@ -1647,7 +1647,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
           open={shareOpen}
           onOpenChange={setShareOpen}
           title="Share Kynthai"
-          shareText={`${user.name ?? 'I'} use${user.name ? 's' : ''} Kynthai to stay on top of medications — dose reminders, family updates and doctor consults in one app.`}
+          shareText={`${user.name ?? 'I'} use${user.name ? 's' : ''} Kynthai—your family's health, connected—with dose reminders, family updates and doctor consultations in one app.`}
         />
       )}
 
