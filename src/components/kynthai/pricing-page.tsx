@@ -181,7 +181,7 @@ export function PricingPage() {
   const router = useRouter();
   const [cycle, setCycle] = React.useState<BillingCycle>('monthly');
 
-  // US launch — pricing is in USD.
+  // Global launch — pricing supports the selected currency.
 
   // Get dynamic prices for the selected currency — fallback to USD if unsupported
   const safeCurrency = PRICING[currency] ? currency : 'USD';
@@ -303,7 +303,7 @@ export function PricingPage() {
       {/* Tax note */}
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <p className="text-center text-xs text-muted-foreground">
-          Prices are shown in US dollars. Sales tax (where applicable) is charged at checkout. Doctor consultation
+          Prices are shown in the selected currency. Taxes or local charges (where applicable) are shown at checkout. Doctor consultation
           fees are charged separately by the doctor.
         </p>
       </div>
