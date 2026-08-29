@@ -78,12 +78,12 @@ const ORG_SCHEMA = {
   '@id': 'https://kynthai.app/#organization',
   name: 'Kynthai',
   description:
-    'AI-powered health management platform for patients, families, doctors, and labs in the United States.',
+    'Kynthai connects patients, families, doctors, and labs in one privacy-first care experience worldwide.',
   url: 'https://kynthai.app',
   ...KYNETHA_CONTACT,
   foundingDate: '2025',
   ...(SOCIAL_PROFILES.length ? { sameAs: [...SOCIAL_PROFILES] } : {}),
-  areaServed: { '@type': 'Country', name: 'United States' },
+  areaServed: { '@type': 'Place', name: 'Worldwide' },
 } as const;
 
 function breadcrumbSchema(pathname: string) {
