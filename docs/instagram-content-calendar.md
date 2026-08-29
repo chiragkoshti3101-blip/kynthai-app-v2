@@ -114,7 +114,7 @@ From your couch to your results. 🛋️➡️📊
 The Kynthai journey in 4 steps:
 1️⃣ Order the panel you need
 2️⃣ Courier picks up your sample (distance-based fee, shown up front)
-3️⃣ Lab processes it — US-based, HIPAA-secure
+3️⃣ Lab processes it — privacy-first and locally available
 4️⃣ Results in your account, ready to review with a doctor
 
 No clinic lobbies. No mystery fees. Just clarity.
@@ -321,7 +321,7 @@ The reason Kynthai exists, in one quote:
 
 'Healthcare pricing shouldn't be a guessing game. We built Kynthai to make it readable, honest, and human.'
 
-We're building in the open — transparent fees, US-based labs, HIPAA-secure, doctor-set pricing. If that resonates, you're our kind of early believer.
+We're building in the open — transparent fees, local labs where available, HIPAA-secure, doctor-set pricing. If that resonates, you're our kind of early believer.
 
 👉 Link in bio — founder pricing is live
 ```
@@ -333,7 +333,7 @@ We're building in the open — transparent fees, US-based labs, HIPAA-secure, do
 ```
 The numbers behind Kynthai: 🛡️
 
-🇺🇸 US-based lab processing
+🇺🇸 Local lab processing where available
 🔐 HIPAA-secure data, encrypted in transit & at rest
 💲 Transparent pricing — distance-based delivery, 18% platform fee on the lab side
 👩⚕️ Doctors set their own consultation fees
