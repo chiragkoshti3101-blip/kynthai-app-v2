@@ -17,11 +17,20 @@ export function useEmergencyCountry() {
 
   React.useEffect(() => {
     setCountryCode(getStoredEmergencyCountry() ?? detectEmergencyCountry())
+    const handleCountryChange = (event: Event) => {
+      const code = (event as CustomEvent<string>).detail
+      if (typeof code === 'string') setCountryCode(code)
+    }
+    window.addEventListener('kynthai:emergency-country-change', handleCountryChange)
+    return () => window.removeEventListener('kynthai:emergency-country-change', handleCountryChange)
   }, [])
 
   const selectCountry = React.useCallback((code: string) => {
     setCountryCode(code)
     setStoredEmergencyCountry(code)
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kynthai:emergency-country-change', { detail: code }))
+    }
   }, [])
 
   return {
