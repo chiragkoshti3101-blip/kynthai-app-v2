@@ -6,6 +6,7 @@ import { sanitizeText } from '@/lib/security'
 import { emergencySosSchema } from '@/lib/schemas/security'
 import { sendSMSReal, isSMSEnabled } from '@/lib/integrations'
 import { logger } from '@/lib/logger'
+import { getEmergencyCountryFromPhone } from '@/lib/emergency'
 export const dynamic = 'force-dynamic'
 
 // POST /api/emergency-sos — Trigger SOS alert to family members
@@ -43,7 +44,10 @@ export async function POST(req: NextRequest) {
     const location    = sanitizeText(body.location, 300)
     const notes       = sanitizeText(body.notes, 1000)
     const medicalInfo = sanitizeText(body.medicalInfo, 1000)
-    const emergencyNumber = sanitizeText(body.emergencyNumber, 20) || 'local'
+    // Never trust a client-selected country. The account phone is captured at
+    // registration and is the single source of truth for SOS routing.
+    const emergencyCountry = getEmergencyCountryFromPhone(user.phone)
+    const emergencyNumber = emergencyCountry.dialNumber
 
     // Get user's family memberships
     const memberships = await db.familyMember.findMany({
@@ -177,6 +181,7 @@ export async function POST(req: NextRequest) {
       alertCount: alerts.length,
       message: 'SOS alert sent to all family members',
       emergencyNumber,
+      emergencyCountry: emergencyCountry.code,
       notifiedDoctors: [],
       notifiedContacts,
       smsSent,
