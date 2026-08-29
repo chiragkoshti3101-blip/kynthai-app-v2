@@ -97,7 +97,7 @@ export function welcomeEmail({ name, loginLink }: { name: string; loginLink: str
   const body = `
     <p style="margin:0 0 16px;">Hi ${escapeHtml(name)},</p>
     <p style="margin:0 0 16px;">
-      Welcome to <strong>${BRAND}</strong> — your AI-assisted health companion, built for American families.
+      Welcome to <strong>${BRAND}</strong> — your AI-assisted health companion, built for families everywhere.
       Manage medications, track symptoms, consult doctors, and keep your whole family&apos;s health in one place.
     </p>
     <p style="margin:0 0 4px;font-size:13px;color:${MUTED};">
