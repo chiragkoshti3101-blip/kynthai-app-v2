@@ -16,10 +16,7 @@ import {
   Sparkles,
   Users,
   ArrowLeftRight,
-  Stethoscope,
-  Microscope,
   UserCircle,
-  HeartPulse,
   Download,
   Trash2,
   AlertTriangle,
@@ -47,9 +44,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ResponsiveSheet } from '@/components/kynthai/responsive-sheet';
 import { useAppStore, type AuthUser } from '@/lib/store';
 import { apiFetch } from '@/lib/client-fetch';
-import { ReferralDashboard } from '@/components/kynthai/referral-dashboard';
 import { PushNotificationToggle } from '@/components/kynthai/push-notification-toggle';
-import { HealthPulseRing } from '@/components/kynthai/health-pulse-ring';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -137,9 +132,6 @@ export function ProfileHub({
       return map[id];
     })
     .join(' · ');
-
-  const [healthScore, setHealthScore] = React.useState<number | null>(null);
-  const [scoreLoading, setScoreLoading] = React.useState(true);
 
   // ── Edit Profile state ─────────────────────────────────────────────────
   const [editingProfile, setEditingProfile] = React.useState(false);
@@ -310,42 +302,6 @@ export function ProfileHub({
         </div>
       </div>
 
-      {/* Health Score Ring */}
-      <div className="px-5 mt-4">
-        <div className="rounded-2xl border border-border/60 bg-card/60 p-4">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-            Overall Health Score
-          </p>
-          <div className="flex items-center gap-4">
-            {scoreLoading ? (
-              <div className="h-[80px] w-[80px] rounded-full bg-muted/50 animate-pulse" />
-            ) : healthScore !== null ? (
-              <HealthPulseRing score={healthScore} size={80} showLabel={false} />
-            ) : (
-              <div className="h-[80px] w-[80px] rounded-full bg-muted/30 flex items-center justify-center">
-                <HeartPulse className="h-6 w-6 text-muted-foreground/50" />
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-semibold">
-                {scoreLoading
-                  ? 'Loading...'
-                  : healthScore !== null
-                    ? `${healthScore}/100`
-                    : 'No data yet'}
-              </p>
-              <p className="text-[0.6875rem] text-muted-foreground">
-                {healthScore !== null && healthScore >= 80
-                  ? 'Excellent health metrics'
-                  : healthScore !== null && healthScore >= 60
-                    ? 'Good progress'
-                    : 'Start logging to build your score'}
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Contact info */}
       <div className="px-5 mt-4 space-y-2">
         <ContactRow icon={Mail} label="Email" value={user.email} />
@@ -458,19 +414,21 @@ export function ProfileHub({
         </Card>
       </div>
 
-      {/* Settings */}
+      {/* Preferences */}
       <div className="px-5 mt-5">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-          Settings
+          Preferences
         </h3>
         <Card>
           <CardContent className="p-0 divide-y divide-border/60">
             <SettingRow
               icon={theme === 'dark' ? Moon : Sun}
-              label="Dark mode"
+              label="Appearance"
               tint="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+              value={theme === 'dark' ? 'Dark' : 'Light'}
             >
               <Switch
+                aria-label="Toggle dark mode"
                 checked={theme === 'dark'}
                 onCheckedChange={c => setTheme(c ? 'dark' : 'light')}
               />
@@ -482,45 +440,40 @@ export function ProfileHub({
                 </span>
                 <div className="flex-1">
                   <p className="text-sm font-medium">Notifications</p>
-                  <p className="text-xs text-muted-foreground">
-                    Choose what you get notified about
-                  </p>
+                  <p className="text-xs text-muted-foreground">Choose only the alerts you want.</p>
                 </div>
               </div>
               <div className="ml-12 space-y-1">
-                {(
-                  [
-                    {
-                      key: 'reminders',
-                      label: 'Medication reminders',
-                      desc: 'Take-your-med alerts',
-                    },
-                    { key: 'labResults', label: 'Lab results', desc: 'When results are ready' },
-                    { key: 'emergency', label: 'Family Alert', desc: 'SOS & critical updates' },
-                    { key: 'insights', label: 'AI insights', desc: 'Weekly health reports' },
-                    { key: 'family', label: 'Family updates', desc: 'Caretaker notifications' },
-                  ] as const
-                ).map(item => (
-                  <div
-                    key={item.key}
-                    className="flex min-h-14 items-center justify-between gap-3 py-2"
-                  >
+                {([
+                  { key: 'reminders', label: 'Medication reminders', desc: 'Take-your-med alerts' },
+                  { key: 'labResults', label: 'Lab results', desc: 'When results are ready' },
+                  { key: 'emergency', label: 'Family alerts', desc: 'Emergency and critical updates' },
+                  { key: 'insights', label: 'AI insights', desc: 'Weekly health reports' },
+                  { key: 'family', label: 'Family updates', desc: 'Caretaker notifications' },
+                ] as const).map(item => (
+                  <div key={item.key} className="flex min-h-14 items-center justify-between gap-3 py-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium leading-snug">{item.label}</p>
                       <p className="text-xs text-muted-foreground leading-snug">{item.desc}</p>
                     </div>
                     <Switch
+                      aria-label={item.label}
                       checked={notifPrefs[item.key]}
                       onCheckedChange={async c => {
                         setNotifPrefs(p => ({ ...p, [item.key]: c }));
                         try {
-                          await fetch('/api/user/notification-prefs', {
+                          const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
+                          const { token } = await csrfRes.json().catch(() => ({}));
+                          const res = await fetch('/api/user/notification-prefs', {
                             method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json', ...(token ? { 'X-CSRF-Token': token } : {}) },
                             body: JSON.stringify({ [item.key]: c }),
                           });
+                          if (!res.ok) throw new Error('save failed');
                         } catch {
-                          toast({ title: 'Failed to save', variant: 'destructive' });
+                          setNotifPrefs(p => ({ ...p, [item.key]: !c }));
+                          toast({ title: 'Failed to save notification preference', variant: 'destructive' });
                         }
                       }}
                     />
@@ -532,19 +485,14 @@ export function ProfileHub({
               icon={Globe}
               label="Language"
               tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
-              value={language === 'en-US' ? 'English (US)' : 'English (US)'}
+              value="English (US)"
             >
-              <div className="flex gap-1">
-                <Button
-                  size="sm"
-                  variant={language === 'en-US' ? 'default' : 'outline'}
-                  className="h-6 text-xs px-2"
-                  onClick={() => setLanguage('en-US')}
-                >
-                  EN
-                </Button>
-              </div>
+              <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => setLanguage('en-US')}>EN</Button>
             </SettingRow>
+            <div className="border-t border-border/60 p-4">
+              <p className="mb-2 text-xs font-medium text-muted-foreground">This device</p>
+              <PushNotificationToggle />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -670,20 +618,13 @@ export function ProfileHub({
 
       {/* Legal — users already consented at signup; one clean link. */}
       <div className="px-5 mt-4">
-        <a
-          href="/legal"
-          className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-        >
-          Legal & Privacy
-        </a>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <a href="/legal" className="hover:text-foreground hover:underline">Legal &amp; Privacy</a>
+          <a href="/about" className="hover:text-foreground hover:underline">About KynthAI</a>
+        </div>
         <p suppressHydrationWarning className="mt-2 text-[0.6875rem] text-muted-foreground">
           © {new Date().getFullYear()} Kynthai™. All rights reserved.
         </p>
-      </div>
-
-      {/* Referral Dashboard */}
-      <div className="px-5 mt-5">
-        <ReferralDashboard />
       </div>
 
       {/* Logout */}
@@ -766,8 +707,8 @@ const CONSENT_ITEMS: {
 }[] = [
   {
     key: 'aiTrainingConsent',
-    label: 'AI training data',
-    desc: 'Allow de-identified data to improve AI features. Revoke any time.',
+    label: 'AI data sharing',
+    desc: 'Allow de-identified data to improve KynthAI AI features. You can change this anytime.',
     icon: Sparkles,
     tint: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
   },
@@ -840,8 +781,8 @@ function ConsentManager({ consentFlags }: ConsentManagerProps) {
             <div className="flex items-start gap-3 p-4 bg-amber-500/5 border-b border-border/60">
               <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-500" />
               <p className="text-xs text-muted-foreground leading-relaxed">
-                <strong className="text-foreground">AI features are currently disabled.</strong>{' '}
-                Re-enable the &ldquo;AI training data&rdquo; consent below to access AI-powered
+                <strong className="text-foreground">Some AI features are currently unavailable.</strong>{' '}
+                Re-enable AI data sharing below if you want KynthAI to use de-identified data to improve
                 insights, chat, and health recommendations.
               </p>
             </div>
