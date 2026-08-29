@@ -22,7 +22,7 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     title: 'Welcome to Kynthai',
-    body: 'Your AI-assisted health app — reminders, insights, doctors and labs, all in one calm, beautiful app built for the US.',
+    body: "Your AI-assisted health app — smart reminders, health insights, doctor consultations and lab tests, all in one calm, connected place.",
     accent: 'from-emerald-500 to-teal-600',
     icon: Sparkles,
     illustration: <WelcomeArt />,
@@ -43,7 +43,7 @@ const SLIDES: Slide[] = [
   },
   {
     title: 'Choose your role',
-    body: 'This personalizes your experience. You can switch later in settings.',
+    body: 'Choose the portal you want to use. You can return to the portal selector whenever you need.',
     accent: 'from-teal-600 to-emerald-600',
     icon: Stethoscope,
     illustration: <RoleArt />,
