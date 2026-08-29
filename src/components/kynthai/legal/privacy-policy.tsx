@@ -82,7 +82,7 @@ export function PrivacyPolicy() {
       <SectionTitle icon={Database}>1. Data we collect</SectionTitle>
       <p>We collect only the data necessary to operate Kynthai for you and your family:</p>
       <ul>
-        <li><strong>Account data:</strong> name, email address, phone number (optional), hashed password (bcrypt), and chosen portal (Family / Patient / Doctor / Lab / Admin).</li>
+        <li><strong>Account data:</strong> name, email address, phone number (required for SOS routing), hashed password (bcrypt), and chosen portal (Family / Patient / Doctor / Lab / Admin).</li>
         <li><strong>Profile data:</strong> family-member profiles you create, including name, relationship, age, and notes.</li>
         <li><strong>Health data (special category):</strong> medication names, dosages, schedules, reminder logs, symptom-analyzer inputs, AI chat messages, uploaded prescription and medicine images, chronic conditions, and lab results.</li>
         <li><strong>Usage data:</strong> device type, app version, IP address (country-level only), feature usage events, and crash logs.</li>
