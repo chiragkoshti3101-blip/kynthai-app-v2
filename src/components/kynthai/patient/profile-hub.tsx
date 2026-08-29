@@ -234,6 +234,10 @@ export function ProfileHub({
       toast({ title: 'Name is required', variant: 'destructive' });
       return;
     }
+    if (!/^\+[1-9]\d{6,14}$/.test(`+${editPhone.replace(/\D/g, '')}`)) {
+      toast({ title: 'Valid phone number is required', description: 'Use the full international number with country code.', variant: 'destructive' });
+      return;
+    }
     setProfileSaving(true);
     try {
       const res = await fetch('/api/user/account', {
@@ -242,7 +246,7 @@ export function ProfileHub({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editName.trim(),
-          phone: editPhone.trim() || null,
+          phone: `+${editPhone.replace(/\D/g, '')}`,
           dateOfBirth: editDob || null,
         }),
       });
@@ -411,12 +415,12 @@ export function ProfileHub({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-phone" className="text-xs font-medium">Phone (optional)</Label>
+                <Label htmlFor="edit-phone" className="text-xs font-medium">Phone number *</Label>
                 <Input
                   id="edit-phone"
                   value={editPhone}
                   onChange={e => setEditPhone(e.target.value)}
-                  placeholder="+15551234567"
+                  placeholder="+91 98765 43210"
                   className="h-9 text-sm"
                 />
               </div>
