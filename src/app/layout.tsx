@@ -25,11 +25,11 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app';
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: "Kynthai — America's AI Health Companion for Families",
-    template: '%s | Kynthai US',
+    default: "Kynthai — Care Connected, Wherever You Are",
+    template: '%s | Kynthai',
   },
   description:
-    'AI-powered medicine reminders, doctor consults, lab tests & family health management — built for families in the US. Free to start. Privacy-first.',
+    'AI-powered medicine reminders, doctor consults, lab tests & family health management — families around the world. Free to start. Privacy-first.',
   keywords: [
     'Kynthai',
     'AI health US',
@@ -50,9 +50,9 @@ export const metadata: Metadata = {
   authors: [{ name: 'Kynthai' }],
   manifest: '/manifest.json',
   openGraph: {
-    title: 'Kynthai — AI Health & Medication Manager for American Families',
+    title: 'Kynthai — KynthAI — Care Connected, Wherever You Are',
     description:
-      'Manage medications, track adherence, check drug interactions, and connect with doctors. Built for families in the US.',
+      'Manage your family's medications and care from anywhere.',
     images: [
       { url: '/og-image.webp', width: 1200, height: 630, type: 'image/webp' },
       { url: '/og-image.png', width: 1200, height: 630, type: 'image/png' },
@@ -63,9 +63,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: "Kynthai — America's AI Health Companion",
+    title: "Kynthai — Care Connected, Wherever You Are",
     description:
-      'AI-powered medicine reminders, doctor consults, lab tests & family health management for US families.',
+      'AI-powered medicine reminders, doctor consults, lab tests & family health management families around the world.',
     images: ['/og-image.png'],
   },
   appleWebApp: {
