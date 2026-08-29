@@ -1204,7 +1204,7 @@ function SosTab() {
           notifiedContacts: [],
           summary:
             (data.error as string) ||
-            'SOS alert could not be sent. Call 911 or your local emergency number immediately.',
+            'SOS alert could not be sent. Contact local emergency services immediately.',
         });
         setStage('triggered');
         return;
@@ -1216,7 +1216,7 @@ function SosTab() {
     } catch {
       setResponse({
         notifiedContacts: [],
-        summary: 'SOS alert could not be sent. Call 911 or your local emergency number immediately.',
+        summary: 'SOS alert could not be sent. Contact local emergency services immediately.',
       });
     }
     setStage('triggered');
@@ -1240,7 +1240,7 @@ function SosTab() {
                 size="lg"
                 className="w-full h-14 text-base bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800"
               >
-                <Phone className="h-5 w-5" /> Call 911
+                <Phone className="h-5 w-5" /> Contact local emergency services
               </Button>
             </a>
             <p className="text-[0.6875rem] text-muted-foreground mt-1">Use your local emergency number</p>
