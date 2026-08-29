@@ -1167,7 +1167,7 @@ function SosTab({
           <p className="mt-1 text-sm text-muted-foreground">
             Trigger an emergency for{' '}
             <span className="font-semibold text-foreground">{selected.name}</span>. Alerts your
-            family and linked doctors — it does not replace calling 911.
+            family and linked doctors — it does not replace contacting local emergency services.
           </p>
 
           {stage === 'idle' && (
@@ -1235,8 +1235,8 @@ function SosTab({
                   Emergency triggered for {selected.name}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Family and linked doctors have been alerted. If this is life-threatening, call 911
-                  or your local emergency number now.
+                  Family and linked doctors have been alerted. If this is life-threatening, contact local
+                  emergency services now.
                 </p>
               </div>
 
