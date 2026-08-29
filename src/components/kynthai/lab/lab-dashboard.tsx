@@ -301,26 +301,6 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
         </div>
       </header>
 
-      {/* tab bar */}
-      <div className="sticky top-16 z-20 border-b border-border/40 bg-background">
-        <div className="mx-auto flex max-w-3xl gap-1 px-4 py-1.5">
-          {tabs.map(t => {
-            const Icon = t.icon
-            const active = tab === t.id
-            return (
-              <button key={t.id} onClick={() => setTab(t.id)}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all',
-                  active ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
-                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                )}>
-                <Icon className="h-4 w-4" /> {t.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
       <main className="mx-auto max-w-3xl w-full flex-1 px-4 pt-safe pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))]">
         {/* Wave-8: honest demo banner — demo sessions were silently mutating
             local state with success toasts while nothing was persisted. */}
@@ -537,6 +517,29 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
         </div>
       )}
     </main>
+
+    <nav aria-label="Lab portal navigation" className="fixed inset-x-0 bottom-0 z-30 border-t border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-safe">
+      <div className="mx-auto flex max-w-3xl items-center justify-around gap-1 px-4 py-2">
+        {tabs.map(t => {
+          const Icon = t.icon
+          const active = tab === t.id
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                'flex min-w-20 flex-1 flex-col items-center gap-1 rounded-xl px-3 py-2 text-xs font-medium transition-all sm:min-w-24 sm:flex-none sm:flex-row sm:justify-center sm:gap-1.5 sm:text-sm',
+                active ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                       : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <Icon className="h-4 w-4" /> {t.label}
+            </button>
+          )
+        })}
+      </div>
+    </nav>
 
     {/* Minimal legal footer */}
     <ProfileHub
