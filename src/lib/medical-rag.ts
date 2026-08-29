@@ -180,13 +180,13 @@ const MEDICAL_KNOWLEDGE_BASE: MedicalChunk[] = [
     id: 'emergency-001',
     type: 'emergency',
     title: 'Heart Attack Warning Signs',
-    content: `**Call 911 immediately** if someone experiences:
+    content: `**Contact your local emergency services immediately** if someone experiences:
 - Chest pain or pressure (may feel like squeezing, fullness, or pain in the center of the chest that lasts more than a few minutes, or goes away and comes back)
 - Pain or discomfort in one or both arms, the back, neck, jaw, or stomach
 - Shortness of breath (with or without chest discomfort)
 - Cold sweat, nausea, or lightheadedness
 
-Women are more likely than men to experience shortness of breath, nausea/vomiting, and back or jaw pain. Don't wait — even if unsure, call 911. Every minute matters.`,
+Women are more likely than men to experience shortness of breath, nausea/vomiting, and back or jaw pain. Don't wait — even if unsure, contact emergency services. Every minute matters.`,
     keywords: [
       'chest pain',
       'heart attack',
@@ -208,7 +208,7 @@ Women are more likely than men to experience shortness of breath, nausea/vomitin
 - **F**ace drooping: one side of the face droops or feels numb
 - **A**rm weakness: one arm drifts downward when raised
 - **S**peech difficulty: slured speech or trouble speaking/understanding
-- **T**ime to call 911: every minute counts
+- **T**ime matters: contact emergency services immediately
 
 Additional signs: sudden numbness/weakness, confusion, trouble seeing, dizziness, loss of balance, severe headache with no known cause. Time is critical — treatment is most effective within 3-4.5 hours.`,
     keywords: [
@@ -415,7 +415,7 @@ Omeprazole (Prilosec) and esomeprazole (Nexium) can reduce the antiplatelet effe
     id: 'condition-001',
     type: 'condition',
     title: 'Type 2 Diabetes Management Basics',
-    content: `**Understanding A1c targets in the US:**
+    content: `**Understanding A1c targets:**
 - Target A1c: below 7% for most adults with type 2 diabetes (ADA recommendation)
 - More stringent: below 6.5% if achievable without hypoglycemia
 - Less stringent: below 8% for those with shorter life expectancy or hypoglycemia risk
@@ -569,7 +569,7 @@ Omeprazole (Prilosec) and esomeprazole (Nexium) can reduce the antiplatelet effe
     id: 'guideline-001',
     type: 'guideline',
     title: 'Medication Adherence Best Practices',
-    content: `**Statistics**: About 50% of medications for chronic conditions are not taken as prescribed. This is one of the biggest preventable health problems in the US.
+    content: `**Statistics**: About 50% of medications for chronic conditions are not taken as prescribed. This is one of the biggest preventable health problems worldwide.
 
 **Proven strategies:**
 1. **Link to routine** — take meds with a daily habit (breakfast, brushing teeth)
@@ -828,8 +828,8 @@ Pharmacists can review all your medications, check for interactions, counsel on 
   {
     id: 'guideline-005',
     type: 'guideline',
-    title: 'US Healthcare Navigation: Telehealth, Pharmacy, Prescriptions',
-    content: `**Navigating the US healthcare system:**
+    title: 'Healthcare Navigation: Telehealth, Pharmacy, Prescriptions',
+    content: `**Navigating healthcare in your country:**
 - **Prescription delivery**: Most chain pharmacies (CVS, Walgreens, Walmart) offer home delivery. Setting up auto-refill saves trips.
 - **Telehealth**: Covered by most insurance plans in 2025. Good for medication refills, allergy symptoms, skin issues, mental health.
 - **Generic availability**: Ask your doctor if a generic is available — same active ingredient, much cheaper.
@@ -858,7 +858,7 @@ Pharmacists can review all your medications, check for interactions, counsel on 
     id: 'guideline-006',
     type: 'guideline',
     title: 'Medication Safety: Common Mistakes to Avoid',
-    content: `**Common medication errors in the US (and how to avoid them):**
+    content: `**Common medication errors (and how to avoid them):**
 1. **Double dosing**: Set phone reminders. Use a pill organizer.
 2. **Mixing up similar-looking pills**: Keep original bottles until empty, label organizer.
 3. **Taking expired meds**: Effectiveness decreases over time. Some (like tetracycline, nitroglycerin) become dangerous.
