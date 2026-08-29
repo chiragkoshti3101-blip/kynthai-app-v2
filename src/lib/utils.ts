@@ -11,11 +11,9 @@ export function toISODateTime(dateStr: string): string {
 }
 
 export function todayStr(): string {
-  // Must match the date key used by the cron send loop (America/New_York,
-  // then other US zones). Using server-local time here means reminder rows
-  // get created under a different calendar date than the send loop queries
-  // near midnight, silently missing doses. Derive from ET so schedule/ensure
-  // and send agree.
+  // Must match the date key used by the cron send loop. Use a stable scheduler
+  // timezone rather than server-local time so schedule/ensure and send agree
+  // near midnight; per-user timezone gating determines when each dose is due.
   try {
     const parts = new Intl.DateTimeFormat('en-CA', {
       timeZone: 'America/New_York',
