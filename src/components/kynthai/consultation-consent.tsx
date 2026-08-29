@@ -143,7 +143,7 @@ export function ConsultationConsent({
           {/* Emergency notice */}
           <p className="text-xs text-muted-foreground">
             <strong>Emergency:</strong> If you are experiencing a medical emergency, call{' '}
-            <strong>911</strong> immediately. Do not use Kynthai for emergency medical care.
+            contact local emergency services immediately. Do not use Kynthai for emergency medical care.
           </p>
         </div>
 

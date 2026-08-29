@@ -37,7 +37,7 @@ export interface AuthUser {
    *  (doctor/lab) and get seeded sample data so the dashboards render
    *  immediately without a real DB session. */
   isDemo?: boolean;
-  /** US privacy consent flags — always present when user is logged in. */
+  /** Privacy consent flags — always present when user is logged in. */
   consentAccepted?: boolean;
   dataProcessingConsent?: boolean;
   aiTrainingConsent?: boolean;

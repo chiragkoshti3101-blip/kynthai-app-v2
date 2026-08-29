@@ -180,13 +180,13 @@ const MEDICAL_KNOWLEDGE_BASE: MedicalChunk[] = [
     id: 'emergency-001',
     type: 'emergency',
     title: 'Heart Attack Warning Signs',
-    content: `**Call 911 immediately** if someone experiences:
+    content: `**Contact your local emergency services immediately** if someone experiences:
 - Chest pain or pressure (may feel like squeezing, fullness, or pain in the center of the chest that lasts more than a few minutes, or goes away and comes back)
 - Pain or discomfort in one or both arms, the back, neck, jaw, or stomach
 - Shortness of breath (with or without chest discomfort)
 - Cold sweat, nausea, or lightheadedness
 
-Women are more likely than men to experience shortness of breath, nausea/vomiting, and back or jaw pain. Don't wait — even if unsure, call 911. Every minute matters.`,
+Women are more likely than men to experience shortness of breath, nausea/vomiting, and back or jaw pain. Don't wait — even if unsure, contact emergency services. Every minute matters.`,
     keywords: [
       'chest pain',
       'heart attack',
@@ -204,11 +204,11 @@ Women are more likely than men to experience shortness of breath, nausea/vomitin
     id: 'emergency-002',
     type: 'emergency',
     title: 'Stroke Warning Signs (FAST)',
-    content: `**Call 911 immediately** if you notice:
+    content: `**Contact your local emergency services immediately** if you notice:
 - **F**ace drooping: one side of the face droops or feels numb
 - **A**rm weakness: one arm drifts downward when raised
 - **S**peech difficulty: slured speech or trouble speaking/understanding
-- **T**ime to call 911: every minute counts
+- **T**ime matters: contact emergency services immediately
 
 Additional signs: sudden numbness/weakness, confusion, trouble seeing, dizziness, loss of balance, severe headache with no known cause. Time is critical — treatment is most effective within 3-4.5 hours.`,
     keywords: [
@@ -229,7 +229,7 @@ Additional signs: sudden numbness/weakness, confusion, trouble seeing, dizziness
     id: 'emergency-003',
     type: 'emergency',
     title: 'Anaphylaxis (Severe Allergic Reaction)',
-    content: `**Call 911 immediately**. Anaphylaxis is life-threatening.
+    content: `**Contact your local emergency services immediately**. Anaphylaxis is life-threatening.
 Signs: difficulty breathing, swelling of throat/tongue, hives, rapid pulse, dizziness/fainting, nausea/vomiting, wheezing.
 If the person has an epinephrine auto-injector (EpiPen), use it immediately while waiting for EMS. Do NOT drive yourself to the hospital.`,
     keywords: [
@@ -248,9 +248,9 @@ If the person has an epinephrine auto-injector (EpiPen), use it immediately whil
   {
     id: 'emergency-004',
     type: 'emergency',
-    title: 'When to Use 911 vs Urgent Care vs ER',
-    content: `**911 (Emergency)**: Chest pain, difficulty breathing, stroke symptoms, severe bleeding, head injury, poisoning, severe burns.
-**Emergency Room**: Broken bones, severe pain without 911 symptoms, high fever (104°F+), severe vomiting/diarrhea causing dehydration.
+    title: 'When to Contact Emergency Services vs Urgent Care vs ER',
+    content: `**Emergency services**: Chest pain, difficulty breathing, stroke symptoms, severe bleeding, head injury, poisoning, severe burns.
+**Emergency Room**: Broken bones, severe pain without emergency symptoms, high fever (104°F+), severe vomiting/diarrhea causing dehydration.
 **Urgent Care**: Minor cuts needing stitches, sprains, fever without alarming symptoms, flu symptoms, urinary symptoms, persistent diarrhea.
 **Call Doctor/Telehealth**: Any uncertainty — better safe than sorry.`,
     keywords: ['911', 'emergency room', 'urgent care', 'ER', 'when to go', 'emergency', 'hospital'],
@@ -415,7 +415,7 @@ Omeprazole (Prilosec) and esomeprazole (Nexium) can reduce the antiplatelet effe
     id: 'condition-001',
     type: 'condition',
     title: 'Type 2 Diabetes Management Basics',
-    content: `**Understanding A1c targets in the US:**
+    content: `**Understanding A1c targets:**
 - Target A1c: below 7% for most adults with type 2 diabetes (ADA recommendation)
 - More stringent: below 6.5% if achievable without hypoglycemia
 - Less stringent: below 8% for those with shorter life expectancy or hypoglycemia risk
@@ -569,7 +569,7 @@ Omeprazole (Prilosec) and esomeprazole (Nexium) can reduce the antiplatelet effe
     id: 'guideline-001',
     type: 'guideline',
     title: 'Medication Adherence Best Practices',
-    content: `**Statistics**: About 50% of medications for chronic conditions are not taken as prescribed. This is one of the biggest preventable health problems in the US.
+    content: `**Statistics**: About 50% of medications for chronic conditions are not taken as prescribed. This is one of the biggest preventable health problems worldwide.
 
 **Proven strategies:**
 1. **Link to routine** — take meds with a daily habit (breakfast, brushing teeth)
@@ -828,8 +828,8 @@ Pharmacists can review all your medications, check for interactions, counsel on 
   {
     id: 'guideline-005',
     type: 'guideline',
-    title: 'US Healthcare Navigation: Telehealth, Pharmacy, Prescriptions',
-    content: `**Navigating the US healthcare system:**
+    title: 'Healthcare Navigation: Telehealth, Pharmacy, Prescriptions',
+    content: `**Navigating healthcare in your country:**
 - **Prescription delivery**: Most chain pharmacies (CVS, Walgreens, Walmart) offer home delivery. Setting up auto-refill saves trips.
 - **Telehealth**: Covered by most insurance plans in 2025. Good for medication refills, allergy symptoms, skin issues, mental health.
 - **Generic availability**: Ask your doctor if a generic is available — same active ingredient, much cheaper.
@@ -858,7 +858,7 @@ Pharmacists can review all your medications, check for interactions, counsel on 
     id: 'guideline-006',
     type: 'guideline',
     title: 'Medication Safety: Common Mistakes to Avoid',
-    content: `**Common medication errors in the US (and how to avoid them):**
+    content: `**Common medication errors (and how to avoid them):**
 1. **Double dosing**: Set phone reminders. Use a pill organizer.
 2. **Mixing up similar-looking pills**: Keep original bottles until empty, label organizer.
 3. **Taking expired meds**: Effectiveness decreases over time. Some (like tetracycline, nitroglycerin) become dangerous.
@@ -919,7 +919,7 @@ Pharmacists can review all your medications, check for interactions, counsel on 
   {
     id: 'us-health-001',
     type: 'guideline',
-    title: 'US Prescription Assistance Programs',
+    title: 'Prescription Assistance Programs',
     content: `**If you can't afford your medications:**
 - **Partnership for Prescription Assistance (pparx.org)**: Free service connects to 475+ patient assistance programs
 - **NeedyMeds**: Government and nonprofit assistance programs database
@@ -948,7 +948,7 @@ Pharmacists can review all your medications, check for interactions, counsel on 
   {
     id: 'us-health-002',
     type: 'guideline',
-    title: 'US Health Insurance Basics for Patients',
+    title: 'Health Insurance Basics for Patients',
     content: `**Understanding your health insurance:**
 - **Premium**: Monthly payment — fixed regardless of healthcare usage
 - **Deductible**: Amount you pay before insurance covers services

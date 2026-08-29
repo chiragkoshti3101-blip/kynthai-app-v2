@@ -4,7 +4,7 @@ export const LOCALES: Record<
   Locale,
   { code: Locale; label: string; flag: string }
 > = {
-  'en-US': { code: 'en-US', label: 'English (US)', flag: '🇺🇸' },
+  'en-US': { code: 'en-US', label: 'English', flag: '🇺🇸' },
   'en-IE': { code: 'en-IE', label: 'English (EU)', flag: '🇪🇺' },
   'en-GB': { code: 'en-GB', label: 'English (UK)', flag: '🇬🇧' },
 }

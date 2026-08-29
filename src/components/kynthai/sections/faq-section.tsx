@@ -15,7 +15,7 @@ function FAQ() {
   const faqs: Array<{ q: string; a: string }> = [
     {
       q: 'Is Kynthai a doctor or hospital?',
-      a: 'No. Kynthai is a health management app — reminders, organization, and optional tools. It does not diagnose, treat, or replace emergency care. In an emergency call 911. See our Medical Disclaimer.',
+      a: 'No. Kynthai is a health management app — reminders, organization, and optional tools. It does not diagnose, treat, or replace emergency care. In an emergency contact local emergency services. See our Medical Disclaimer.',
     },
     {
       q: 'Is my health data safe?',

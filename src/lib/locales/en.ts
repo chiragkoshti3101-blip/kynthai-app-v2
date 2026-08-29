@@ -115,9 +115,9 @@ export const en = {
   emergency: {
     title: 'Emergency SOS',
     triggerFor: 'Trigger an emergency for {name}.',
-    description: 'Notifies your caretaker and linked doctors. Call 911 for ambulance.',
+    description: 'Notifies your caretaker and linked doctors. Contact local emergency services if needed.',
     critical: 'SOS — Critical',
-    criticalDesc: 'Ambulance, 911, doctors, emergency contacts',
+    criticalDesc: 'Local emergency services, doctors, and emergency contacts',
     caretaker: 'Alert Caretaker',
     caretakerDesc: 'Not life-threatening — caretaker will reach out',
     notifying: 'Notifying emergency contacts...',
