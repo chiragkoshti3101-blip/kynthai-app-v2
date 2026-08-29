@@ -15,7 +15,7 @@ Kynthai is a health-management platform operated by Kynthai Health Technologies.
 - Pill identification via camera (vision AI)
 - Prescription scanning & intelligence
 - Health insights & weekly AI reports
-- Emergency SOS alerts to family members (911 for emergencies)
+- Emergency SOS alerts to family members (contact local emergency services for emergencies)
 - Natural language schedule parser ("take this pill after lunch")
 
 ## Target Users
