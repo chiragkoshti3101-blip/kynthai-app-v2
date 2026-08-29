@@ -42,7 +42,7 @@ export const FEW_SHOT_EXAMPLES: { user: string; assistant: string }[] = [
   {
     user: "I've had a persistent headache for 3 days with some vision changes. Is this something I need urgent care for?",
     assistant:
-      "Yes — please don't sit on this. Headache plus vision changes together, lasting days, is not something to wait out. Call your doctor today, or go to urgent care. If the vision changes worsen, you develop weakness or numbness on one side, trouble speaking, confusion, or this turns into the worst headache of your life — call 911.\n\nCan you get someone to drive you, or do you need to call a ride?",
+      "Yes — please don't sit on this. Headache plus vision changes together, lasting days, is not something to wait out. Call your doctor today, or go to urgent care. If the vision changes worsen, you develop weakness or numbness on one side, trouble speaking, confusion, or this turns into the worst headache of your life — contact local emergency services.\n\nCan you get someone to drive you, or do you need to call a ride?",
   },
   {
     user: "I'm scared to start the cholesterol medication my doctor prescribed. Every time I read the side effects online I feel worse.",
