@@ -153,6 +153,7 @@ model NotificationLog {
   recipient_enc String?  @map("recipient_enc")
   status        String   @default("sent")
   cost          Float    @default(0)
+  dedupeKey     String?  @map("dedupeKey")
   createdAt     DateTime @default(now())
 
   @@map("notification_logs")
