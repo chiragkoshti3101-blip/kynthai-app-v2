@@ -47,6 +47,7 @@ import { apiFetch } from '@/lib/client-fetch';
 import { PushNotificationToggle } from '@/components/kynthai/push-notification-toggle';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { isDemoUser } from '@/lib/demo-mode';
 
 interface ProfileHubProps {
   open: boolean;
@@ -132,7 +133,7 @@ export function ProfileHub({
   });
   const language = useAppStore(s => s.language);
   const setLanguage = useAppStore(s => s.setLanguage);
-  const isDemo = !!user.isDemo;
+  const isDemo = isDemoUser(user);
   const initial = isDemo ? 'K' : (user.name?.[0] ?? 'U').toUpperCase();
   const tier = user.subscriptionTier ?? 'free';
   const tierInfo: TierInfo = (TIER_INFO[tier] ?? TIER_INFO.free) as TierInfo;
