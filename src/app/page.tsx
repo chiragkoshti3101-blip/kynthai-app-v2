@@ -46,7 +46,7 @@ export default function RootPage({ children }: RootPageProps) {
         url: BASE,
         logo: BASE + '/logo.png',
         description:
-          'Kynthai is an AI-powered health companion for families, offering medicine reminders, health tracking, doctor video consultations, lab test bookings, and family health management, Privacy-first.',
+          "Kynthai is your family's connected health companion, bringing smart reminders, doctor consultations, and lab tests together in one privacy-first place.",
         // No street address published yet: the company has not registered a
         // corporate mailing address, and publishing a placeholder or inferred
         // one would be a false claim. Contact is email-only until registration.
@@ -73,15 +73,15 @@ export default function RootPage({ children }: RootPageProps) {
           'Lab Test Booking',
           'Privacy-first Healthcare',
         ],
-        areaServed: { '@type': 'Country', name: 'Worldwide', alternateName: ['United States', 'India', 'United Kingdom', 'UAE', 'Brazil'] },
+        areaServed: { '@type': 'Place', name: 'Worldwide' },
       },
       {
         '@type': 'MedicalWebPage',
         '@id': BASE + '/#webpage',
         url: BASE,
-        name: "Kynthai - Care Connected, Wherever You Are",
+        name: "Kynthai — Your family's health, connected.",
         description:
-          'AI-powered medicine reminders, doctor video consultations, lab tests and family medications and care from anywhere. Free to start. Privacy-first. Documents encrypted at rest; all traffic uses TLS.',
+          "Smart reminders, doctor consultations, and lab tests—all in one place. Free to start with privacy-first safeguards.",
         isPartOf: { '@id': BASE + '/#website' },
         about: { '@id': BASE + '/#organization' },
         inLanguage: 'en-US',
@@ -91,7 +91,7 @@ export default function RootPage({ children }: RootPageProps) {
         audience: {
           '@type': 'Audience',
           audienceType: 'Patients, Families, Caretakers, Doctors, Labs',
-          geographicArea: { '@type': 'Country', name: 'Worldwide', alternateName: ['United States', 'India', 'United Kingdom', 'UAE', 'Brazil'] },
+          geographicArea: { '@type': 'Place', name: 'Worldwide' },
         },
       },
     ],
