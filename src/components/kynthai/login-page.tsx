@@ -773,17 +773,19 @@ export function LoginPage({
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="phone">Phone (optional)</Label>
+                      <Label htmlFor="phone">Phone number <span className="text-rose-500">*</span></Label>
                       <Input
                         id="phone"
                         type="tel"
-                        placeholder="+1 (555) 123-4567"
+                        placeholder="+91 98765 43210"
                         value={phone}
                         onChange={e => setPhone(e.target.value)}
                         autoComplete="tel"
+                        required={mode === 'register'}
+                        disabled={mode !== 'register'}
                       />
                       <p className="text-xs text-muted-foreground">
-                        Used only for account security and care-team alerts.
+                        Include your country calling code. Used for account security, care-team alerts, and local SOS routing.
                       </p>
                     </div>
                     <div className="space-y-1.5">
