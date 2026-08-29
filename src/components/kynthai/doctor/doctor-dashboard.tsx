@@ -1827,6 +1827,8 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         onShowPricing={() => router.push('/pricing')}
         onShowPrivacy={() => router.push('/privacy')}
         onOpenSettings={() => router.push('/settings')}
+        professionalProfile={profile}
+        onOpenProfessionalProfile={() => router.push('/doctor')}
         onSwitchPortal={() => router.push('/login')}
       />
 
