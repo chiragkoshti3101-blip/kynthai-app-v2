@@ -2,11 +2,11 @@
 
 _Seed brief from Michael (god), 2026-08-18. Pam executes this into a full calendar._
 
-**Brand anchor:** Kynthai = US-based lab testing + doctor consults, distance-based delivery fees, 18% platform fee on the lab side only (customer sees honest price), AI-chat clinical prompts, doctor-set consultation fees, early-adopter/founder pricing, HIPAA-oriented. Voice: trustworthy, transparent, human — never fear-mongering, never over-promising.
+**Brand anchor:** Kynthai = connected family health worldwide, with lab testing and doctor consults where available, distance-based delivery fees, 18% platform fee on the lab side only (customer sees honest price), AI-chat clinical prompts, doctor-set consultation fees, early-adopter/founder pricing, HIPAA-oriented. Voice: trustworthy, transparent, human — never fear-mongering, never over-promising.
 
 ## 5 content pillars
 1. **Education** — health literacy, lab tests explained
-2. **Trust & credibility** — HIPAA, US-based, honest pricing
+2. **Trust & credibility** — privacy-first design, local availability, honest pricing
 3. **Product how-it-works** — patient / doctor / lab journeys
 4. **Founder story & transparency** — the why
 5. **Offers & engagement** — early-adopter pricing, polls, Q&A
@@ -31,7 +31,7 @@ _Seed brief from Michael (god), 2026-08-18. Pam executes this into a full calend
 
 ## Static graphics
 1. Founder-story quote card
-2. Trust stat graphic (US-only · secure · honest pricing)
+2. Trust stat graphic (worldwide · secure · honest pricing)
 3. Weekly health tip card (repeatable series)
 4. Product highlight card (screenshot + caption)
 
