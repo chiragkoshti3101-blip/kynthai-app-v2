@@ -36,6 +36,7 @@ interface NotificationCenterProps {
   userId: string
   isDemo: boolean
   role?: string
+  phone?: string | null
   onNavigate?: (tab: string) => void
 }
 
@@ -50,7 +51,7 @@ function normalizeType(t: string): NotificationType {
   return x || 'system'
 }
 
-export function NotificationCenter({ userId, isDemo, role, onNavigate }: NotificationCenterProps) {
+export function NotificationCenter({ userId, isDemo, role, phone, onNavigate }: NotificationCenterProps) {
   const [open, setOpen] = React.useState(false)
   const [notifications, setNotifications] = React.useState<Notification[]>([])
   const [loading, setLoading] = React.useState(true)
@@ -221,6 +222,7 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
           }}
           onDismiss={() => setSosAlert(null)}
           onNavigate={onNavigate}
+          phone={phone}
         />
       )}
       <div className="relative" ref={dropdownRef}>
