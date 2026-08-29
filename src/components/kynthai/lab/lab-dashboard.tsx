@@ -547,6 +547,8 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
       onShowPricing={() => router.push('/pricing')}
       onShowPrivacy={() => router.push('/privacy')}
       onOpenSettings={() => router.push('/settings')}
+      professionalProfile={profile}
+      onOpenProfessionalProfile={() => router.push('/lab')}
     />
   </div>
   )
