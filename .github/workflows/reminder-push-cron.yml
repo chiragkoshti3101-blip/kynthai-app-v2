@@ -1,18 +1,28 @@
 # Closed-app medication pushes (works when Chrome/Safari are fully closed).
 #
-# WHY THIS SHAPE: GitHub's scheduler drops/delays `schedule:` starts
-# unpredictably (observed: 29h with zero scheduled starts), so relying on
-# anchors alone leaves multi-hour dead zones with NO ticks => missed doses.
-# Therefore each run now SELF-PERPETUATES: it loops ~5.5 hours pinging the
-# tick endpoint every 60s, then dispatches its own successor via the API
-# (DISPATCH_TOKEN secret) before exiting. One manual start => an unbroken
-# minute-level chain. The schedule anchors and manual dispatch remain as
-# restart paths if a chain ever breaks (concurrency group makes overlaps
-# safe: a newer run cancels the older one cleanly).
+# BILLING REALITY (corrects the old "public repo" assumption): this repo is
+# PRIVATE, so GitHub-hosted runners bill minutes (~2,000 free/month). A
+# minute-level chain burns ~1,440 min/day, so it can only run continuously
+# while Actions minutes exist (public repo / paid plan / monthly reset).
+# This file degrades gracefully under any budget:
+#   - schedule anchors fire 6x/day, do ONE sweep, then try to re-arm the
+#     chain — <1 runner-minute each (~4 min/month total);
+#   - when minutes exist the anchor-dispatched chain runs the full loop;
+#   - when minutes run out, runs die instantly (empty steps, no logs) and
+#     the next anchor auto-revives the chain after the monthly reset.
+# Vercel 4-hourly catch-up crons remain the always-free backstop.
 #
-# Repo is public => unlimited free Actions minutes.
-# Vercel Hobby cannot do */5 crons; the 4-hourly Vercel catch-up crons stay
-# as the final backstop behind this engine.
+# WHY SELF-PERPETUATION: GitHub's scheduler drops/delays `schedule:` starts
+# unpredictably (observed: 29h with zero scheduled starts), so anchors alone
+# leave multi-hour dead zones with NO ticks => missed doses. Therefore a
+# dispatched run loops ~5.5 hours pinging the tick endpoint every 60s, then
+# dispatches its own successor via the API (DISPATCH_TOKEN secret) before
+# exiting. One manual start => an unbroken minute-level chain.
+#
+# CONCURRENCY: split by event. Anchors live in their own group so they can
+# NEVER cancel a live chain (the old design let every 30-min anchor kill the
+# 5.5h chain before it ever reached its own chaining step — the engine was
+# guaranteed to die even when minutes were plentiful).
 #
 # Secrets: CRON_SECRET, APP_URL=https://kynthai.app, DISPATCH_TOKEN (fine-
 # grained PAT with Actions:write — used ONLY to re-dispatch this workflow).
@@ -20,32 +30,36 @@ name: Reminder push (closed-app)
 
 on:
   schedule:
-    - cron: '3,33 * * * *'
+    - cron: '23 */4 * * *'   # restart anchor: 6/day, single sweep each
   workflow_dispatch:
     inputs:
       chained_from:
         description: 'Run id of the predecessor chain link (diagnostics only)'
         required: false
         default: ''
+      loop_minutes:
+        description: 'Chain tick-loop length in minutes (default 330)'
+        required: false
+        default: '330'
 
 concurrency:
-  group: reminder-tick
+  group: reminder-${{ github.event_name }}
   cancel-in-progress: true
 
 jobs:
   send:
     runs-on: ubuntu-latest
-    # 330-min loop + schedule call + 3 chain retries stays well under the
-    # 6-hour GitHub job ceiling.
     timeout-minutes: 345
     steps:
-      - name: Tick reminders every minute, then chain to the successor run
+      - name: Sweep due reminders (chain mode loops, anchor mode sweeps once)
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           APP_URL: ${{ secrets.APP_URL }}
           DISPATCH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
           GH_REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
+          EVENT_NAME: ${{ github.event_name }}
+          LOOP_MINUTES: ${{ github.event.inputs.loop_minutes || '330' }}
         run: |
           set -uo pipefail
           if [ -z "${CRON_SECRET:-}" ] || [ -z "${APP_URL:-}" ]; then
@@ -53,6 +67,17 @@ jobs:
             exit 0
           fi
           auth=(-H "Authorization: Bearer ${CRON_SECRET}" -H "Accept: application/json")
+
+          sweep_once() {
+            # Ensure today's reminder rows exist, then tick once (idempotent).
+            curl -sS -o /tmp/sched.json -w "schedule HTTP %{http_code}\n" \
+              "${auth[@]}" "${APP_URL}/api/reminders/schedule" || true
+            head -c 300 /tmp/sched.json || true; echo
+            code=$(curl -sS -o /tmp/tick.json -w "%{http_code}" --max-time 30 \
+              "${auth[@]}" "${APP_URL}/api/reminders/send?mode=tick" || echo "000")
+            echo "[anchor] tick HTTP ${code}"
+            head -c 300 /tmp/tick.json || true; echo
+          }
 
           chain() {
             # Re-arm the engine: dispatch the successor run (3 retries).
@@ -66,7 +91,7 @@ jobs:
                 -H "Authorization: Bearer ${DISPATCH_TOKEN}" \
                 -H "Accept: application/vnd.github+json" \
                 "https://api.github.com/repos/${GH_REPO}/actions/workflows/reminder-push-cron.yml/dispatches" \
-                -d "{\"ref\":\"main\",\"inputs\":{\"chained_from\":\"${RUN_ID}\"}}" || echo "000")
+                -d "{\"ref\":\"main\",\"inputs\":{\"chained_from\":\"${RUN_ID}\",\"loop_minutes\":\"${LOOP_MINUTES}\"}}" || echo "000")
               echo "[chain] attempt ${i} HTTP ${code}"
               if [ "$code" = "204" ]; then return 0; fi
               head -c 300 /tmp/chain.json || true; echo
@@ -75,14 +100,20 @@ jobs:
             return 1
           }
 
-          # Ensure today's reminder rows exist once per cycle (idempotent).
-          curl -sS -o /tmp/sched.json -w "schedule HTTP %{http_code}\n" \
-            "${auth[@]}" "${APP_URL}/api/reminders/schedule" || true
-          head -c 300 /tmp/sched.json || true
-          echo
+          if [ "${EVENT_NAME}" = "schedule" ]; then
+            # ANCHOR MODE: cheap sweep, then try to re-arm the perpetuating
+            # chain (the dispatch is a no-op unless Actions minutes exist).
+            sweep_once
+            if chain; then
+              echo "[anchor] chain re-armed — full loop takes over"
+            else
+              echo "[anchor] chain not re-armed — Vercel catchups remain"
+            fi
+            exit 0
+          fi
 
-          # Minute-level tick loop: ~5.5h of coverage per run.
-          end=$((SECONDS + 330 * 60))
+          # CHAIN MODE: minute-level tick loop, then dispatch the successor.
+          end=$((SECONDS + ${LOOP_MINUTES:-330} * 60))
           n=0
           fail=0
           consec=0
@@ -114,5 +145,5 @@ jobs:
           if chain; then
             echo "[chain] successor dispatched — chain continues"
           else
-            echo "[chain] FAILED — schedule anchors remain as fallback"
+            echo "[chain] FAILED — schedule anchors + Vercel catchups remain"
           fi
