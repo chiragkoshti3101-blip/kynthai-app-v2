@@ -156,6 +156,10 @@ export default function SettingsClient() {
       toast({ title: 'Name is required', variant: 'destructive' });
       return;
     }
+    if (!/^\+[1-9]\d{6,14}$/.test(`+${editPhone.replace(/\D/g, '')}`)) {
+      toast({ title: 'Valid phone number is required', description: 'Use the full international number with country code.', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
@@ -167,7 +171,7 @@ export default function SettingsClient() {
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
         body: JSON.stringify({
           name: editName.trim(),
-          phone: editPhone.trim() || null,
+          phone: `+${editPhone.replace(/\D/g, '')}`,
           dateOfBirth: editDob || null,
         }),
       });
@@ -401,8 +405,8 @@ export default function SettingsClient() {
 
             {/* Edit Phone */}
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone (optional)</Label>
-              <Input id="phone" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+15551234567" />
+              <Label htmlFor="phone">Phone number *</Label>
+              <Input id="phone" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+91 98765 43210" />
             </div>
 
             {!isProfessional && (
