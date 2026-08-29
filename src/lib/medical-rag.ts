@@ -248,9 +248,9 @@ If the person has an epinephrine auto-injector (EpiPen), use it immediately whil
   {
     id: 'emergency-004',
     type: 'emergency',
-    title: 'When to Use 911 vs Urgent Care vs ER',
-    content: `**911 (Emergency)**: Chest pain, difficulty breathing, stroke symptoms, severe bleeding, head injury, poisoning, severe burns.
-**Emergency Room**: Broken bones, severe pain without 911 symptoms, high fever (104°F+), severe vomiting/diarrhea causing dehydration.
+    title: 'When to Contact Emergency Services vs Urgent Care vs ER',
+    content: `**Emergency services**: Chest pain, difficulty breathing, stroke symptoms, severe bleeding, head injury, poisoning, severe burns.
+**Emergency Room**: Broken bones, severe pain without emergency symptoms, high fever (104°F+), severe vomiting/diarrhea causing dehydration.
 **Urgent Care**: Minor cuts needing stitches, sprains, fever without alarming symptoms, flu symptoms, urinary symptoms, persistent diarrhea.
 **Call Doctor/Telehealth**: Any uncertainty — better safe than sorry.`,
     keywords: ['911', 'emergency room', 'urgent care', 'ER', 'when to go', 'emergency', 'hospital'],
