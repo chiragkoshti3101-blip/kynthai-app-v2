@@ -147,15 +147,17 @@ export function LoginPage({
   //
   // `initialDemo` comes from the server component (searchParams.demo === '1')
   // so both SSR and client agree on the state — no hydration flash.
-  const bootRequestingDemo =
-    initialDemo ||
-    (typeof window !== 'undefined' &&
-    isDemoEnabled() &&
+  // Keep the server-rendered loader and client auto-login on the same feature flag.
+  // When demos are disabled in production, /login?demo=1 must fall back to the
+  // normal sign-in form instead of rendering a loader whose effect will never run.
+  const hasDemoMarker =
+    typeof window !== 'undefined' &&
     // URL marker survives only until the auto-login effect consumes it
     (new URLSearchParams(window.location.search).get('demo') === '1' ||
       ['patient', 'doctor', 'caretaker', 'lab', 'admin'].includes(
         (window.location.hash || '').replace('#', '').toLowerCase()
-      )));
+      ));
+  const bootRequestingDemo = isDemoEnabled() && (initialDemo || hasDemoMarker);
   const [demoBooting, setDemoBooting] = React.useState(bootRequestingDemo);
   const [hideDownloadCta, setHideDownloadCta] = React.useState(false);
   React.useEffect(() => {
