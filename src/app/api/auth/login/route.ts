@@ -234,13 +234,24 @@ export async function POST(req: NextRequest) {
         await db.$executeRawUnsafe(
           `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "timezone" TEXT`
         );
-        const updated = await db.$executeRawUnsafe(
-          `UPDATE "users" SET "timezone" = $1 WHERE id = $2`,
-          timezone,
+        // Guard: only self-heal accounts with NO stored timezone yet. A login
+        // from a device with a different region/clock must never silently
+        // shift an established dose schedule (doses fire on the stored wall
+        // clock); explicit changes go through the profile/settings API.
+        const existingTz = await db.$queryRawUnsafe<Array<{ timezone: string | null }>>(
+          `SELECT "timezone" FROM "users" WHERE id = $1 LIMIT 1`,
           user.id
         );
-        if (updated > 0) {
-          await logAudit(user.id, 'user.timezone.set', timezone);
+        const storedTimezone = existingTz?.[0]?.timezone ?? null;
+        if (!storedTimezone) {
+          const updated = await db.$executeRawUnsafe(
+            `UPDATE "users" SET "timezone" = $1 WHERE id = $2`,
+            timezone,
+            user.id
+          );
+          if (updated > 0) {
+            await logAudit(user.id, 'user.timezone.set', timezone);
+          }
         }
       } catch (tzError) {
         logger.phiSafeError(tzError, 'login.timezone');
