@@ -63,7 +63,13 @@ export async function POST(req: NextRequest) {
   if (response || !user) return response!
 
   const body = await req.json().catch(() => null)
-  if (!body?.endpoint) return jsonError('Missing subscription endpoint', 400)
+  if (typeof body?.endpoint !== 'string' || !body.endpoint || body.endpoint.length > 4096) {
+    return jsonError('Invalid subscription endpoint', 400)
+  }
+  const previousEndpoint =
+    typeof body.previousEndpoint === 'string' && body.previousEndpoint.length <= 4096
+      ? body.previousEndpoint
+      : null
 
   // Upsert: same endpoint for same user → update, else create
   try {
@@ -103,6 +109,12 @@ export async function POST(req: NextRequest) {
     } catch {
       return jsonError('Failed to store subscription', 500)
     }
+  }
+
+  if (previousEndpoint && previousEndpoint !== body.endpoint) {
+    await db.pushSubscription.deleteMany({
+      where: { userId: user.id, endpoint: previousEndpoint, type: 'webpush' },
+    }).catch(() => {})
   }
 
   await logAudit(user.id, 'push.subscribe', body.endpoint.slice(0, 60))
