@@ -16,12 +16,11 @@ export async function POST(req: NextRequest) {
   const u = user!
   if (u.role !== 'doctor') return jsonError('Only doctors may nudge patients', 403)
 
-  const body = await readJson<{ patientId?: string; message?: string; channel?: string }>(req)
+  const body = await readJson<{ patientId?: string; message?: string; channel?: string; eventId?: string }>(req)
   if (!body) return jsonError('Invalid JSON', 400)
   if (!body.patientId) return jsonError('patientId is required', 400)
 
   const message = sanitizeText(body.message, 500) || 'Time to take your medication'
-  const channel = sanitizeText(body.channel, 20) || 'in-app'
 
   const profile = await db.doctorProfile.findUnique({ where: { userId: u.id } })
   if (!profile) return jsonError('Doctor profile not found. Submit verification first.', 404)
@@ -33,24 +32,12 @@ export async function POST(req: NextRequest) {
   })
   if (!linked) return jsonError('Patient is not in your panel', 403)
 
-  const notif = await db.notificationLog.create({
-    data: {
-      userId: body.patientId,
-      channel,
-      type: 'nudge',
-      title: `Nudge from Dr. ${u.name}`,
-      body: message,
-      recipient: body.patientId,
-      status: 'sent',
-      cost: 0,
-    },
-  })
+  // The shared router owns the inbox row and all device fan-out. Keeping a
+  // single producer prevents duplicate in-app entries and duplicate pushes.
+  const requestKey = (req.headers.get('idempotency-key') || body.eventId || '').trim().slice(0, 120)
+  const dedupeKey = requestKey ? `nudge:${profile.id}:${body.patientId}:${requestKey}` : undefined
+  const result = await sendNudge(body.patientId, u.name ?? 'Doctor', message, {}, dedupeKey)
 
-  // Best-effort: deliver the nudge by in-app/email only.
-  try {
-    await sendNudge(body.patientId, u.name ?? 'Doctor', message)
-  } catch { /* best-effort — sendNotification logs internally */ }
-
-  await logAudit(u.id, 'doctor.nudge', `patient=${body.patientId} notif=${notif.id}`)
-  return jsonOk({ sent: true, notificationId: notif.id })
+  await logAudit(u.id, 'doctor.nudge', `patient=${body.patientId} notif=${result.notificationLogId || 'unlogged'}`)
+  return jsonOk({ sent: result.delivered || !!result.notificationLogId, notificationId: result.notificationLogId || null })
 }
