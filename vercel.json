@@ -8,74 +8,32 @@
     {
       "path": "/api/chat/cleanup",
       "schedule": "30 3 * * *"
-    },
-    {
-      "path": "/api/reminders/send",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/reminders/escalate",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/appointment-reminders",
-      "schedule": "*/5 * * * *"
     }
   ],
   "headers": [
     {
       "source": "/sw.js",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        },
-        {
-          "key": "CDN-Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "Cloudflare-CDN-Cache-Control",
-          "value": "no-store"
-        }
+        {"key":"Cache-Control","value":"public, max-age=0, must-revalidate"},
+        {"key":"CDN-Cache-Control","value":"no-store"},
+        {"key":"Cloudflare-CDN-Cache-Control","value":"no-store"}
       ]
     },
     {
       "source": "/sw-v3.js",
       "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=0, must-revalidate"
-        },
-        {
-          "key": "CDN-Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "Cloudflare-CDN-Cache-Control",
-          "value": "no-store"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/"
-        }
+        {"key":"Cache-Control","value":"public, max-age=0, must-revalidate"},
+        {"key":"CDN-Cache-Control","value":"no-store"},
+        {"key":"Cloudflare-CDN-Cache-Control","value":"no-store"},
+        {"key":"Service-Worker-Allowed","value":"/"}
       ]
     },
     {
       "source": "/downloads/(.*)\\.apk",
       "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/vnd.android.package-archive"
-        },
-        {
-          "key": "Content-Disposition",
-          "value": "attachment; filename=\"Kynthai.apk\""
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        }
+        {"key":"Content-Type","value":"application/vnd.android.package-archive"},
+        {"key":"Content-Disposition","value":"attachment; filename=\"Kynthai.apk\""},
+        {"key":"Cache-Control","value":"public, max-age=3600"}
       ]
     }
   ]
