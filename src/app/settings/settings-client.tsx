@@ -101,6 +101,20 @@ export default function SettingsClient() {
     return () => window.clearTimeout(timer);
   }, [user, router]);
 
+  React.useEffect(() => {
+    if (!user || user.isDemo) return;
+    let cancelled = false;
+    void fetch('/api/user/notification-prefs', { credentials: 'include', cache: 'no-store' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!cancelled && data?.preferences && typeof data.preferences === 'object') {
+          setNotifPrefs(prev => ({ ...prev, ...data.preferences }));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [user]);
+
   if (!user) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center px-4 pb-safe">
@@ -120,7 +134,13 @@ export default function SettingsClient() {
       : user.role === 'caretaker'
         ? 'Family account'
         : 'Personal health account';
-  const notificationItems = user.role === 'doctor'
+  const notificationItems = user.role === 'admin'
+    ? [
+        { key: 'emergency', label: 'Emergency alerts', desc: 'Critical safety events' },
+        { key: 'family', label: 'Support escalations', desc: 'Complaints and care escalations' },
+        { key: 'insights', label: 'Platform insights', desc: 'Operational summaries' },
+      ]
+    : user.role === 'doctor'
     ? [
         { key: 'reminders', label: 'Appointment reminders', desc: 'Upcoming consultations' },
         { key: 'family', label: 'Patient messages', desc: 'Updates from your patients' },
@@ -306,10 +326,15 @@ export default function SettingsClient() {
     const prev = notifPrefs;
     setNotifPrefs(p => ({ ...p, [key]: value }));
     try {
+      const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
+      const { token: csrfToken } = await csrfRes.json().catch(() => ({ token: '' }));
       const res = await fetch('/api/user/notification-prefs', {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
         body: JSON.stringify({ [key]: value }),
       });
       if (!res.ok) throw new Error('save failed');
