@@ -48,25 +48,33 @@ export async function PATCH(req: NextRequest) {
   }
 
   try {
-    // Read current prefs so we can merge partial updates
-    // @ts-ignore - Prisma types not regenerated; field added in schema.prisma
-    const currentPrefs = (user as any).notificationPrefs
-      ? JSON.parse((user as any).notificationPrefs)
-      : {
-          reminders:  true,
-          labResults: true,
-          emergency:  true,
-          insights:   true,
-          family:     true,
-        }
+    // requireAuth intentionally returns a minimal user projection, so read the
+    // persisted preference JSON directly before merging this partial update.
+    const currentUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { notificationPrefs: true },
+    })
+    let currentPrefs = {
+      reminders: true,
+      labResults: true,
+      emergency: true,
+      insights: true,
+      family: true,
+    }
+    if (currentUser?.notificationPrefs) {
+      try {
+        const parsed = JSON.parse(currentUser.notificationPrefs)
+        if (parsed && typeof parsed === 'object') currentPrefs = { ...currentPrefs, ...parsed }
+      } catch {
+        /* malformed legacy JSON is replaced by safe defaults */
+      }
+    }
 
     const mergedPrefs = { ...currentPrefs, ...updates }
 
-    const updated = await db.user.update({
+    await db.user.update({
       where: { id: user.id },
-      // @ts-ignore - Prisma types not regenerated yet
       data: { notificationPrefs: JSON.stringify(mergedPrefs) },
-      // @ts-ignore
       select: { id: true, notificationPrefs: true },
     })
 
@@ -94,16 +102,26 @@ export async function GET(req: NextRequest) {
   if (response || !user) return response!
 
   try {
-    // @ts-ignore - Prisma types not regenerated; field added in schema.prisma
-    const prefs = (user as any).notificationPrefs
-      ? JSON.parse((user as any).notificationPrefs)
-      : {
-          reminders:  true,
-          labResults: true,
-          emergency:  true,
-          insights:   true,
-          family:     true,
-        }
+    const currentUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { notificationPrefs: true },
+    })
+    const defaults = {
+      reminders: true,
+      labResults: true,
+      emergency: true,
+      insights: true,
+      family: true,
+    }
+    let prefs = defaults
+    if (currentUser?.notificationPrefs) {
+      try {
+        const parsed = JSON.parse(currentUser.notificationPrefs)
+        if (parsed && typeof parsed === 'object') prefs = { ...defaults, ...parsed }
+      } catch {
+        /* return safe defaults */
+      }
+    }
 
     return jsonOk({ preferences: prefs })
   } catch (error) {
