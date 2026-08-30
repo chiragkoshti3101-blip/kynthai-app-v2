@@ -7,6 +7,7 @@ import { emergencySosSchema } from '@/lib/schemas/security'
 import { sendSMSReal, isSMSEnabled } from '@/lib/integrations'
 import { logger } from '@/lib/logger'
 import { getEmergencyCountryFromPhone } from '@/lib/emergency'
+import { sendNotification } from '@/lib/notifications'
 export const dynamic = 'force-dynamic'
 
 // POST /api/emergency-sos — Trigger SOS alert to family members
@@ -98,18 +99,6 @@ export async function POST(req: NextRequest) {
             if (fm.user?.phone) {
               smsTargets.push({ name: fm.user.name || 'Family member', phone: fm.user.phone })
             }
-            await tx.notificationLog.create({
-              data: {
-                userId: fm.userId,
-                channel: 'in-app',
-                type: 'emergency_sos',
-                title: `SOS Alert: ${user.name} needs help!`,
-                body: body?.notes || `${user.name} has triggered an emergency SOS alert. Please check on them immediately.`,
-                recipient: fm.userId,
-                status: 'sent',
-              },
-            })
-
             await tx.familyHealthAlert.create({
               data: {
                 familyId: membership.familyId,
@@ -132,6 +121,40 @@ export async function POST(req: NextRequest) {
       }
       return created
     })
+
+    // Deliver one shared-router notification per accepted family recipient.
+    // This covers in-app, Web Push, and native FCM without creating a second
+    // inbox row in the transaction. Provider failures remain visible in the
+    // push audit log and never roll back the persisted SOS.
+    const recipientIds = new Set<string>()
+    try {
+      const familyMembers = await db.familyMember.findMany({
+        where: {
+          familyId: { in: memberships.map((m) => m.familyId) },
+          userId: { not: user.id },
+        },
+        select: { userId: true },
+      })
+      for (const member of familyMembers) if (member.userId) recipientIds.add(member.userId)
+    } catch (lookupError) {
+      logger.phiSafeError(lookupError, 'emergency-sos.recipient-lookup')
+    }
+    await Promise.all(Array.from(recipientIds).map(async (recipientId) => {
+      try {
+        await sendNotification(
+          { userId: recipientId },
+          {
+            title: `SOS Alert: ${user.name} needs help!`,
+            body: notes || `${user.name} has triggered an emergency SOS alert. Please check on them immediately.`,
+            type: 'emergency_sos',
+            data: { url: '/caretaker', location: location || '' },
+            dedupeKey: `emergency:${alerts[0]?.id || user.id}:recipient:${recipientId}`,
+          },
+        )
+      } catch (notificationError) {
+        logger.phiSafeError(notificationError, 'emergency-sos.notify')
+      }
+    }))
 
     // Best-effort SMS reminders to the contact numbers on file. The alert is
     // already committed — a failed SMS must never fail the SOS itself. Each

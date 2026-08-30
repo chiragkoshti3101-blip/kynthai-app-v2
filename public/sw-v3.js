@@ -8,11 +8,12 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = '05b9204-mtbm65xr'
+const DEPLOY_ID = '9905db5-mtfmoxxn'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
 const RUNTIME_CACHE = `${VERSION}-runtime`
+const flag = (value) => value === true || value === '1' || value === 'true'
 
 const PRECACHE_URLS = [
   '/offline.html',
@@ -149,8 +150,8 @@ self.addEventListener('push', (event) => {
   // FIRST so PHI-free titles ("Medication reminder") still get alarm treatment.
   const embedded = data.data && typeof data.data === 'object' ? data.data : {}
   const isDose =
-    data.isDose === true ||
-    embedded.isDose === true ||
+    flag(data.isDose) ||
+    flag(embedded.isDose) ||
     !!data.reminderId ||
     !!embedded.reminderId ||
     String(tag) === 'reminder' ||
@@ -162,6 +163,7 @@ self.addEventListener('push', (event) => {
     String(tag).startsWith('reminder-') ||
     String(tag).startsWith('missed-')
   const isEmergency =
+    flag(data.isEmergency) ||
     typeStr.includes('sos') ||
     typeStr.includes('emerg') ||
     typeStr.includes('alert') ||
@@ -266,8 +268,8 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   const data = event.notification.data || {}
-  const isDose = data.isDose || event.notification.tag === 'kynthai-dose-alarm'
-  const isEmergency = data.isEmergency || event.notification.tag === 'kynthai-emergency'
+  const isDose = flag(data.isDose) || event.notification.tag === 'kynthai-dose-alarm'
+  const isEmergency = flag(data.isEmergency) || event.notification.tag === 'kynthai-emergency'
   // Do NOT close clinical notifications until app is focused — keep visible if open fails
   if (!data.isClinical) event.notification.close()
   else event.notification.close()

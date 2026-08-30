@@ -90,7 +90,8 @@ export async function POST(req: NextRequest) {
             title: `High-priority complaint: ${complaint.category}`,
             body: complaint.subject || 'No subject',
             type: 'complaint_new',
-            data: { complaintId: complaint.id, priority: complaint.priority },
+            data: { complaintId: complaint.id, priority: complaint.priority, url: '/admin' },
+            dedupeKey: `complaint:${complaint.id}:admin:${admin.id}`,
           }
         );
       } catch {

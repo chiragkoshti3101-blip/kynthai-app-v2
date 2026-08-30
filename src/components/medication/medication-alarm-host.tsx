@@ -24,8 +24,6 @@ import {
   msUntilReminder,
   pickDueReminder,
   pickNextFutureReminder,
-  notifyReminder,
-  notifyReminderViaSW,
   requestAlarmNotificationPermission,
 } from '@/lib/alarm'
 import {
@@ -35,11 +33,12 @@ import {
   isNativeShell,
 } from '@/lib/native-alarms'
 
-type HostReminder = {
+export type HostReminder = {
   id: string
   time: string
   status: string
-  medication?: { id?: string; name?: string; dosage?: string } | null
+  familyMemberId?: string
+  medication?: { id?: string; name?: string; dosage?: string; familyMemberId?: string } | null
 }
 
 /** Default grace before escalating a still-pending dose to caretakers (ms). */
@@ -110,23 +109,6 @@ async function triggerEscalation(reminder: HostReminder, familyMemberId?: string
         message: `${medName} scheduled at ${reminder.time} was missed.`,
       }),
     })
-    // Also write a family-escalation alert when we have a member id
-    if (familyMemberId) {
-      await fetch('/api/family-escalation', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
-        },
-        body: JSON.stringify({
-          memberId: familyMemberId,
-          type: 'missed_dose',
-          message: `${medName} at ${reminder.time} was not taken.`,
-          severity: 'warning',
-        }),
-      })
-    }
   } catch {
     /* best-effort */
   }
@@ -136,16 +118,23 @@ export function MedicationAlarmHost({
   userId,
   isDemo,
   familyMemberId,
+  familyMemberIds,
+  onAction,
   escalationGraceMs = DEFAULT_ESCALATION_GRACE_MS,
 }: {
   userId?: string
   isDemo?: boolean
   familyMemberId?: string
+  /** Load all family-member schedules for a caretaker in one shared host. */
+  familyMemberIds?: string[]
+  /** Parent owns persistence for caretaker schedules; patient host uses its own API fallback. */
+  onAction?: (reminder: HostReminder, status: 'taken' | 'skipped') => void
   /** How long after a dose becomes due before escalating to caretaker. */
   escalationGraceMs?: number
 }) {
   const { alarmEnabled, alarmMode } = useAppStore()
   const [reminders, setReminders] = React.useState<HostReminder[]>([])
+  const [remindersEnabled, setRemindersEnabled] = React.useState(true)
   const [alarmTarget, setAlarmTarget] = React.useState<HostReminder | null>(null)
   const alarmTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const escalateTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -156,8 +145,18 @@ export function MedicationAlarmHost({
   // stale state — lets push/deep-link/native alarms hydrate real med ids.
   const remindersRef = React.useRef<HostReminder[]>([])
   React.useEffect(() => {
-    remindersRef.current = reminders
-  }, [reminders])
+    if (isDemo) return
+    let cancelled = false
+    void fetch('/api/user/notification-prefs', { credentials: 'include', cache: 'no-store' })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (!cancelled && data?.preferences && typeof data.preferences.reminders === 'boolean') {
+          setRemindersEnabled(data.preferences.reminders)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [isDemo])
 
   const load = React.useCallback(async () => {
     if (isDemo) {
@@ -223,9 +222,36 @@ export function MedicationAlarmHost({
       return
     }
     try {
-      const qs = new URLSearchParams({ date: todayLocal() })
+      const date = todayLocal()
+      if (familyMemberIds?.length) {
+        const results = await Promise.all(
+          familyMemberIds.map(async (id) => {
+            const qs = new URLSearchParams({ date, familyMemberId: id })
+            const res = await fetch(`/api/reminders?${qs.toString()}`, { credentials: 'include' })
+            if (!res.ok) return [] as HostReminder[]
+            const raw = await res.json()
+            const rows = Array.isArray(raw)
+              ? raw
+              : Array.isArray(raw?.data)
+                ? raw.data
+                : Array.isArray(raw?.reminders)
+                  ? raw.reminders
+                  : []
+            return (rows as HostReminder[]).map((r) => ({
+              ...r,
+              familyMemberId: id,
+              medication: r.medication ? { ...r.medication, familyMemberId: id } : r.medication,
+            }))
+          }),
+        )
+        setReminders(results.flat())
+        return
+      }
+
+      const qs = new URLSearchParams({ date })
       if (familyMemberId) qs.set('familyMemberId', familyMemberId)
       else if (userId) qs.set('userId', userId)
+      else return
       const res = await fetch(`/api/reminders?${qs.toString()}`, { credentials: 'include' })
       if (!res.ok) return
       const raw = await res.json()
@@ -240,7 +266,7 @@ export function MedicationAlarmHost({
     } catch {
       /* ignore */
     }
-  }, [isDemo, userId, familyMemberId, alarmMode])
+  }, [isDemo, userId, familyMemberId, familyMemberIds, alarmMode])
 
   React.useEffect(() => {
     void load()
@@ -284,6 +310,13 @@ export function MedicationAlarmHost({
   }
 
   const scheduleNext = React.useCallback(() => {
+    if (!remindersEnabled && !isDemo) {
+      if (alarmTimer.current) clearTimeout(alarmTimer.current)
+      setAlarmTarget(null)
+      stopAllRingtones()
+      clearEscalateTimer()
+      return
+    }
     if (alarmTimer.current) {
       clearTimeout(alarmTimer.current)
       alarmTimer.current = null
@@ -304,7 +337,6 @@ export function MedicationAlarmHost({
         else playProfessionalRingtone()
       }
       const medName = due.medication?.name ?? 'Medication'
-      void notifyReminderViaSW('Medication reminder', `${formatTime12(due.time)} · dose due — open to act`)
       if (!recorded.current.has(due.id) && !isDemo) {
         recorded.current.add(due.id)
         void recordInApp(
@@ -372,7 +404,7 @@ export function MedicationAlarmHost({
     // Sub-second wakeups when close: poll every 1s in the last 90s
     const tickMs = wait <= 90_000 ? 1_000 : Math.min(wait, 6 * 60 * 60 * 1000)
     alarmTimer.current = setTimeout(() => scheduleRef.current(), tickMs)
-  }, [reminders, alarmMode, isDemo, familyMemberId, escalationGraceMs])
+  }, [reminders, remindersEnabled, alarmMode, isDemo, familyMemberId, escalationGraceMs])
 
   React.useEffect(() => {
     scheduleRef.current = scheduleNext
@@ -380,7 +412,7 @@ export function MedicationAlarmHost({
 
   React.useEffect(() => {
     // Demo accounts always run the host so QA sees full-screen Taken/Skip.
-    if (!alarmEnabled && !isDemo) {
+    if ((!alarmEnabled || !remindersEnabled) && !isDemo) {
       if (alarmTimer.current) clearTimeout(alarmTimer.current)
       clearEscalateTimer()
       setAlarmTarget(null)
@@ -394,7 +426,7 @@ export function MedicationAlarmHost({
       if (alarmTimer.current) clearTimeout(alarmTimer.current)
       clearEscalateTimer()
     }
-  }, [alarmEnabled, isDemo, reminders, scheduleNext])
+  }, [alarmEnabled, remindersEnabled, isDemo, reminders, scheduleNext])
 
   React.useEffect(() => {
     if (!alarmEnabled && !isDemo) return
@@ -425,7 +457,11 @@ export function MedicationAlarmHost({
     window.dispatchEvent(
       new CustomEvent('kynthai:reminder-updated', { detail: { id: reminder.id, status } }),
     )
-    if (!isDemo && !reminder.id.startsWith('host-')) {
+    if (onAction) {
+      // Caretaker schedules are owned by the parent so the matching member row
+      // updates optimistically and only one API write is issued.
+      void onAction(reminder, status)
+    } else if (!isDemo && !reminder.id.startsWith('host-')) {
       // FIX #1: the API upserts by MEDICATION id — posting the reminder cuid
       // 404'd and the overlay's Taken/Skip never reached the DB.
       const medId = reminder.medication?.id

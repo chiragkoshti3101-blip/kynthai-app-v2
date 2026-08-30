@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       const existing = await db.notificationLog.findFirst({
         where: {
           userId: user.id,
-          channel: 'in-app',
+          channel: { in: ['in-app', 'app'] },
           OR: [
             { dedupeKey },
             { body: { contains: `[ref:${dedupeKey}]` } },
@@ -59,6 +59,20 @@ export async function POST(req: NextRequest) {
     await logAudit(user.id, 'notifications.inApp', `id=${row.id}`)
     return jsonOk({ id: row.id })
   } catch {
+    if (dedupeKey) {
+      const existing = await db.notificationLog.findFirst({
+        where: {
+          userId: user.id,
+          channel: { in: ['in-app', 'app'] },
+          OR: [
+            { dedupeKey },
+            { body: { contains: `[ref:${dedupeKey}]` } },
+          ],
+        },
+        select: { id: true },
+      }).catch(() => null)
+      if (existing) return jsonOk({ id: existing.id, deduped: true })
+    }
     return jsonError('Failed to record notification', 500)
   }
 }

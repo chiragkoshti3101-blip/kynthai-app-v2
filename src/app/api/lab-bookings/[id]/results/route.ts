@@ -4,7 +4,6 @@ import { logAudit } from '@/lib/auth'
 import { sanitizeText, rateLimit } from '@/lib/security'
 import { requireAuth, requireAuthWithCsrf, jsonError, jsonOk, readJson, audit, checkConsent } from '@/lib/api-helpers'
 import { sendNotification } from '@/lib/notifications'
-import { sendPushToUser } from '@/lib/push-server'
 export const dynamic = 'force-dynamic'
 
 /**
@@ -75,7 +74,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           ? `${updated.lab.labName}: ${updated.resultsNote.slice(0, 120)}`
           : `Results from ${updated.lab.labName} have been uploaded. Open the app to view them.`,
         type: 'lab_results',
-        data: { bookingId: updated.id },
+        data: { bookingId: updated.id, url: '/patient' },
+        dedupeKey: `lab-booking:${updated.id}:results:patient`,
       },
     )
   } catch { /* best-effort */ }
@@ -104,24 +104,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                 ? `${updated.lab.labName}: ${updated.resultsNote.slice(0, 120)}`
                 : `Results from ${updated.lab.labName} have been uploaded. Open the app to help review them.`,
               type: 'lab_results',
-              data: { bookingId: updated.id, forUserId: updated.patientId },
+              data: { bookingId: updated.id, forUserId: updated.patientId, url: '/caretaker' },
+              dedupeKey: `lab-booking:${updated.id}:results:caretaker:${caretaker.userId}`,
             },
           )
         }
       }
     }
-  } catch { /* best-effort */ }
-
-  // Push notification when the app is closed.
-  try {
-    await sendPushToUser(updated.patientId, {
-      title: 'Your lab test results are ready',
-      body: updated.resultsNote
-        ? `${updated.lab.labName}: ${updated.resultsNote.slice(0, 120)}`
-        : `Results from ${updated.lab.labName} have been uploaded.`,
-      tag: `lab-${updated.id}`,
-      url: '/patient',
-    })
   } catch { /* best-effort */ }
 
   await logAudit(u.id, 'lab-bookings.results', `booking=${id}`)

@@ -5,6 +5,7 @@ import { jsonOk, jsonError, requireAuth } from '@/lib/api-helpers'
 import { sanitizeText } from '@/lib/security'
 import { checkCsrf } from '@/lib/csrf'
 import { logger } from '@/lib/logger'
+import { sendNotification } from '@/lib/notifications'
 export const dynamic = 'force-dynamic'
 
 // GET /api/care-workflow — Full care timeline for a patient.
@@ -242,23 +243,23 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Create notification for patient
+    // Use the shared router so status changes honor preferences, reach every
+    // registered device, and are represented once in the notification center.
     try {
-      await db.notificationLog.create({
-        data: {
-          userId: booking.patientId,
-          channel: 'app',
-          type: status === 'completed' ? 'achievement' : 'reminder',
+      await sendNotification(
+        { userId: booking.patientId },
+        {
           title: status === 'completed'
             ? 'Lab results ready'
             : `Lab test update: ${status.replace(/_/g, ' ')}`,
           body: status === 'completed'
             ? `Your ${updated.tests} results are ready. Check the Care tab.`
             : `Your lab test status has been updated to "${status.replace(/_/g, ' ')}".`,
-          recipient: booking.patient.name,
-          status: 'sent',
+          type: status === 'completed' ? 'lab_results' : 'lab_booking_update',
+          data: { bookingId: booking.id, status, url: '/patient' },
+          dedupeKey: `lab-booking:${booking.id}:status:${status}:patient`,
         },
-      })
+      )
     } catch { /* notification non-critical */ }
 
     return jsonOk({

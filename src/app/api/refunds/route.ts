@@ -123,7 +123,8 @@ export async function POST(req: NextRequest) {
       title: 'Refund request submitted',
       body: `Your $${(eligibility.refundAmount / 100).toFixed(2)} refund request is with our team. We will respond before ${deadline}.`,
       type: 'refund_request_submitted',
-      data: { refundId: refund.id },
+      data: { refundId: refund.id, url: '/patient' },
+      dedupeKey: `refund:${refund.id}:submitted:patient`,
     }
   );
 
@@ -136,7 +137,8 @@ export async function POST(req: NextRequest) {
         title: 'New refund request',
         body: `${u.name || u.email} requested $${(eligibility.refundAmount / 100).toFixed(2)} — ${body.reason}`,
         type: 'refund_new',
-        data: { refundId: refund.id },
+        data: { refundId: refund.id, url: '/admin' },
+        dedupeKey: `refund:${refund.id}:new:admin:${admin.id}`,
       }
     );
   }
