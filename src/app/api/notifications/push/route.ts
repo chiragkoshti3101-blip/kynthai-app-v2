@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { requireSystemToken, jsonOk, jsonError } from '@/lib/api-helpers'
-import webpush from 'web-push'
+import { sendNotification } from '@/lib/notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
  *  - Appointment booking flow (consultation alerts)
  *  - Lab result upload flow (result-ready alerts)
  *
- * Body: { title, body, tag?, userId?, url? }
+ * Body: { title, body, type?, userId?, url?, dedupeKey? }
  * If userId is provided, sends to that user only.
  * If omitted, sends to all users with push subscriptions.
  */
@@ -27,66 +27,34 @@ export async function POST(req: NextRequest) {
     return jsonError('Missing title or body', 400)
   }
 
-  // Configure VAPID
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-  const privateKey = process.env.VAPID_PRIVATE_KEY
-  if (!publicKey || !privateKey) {
-    logger.phiSafeError(new Error('VAPID keys not configured'), 'push.vapid-missing')
-    return jsonError('Push notifications not configured', 503)
-  }
-
-  webpush.setVapidDetails(
-    'mailto:hello@kynthai.app',
-    publicKey,
-    privateKey
-  )
-
-  const title = body.title
-  const payload = JSON.stringify({
-    title,
-    body: body.body,
-    tag: body.tag || 'kynthai-notification',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    data: { url: body.url || '/' },
-  })
-
-  // Fetch target subscriptions
-  const where = body.userId
-    ? { userId: body.userId }
-    : {}
-
+  const type = typeof body.type === 'string' && body.type.trim() ? body.type.trim() : 'general'
   try {
-    const subs = await db.pushSubscription.findMany({
-      where,
-      select: { id: true, endpoint: true, p256dh: true, auth: true },
-    })
+    const recipients = body.userId
+      ? [String(body.userId)]
+      : (await db.pushSubscription.findMany({
+          select: { userId: true },
+          distinct: ['userId'],
+        })).map((row) => row.userId)
 
     let sent = 0
     let failed = 0
-
-    for (const sub of subs) {
-      try {
-        await webpush.sendNotification(
-          {
-            endpoint: sub.endpoint,
-            keys: { p256dh: sub.p256dh, auth: sub.auth },
-          },
-          payload
-        )
-        sent++
-      } catch (err: any) {
-        failed++
-        // 404/410 = subscription expired → remove it
-        if (err.statusCode === 404 || err.statusCode === 410) {
-          await db.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {})
-        } else {
-          logger.phiSafeError(err, 'push.send')
-        }
-      }
+    for (const userId of recipients) {
+      const result = await sendNotification(
+        { userId },
+        {
+          title: String(body.title),
+          body: String(body.body),
+          type,
+          data: { url: typeof body.url === 'string' ? body.url : '/' },
+          ...(typeof body.dedupeKey === 'string' && body.dedupeKey.trim()
+            ? { dedupeKey: body.dedupeKey.trim() + ':' + userId }
+            : {}),
+        },
+      )
+      if (result.delivered || result.notificationLogId) sent += 1
+      else failed += 1
     }
-
-    return jsonOk({ sent, failed, total: subs.length })
+    return jsonOk({ sent, failed, total: recipients.length })
   } catch (err) {
     logger.phiSafeError(err, 'push.send')
     return jsonError('Failed to send notifications', 500)
