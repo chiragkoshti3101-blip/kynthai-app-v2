@@ -41,7 +41,6 @@ import { useAppStore, type AuthUser } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useGreeting } from '@/lib/greeting';
 import { useToast } from '@/hooks/use-toast';
-import { playProfessionalRingtone, stopAllRingtones } from '@/lib/alarm';
 import { logger } from '@/lib/logger';
 import { AiChat } from '@/components/medication/ai-chat';
 import { CareHub as CaretakerCareHub } from './care-hub';
@@ -256,6 +255,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
   );
   const [addOpen, setAddOpen] = React.useState(false);
   const [memberMeds, setMemberMeds] = React.useState<MemberMeds>(isDemo ? SAMPLE_MEMBER_MEDS : {});
+  const familyMemberIds = React.useMemo(() => family.map((m) => m.id), [family]);
   const [familyPulse, setFamilyPulse] = React.useState<PulseMember[]>([]);
   const [pulseLoading, setPulseLoading] = React.useState(!isDemo);
 
@@ -310,55 +310,6 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
       clearTimeout(safetyTimer);
     };
   }, []);
-
-  // ── Global reminder alert for family members ──────────────────────────
-  // The caretaker manages medications for the whole family. This ensures
-  // they are notified of pending reminders for ANY family member, regardless
-  // of which tab they are on.
-  React.useEffect(() => {
-    if (isDemo) return;
-    let cancelled = false;
-    let seen = new Set<string>();
-
-    async function check() {
-      if (cancelled) return;
-      try {
-        const today = new Date().toISOString().slice(0, 10);
-        const memberPromises = family.map(async (m) => {
-          const res = await fetch(`/api/reminders?date=${today}&familyMemberId=${m.id}`, { credentials: 'include' });
-          if (!res.ok) return [];
-          const data = await res.json();
-          return (data.reminders ?? []).map((r: { id: string; time: string; status: string; medication?: { name?: string; dosage?: string } }) => ({
-            ...r,
-            memberName: m.name,
-          }));
-        });
-        const allReminders = (await Promise.all(memberPromises)).flat();
-        const now = new Date();
-        const nowMins = now.getHours() * 60 + now.getMinutes();
-        for (const r of allReminders) {
-          if (r.status !== 'pending') continue;
-          const [h = 0, m = 0] = r.time.split(':').map(Number);
-          const reminderMins = h * 60 + m;
-          if (reminderMins <= nowMins && nowMins - reminderMins < 15 && !seen.has(r.id)) {
-            seen.add(r.id);
-            const name = r.medication?.name ?? 'medication';
-            const member = r.memberName ?? 'family member';
-            playProfessionalRingtone();
-            toast({
-              title: `Reminder for ${member}: take ${name}`,
-              description: `${r.time} — open the Meds tab to mark taken or skipped.`,
-              duration: 30000,
-            });
-          }
-        }
-      } catch { /* best-effort */ }
-    }
-
-    check();
-    const interval = setInterval(check, 60_000);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [isDemo, family, toast, setTab]);
 
   // Load real medications for each family member from API
   // N+1 → parallel: fire all per-member reminder fetches simultaneously.
@@ -539,12 +490,20 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
     <div className="relative min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
       {/* FIX #20: Consolidated into single NotificationBanner */}
       <NotificationPermissionBanner />
-      {selectedMember && (
-        <MedicationAlarmHost
-          isDemo={isDemo}
-          familyMemberId={isDemo ? undefined : selectedMember.id}
-        />
-      )}
+      <MedicationAlarmHost
+        isDemo={isDemo}
+        familyMemberIds={isDemo ? undefined : familyMemberIds}
+        onAction={(reminder, status) => {
+          const memberId = reminder.familyMemberId || reminder.medication?.familyMemberId;
+          if (memberId) {
+            void updateMemberMed(
+              memberId,
+              { id: reminder.id, time: reminder.time, medicationId: reminder.medication?.id },
+              status,
+            );
+          }
+        }}
+      />
       {/* Top app bar */}
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background pt-safe">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
@@ -988,7 +947,6 @@ function FamilyTab({
               </Card>
               <FamilyMemberSchedule
                 memberName={m.name}
-                memberId={m.id}
                 meds={memberMeds[m.id] ?? []}
                 onUpdate={(med, status) => onUpdateMemberMed(m.id, med, status)}
               />
