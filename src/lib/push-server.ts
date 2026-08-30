@@ -12,14 +12,18 @@ export type PushPayload = {
   dosage?: string
   reminderId?: string
   medicationId?: string
+  /** Additional non-visible metadata delivered to the client on tap. */
+  data?: Record<string, string | undefined>
+  /** Medication dose signal; separate from clinical priority (appointments/labs are clinical too). */
+  dose?: boolean
   /** Clinical dose / emergency — max priority, short TTL */
   clinical?: boolean
 }
 
 /**
  * Send via Firebase Cloud Messaging to a native device token.
- * firebase-admin is lazy-loaded; absent credentials = silent no-op so the
- * existing Web Push path keeps working.
+ * firebase-admin is lazy-loaded; absent credentials are reported as a failed
+ * FCM delivery while any configured Web Push subscriptions continue normally.
  */
 let _fcmMessaging: unknown = null
 let _fcmChecked = false
@@ -60,16 +64,16 @@ function getFcmMessaging(): { send: (m: unknown) => Promise<{ messageId?: string
   return _fcmMessaging as never
 }
 
-async function sendFcm(token: string, message: string, isClinical: boolean): Promise<void> {
+async function sendFcm(token: string, message: string, isClinical: boolean): Promise<string> {
   const messaging = getFcmMessaging()
-  if (!messaging) return
+  if (!messaging) throw new Error('FCM is not configured')
   let parsed: { title?: string; body?: string; data?: Record<string, unknown> }
   try {
     parsed = JSON.parse(message)
   } catch {
     parsed = { title: 'Kynthai', body: message }
   }
-  await messaging.send({
+  const result = await messaging.send({
     token,
     notification: { title: parsed.title || 'Kynthai', body: parsed.body || '' },
     android: {
@@ -86,6 +90,7 @@ async function sendFcm(token: string, message: string, isClinical: boolean): Pro
     },
     data: (parsed.data || {}) as Record<string, string>,
   })
+  return result.messageId || 'fcm:accepted'
 }
 
 /**
@@ -99,12 +104,12 @@ export async function sendPushToUser(
 ): Promise<{ sent: number; failed: number }> {
   const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
   const privateKey = process.env.VAPID_PRIVATE_KEY
-  if (!publicKey || !privateKey) {
-    return { sent: 0, failed: 0 }
-  }
+  const webPushConfigured = Boolean(publicKey && privateKey)
 
   try {
-    webpush.setVapidDetails('mailto:hello@kynthai.app', publicKey, privateKey)
+    if (webPushConfigured) {
+      webpush.setVapidDetails('mailto:hello@kynthai.app', publicKey!, privateKey!)
+    }
 
     const subs = await db.pushSubscription.findMany({
       where: { userId },
@@ -116,18 +121,19 @@ export async function sendPushToUser(
       return { sent: 0, failed: 0 }
     }
 
-    const isClinical =
-      payload.clinical === true ||
+    const isDose =
+      payload.dose === true ||
       payload.tag === 'reminder' ||
       payload.tag === 'missed_dose' ||
-      payload.tag === 'emergency' ||
+      payload.tag === 'reminder_escalation' ||
       !!payload.reminderId
+    const isClinical = payload.clinical === true || isDose || payload.tag === 'emergency'
 
     const message = JSON.stringify({
       title: payload.title || 'Kynthai',
       body: payload.body || '',
       tag: payload.tag || (isClinical ? 'kynthai-dose' : 'kynthai-notification'),
-      type: isClinical ? 'dose' : payload.tag || 'kynthai',
+      type: isDose ? 'dose' : payload.tag || 'kynthai',
       url: payload.url || (isClinical ? '/patient?alarm=1' : '/'),
       medName: payload.medName,
       time: payload.time,
@@ -140,15 +146,16 @@ export async function sendPushToUser(
       requireInteraction: false, // SW applies platform rules
       clinical: isClinical,
       data: {
+        ...(payload.data || {}),
         url: payload.url || (isClinical ? '/patient?alarm=1' : '/'),
-        type: isClinical ? 'dose' : payload.tag || 'kynthai',
+        type: isDose ? 'dose' : payload.tag || 'kynthai',
         medName: payload.medName,
         time: payload.time,
         dosage: payload.dosage,
         reminderId: payload.reminderId,
         medicationId: payload.medicationId,
-        isDose: isClinical,
-        isClinical,
+        isDose: isDose ? '1' : '0',
+        isClinical: isClinical ? '1' : '0',
       },
     })
 
@@ -159,10 +166,12 @@ export async function sendPushToUser(
     const results = await Promise.all(
       subs.map(async (sub) => {
         try {
-          if (sub.type === 'fcm' && sub.token) {
+          if (sub.type === 'fcm') {
+            if (!sub.token) throw new Error('FCM subscription has no token')
             await sendFcm(sub.token, message, isClinical)
             return { ok: true as const, id: sub.id }
           }
+          if (!webPushConfigured) throw new Error('Web Push is not configured')
           await webpush.sendNotification(
             { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
             message,

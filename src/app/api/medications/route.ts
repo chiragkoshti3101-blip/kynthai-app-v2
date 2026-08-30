@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { logAudit } from '@/lib/auth';
 import { sanitizeText, rateLimit } from '@/lib/security';
 import { parseTimes } from '@/lib/parse-times'
-import { ensureTodayRemindersForMed } from '@/lib/ensure-reminders';
+import { ensureTodayRemindersForMed, localReminderDate } from '@/lib/ensure-reminders';
 import {
   requireAuth,
   requireAuthWithCsrf,
@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
   if (times.length === 0) times.push('09:00');
 
   let familyMemberId: string | null = null;
+  let reminderTimezone = u.timezone;
   if (body.familyMemberId) {
     const member = await db.familyMember.findUnique({
       where: { id: body.familyMemberId as string },
@@ -160,6 +161,11 @@ export async function POST(req: NextRequest) {
       return jsonError('Forbidden — family member does not belong to your family', 403);
     }
     familyMemberId = member.id;
+    const owner = await db.user.findUnique({
+      where: { id: member.family.ownerId },
+      select: { timezone: true },
+    });
+    reminderTimezone = owner?.timezone || reminderTimezone;
   }
 
   const med = await db.medication.create({
@@ -183,7 +189,7 @@ export async function POST(req: NextRequest) {
 
   await logAudit(u.id, 'medication.create', `med=${med.id}`);
   try {
-    await ensureTodayRemindersForMed(med.id, times);
+    await ensureTodayRemindersForMed(med.id, times, localReminderDate(reminderTimezone));
   } catch {
     /* reminder rows are best-effort; cron backfills */
   }

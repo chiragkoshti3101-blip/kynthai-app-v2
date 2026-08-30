@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     try {
       const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app'}/invite?token=${token}&family=${family.id}`;
       await sendNotification(
-        { email, userId: member.id },
+        { email },
         {
           title: `You've been invited to join ${u.name}'s family on Kynthai`,
           body: `${u.name} invited you as "${body.relation}" to manage health together.\n\n` +
@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
             `${process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app'}/register — then use the link above to join the family.`,
           type: 'family_invite',
           data: { familyId: family.id, memberId: member.id, relationToken, inviteLink },
+          dedupeKey: `family-invite:${member.id}:invitee`,
         }
       );
     } catch {

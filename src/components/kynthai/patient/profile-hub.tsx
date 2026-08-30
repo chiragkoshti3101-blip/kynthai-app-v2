@@ -130,6 +130,21 @@ export function ProfileHub({
   const language = useAppStore(s => s.language);
   const setLanguage = useAppStore(s => s.setLanguage);
   const isDemo = isDemoUser(user);
+
+  React.useEffect(() => {
+    if (isDemo) return;
+    let cancelled = false;
+    void fetch('/api/user/notification-prefs', { credentials: 'include', cache: 'no-store' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (!cancelled && data?.preferences && typeof data.preferences === 'object') {
+          setNotifPrefs(prev => ({ ...prev, ...data.preferences }));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isDemo]);
+
   const initial = isDemo ? 'K' : (user.name?.[0] ?? 'U').toUpperCase();
   const tier = user.subscriptionTier ?? 'free';
   const tierInfo: TierInfo = (TIER_INFO[tier] ?? TIER_INFO.free) as TierInfo;
@@ -137,7 +152,13 @@ export function ProfileHub({
   const userRole = user.role;
   const isAdmin = userRole === 'admin';
   const isProfessional = userRole === 'doctor' || userRole === 'lab';
-  const notificationItems = userRole === 'doctor'
+  const notificationItems = userRole === 'admin'
+    ? [
+        { key: 'emergency', label: 'Emergency alerts', desc: 'Critical safety events' },
+        { key: 'family', label: 'Support escalations', desc: 'Complaints and care escalations' },
+        { key: 'insights', label: 'Platform insights', desc: 'Operational summaries' },
+      ]
+    : userRole === 'doctor'
     ? [
         { key: 'reminders', label: 'Appointment reminders', desc: 'Upcoming consultations' },
         { key: 'family', label: 'Patient messages', desc: 'Updates from your patients' },

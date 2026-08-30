@@ -3,7 +3,8 @@ import { logAudit } from '@/lib/auth'
 import { requireAuth, requireAuthWithCsrf, jsonOk, jsonError } from '@/lib/api-helpers'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
-import { clockParts } from '@/lib/reminder-clock'
+import { readNotificationPrefs } from '@/lib/notifications'
+import { clockParts, DEFAULT_TZ } from '@/lib/reminder-clock'
 export const dynamic = 'force-dynamic'
 
 // GET /api/notifications
@@ -15,9 +16,15 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url)
     const unreadOnly = url.searchParams.get('unreadOnly') === 'true'
+    const persisted = await db.user.findUnique({
+      where: { id: user.id },
+      select: { notificationPrefs: true, timezone: true },
+    }).catch(() => null)
+    const reminderPrefsEnabled = readNotificationPrefs(persisted?.notificationPrefs)["reminders"] !== false
+    const recipientTimezone = persisted?.timezone || user.timezone || DEFAULT_TZ
 
     // Build query
-    const where: Record<string, unknown> = { userId: user.id }
+    const where: Record<string, unknown> = { userId: user.id, channel: { in: ['in-app', 'app'] } }
     if (unreadOnly) {
       where.status = { not: 'read' }
     }
@@ -36,6 +43,7 @@ export async function GET(req: NextRequest) {
         recipient: true,
         status: true,
         cost: true,
+        dedupeKey: true,
         createdAt: true,
       },
     })
@@ -47,10 +55,16 @@ export async function GET(req: NextRequest) {
       body: n.body?.replace(/\n\[ref:[^\]]+\]$/, '') ?? n.body,
     }))
 
-    // Merge today's pending reminders so the bell is never a dead empty inbox
-    // while the user still has doses on the schedule (cron may lag or miss).
-    try {
-      const clock = clockParts()
+    // Merge pending reminders so the bell is never a dead empty inbox while
+    // the user still has doses on the schedule (cron may lag or miss). The
+    // category preference also controls this synthetic fallback.
+    if (reminderPrefsEnabled) try {
+      let clock
+      try {
+        clock = clockParts(recipientTimezone)
+      } catch {
+        clock = clockParts(DEFAULT_TZ)
+      }
       const today = new Date(clock.isoDate)
       const meds = await db.medication.findMany({
         where: { active: true, OR: [{ userId: user.id }, { familyMember: { family: { ownerId: user.id } } }] },
@@ -75,8 +89,10 @@ export async function GET(req: NextRequest) {
           const key = `reminder|${title}|${body}`
           // Generic cron rows share the time in their body — don't create a
           // second inbox entry for a dose already represented.
+          const doseKey = `dose:${r.id}`
           const covered = notifications.some(
-            (n) => n.type === 'reminder' && typeof n.body === 'string' && n.body.includes(r.time),
+            (n) => n.dedupeKey === doseKey ||
+              (n.dedupeKey == null && n.type === 'reminder' && n.title === title && n.body === body),
           )
           if (existingKeys.has(key) || covered) continue
           existingKeys.add(key)
@@ -89,6 +105,7 @@ export async function GET(req: NextRequest) {
             recipient: user.id,
             status: 'sent',
             cost: 0,
+            dedupeKey: doseKey,
             createdAt: r.createdAt,
           })
         }
@@ -120,6 +137,7 @@ export async function GET(req: NextRequest) {
             recipient: true,
             status: true,
             cost: true,
+            dedupeKey: true,
             createdAt: true,
           },
         })
@@ -131,7 +149,7 @@ export async function GET(req: NextRequest) {
 
     // Compute unread count
     const unreadCount = await db.notificationLog.count({
-      where: { userId: user.id, status: { not: 'read' } },
+      where: { userId: user.id, channel: { in: ['in-app', 'app'] }, status: { not: 'read' } },
     })
     const syntheticUnread = notifications.filter((n) => n.id.startsWith('rem-')).length
 

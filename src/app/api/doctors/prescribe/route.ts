@@ -196,22 +196,6 @@ export async function POST(req: NextRequest) {
     } catch { /* best-effort */ }
   }
 
-  // Notify the patient (best-effort intent log — kept for analytics).
-  try {
-    await db.notificationLog.create({
-      data: {
-        userId: patient.id,
-        channel: 'in-app',
-        type: 'prescription',
-        title: `New prescription from Dr. ${u.name}`,
-        body: `You have a new prescription with ${cleanedMeds.length} medication(s). Tap to review.`,
-        recipient: patient.email,
-        status: 'sent',
-        cost: 0,
-      },
-    })
-  } catch { /* ignore */ }
-
   // Deliver prescription invite by email only.
   // ponytail: inviteLink stays relative for the doctor's copy-link UI (it
   // prefixes window.location.origin), but the email must get an absolute URL
@@ -221,7 +205,7 @@ export async function POST(req: NextRequest) {
     await sendInvite(patient.id, u.name ?? 'Doctor', inviteUrl, cleanedMeds.length, {
       email: patient.email,
       phone: null,
-    })
+    }, `prescription:${prescription.id}`)
   } catch { /* best-effort — sendNotification logs internally */ }
 
   await logAudit(u.id, 'doctor.prescribe', `patient=${patient.id} prescription=${prescription.id} meds=${cleanedMeds.length}`)

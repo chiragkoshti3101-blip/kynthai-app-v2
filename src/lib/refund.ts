@@ -239,16 +239,6 @@ export async function processRefund(
       data: { status: 'completed' },
     });
 
-    // Notify patient
-    await sendNotification(
-      { userId: refund.userId },
-      {
-        title: 'Refund processed',
-        body: `Your refund of $${refund.amount / 100} has been processed.`,
-        type: 'refund_update',
-      }
-    );
-
     return { success: true };
   } catch (error) {
     await db.refund.update({
@@ -339,7 +329,8 @@ export async function detectNoShows(): Promise<{ refunded: number; flagged: numb
               title: 'Refund issued',
               body: `Dr. ${appt.doctor.user.name} did not join your appointment. A full refund of $${eligibility.refundAmount / 100} has been issued to your original payment method.`,
               type: 'refund_auto',
-              data: { appointmentId: appt.id },
+              data: { appointmentId: appt.id, url: '/patient' },
+              dedupeKey: `appointment:${appt.id}:refund:patient`,
             }
           );
 
@@ -350,7 +341,8 @@ export async function detectNoShows(): Promise<{ refunded: number; flagged: numb
               title: 'No-show recorded',
               body: `You missed your appointment with ${appt.patient.name}. A full refund has been issued to the patient.`,
               type: 'no_show_warning',
-              data: { appointmentId: appt.id },
+              data: { appointmentId: appt.id, url: '/doctor' },
+              dedupeKey: `appointment:${appt.id}:refund:doctor`,
             }
           );
 
@@ -390,7 +382,8 @@ export async function sendAppointmentReminders(): Promise<number> {
         title: 'Appointment in 15 minutes',
         body: `You have a consultation with ${appt.patient.name} in 15 minutes. Please be ready to join.`,
         type: 'appointment_reminder',
-        data: { appointmentId: appt.id },
+        data: { appointmentId: appt.id, url: '/doctor' },
+        dedupeKey: `appointment:${appt.id}:15m:doctor`,
       }
     );
     await sendNotification(
@@ -399,7 +392,8 @@ export async function sendAppointmentReminders(): Promise<number> {
         title: 'Appointment in 15 minutes',
         body: `Your consultation with ${appt.doctor.user.name} starts in 15 minutes.`,
         type: 'appointment_reminder',
-        data: { appointmentId: appt.id },
+        data: { appointmentId: appt.id, url: '/patient' },
+        dedupeKey: `appointment:${appt.id}:15m:patient`,
       }
     );
     count++;

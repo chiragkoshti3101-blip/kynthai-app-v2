@@ -208,7 +208,8 @@ export async function POST(req: NextRequest) {
         body: `${patient.name} booked ${tests.length > 1 ? `${tests.length} tests` : tests[0]?.name} for ${new Date(body.scheduledAt).toLocaleDateString('en-US', { dateStyle: 'medium' })}.\n\n` +
           `Open Kynthai to view and confirm: ${process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app'}/lab`,
         type: 'lab_booking',
-        data: { bookingId: booking.id, labId: lab.id, patientId: patient.id },
+        data: { bookingId: booking.id, labId: lab.id, patientId: patient.id, url: '/lab' },
+        dedupeKey: `lab-booking:${booking.id}:created:lab`,
       },
     )
   } catch { /* best-effort */ }
@@ -225,7 +226,8 @@ export async function POST(req: NextRequest) {
           `You'll receive a notification once the lab confirms.\n\n` +
           `Open Kynthai: ${process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app'}/patient`,
         type: 'lab_booking',
-        data: { bookingId: booking.id, labId: lab.id },
+        data: { bookingId: booking.id, labId: lab.id, url: '/patient' },
+        dedupeKey: `lab-booking:${booking.id}:created:patient`,
       },
     )
   } catch { /* best-effort */ }
