@@ -4,84 +4,102 @@ import { requireSystemToken, jsonOk, jsonError } from '@/lib/api-helpers'
 import { rateLimit } from '@/lib/security'
 import { logger } from '@/lib/logger'
 import { sendReminder } from '@/lib/notifications'
-import { clockParts, isDueNow, nearbyTimeStrings } from '@/lib/reminder-clock'
-import { parseTimes } from '@/lib/parse-times'
+import { clockParts, DEFAULT_TZ, isDueNow } from '@/lib/reminder-clock'
 import { ensureTodayRemindersForAllActive } from '@/lib/ensure-reminders'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const ZONES = [
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'Asia/Kolkata',
-  'UTC',
-]
+const FALLBACK_TZ = DEFAULT_TZ
 
-function dayUtc(dateStr: string) {
-  // Must match todayStr()/toISODateTime used when creating reminder rows
-  return new Date(`${dateStr}T00:00:00.000Z`)
+type DirectFamily = {
+  id: string
+  ownerId: string
+  members: { userId: string | null; role: string }[]
 }
 
-// ---------------------------------------------------------------------------
-// PER-USER TIMEZONE SUPPORT
-//
-// Previously every reminder fired on New York wall-clock time regardless of
-// where the user lives (a 08:00 dose fired at 08:00 ET = 05:00 PT). We now
-// store each user's IANA timezone in User.timezone and gate each reminder on
-// the OWNER's local clock.
-//
-// The column is bootstrapped idempotently here (same pattern as the
-// push_subscriptions bootstrap in /api/notifications/subscribe) so this works
-// before a migration is applied. All access uses raw SQL so the endpoint keeps
-// working even if Prisma Client has not been regenerated yet.
-// ---------------------------------------------------------------------------
-const FALLBACK_TZ = 'America/New_York'
-let userTzColumnReady: boolean | null = null // null = not checked yet
+type ReminderWithOwner = {
+  id: string
+  date: Date
+  time: string
+  medication: {
+    id: string
+    name: string | null
+    dosage: string | null
+    active: boolean
+    user: {
+      id: string
+      timezone: string | null
+      memberships: { familyId: string }[]
+    } | null
+    familyMember: {
+      userId: string | null
+      family: {
+        ownerId: string
+        owner: { timezone: string | null }
+        members: { userId: string | null; role: string }[]
+      }
+    } | null
+  } | null
+}
 
-async function ensureUserTimezoneColumn(): Promise<void> {
-  if (userTzColumnReady !== null) return
+function safeClock(timezone: string | null | undefined, now: Date) {
   try {
-    await db.$executeRawUnsafe(
-      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "timezone" TEXT`
-    )
-    userTzColumnReady = true
-  } catch (e) {
-    logger.phiSafeError(e, 'reminder.ensureTzColumn')
-    userTzColumnReady = false // degrade to legacy multi-zone behaviour
+    return clockParts(timezone || FALLBACK_TZ, now)
+  } catch {
+    return clockParts(FALLBACK_TZ, now)
   }
 }
 
-/** Look up stored timezones for the given user ids. Missing/blank → fallback. */
-async function loadUserTimezones(userIds: string[]): Promise<Map<string, string>> {
-  const map = new Map<string, string>()
-  if (userTzColumnReady !== true || userIds.length === 0) return map
-  const unique = [...new Set(userIds.filter(Boolean))]
-  for (let i = 0; i < unique.length; i += 100) {
-    const chunk = unique.slice(i, i + 100)
-    const placeholders = chunk.map((_, idx) => `$${idx + 1}`).join(',')
-    try {
-      const rows = await db.$queryRawUnsafe<Array<{ id: string; timezone: string | null }>>(
-        `SELECT id, timezone FROM "users" WHERE id IN (${placeholders})`,
-        ...chunk
-      )
-      for (const row of rows) {
-        if (row?.timezone && typeof row.timezone === 'string' && row.timezone.trim()) {
-          map.set(row.id, row.timezone.trim())
-        }
-      }
-    } catch (e) {
-      // Column might be missing on a cold deploy — flip to degraded mode.
-      logger.phiSafeError(e, 'reminder.loadTz')
-      userTzColumnReady = false
-      return map
+function utcDayOffset(now: Date, days: number): Date {
+  return new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() + days,
+  ))
+}
+
+function recipientsFor(
+  medication: NonNullable<ReminderWithOwner['medication']>,
+  directFamilies: Map<string, DirectFamily>,
+): string[] {
+  const recipients = new Set<string>()
+  const family = medication.familyMember?.family
+  const patientId = medication.familyMember?.userId
+
+  if (family) {
+    recipients.add(family.ownerId)
+    if (patientId) recipients.add(patientId)
+    for (const member of family.members) {
+      if (member.userId && member.role === 'caretaker') recipients.add(member.userId)
+    }
+  } else if (medication.user?.id) {
+    // A direct patient medication is delivered to that patient. Family members
+    // are escalation recipients, not copies of every normal dose reminder.
+    recipients.add(medication.user.id)
+  }
+
+  // Keep the argument useful for direct-family lookups when a legacy row has
+  // no FamilyMember relation but its user is linked to a family.
+  if (!family && medication.user?.id) {
+    for (const membership of medication.user.memberships) {
+      const linked = directFamilies.get(membership.familyId)
+      if (!linked) continue
+      // Only add an explicitly linked caretaker/owner for legacy rows; never
+      // broadcast a direct patient dose to unrelated family members.
+      if (linked.ownerId === medication.user.id) continue
     }
   }
-  return map
+
+  return [...recipients]
 }
 
+/**
+ * Send due medication reminders for every owner’s local timezone.
+ * Reminder rows carry a calendar date plus HH:MM; the owner’s stored IANA
+ * timezone decides which row is due. The query spans nearby UTC dates because
+ * users can be ahead of or behind the server date.
+ */
 async function run(req: NextRequest) {
   const limited = rateLimit(req, 60, 60_000)
   if (limited) return limited
@@ -89,58 +107,36 @@ async function run(req: NextRequest) {
   const { response, user } = await requireSystemToken(req)
   if (response || !user) return response!
 
-  const modeParam = req.nextUrl.searchParams.get('mode')
-  const mode = modeParam === 'tick' ? 'tick' : 'catchup'
-  const primary = clockParts('America/New_York')
+  const mode = req.nextUrl.searchParams.get('mode') === 'tick' ? 'tick' : 'catchup'
+  const now = new Date()
 
   try {
     const ensured = await ensureTodayRemindersForAllActive()
-    await ensureUserTimezoneColumn()
-
-    const seen = new Set<string>()
-    const dueReminders: any[] = []
-    // Owners seen in this batch — used to load per-user timezones.
-    const ownerIds: string[] = []
-
-    for (const tz of ZONES) {
-      const clock = clockParts(tz)
-      const dates = [dayUtc(clock.dateStr)]
-      if (clock.prevDateStr !== clock.dateStr) dates.push(dayUtc(clock.prevDateStr))
-
-      const candidates = await db.reminder.findMany({
-        where: {
-          date: { in: dates },
-          status: 'pending',
-          // Only fire reminders for ACTIVE medications. Rows created before a
-          // med was deactivated linger as status=pending for the rest of the
-          // day — without this filter every catchup/tick re-fires them (the
-          // Aug-28 FCMCHECK/PHONEPUSH test-med debris kept firing until the
-          // 20h NotificationLog dedupe window saved us).
-          medication: { is: { active: true } },
-          ...(mode === 'catchup'
-            ? { time: { lte: clock.timeStr } }
-            : { time: { in: nearbyTimeStrings(tz, new Date(), 8) } }),
-        },
-        include: {
-          medication: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  phone: true,
-                  emailOptOut: true,
-                },
+    const candidates = (await db.reminder.findMany({
+      where: {
+        date: { gte: utcDayOffset(now, -2), lte: utcDayOffset(now, 2) },
+        status: 'pending',
+        medication: { is: { active: true } },
+      },
+      include: {
+        medication: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                timezone: true,
+                memberships: { select: { familyId: true } },
               },
-              familyMember: {
-                include: {
-                  family: {
-                    select: {
-                      ownerId: true,
-                      owner: {
-                        select: { id: true, name: true, email: true, phone: true },
-                      },
+            },
+            familyMember: {
+              include: {
+                family: {
+                  select: {
+                    ownerId: true,
+                    owner: { select: { timezone: true } },
+                    members: {
+                      where: { inviteStatus: 'accepted', userId: { not: null } },
+                      select: { userId: true, role: true },
                     },
                   },
                 },
@@ -148,208 +144,140 @@ async function run(req: NextRequest) {
             },
           },
         },
-        take: 200,
-      })
+      },
+      orderBy: { createdAt: 'asc' },
+      take: 2000,
+    })) as ReminderWithOwner[]
 
-      for (const r of candidates) {
-        if (seen.has(r.id)) continue
-        // Superset prefilter only — final due-ness is decided per-OWNER timezone
-        // in the firing loop below (owner tz beats zone loop).
-        const ownerId =
-          r.medication?.user?.id || r.medication?.familyMember?.family?.ownerId
-        if (ownerId) ownerIds.push(ownerId)
-        seen.add(r.id)
-        dueReminders.push(r)
-      }
-    }
-
-    // Fallback: active medications whose times are due even if reminder rows lagged
-    if (dueReminders.length === 0 && mode === 'tick') {
-      const meds = await db.medication.findMany({
-        where: { active: true },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, phone: true, emailOptOut: true },
-          },
-          familyMember: {
-            include: {
-              family: {
-                select: {
-                  ownerId: true,
-                  owner: { select: { id: true, name: true, email: true, phone: true } },
-                },
-              },
+    const familyIds = [...new Set(
+      candidates.flatMap((r) => r.medication?.user?.memberships.map((m) => m.familyId) || []),
+    )]
+    const directFamilies = familyIds.length
+      ? await db.family.findMany({
+          where: { id: { in: familyIds } },
+          select: {
+            id: true,
+            ownerId: true,
+            members: {
+              where: { inviteStatus: 'accepted', userId: { not: null } },
+              select: { userId: true, role: true },
             },
           },
-        },
-        take: 500,
-      })
-      for (const tz of ZONES) {
-        const clock = clockParts(tz)
-        for (const med of meds) {
-          for (const t of parseTimes(med.times)) {
-            if (!isDueNow(t, clock, 8)) continue
-            const fakeId = `med:${med.id}:${clock.dateStr}:${t}`
-            if (seen.has(fakeId)) continue
-            seen.add(fakeId)
-            const medOwnerId = med.user?.id || med.familyMember?.family?.ownerId
-            if (medOwnerId) ownerIds.push(medOwnerId)
-            dueReminders.push({
-              id: fakeId,
-              time: t,
-              reminderCount: 0,
-              date: dayUtc(clock.dateStr),
-              medication: med,
-            })
-          }
-        }
-      }
-    }
-
-    if (dueReminders.length === 0) {
-      return jsonOk({
-        checked: true,
-        mode,
-        sent: 0,
-        skipped: 0,
-        ensured,
-        message: 'No reminders due',
-        time: primary.timeStr,
-        date: primary.dateStr,
-        zones: ZONES,
-      })
-    }
+        })
+      : []
+    const directFamilyMap = new Map(directFamilies.map((family) => [family.id, family]))
 
     let sent = 0
     let skipped = 0
     let failed = 0
     const channels: Record<string, number> = {}
 
-    // Resolve per-owner timezones once for this batch.
-    const tzMap = await loadUserTimezones(ownerIds)
-
-    for (const reminder of dueReminders) {
-      const medUser = reminder.medication?.user
-      const familyOwner = reminder.medication?.familyMember?.family?.owner
-      const userId: string | null =
-        medUser?.id || reminder.medication?.familyMember?.family?.ownerId || null
-      if (!userId) {
+    for (const reminder of candidates) {
+      const medication = reminder.medication
+      if (!medication) {
         failed++
         continue
       }
 
-      // PER-USER TIMEZONE GATE: fire on the OWNER's local wall clock, not the
-      // zone-loop clock. Falls back to America/New_York when no tz is stored.
-      const ownerTz = tzMap.get(userId) || FALLBACK_TZ
-      const ownerClock = clockParts(ownerTz)
-      const dueForOwner =
-        mode === 'tick'
-          ? isDueNow(String(reminder.time), ownerClock, 8)
-          : String(reminder.time) <= ownerClock.timeStr
-      if (!dueForOwner) {
-        // Not yet due where this user lives — skip quietly.
+      const family = medication.familyMember?.family
+      const ownerTimezone = family?.owner.timezone || medication.user?.timezone
+      const ownerClock = safeClock(ownerTimezone, now)
+      const rowDate = reminder.date.toISOString().slice(0, 10)
+
+      // A reminder belongs to the owner-local calendar date. Never fire a
+      // yesterday/tomorrow row merely because the HH:MM matches server time.
+      if (rowDate !== ownerClock.dateStr) {
         skipped++
         continue
       }
 
-      // FIX #23: keep the lock screen generic — no drug name or dose. The
-      // identifiable details travel in the unrendered data block (deep link
-      // hydration) and in the in-app inbox merge.
-      const title = 'Medication reminder'
-      const body = `A dose is due now · ${reminder.time}. Tap to open.`
-
-      try {
-        // Dedupe on the reminder row itself (title is a constant now that
-        // payloads are generic). The stored in-app log body carries
-        // "[ref:dose:<reminderId>]" via dedupeKey, so body-contains matching is
-        // unique per dose — two meds at the same HH:MM no longer collide, and a
-        // frequently-running tick cron sends each dose at most ONCE per day
-        // while the same HH:MM tomorrow (a fresh reminder row) still fires.
-        // Dedupe matches ONLY successful PUSH deliveries (channel='push') —
-        // the in-app inbox row (channel='in-app') always exists and must NOT
-        // block retries, otherwise a dose whose push failed (dead device
-        // token, offline browser) would never retry despite staying pending.
-        const already = await db.notificationLog.findFirst({
-          where: {
-            userId,
-            channel: 'push',
-            type: 'reminder',
-            status: 'sent',
-            OR: [
-              { dedupeKey: `dose:${String(reminder.id)}` },
-              { body: { contains: `dose:${String(reminder.id)}` } },
-            ],
-            createdAt: { gte: new Date(Date.now() - 20 * 60 * 60 * 1000) },
-          },
-          select: { id: true },
-        })
-        if (already) {
-          skipped++
-          continue
-        }
-      } catch {
-        /* continue */
+      const due = mode === 'tick'
+        ? isDueNow(reminder.time, ownerClock, 8)
+        : reminder.time <= ownerClock.timeStr
+      if (!due) {
+        skipped++
+        continue
       }
 
-      try {
-        const medName = reminder.medication?.name || 'your medication'
-        const dosage = reminder.medication?.dosage || ''
-        const route = await sendReminder(
-          userId,
-          String(medName),
-          String(dosage || body),
-          String(reminder.time),
-          {
-            email: medUser?.email || familyOwner?.email || undefined,
-            phone: medUser?.phone || familyOwner?.phone || undefined,
-          },
-          `dose:${String(reminder.id)}`,
-          {
-            reminderId: String(reminder.id).startsWith('med:') ? undefined : String(reminder.id),
-            medicationId:
-              !String(reminder.id).startsWith('med:') && reminder.medication?.id
-                ? String(reminder.medication.id)
-                : undefined,
-          },
-        )
-        const ch = route.channel || 'none'
-        channels[ch] = (channels[ch] || 0) + 1
-
-        if (route.delivered) {
-          sent++
-          if (typeof reminder.id === 'string' && !String(reminder.id).startsWith('med:')) {
-            await db.reminder
-              .update({
-                where: { id: reminder.id },
-                data: { reminderCount: { increment: 1 } },
-              })
-              .catch(() => {})
-          }
-        } else {
-          // Keep pending so the next tick can retry (e.g. no push sub yet)
-          failed++
-        }
-      } catch (e) {
+      const recipients = recipientsFor(medication, directFamilyMap)
+      if (recipients.length === 0) {
         failed++
-        logger.phiSafeError(e, 'reminder.multiChannel')
+        continue
+      }
+
+      let reminderDelivered = false
+      let recipientAttempted = false
+      for (const recipientId of recipients) {
+        const dedupeKey = `dose:${reminder.id}:${recipientId}`
+        recipientAttempted = true
+        try {
+          const already = await db.notificationLog.findFirst({
+            where: {
+              userId: recipientId,
+              channel: 'push',
+              type: 'reminder',
+              status: 'sent',
+              OR: [
+                { dedupeKey },
+                { body: { contains: dedupeKey } },
+              ],
+              createdAt: { gte: new Date(now.getTime() - 20 * 60 * 60 * 1000) },
+            },
+            select: { id: true },
+          })
+          if (already) {
+            skipped++
+            continue
+          }
+        } catch {
+          // The central claim below remains the final concurrency guard.
+        }
+
+        try {
+          const route = await sendReminder(
+            recipientId,
+            medication.name || 'your medication',
+            medication.dosage || '',
+            reminder.time,
+            {},
+            dedupeKey,
+            { reminderId: reminder.id, medicationId: medication.id },
+          )
+          const channel = route.channel || 'none'
+          channels[channel] = (channels[channel] || 0) + 1
+          if (route.delivered) reminderDelivered = true
+          else if (!route.notificationLogId) failed++
+        } catch (error) {
+          failed++
+          logger.phiSafeError(error, 'reminder.multiChannel')
+        }
+      }
+
+      if (reminderDelivered) {
+        sent++
+        await db.reminder.update({
+          where: { id: reminder.id },
+          data: { reminderCount: { increment: 1 } },
+        }).catch(() => {})
+      } else if (!recipientAttempted) {
+        failed++
       }
     }
 
     return jsonOk({
       checked: true,
       mode,
-      due: dueReminders.length,
+      due: candidates.length,
       sent,
       skipped,
       failed,
       ensured,
       channels,
-      time: primary.timeStr,
-      date: primary.dateStr,
-      zones: ZONES,
+      timezoneAware: true,
+      serverTime: now.toISOString(),
     })
   } catch (error) {
-    logger.phiSafeError(error)
+    logger.phiSafeError(error, 'reminder.send')
     return jsonError('Internal server error', 500)
   }
 }
