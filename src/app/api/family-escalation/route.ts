@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireAuth, requireAuthWithCsrf, jsonError, readJson, jsonOk } from '@/lib/api-helpers'
 import { logAudit } from '@/lib/auth'
 import { logger } from '@/lib/logger'
+import { sendNotification } from '@/lib/notifications'
 export const dynamic = 'force-dynamic'
 
 // POST /api/family-escalation — Trigger escalation for a missed dose
@@ -106,32 +107,28 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Also log as notification
+    // Route the alert through the shared policy so family portal users receive
+    // one inbox entry plus all registered Web Push/FCM devices.
     try {
       const familyMembers = await db.familyMember.findMany({
-        where: {
-          familyId: member.familyId,
-          userId: { not: user.id },
-        },
-        include: { user: { select: { id: true } } },
+        where: { familyId: member.familyId, userId: { not: user.id } },
+        select: { userId: true },
       })
-
-      for (const fm of familyMembers) {
-        if (fm.userId) {
-          await db.notificationLog.create({
-            data: {
-              userId: fm.userId,
-              channel: 'in-app',
-              type: `family_escalation_${type}`,
-              title: getAlertTitle(type),
-              body: message,
-              recipient: fm.userId,
-              status: 'sent',
-            },
-          })
-        }
-      }
-    } catch { /* notification is best-effort */ }
+      await Promise.all(familyMembers.filter((fm) => !!fm.userId).map(async (fm) => {
+        await sendNotification(
+          { userId: fm.userId! },
+          {
+            title: getAlertTitle(type),
+            body: message,
+            type: `family_escalation_${type}`,
+            data: { url: '/caretaker', memberId },
+            dedupeKey: `family-alert:${alert.id}:${fm.userId}`,
+          },
+        )
+      }))
+    } catch (notificationError) {
+      logger.phiSafeError(notificationError, 'family-escalation.notify')
+    }
 
     return NextResponse.json({ alert })
   } catch (error) {
