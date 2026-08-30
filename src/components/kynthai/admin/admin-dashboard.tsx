@@ -42,6 +42,8 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { KynthaiBrand } from '@/components/kynthai/logo';
+import { NotificationCenter } from '@/components/kynthai/notification-center';
+import { NotificationPermissionBanner } from '@/components/kynthai/notification-permission-banner';
 import { ResponsiveSheet } from '@/components/kynthai/responsive-sheet';
 import { SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAppStore, type AuthUser } from '@/lib/store';
@@ -223,11 +225,18 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
+      <NotificationPermissionBanner />
       {/* Header */}
       <header className="sticky top-0 z-30 border-b border-border/40 bg-background pt-safe">
         <div className="mx-auto flex max-w-[96rem] items-center justify-between px-4 py-3">
           <KynthaiBrand iconSize={30} />
           <div className="flex items-center gap-1">
+            <NotificationCenter
+              role="admin"
+              userId={user.id}
+              isDemo={!!user.isDemo || (user.email || '').endsWith('@kynthai.app')}
+              onNavigate={() => setTab('overview')}
+            />
             <Badge
               variant="secondary"
               className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
