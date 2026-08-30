@@ -8,6 +8,18 @@
     {
       "path": "/api/chat/cleanup",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/reminders/send",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/reminders/escalate",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/appointment-reminders",
+      "schedule": "*/5 * * * *"
     }
   ],
   "headers": [
