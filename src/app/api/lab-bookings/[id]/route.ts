@@ -133,7 +133,8 @@ export async function PATCH(
           title: updated.status === 'cancelled' ? 'Lab booking cancelled' : statusLabel(updated.status),
           body: statusMsg,
           type: 'lab_booking_update',
-          data: { bookingId: updated.id, status: updated.status },
+          data: { bookingId: updated.id, status: updated.status, url: '/patient' },
+          dedupeKey: `lab-booking:${updated.id}:status:${updated.status}:patient`,
         },
       )
     }
@@ -148,7 +149,8 @@ export async function PATCH(
           title: '❌ Lab booking cancelled by patient',
           body: `The patient cancelled their lab booking for ${new Date(booking.scheduledAt).toLocaleDateString('en-US', { dateStyle: 'medium' })}.`,
           type: 'lab_booking_cancelled',
-          data: { bookingId: updated.id },
+          data: { bookingId: updated.id, url: '/lab' },
+          dedupeKey: `lab-booking:${updated.id}:cancelled:lab`,
         },
       )
     }
