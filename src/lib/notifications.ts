@@ -31,10 +31,10 @@ import {
   isEmailEnabled,
   isSMSEnabled,
   isWhatsAppEnabled,
-  isPushEnabled,
   type SendResult,
 } from './integrations'
 import { sendPushToUser } from './push-server'
+import { formatNotificationDate } from './notification-time'
 
 // ponytail: email bodies need absolute links (mail clients can't navigate
 // relative paths); falls back to the production origin for local/dev.
@@ -52,6 +52,7 @@ export interface NotificationTarget {
   phone?: string | null
   whatsapp?: string | null
   pushToken?: string | null
+  timezone?: string | null
 }
 
 export interface NotificationPayload {
@@ -62,6 +63,55 @@ export interface NotificationPayload {
   /** Stable per-event key (e.g. `dose:<reminderId>`). Stored in the in-app log
    *  body so cron ticks can dedupe and never re-send the same event. */
   dedupeKey?: string
+}
+
+type NotificationPreferenceKey = 'reminders' | 'labResults' | 'emergency' | 'insights' | 'family'
+
+const DEFAULT_NOTIFICATION_PREFS: Record<NotificationPreferenceKey, boolean> = {
+  reminders: true,
+  labResults: true,
+  emergency: true,
+  insights: true,
+  family: true,
+}
+
+export function preferenceKeyForType(type: string): NotificationPreferenceKey | null {
+  const value = String(type || '').toLowerCase()
+  if (value.includes('emerg') || value.includes('sos')) return 'emergency'
+  // Booking/status reminders and result-ready alerts are separate settings;
+  // check result events before the broader lab/booking match.
+  if (value.includes('result') || value.includes('lab_share')) return 'labResults'
+  if (
+    value.includes('appoint') ||
+    value.includes('consult') ||
+    value.includes('follow') ||
+    value.includes('remind') ||
+    value.includes('dose') ||
+    value.includes('prescription') ||
+    value.includes('booking') ||
+    value.includes('no_show') ||
+    value.includes('refund') ||
+    value === 'invite'
+  ) return 'reminders'
+  if (value.includes('family') || value.includes('care') || value.includes('nudge') || value.includes('complaint')) return 'family'
+  if (value.includes('insight') || value.includes('weekly')) return 'insights'
+  if (value.includes('lab')) return 'labResults'
+  return null
+}
+
+export function readNotificationPrefs(raw: string | null | undefined): Record<NotificationPreferenceKey, boolean> {
+  if (!raw) return { ...DEFAULT_NOTIFICATION_PREFS }
+  try {
+    const parsed = JSON.parse(raw) as Partial<Record<NotificationPreferenceKey, unknown>>
+    return Object.fromEntries(
+      Object.keys(DEFAULT_NOTIFICATION_PREFS).map((key) => [
+        key,
+        parsed[key as NotificationPreferenceKey] !== false,
+      ]),
+    ) as Record<NotificationPreferenceKey, boolean>
+  } catch {
+    return { ...DEFAULT_NOTIFICATION_PREFS }
+  }
 }
 
 export interface RouteResult {
@@ -123,7 +173,7 @@ async function logNotification(input: {
 // one in-app row and one push audit row are valid, but two push sends are not.
 let notificationDedupeReady: boolean | null = null
 export async function ensureNotificationDedupeStorage(): Promise<void> {
-  if (notificationDedupeReady !== null) return
+  if (notificationDedupeReady === true) return
   try {
     await db.$executeRawUnsafe(
       `ALTER TABLE "notification_logs" ADD COLUMN IF NOT EXISTS "dedupeKey" TEXT`,
@@ -144,7 +194,7 @@ async function claimPushDelivery(input: {
   title: string
   body: string
   recipient: string
-}): Promise<string | undefined> {
+}): Promise<{ id: string; acquired: boolean } | undefined> {
   const staleBefore = new Date(Date.now() - 10 * 60 * 1000)
   try {
     const row = await db.notificationLog.create({
@@ -161,10 +211,11 @@ async function claimPushDelivery(input: {
       },
       select: { id: true },
     })
-    return row.id
+    return { id: row.id, acquired: true }
   } catch {
-    // A concurrent tick can already own this dose. Reuse only a stale claim;
-    // an active claim must not result in a second push.
+    // A concurrent tick can already own this event. Reuse only a stale claim;
+    // an active claim must not result in a second push. The stale takeover is
+    // conditional so two retries cannot both become owners.
     const existing = await db.notificationLog.findFirst({
       where: {
         userId: input.userId,
@@ -174,13 +225,75 @@ async function claimPushDelivery(input: {
       select: { id: true, status: true, createdAt: true },
     }).catch(() => null)
     if (!existing) return undefined
-    if (existing.status === 'sent') return undefined
-    if (existing.status === 'processing' && existing.createdAt > staleBefore) return undefined
-    await db.notificationLog.update({
-      where: { id: existing.id },
+    if (existing.status === 'sent') return { id: existing.id, acquired: false }
+    if (existing.status === 'processing' && existing.createdAt > staleBefore) {
+      return { id: existing.id, acquired: false }
+    }
+    const takeover = await db.notificationLog.updateMany({
+      where: {
+        id: existing.id,
+        OR: [
+          { status: 'failed' },
+          { status: 'processing', createdAt: { lt: staleBefore } },
+        ],
+      },
       data: { status: 'processing', createdAt: new Date() },
-    }).catch(() => {})
-    return existing.id
+    }).catch(() => ({ count: 0 }))
+    return { id: existing.id, acquired: takeover.count === 1 }
+  }
+}
+
+/** Claim an email send with the same retry-safe semantics as push. */
+async function claimEmailDelivery(input: {
+  userId?: string | null
+  dedupeKey: string
+  type: string
+  title: string
+  body: string
+  recipient: string
+}): Promise<{ id: string; acquired: boolean } | undefined> {
+  const staleBefore = new Date(Date.now() - 10 * 60 * 1000)
+  try {
+    const row = await db.notificationLog.create({
+      data: {
+        userId: input.userId ?? null,
+        channel: 'email',
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        recipient: input.recipient,
+        status: 'processing',
+        cost: 0,
+        dedupeKey: input.dedupeKey,
+      },
+      select: { id: true },
+    })
+    return { id: row.id, acquired: true }
+  } catch {
+    const existing = await db.notificationLog.findFirst({
+      where: {
+        userId: input.userId ?? null,
+        channel: 'email',
+        dedupeKey: input.dedupeKey,
+      },
+      select: { id: true, status: true, createdAt: true },
+    }).catch(() => null)
+    if (!existing) return undefined
+    if (existing.status === 'sent') return { id: existing.id, acquired: false }
+    if (existing.status === 'processing' && existing.createdAt > staleBefore) {
+      return { id: existing.id, acquired: false }
+    }
+    const takeover = await db.notificationLog.updateMany({
+      where: {
+        id: existing.id,
+        OR: [
+          { status: 'failed' },
+          { status: 'processing', createdAt: { lt: staleBefore } },
+        ],
+      },
+      data: { status: 'processing', createdAt: new Date() },
+    }).catch(() => ({ count: 0 }))
+    return { id: existing.id, acquired: takeover.count === 1 }
   }
 }
 
@@ -196,50 +309,71 @@ export async function sendNotification(
   let delivered = false
   let usedChannel: NotificationChannel | 'none' = 'none'
   let usedCost = 0
+  let pushDelivered = false
   let claimedPushLogId: string | undefined
+  let claimedPushDelivery = false
+  let claimedEmailLogId: string | undefined
+  let claimedEmailDelivery = false
 
   if (payload.dedupeKey) await ensureNotificationDedupeStorage()
 
-  // Resolve email from DB when callers only pass userId (doctor/lab/family paths)
-  if (target.userId && !target.email) {
+  // Resolve contact details and preferences from DB when callers only pass userId.
+  // This keeps every portal on one policy instead of relying on each route to
+  // remember to apply the same opt-out/category rules.
+  if (target.userId) {
     try {
       const u = await db.user.findUnique({
         where: { id: target.userId },
-        select: { email: true, emailOptOut: true },
+        select: { email: true, emailOptOut: true, notificationPrefs: true },
       })
-      if (u?.email && !u.emailOptOut) target = { ...target, email: u.email }
+      if (u?.emailOptOut) target = { ...target, email: null }
+      else if (u?.email && !target.email) target = { ...target, email: u.email }
+      const prefKey = preferenceKeyForType(payload.type)
+      if (prefKey && readNotificationPrefs(u?.notificationPrefs)[prefKey] === false) {
+        return { delivered: false, channel: 'none', cost: 0, results: [] }
+      }
     } catch {
-      /* best-effort */
+      /* best-effort — preserve delivery when the preference column is unavailable */
     }
   }
 
-  // 1. PUSH (cheapest, $0) — uses VAPID web-push, not Firebase FCM
-  if (target.userId && isPushEnabled()) {
+  // 1. PUSH (free) — fan out through every registered Web Push and FCM device.
+  // The provider layer reports an explicit failure for an unavailable transport;
+  // never silently mark native FCM as delivered.
+  if (target.userId) {
     const pushRecipient = target.pushToken || target.userId
+    let shouldSendPush = true
     if (payload.dedupeKey) {
-      claimedPushLogId = await claimPushDelivery({
+      const claim = await claimPushDelivery({
         userId: target.userId,
         dedupeKey: payload.dedupeKey,
         title: payload.title,
         body: payload.body,
         recipient: pushRecipient,
       })
-      // Another request is already sending or has sent this dose. Do not call
-      // the provider a second time. The in-app row below remains idempotent.
-      if (!claimedPushLogId) {
-        return { delivered: false, channel: 'none', cost: 0, results }
-      }
+      claimedPushLogId = claim?.id
+      claimedPushDelivery = claim?.acquired === true
+      // Another request is already sending or has sent this event. Do not call
+      // the provider a second time, but continue to email and in-app channels.
+      shouldSendPush = claimedPushDelivery
+    } else {
+      claimedPushDelivery = true
     }
-    const clinicalTypes = new Set([
-      'reminder',
-      'missed_dose',
-      'reminder_escalation',
-      'emergency',
-      'sos',
-      'appointment',
-      'appointment_update',
-      'lab_booking',
-    ])
+    if (shouldSendPush) {
+    const notificationType = String(payload.type || '').toLowerCase()
+    const clinical =
+      notificationType.includes('remind') ||
+      notificationType.includes('dose') ||
+      notificationType.includes('emerg') ||
+      notificationType.includes('sos') ||
+      notificationType.includes('appoint') ||
+      notificationType.includes('consult') ||
+      notificationType.includes('lab') ||
+      notificationType.includes('booking') ||
+      notificationType.includes('family') ||
+      notificationType.includes('nudge') ||
+      notificationType.includes('prescription') ||
+      notificationType.includes('invite')
     // FIX #23: Don't send PHI (medication name/dosage) in push notifications
     // Only send generic reminder to avoid lock screen privacy leaks
     const r = await sendPushToUser(target.userId, {
@@ -251,15 +385,19 @@ export async function sendNotification(
       time: payload.data?.scheduledTime as string | undefined,
       reminderId: payload.data?.reminderId as string | undefined,
       medicationId: payload.data?.medicationId as string | undefined,
-      clinical: clinicalTypes.has(String(payload.type || '')),
+      data: payload.data,
+      dose: new Set(['reminder', 'missed_dose', 'reminder_escalation']).has(notificationType),
+      clinical,
     })
     const cost = CHANNEL_COST.push
     const ok = r.sent > 0
     results.push({ channel: 'push', result: { ok, provider: 'web-push', messageId: `push:${r.sent}` }, cost })
     if (ok) {
       delivered = true
+      pushDelivered = true
       usedChannel = 'push'
       usedCost = cost
+    }
     }
   }
 
@@ -275,6 +413,21 @@ export async function sendNotification(
   const allowEmail = emailAllowedTypes.has(String(payload.type || ''))
 
   if (allowEmail && target.email && isEmailEnabled()) {
+    let emailAcquired = true
+    if (payload.dedupeKey) {
+      const claim = await claimEmailDelivery({
+        userId: target.userId,
+        dedupeKey: payload.dedupeKey,
+        type: payload.type,
+        title: payload.title,
+        body: payload.body,
+        recipient: target.email,
+      })
+      claimedEmailLogId = claim?.id
+      emailAcquired = claim?.acquired === true
+      claimedEmailDelivery = emailAcquired
+    }
+    if (emailAcquired) {
     const isPrescription =
       payload.type === 'invite' ||
       payload.type === 'prescription' ||
@@ -329,6 +482,17 @@ export async function sendNotification(
       usedChannel = usedChannel === 'none' ? 'email' : usedChannel
       usedCost = usedChannel === 'email' ? cost : usedCost
     }
+    }
+  }
+
+  if (claimedEmailLogId && claimedEmailDelivery) {
+    await db.notificationLog.update({
+      where: { id: claimedEmailLogId },
+      data: {
+        status: results.find((entry) => entry.channel === 'email')?.result.ok ? 'sent' : 'failed',
+        cost: results.find((entry) => entry.channel === 'email')?.result.ok ? CHANNEL_COST.email : 0,
+      },
+    }).catch(() => {})
   }
 
   // WhatsApp and SMS removed — Kynthai only uses Push + Email channels.
@@ -345,7 +509,7 @@ export async function sendNotification(
       ? await db.notificationLog.findFirst({
           where: {
             userId: target.userId,
-            channel: 'in-app',
+            channel: { in: ['in-app', 'app'] },
             OR: [
               { dedupeKey: payload.dedupeKey },
               { body: { contains: `[ref:${payload.dedupeKey}]` } },
@@ -378,12 +542,12 @@ export async function sendNotification(
   // Body MUST carry the same [ref:dedupeKey] as the in-app row — the reminder
   // cron dedupes against channel='push' rows, so without the key a delivered
   // dose would be re-pushed by every subsequent tick/catchup.
-  if (claimedPushLogId) {
+  if (claimedPushLogId && claimedPushDelivery) {
     await db.notificationLog.update({
       where: { id: claimedPushLogId },
       data: {
-        status: delivered ? 'sent' : 'failed',
-        cost: delivered ? usedCost : 0,
+        status: pushDelivered ? 'sent' : 'failed',
+        cost: 0,
       },
     }).catch(() => {})
   } else if (delivered && usedChannel !== 'none') {
@@ -414,6 +578,7 @@ async function loadUserTarget(userId: string): Promise<NotificationTarget> {
     userId: u.id,
     email: u.email,
     phone: u.phone,
+    timezone: u.timezone,
     // WhatsApp + push token are not yet columns on User — leave null and
     // callers can override via the optional overrides param.
   }
@@ -461,13 +626,15 @@ export async function sendEscalation(
   scheduledTime: string,
   caretakerId?: string | null,
   overrides: Partial<NotificationTarget> = {},
+  dedupeKey?: string,
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(userId)), ...overrides }
   const r = await sendNotification(target, {
     title: 'Missed dose — please take now',
     body: `Your ${medName} reminder at ${scheduledTime} was missed. Please take it now or mark as skipped.`,
-    type: 'escalation',
-    data: { medName, scheduledTime, escalated: '1' },
+    type: 'reminder_escalation',
+    data: { medName, scheduledTime, escalated: '1', url: '/patient' },
+    ...(dedupeKey ? { dedupeKey: `${dedupeKey}:patient` } : {}),
   })
 
   // Also nudge the caretaker if provided.
@@ -476,8 +643,9 @@ export async function sendEscalation(
     await sendNotification(ct, {
       title: 'Family member missed a dose',
       body: `Your family member missed ${medName} at ${scheduledTime}. You may want to reach out.`,
-      type: 'escalation',
-      data: { medName, scheduledTime, forUserId: userId },
+      type: 'reminder_escalation',
+      data: { medName, scheduledTime, forUserId: userId, url: '/caretaker' },
+      ...(dedupeKey ? { dedupeKey: `${dedupeKey}:caretaker` } : {}),
     })
   }
   return r
@@ -489,6 +657,7 @@ export async function sendNudge(
   doctorName: string,
   message: string,
   overrides: Partial<NotificationTarget> = {},
+  dedupeKey?: string,
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(patientId)), ...overrides }
   return sendNotification(target, {
@@ -496,6 +665,7 @@ export async function sendNudge(
     body: message,
     type: 'nudge',
     data: { doctorName },
+    ...(dedupeKey ? { dedupeKey } : {}),
   })
 }
 
@@ -506,6 +676,7 @@ export async function sendInvite(
   inviteLink: string,
   medCount: number,
   overrides: Partial<NotificationTarget> = {},
+  dedupeKey?: string,
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(patientId)), ...overrides }
   const r = await sendNotification(target, {
@@ -513,6 +684,7 @@ export async function sendInvite(
     body: `You have a new prescription with ${medCount} medication(s). Review and accept: ${inviteLink}\n\nFor reliable phone reminders, download the Kynthai Android app: ${APP_URL}/download`,
     type: 'invite',
     data: { inviteLink, doctorName },
+    ...(dedupeKey ? { dedupeKey: `${dedupeKey}:patient` } : {}),
   })
 
   // Also notify family caretakers so they can help manage medications.
@@ -529,13 +701,18 @@ export async function sendInvite(
     if (family) {
       for (const caretaker of family.members) {
         if (caretaker.userId && caretaker.userId !== patientId) {
-          const ct = { ...(await loadUserTarget(caretaker.userId)) }
-          await sendNotification(ct, {
-            title: `New prescription for your family member`,
-            body: `Dr. ${doctorName} sent a prescription with ${medCount} medication(s). Help them review it: ${inviteLink}`,
-            type: 'invite',
-            data: { inviteLink, doctorName, forUserId: patientId },
-          })
+          try {
+            const ct = { ...(await loadUserTarget(caretaker.userId)) }
+            await sendNotification(ct, {
+              title: `New prescription for your family member`,
+              body: `Dr. ${doctorName} sent a prescription with ${medCount} medication(s). Help them review it: ${inviteLink}`,
+              type: 'invite',
+              data: { inviteLink, doctorName, forUserId: patientId },
+              ...(dedupeKey ? { dedupeKey: `${dedupeKey}:caretaker:${caretaker.userId}` } : {}),
+            })
+          } catch {
+            /* best-effort per caretaker */
+          }
         }
       }
     }
@@ -557,9 +734,10 @@ export async function sendFollowUp(
   const target = { ...(await loadUserTarget(userId)), ...overrides }
   return sendNotification(target, {
     title: `Follow-up with Dr. ${doctorName}`,
-    body: `Your follow-up appointment is scheduled for ${scheduledAt}. Tap to join the video call: ${APP_URL}/patient`,
+    body: `Your follow-up appointment is scheduled for ${formatNotificationDate(scheduledAt, target.timezone)}. Tap to join the video call: ${APP_URL}/patient`,
     type: 'follow_up',
-    data: { doctorName, scheduledAt, appointmentId: appointmentId || '' },
+    data: { doctorName, scheduledAt, appointmentId: appointmentId || '', url: '/patient' },
+    ...(appointmentId ? { dedupeKey: `appointment:${appointmentId}:follow-up` } : {}),
   })
 }
 
@@ -570,24 +748,58 @@ export async function sendEmergency(
   notes: string,
   notifiedDoctorIds: string[] = [],
   overrides: Partial<NotificationTarget> = {},
+  dedupeKey?: string,
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(reporterId)), ...overrides }
   const r = await sendNotification(target, {
     title: 'Emergency SOS received',
     body: `Your SOS alert for ${memberName} has been sent to your caretaker and linked doctors. For ambulance or emergency services, contact local emergency services immediately.${notes ? ` Notes: ${notes}` : ''}`,
     type: 'emergency',
-    data: { memberName, notes },
+    data: { memberName, notes, url: '/caretaker' },
+    ...(dedupeKey ? { dedupeKey: `${dedupeKey}:reporter` } : {}),
   })
 
-  // Fan out to linked doctors.
-  for (const docId of notifiedDoctorIds) {
-    const dt = { ...(await loadUserTarget(docId)) }
-    await sendNotification(dt, {
-      title: `SOS from ${memberName}`,
-      body: `A family under your care triggered an SOS. ${notes ? `Notes: ${notes}` : ''} Please respond urgently.`,
-      type: 'emergency',
-      data: { memberName, notes, reporterId },
+  const recipientIds = new Set<string>(notifiedDoctorIds)
+  // Notify accepted family members as well as linked doctors. This keeps SOS
+  // delivery consistent whether it originates in the patient or caretaker
+  // portal; the caller's own confirmation remains separate above.
+  try {
+    const families = await db.family.findMany({
+      where: {
+        OR: [
+          { ownerId: reporterId },
+          { members: { some: { userId: reporterId, inviteStatus: 'accepted' } } },
+        ],
+      },
+      include: {
+        members: {
+          where: { userId: { not: reporterId }, inviteStatus: 'accepted' },
+          select: { userId: true },
+        },
+      },
     })
+    for (const family of families) {
+      for (const member of family.members) if (member.userId) recipientIds.add(member.userId)
+    }
+  } catch {
+    /* family lookup is best-effort; linked doctors still receive the alert */
+  }
+
+  // Fan out to linked doctors and family members. Each recipient is isolated
+  // so a bad token or provider error cannot block the remaining responders.
+  for (const docId of recipientIds) {
+    try {
+      const dt = { ...(await loadUserTarget(docId)) }
+      await sendNotification(dt, {
+        title: `SOS from ${memberName}`,
+        body: `A family under your care triggered an SOS. ${notes ? `Notes: ${notes}` : ''} Please respond urgently.`,
+        type: 'emergency',
+        data: { memberName, notes, reporterId, url: '/caretaker' },
+        ...(dedupeKey ? { dedupeKey: `${dedupeKey}:recipient:${docId}` } : {}),
+      })
+    } catch {
+      /* best-effort per recipient; other responders still receive the SOS */
+    }
   }
 
   return r
