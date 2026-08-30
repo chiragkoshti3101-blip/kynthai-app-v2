@@ -129,30 +129,13 @@ export async function POST(req: NextRequest) {
     } as any,
   })
 
-  // Best-effort: intent log to the notified doctors (kept for analytics).
-  for (const d of notifiedDoctors) {
-    try {
-      await db.notificationLog.create({
-        data: {
-          channel: 'in-app',
-          type: 'emergency_sos',
-          title: `Emergency SOS from ${memberName}`,
-          body: `Family ${family.name} triggered an SOS. Please respond urgently.`,
-          recipient: d.email,
-          status: 'sent',
-          cost: 0,
-        },
-      })
-    } catch { /* ignore */ }
-  }
-
   // Best-effort: actually broadcast the SOS by in-app/email only to the reporter + every linked doctor.
   // sendEmergency() fans out to each notified doctor userId internally.
   try {
     await sendEmergency(u.id, memberName ?? '', notes ?? '', notifiedDoctorUserIds, {
       email: u.email,
       phone: null,
-    })
+    }, `emergency:${alert.id}`)
   } catch { /* best-effort — sendNotification logs internally */ }
 
   await logAudit(u.id, 'emergency.sos', `alert=${alert.id} notified=${notifiedDoctors.length}`)
