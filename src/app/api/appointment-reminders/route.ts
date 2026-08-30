@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireAuth, requireSystemToken, jsonError, jsonOk, checkConsent } from '@/lib/api-helpers'
 import { rateLimit } from '@/lib/security'
 import { sendNotification } from '@/lib/notifications'
+import { formatNotificationDate } from '@/lib/notification-time'
 export const dynamic = 'force-dynamic'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app'
@@ -100,23 +101,19 @@ export async function POST(req: NextRequest) {
         status: { in: ['pending', 'confirmed'] },
         scheduledAt: { gte: now, lte: reminderWindow },
         deletedAt: null,
-        // Only remind if no reminder sent in last 12 hours
-        OR: [
-          { lastReminderSentAt: null },
-          { lastReminderSentAt: { lt: new Date(now.getTime() - 12 * 60 * 60 * 1000) } },
-        ],
       },
       include: {
-        patient: { select: { id: true, name: true, email: true } },
-        doctor: { include: { user: { select: { id: true, name: true, email: true } } } },
+        patient: { select: { id: true, name: true, email: true, timezone: true } },
+        doctor: { include: { user: { select: { id: true, name: true, email: true, timezone: true } } } },
       },
     })
 
     let sent = 0
     for (const appt of upcomingAppts) {
-      const apptDate = appt.scheduledAt.toLocaleString('en-US', {
-        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York',
-      })
+      // Render the appointment in each recipient's stored IANA timezone.
+      // The instant is unchanged; only the human-facing wall clock differs.
+      const patientDate = formatNotificationDate(appt.scheduledAt, appt.patient.timezone)
+      const doctorDate = formatNotificationDate(appt.scheduledAt, appt.doctor.user.timezone)
       const apptType = appt.type === 'video' ? 'Video consultation' : 'In-person visit'
       const hoursUntil = Math.round((appt.scheduledAt.getTime() - now.getTime()) / (1000 * 60 * 60))
 
@@ -125,11 +122,12 @@ export async function POST(req: NextRequest) {
         { userId: appt.patientId, email: appt.patient.email },
         {
           title: `Appointment in ${hoursUntil}h`,
-          body: `Your ${apptType} with Dr. ${appt.doctor.user.name} is on ${apptDate}.\n\n` +
+          body: `Your ${apptType} with Dr. ${appt.doctor.user.name} is on ${patientDate}.\n\n` +
             `Reason: ${appt.reason || 'General consultation'}\n\n` +
             `Open Kynthai to prepare: ${APP_URL}/patient`,
           type: 'appointment_reminder',
-          data: { appointmentId: appt.id, hoursUntil: String(hoursUntil) },
+          data: { appointmentId: appt.id, hoursUntil: String(hoursUntil), url: '/patient' },
+          dedupeKey: `appointment:${appt.id}:24h:${appt.scheduledAt.toISOString()}:patient`,
         }
       ).catch(() => {})
 
@@ -138,11 +136,12 @@ export async function POST(req: NextRequest) {
         { userId: appt.doctor.userId, email: appt.doctor.user.email },
         {
           title: `Appointment in ${hoursUntil}h`,
-          body: `${appt.patient.name}'s ${apptType} is on ${apptDate}.\n\n` +
+          body: `${appt.patient.name}'s ${apptType} is on ${doctorDate}.\n\n` +
             `Reason: ${appt.reason || 'General consultation'}\n\n` +
             `Open Kynthai to prepare: ${APP_URL}/doctor`,
           type: 'appointment_reminder',
-          data: { appointmentId: appt.id, patientId: appt.patientId },
+          data: { appointmentId: appt.id, patientId: appt.patientId, url: '/doctor' },
+          dedupeKey: `appointment:${appt.id}:24h:${appt.scheduledAt.toISOString()}:doctor`,
         }
       ).catch(() => {})
 
