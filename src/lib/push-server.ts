@@ -94,6 +94,39 @@ async function sendFcm(token: string, message: string, isClinical: boolean): Pro
 }
 
 /**
+ * Return true only for a device registration that cannot deliver again.
+ *
+ * Apple uses 400 for both malformed requests and invalid device tokens. A
+ * generic 400 must not delete every user's subscription when the real issue is
+ * a global VAPID key, JWT, or payload configuration. Prune only the
+ * endpoint-specific reasons that mean this registration must be recreated.
+ */
+export function shouldPrunePushSubscription(error: unknown): boolean {
+  const e = (error || {}) as { statusCode?: unknown; code?: unknown; body?: unknown; message?: unknown }
+  const statusCode = typeof e.statusCode === 'number' ? e.statusCode : undefined
+  const providerCode = typeof e.code === 'string' ? e.code : ''
+  const providerBody = typeof e.body === 'string' ? e.body : ''
+  const message = typeof e.message === 'string' ? e.message : ''
+  const reason = `${providerCode} ${providerBody} ${message}`.toLowerCase()
+
+  if (statusCode === 404 || statusCode === 410) return true
+  if (providerCode === 'messaging/registration-token-not-registered') return true
+  if (providerCode === 'messaging/invalid-registration-token') return true
+
+  // Apple endpoint-specific invalidation reasons. Do not include BadJwtToken,
+  // BadVapidPublicKey, BadAuthorizationHeader, or PayloadTooLarge: those are
+  // sender/payload problems and deleting registrations would make them worse.
+  return (
+    reason.includes('baddevicetoken') ||
+    reason.includes('vapidpkhashmismatch') ||
+    reason.includes('subscriptionexpired') ||
+    reason.includes('invalidsubscription') ||
+    reason.includes('subscriptionnotfound') ||
+    reason.includes('unregistered')
+  )
+}
+
+/**
  * Instant push to all of a user's devices.
  * Clinical (dose) uses Urgency: high + short TTL so carriers deliver immediately
  * (same class of signal messaging apps use for priority traffic).
@@ -188,16 +221,9 @@ export async function sendPushToUser(
           )
           return { ok: true as const, id: sub.id }
         } catch (err: unknown) {
-          const statusCode = (err as { statusCode?: number })?.statusCode
-          const fcmCode = (err as { code?: string })?.code || ''
-          const deadToken =
-            statusCode === 404 ||
-            statusCode === 410 ||
-            fcmCode === 'messaging/registration-token-not-registered' ||
-            fcmCode === 'messaging/invalid-registration-token'
-          if (deadToken) {
-            // FIX #9 (FCM half): prune dead tokens so dashboards stop counting
-            // undeliverable devices as reachable.
+          if (shouldPrunePushSubscription(err)) {
+            // Prune only endpoint-specific invalidations. Global VAPID/JWT or
+            // payload errors stay visible and do not delete valid devices.
             await db.pushSubscription.delete({ where: { id: sub.id } }).catch(() => {})
           } else {
             logger.phiSafeError(err, 'push.send')
