@@ -8,6 +8,7 @@
  */
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+const VAPID_SYNC_STORAGE_KEY = 'kynthai.push.vapid-key.v1'
 
 export type PushEnableResult =
   | { ok: true }
@@ -85,6 +86,47 @@ async function csrfToken(): Promise<string | null> {
   }
 }
 
+function needsVapidResubscribe(): boolean {
+  if (!VAPID_PUBLIC_KEY) return false
+  try {
+    return localStorage.getItem(VAPID_SYNC_STORAGE_KEY) !== VAPID_PUBLIC_KEY
+  } catch {
+    // If storage is unavailable, prefer a fresh subscription over retaining a
+    // registration that may have been created under an older VAPID key.
+    return true
+  }
+}
+
+function markVapidSynchronized(): void {
+  if (!VAPID_PUBLIC_KEY) return
+  try {
+    localStorage.setItem(VAPID_SYNC_STORAGE_KEY, VAPID_PUBLIC_KEY)
+  } catch {
+    /* best-effort; the next authenticated visit will retry */
+  }
+}
+
+async function serverSubscriptionIsRegistered(sub: PushSubscription): Promise<boolean | null> {
+  try {
+    const token = await csrfToken()
+    const res = await fetch('/api/notifications/subscribe/status', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'X-CSRF-Token': token } : {}),
+      },
+      body: JSON.stringify({ endpoint: sub.endpoint }),
+    })
+    const data = await res.json().catch(() => ({}))
+    return typeof data.registered === 'boolean' ? data.registered : null
+  } catch {
+    // A failed health check should not interrupt a working browser
+    // subscription; VAPID rotation still uses the local marker below.
+    return null
+  }
+}
+
 /**
  * Register SW (if needed), request permission, subscribe, store on server.
  */
@@ -143,54 +185,45 @@ export async function enablePushDetailed(): Promise<PushEnableResult> {
     }
 
     let sub = await reg.pushManager.getSubscription()
+    const currentKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    const serverRegistered = sub ? await serverSubscriptionIsRegistered(sub) : null
+    const shouldResubscribe = Boolean(
+      sub && (needsVapidResubscribe() || serverRegistered === false),
+    )
+    let previousEndpoint: string | undefined
+
+    if (shouldResubscribe && sub) {
+      // Browsers do not consistently expose the subscription's
+      // applicationServerKey. A one-time per-device rotation is safer than
+      // trusting that introspection: it replaces subscriptions created under
+      // an older VAPID key without deleting other devices on the account.
+      previousEndpoint = sub.endpoint
+      try {
+        await sub.unsubscribe()
+      } catch {
+        /* best-effort; a new subscription below may still succeed */
+      }
+      sub = null
+    }
+
     if (!sub) {
       try {
         sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
+          applicationServerKey: currentKey as BufferSource,
         })
       } catch {
         return {
           ok: false,
           reason: 'subscribe_failed',
-          message: 'Browser could not create a push subscription.',
-        }
-      }
-    } else {
-      // A subscription created against an OLD applicationServerKey will be
-      // rejected by the push service once the server signs with a NEW VAPID
-      // private key (VAPID auth = the same public key the browser used at
-      // subscribe time). Without this, existing users keep a dead subscription
-      // and never receive a dose after a VAPID key rotation. Detect the
-      // mismatch and transparently re-subscribe under the current key.
-      const existingKey = sub.getKey('applicationServerKey' as unknown as PushEncryptionKeyName)
-      const currentKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-      const stale =
-        existingKey && existingKey.byteLength > 0
-          ? !keysEqual(existingKey, currentKey)
-          : false
-      if (stale) {
-        try {
-          await sub.unsubscribe()
-        } catch {
-          /* best-effort */
-        }
-        try {
-          sub = await reg.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: currentKey as BufferSource,
-          })
-        } catch {
-          return {
-            ok: false,
-            reason: 'subscribe_failed',
-            message: 'Could not re-subscribe under the updated notification key.',
-          }
+          message: shouldResubscribe
+            ? 'Could not refresh your notification subscription. Try again while signed in.'
+            : 'Browser could not create a push subscription.',
         }
       }
     }
 
-    const stored = await storeSubscription(sub)
+    const stored = await storeSubscription(sub, previousEndpoint)
     if (!stored) {
       return {
         ok: false,
@@ -198,6 +231,7 @@ export async function enablePushDetailed(): Promise<PushEnableResult> {
         message: 'Could not save the subscription to your account. Try again while signed in.',
       }
     }
+    markVapidSynchronized()
     return { ok: true }
   } catch {
     return {
@@ -239,7 +273,10 @@ export async function disablePush(): Promise<void> {
   }
 }
 
-async function storeSubscription(sub: PushSubscription): Promise<boolean> {
+async function storeSubscription(
+  sub: PushSubscription,
+  previousEndpoint?: string,
+): Promise<boolean> {
   try {
     const token = await csrfToken()
     const json = sub.toJSON()
@@ -254,6 +291,7 @@ async function storeSubscription(sub: PushSubscription): Promise<boolean> {
         endpoint: json.endpoint,
         keys: json.keys,
         expirationTime: json.expirationTime ?? null,
+        previousEndpoint: previousEndpoint ?? null,
       }),
     })
     return res.ok
@@ -273,20 +311,3 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray
 }
 
-/** Constant-time key byte comparison for VAPID application-server-key checks. */
-function keysEqual(a: ArrayBuffer | ArrayBufferView, b: ArrayBuffer | ArrayBufferView): boolean {
-  const av = toBytes(a)
-  const bv = toBytes(b)
-  if (av.length !== bv.length) return false
-  let diff = 0
-  for (let i = 0; i < av.length; ++i) diff |= (av[i] ?? 0) ^ (bv[i] ?? 0)
-  return diff === 0
-}
-
-function toBytes(x: ArrayBuffer | ArrayBufferView): Uint8Array {
-  if (x instanceof ArrayBuffer) return new Uint8Array(x)
-  const view = x as { buffer?: ArrayBuffer; byteOffset: number; byteLength: number }
-  const buf = view.buffer
-  if (!buf) return new Uint8Array(0)
-  return new Uint8Array(buf, view.byteOffset, view.byteLength)
-}
