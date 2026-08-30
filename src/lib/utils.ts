@@ -10,13 +10,13 @@ export function toISODateTime(dateStr: string): string {
   return `${dateStr}T00:00:00.000Z`
 }
 
-export function todayStr(): string {
-  // Must match the date key used by the cron send loop. Use a stable scheduler
-  // timezone rather than server-local time so schedule/ensure and send agree
-  // near midnight; per-user timezone gating determines when each dose is due.
+export function todayStr(timeZone = 'America/New_York'): string {
+  // Reminder rows store a local-looking calendar date. Use the recipient’s
+  // IANA zone when available; keep the historical New York fallback only for
+  // legacy accounts that have not stored a timezone yet.
   try {
     const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/New_York',
+      timeZone,
       year: 'numeric', month: '2-digit', day: '2-digit',
     }).formatToParts(new Date())
     const map = Object.fromEntries(parts.map((p) => [p.type, p.value]))
