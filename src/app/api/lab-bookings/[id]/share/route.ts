@@ -99,7 +99,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           title: 'Lab results shared with you',
           body: `${booking.patient.name || 'A patient'} shared lab results from ${booking.lab.labName || 'the lab'}. ${customMessage || 'View the results below.'} Link expires in ${SHARE_TTL_HOURS} hours.`,
           type: 'lab_share',
-          data: { bookingId: id, shareToken, patientName: booking.patient.name || 'Patient', labName: booking.lab.labName || 'Lab' },
+          data: { bookingId: id, shareToken, patientName: booking.patient.name || 'Patient', labName: booking.lab.labName || 'Lab', url: '/doctor' },
+          dedupeKey: `lab-booking:${id}:shared:${doc.userId}`,
         },
       )
     } catch { /* best-effort */ }
