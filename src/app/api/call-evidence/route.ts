@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
         title: 'Consultation cancelled — no-show',
         body: `You did not join your consultation with ${appt.doctor.user.name}. No refund issued — the slot was reserved for you. Repeated no-shows may affect your account.`,
         type: 'patient_no_show',
-        data: { appointmentId: appt.id },
+        data: { appointmentId: appt.id, url: '/patient' },
+        dedupeKey: `appointment:${appt.id}:patient-no-show:patient`,
       }
     );
 
@@ -97,7 +98,8 @@ export async function POST(req: NextRequest) {
         title: 'Full refund issued',
         body: `Dr. ${appt.doctor.user.name} did not join. $${(appt.price / 100).toFixed(2)} refunded to your original payment method.`,
         type: 'doctor_no_show_refund',
-        data: { appointmentId: appt.id },
+        data: { appointmentId: appt.id, url: '/patient' },
+        dedupeKey: `appointment:${appt.id}:doctor-no-show-refund:patient`,
       }
     );
 
