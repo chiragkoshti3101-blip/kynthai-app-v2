@@ -69,12 +69,16 @@ async function run(req: NextRequest) {
       med.dosage || '',
       time,
       { email: u.email || undefined, phone: u.phone || undefined },
+      `test-dose:${reminder.id}`,
+      { reminderId: reminder.id, medicationId: med.id },
     )
 
-    await db.reminder.update({
-      where: { id: reminder.id },
-      data: { reminderCount: { increment: 1 } },
-    })
+    if (route.delivered) {
+      await db.reminder.update({
+        where: { id: reminder.id },
+        data: { reminderCount: { increment: 1 } },
+      })
+    }
 
     return jsonOk({
       ok: true,
