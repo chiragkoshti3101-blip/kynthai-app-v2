@@ -10,6 +10,7 @@ import {
 import { sanitizeText } from '@/lib/security';
 import { logAudit } from '@/lib/auth';
 import { sendNotification } from '@/lib/notifications';
+import { formatNotificationDate } from '@/lib/notification-time';
 import { computeCommission } from '@/lib/commission';
 import { logger } from '@/lib/logger';
 
@@ -78,9 +79,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         { userId: notifierId },
         {
           title: 'Appointment rescheduled',
-          body: `Your appointment has been rescheduled to ${newDate.toLocaleDateString()} at ${newDate.toLocaleTimeString()}.`,
+          body: `Your appointment has been rescheduled to ${formatNotificationDate(newDate, isDoctor ? appt.patient.timezone : appt.doctor.user.timezone)}.`,
           type: 'appointment_update',
-          data: { appointmentId: appt.id, status: 'rescheduled' },
+          data: { appointmentId: appt.id, status: 'rescheduled', url: isDoctor ? '/patient' : '/doctor' },
+          dedupeKey: `appointment:${appt.id}:rescheduled:${notifierId}:${newDate.toISOString()}`,
         }
       );
     } catch { /* best-effort */ }
@@ -273,7 +275,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           title,
           body,
           type: 'appointment_update',
-          data: { appointmentId: appt.id, status: nextStatus },
+          data: { appointmentId: appt.id, status: nextStatus, url: isPatient ? '/doctor' : '/patient' },
+          dedupeKey: `appointment:${appt.id}:status:${nextStatus}:${notifierId}`,
         }
       );
     }
