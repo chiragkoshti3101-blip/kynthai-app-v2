@@ -53,14 +53,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await sendNotification(
         { userId: refund.userId },
         {
-          title: 'Refund approved',
-          body: `Your refund of $${(refund.amount / 100).toFixed(2)} has been approved and is being processed. It will reflect in your account within 5-7 business days.`,
-          type: 'refund_approved',
-          data: { refundId: id },
+          title: result.success ? 'Refund approved' : 'Refund processing failed',
+          body: result.success
+            ? `Your refund of $${(refund.amount / 100).toFixed(2)} has been approved and is being processed. It will reflect in your account within 5-7 business days.`
+            : 'We could not process your refund automatically. Our team will review it and follow up.',
+          type: result.success ? 'refund_approved' : 'refund_failed',
+          data: { refundId: id, url: '/patient' },
+          dedupeKey: `refund:${id}:${result.success ? 'approved' : 'failed'}:patient`,
         }
       );
-      await logAudit(u.id, 'refund.approve', `refund=${id}`);
-      return jsonOk({ status: 'completed', message: 'Refund approved and processing' });
+      await logAudit(u.id, 'refund.approve', `refund=${id} success=${result.success}`);
+      return jsonOk({
+        status: result.success ? 'completed' : 'failed',
+        message: result.success ? 'Refund approved and processing' : 'Refund processing failed',
+      });
     }
 
     // Reject
@@ -75,7 +81,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           body.reviewNote ||
           'Your refund request could not be approved. If you have questions, contact support at support@kynthai.app',
         type: 'refund_rejected',
-        data: { refundId: id },
+        data: { refundId: id, url: '/patient' },
+        dedupeKey: `refund:${id}:rejected:patient`,
       }
     );
     await logAudit(u.id, 'refund.reject', `refund=${id}`);
