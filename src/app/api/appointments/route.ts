@@ -21,7 +21,7 @@ import {
 } from '@/lib/schemas';
 import { computeCommission } from '@/lib/commission';
 import { sendNotification } from '@/lib/notifications';
-import { sendPushToUser } from '@/lib/push-server';
+import { formatNotificationDate } from '@/lib/notification-time';
 // Prevent static generation — reads session + DB at runtime
 export const dynamic = 'force-dynamic';
 
@@ -193,21 +193,23 @@ export async function POST(req: NextRequest) {
     await logAudit(u.id, 'appointment.created', `appointment=${appointment.id}`);
 
     // Notify patient about the booked appointment (push + email).
-    const apptDate = date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const patientApptDate = formatNotificationDate(date, appointment.patient.timezone);
+    const doctorApptDate = formatNotificationDate(date, appointment.doctor.user.timezone);
     const apptType = appointmentType === 'video' ? 'Video consultation' : 'In-person visit';
     
     await sendNotification(
       { userId: u.id, email: u.email },
       {
         title: 'Appointment request sent',
-        body: `Your ${apptType} request with Dr. ${appointment.doctor.user.name} for ${apptDate} has been sent.\n\n` +
+        body: `Your ${apptType} request with Dr. ${appointment.doctor.user.name} for ${patientApptDate} has been sent.\n\n` +
           `Reason: ${reason || 'General consultation'}\n` +
           `Fee: $${doctor.consultationFee}\n\n` +
           `Status: Pending — waiting for doctor to confirm\n\n` +
           `You'll receive a notification once the doctor responds.\n\n` +
           `Open Kynthai to view: ${process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app'}/patient`,
         type: 'appointment',
-        data: { appointmentId: appointment.id, doctorId, scheduledAt: date.toISOString() },
+        data: { appointmentId: appointment.id, doctorId, scheduledAt: date.toISOString(), url: '/patient' },
+        dedupeKey: `appointment:${appointment.id}:requested:patient`,
       }
     ).catch(() => {});
 
@@ -219,7 +221,7 @@ export async function POST(req: NextRequest) {
       },
       {
         title: 'New consultation request — Accept or Decline',
-        body: `${u.name} requested a ${apptType} for ${apptDate}.\n\n` +
+        body: `${u.name} requested a ${apptType} for ${doctorApptDate}.\n\n` +
           `Reason: ${reason || 'General consultation'}\n\n` +
           `Open Kynthai Doctor → Accept or Decline:\n` +
           `${process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app'}/doctor`,
@@ -230,6 +232,7 @@ export async function POST(req: NextRequest) {
           action: 'accept_or_decline',
           url: '/doctor',
         },
+        dedupeKey: `appointment:${appointment.id}:requested:doctor`,
       }
     ).catch(() => {});
 
@@ -264,8 +267,8 @@ export async function PUT(req: NextRequest) {
   const appt = await db.appointment.findUnique({
     where: { id: body.id },
     include: {
-      patient: { select: { id: true, name: true, email: true } },
-      doctor: { include: { user: { select: { id: true, name: true, email: true } } } },
+      patient: { select: { id: true, name: true, email: true, timezone: true } },
+      doctor: { include: { user: { select: { id: true, name: true, email: true, timezone: true } } } },
     },
   });
   if (!appt) return jsonError('Appointment not found', 404);
@@ -304,7 +307,8 @@ export async function PUT(req: NextRequest) {
   await logAudit(u.id, 'appointment.update', `appt=${appt.id} status=${status}`);
 
   // Notify the other party about the status change
-  const apptDate = appt.scheduledAt.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const patientApptDate = formatNotificationDate(appt.scheduledAt, appt.patient.timezone);
+  const doctorApptDate = formatNotificationDate(appt.scheduledAt, appt.doctor.user.timezone);
   const apptType = appt.type === 'video' ? 'Video consultation' : 'In-person visit';
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app';
 
@@ -314,11 +318,12 @@ export async function PUT(req: NextRequest) {
       { userId: appt.patientId, email: appt.patient.email },
       {
         title: '✅ Appointment confirmed!',
-        body: `Dr. ${appt.doctor.user.name} confirmed your ${apptType} for ${apptDate}.\n\n` +
+        body: `Dr. ${appt.doctor.user.name} confirmed your ${apptType} for ${patientApptDate}.\n\n` +
           `Please be ready at the scheduled time.\n\n` +
           `Open Kynthai: ${APP_URL}/patient`,
         type: 'appointment_confirmed',
-        data: { appointmentId: appt.id },
+        data: { appointmentId: appt.id, url: '/patient' },
+        dedupeKey: `appointment:${appt.id}:confirmed:patient`,
       }
     ).catch(() => {});
   } else if (normalizedStatus === 'cancelled') {
@@ -330,10 +335,11 @@ export async function PUT(req: NextRequest) {
       { userId: notifyUserId, email: notifyEmail },
       {
         title: '❌ Appointment cancelled',
-        body: `The ${apptType} on ${apptDate} has been cancelled by ${cancelledBy}.\n\n` +
+        body: `The ${apptType} on ${isDoctor ? patientApptDate : doctorApptDate} has been cancelled by ${cancelledBy}.\n\n` +
           `Open Kynthai to book a new appointment: ${APP_URL}`,
         type: 'appointment_cancelled',
-        data: { appointmentId: appt.id },
+        data: { appointmentId: appt.id, url: isDoctor ? '/patient' : '/doctor' },
+        dedupeKey: `appointment:${appt.id}:cancelled:${notifyUserId}`,
       }
     ).catch(() => {});
   } else if (normalizedStatus === 'completed' && isDoctor) {
@@ -345,7 +351,8 @@ export async function PUT(req: NextRequest) {
         body: `Your ${apptType} with Dr. ${appt.doctor.user.name} has been marked as completed.\n\n` +
           `Open Kynthai to view your records: ${APP_URL}/patient`,
         type: 'appointment_completed',
-        data: { appointmentId: appt.id },
+        data: { appointmentId: appt.id, url: '/patient' },
+        dedupeKey: `appointment:${appt.id}:completed:patient`,
       }
     ).catch(() => {});
   }
