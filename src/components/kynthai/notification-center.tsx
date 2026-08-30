@@ -29,6 +29,7 @@ interface Notification {
   body: string
   status: string
   createdAt: string
+  dedupeKey?: string | null
   read: boolean
 }
 
@@ -75,6 +76,11 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
         setNotifications([
           { id: 'l1', channel: 'app', type: 'lab', title: 'New lab booking', body: 'CBC + Lipid panel · Confirm slot', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
           { id: 'l2', channel: 'app', type: 'lab', title: 'Results ready to share', body: 'Patient waiting on metabolic panel', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
+        ])
+      } else if (r === 'admin') {
+        setNotifications([
+          { id: 'a1', channel: 'app', type: 'system', title: 'Platform health check', body: 'Notification routing and delivery diagnostics are available in Admin.', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
+          { id: 'a2', channel: 'app', type: 'alert', title: 'Review queue update', body: 'High-priority operational items are ready for review.', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
         ])
       } else if (r === 'caretaker' || r === 'family') {
         setNotifications([
@@ -174,9 +180,14 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
 
   const handleClick = (notif: Notification) => {
     if (onNavigate) {
-      if (notif.type === 'reminder') onNavigate('meds')
+      if (notif.type === 'reminder') onNavigate(role === 'lab' ? 'bookings' : 'meds')
+      else if (notif.type === 'appointment') onNavigate(role === 'doctor' ? 'appointments' : 'home')
+      else if (notif.type === 'lab') {
+        const isResult = /result|report/i.test(`${notif.title} ${notif.body}`)
+        onNavigate(role === 'lab' ? (isResult ? 'results' : 'bookings') : role === 'patient' ? 'lab' : 'care')
+      }
       else if (notif.type === 'achievement' || notif.type === 'family') onNavigate('care')
-      else if (notif.type === 'alert') onNavigate('home')
+      else if (notif.type === 'alert') onNavigate(role === 'admin' ? 'overview' : 'home')
     }
     setOpen(false)
   }
