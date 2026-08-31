@@ -33,10 +33,9 @@ export async function POST(req: NextRequest) {
         where: {
           userId: user.id,
           channel: { in: ['in-app', 'app'] },
-          OR: [
-            { dedupeKey },
-            { body: { contains: `[ref:${dedupeKey}]` } },
-          ],
+          // Notification bodies are encrypted at rest; use the stable event
+          // key instead of an unsupported encrypted substring query.
+          dedupeKey,
         },
         select: { id: true },
       })
@@ -64,10 +63,9 @@ export async function POST(req: NextRequest) {
         where: {
           userId: user.id,
           channel: { in: ['in-app', 'app'] },
-          OR: [
-            { dedupeKey },
-            { body: { contains: `[ref:${dedupeKey}]` } },
-          ],
+          // Notification bodies are encrypted at rest; use the stable event
+          // key instead of an unsupported encrypted substring query.
+          dedupeKey,
         },
         select: { id: true },
       }).catch(() => null)
