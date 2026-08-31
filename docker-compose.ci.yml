@@ -6,7 +6,7 @@
 services:
   db:
     ports:
-      - "127.0.0.1:${E2E_DB_HOST_PORT:-0}:5432"
+      - "127.0.0.1::5432"
     networks:
       - backend
       - ci-host
