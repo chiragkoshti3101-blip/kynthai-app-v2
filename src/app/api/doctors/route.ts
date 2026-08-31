@@ -58,23 +58,26 @@ export async function GET(req: NextRequest) {
   const and: any[] = [{ verified: true }];
   if (specialization) and.push({ specialization });
   if (city) and.push({ city: { contains: city } });
-  if (search) {
-    and.push({
-      OR: [
-        { user: { name: { contains: search } } },
-        { specialization: { contains: search } },
-        { city: { contains: search } },
-        { bio: { contains: search } },
-      ],
-    });
-  }
 
+  // `name` and `bio` are encrypted with randomized ciphertext and cannot be
+  // searched with SQL `contains`. Read only verified profiles (and any
+  // requested city/specialization scope), then filter the already-decrypted
+  // values in memory before returning the public listing.
   const where: any = { AND: and };
-  const doctors = await db.doctorProfile.findMany({
+  const candidates = await db.doctorProfile.findMany({
     where,
     include: { user: true },
-    take: 100,
+    ...(search ? {} : { take: 100 }),
   });
+  const needle = search?.toLocaleLowerCase();
+  const doctors = needle
+    ? candidates
+        .filter((doctor: any) =>
+          [doctor.user?.name, doctor.specialization, doctor.city, doctor.bio]
+            .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(needle)),
+        )
+        .slice(0, 100)
+    : candidates;
 
   // Sort by priority score (Pro doctors get +500 boost)
   const { getPriorityScore } = await import('@/lib/doctor-subscription')
