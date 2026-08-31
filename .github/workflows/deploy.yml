@@ -123,50 +123,45 @@ jobs:
 
       - name: Start services
         run: |
-          # Only the db is used by the e2e steps (they run npm/prisma/server on
-          # the runner against a dynamically allocated localhost port). Building
-          # the full app image here adds ~5 min and needs the whole prod env.
-          # down -v first: a recycled runner can hand us a leftover db container
-          # or a pgdata volume with a stale postmaster.pid. postgres then passes
-          # pg_isready while crash-recovering and dies mid-write, so `prisma db
-          # push` can P1001 seconds after the readiness check passed.
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d db
-          # Compose allocates a free host port because the runner may already use 5432.
-          # Export the discovered mapping so every later host-run DB client uses it.
-          DB_HOST_PORT="$(docker compose -f docker-compose.yml -f docker-compose.ci.yml port db 5432 2>/dev/null | grep -oE '[0-9]+$' | tail -1 || true)"
-          if ! [[ "$DB_HOST_PORT" =~ ^[1-9][0-9]*$ ]]; then
-            echo "Could not discover the published Postgres host port" >&2
-            docker compose -f docker-compose.yml -f docker-compose.ci.yml ps || true
-            docker logs "$(docker compose -f docker-compose.yml -f docker-compose.ci.yml ps -q db)" 2>&1 | tail -30 || true
+          # CI uses a standalone disposable Postgres fixture on a dedicated
+          # Docker bridge network. Host-run Prisma, Next, and Playwright use
+          # the container IPv4 address; no fixed or ephemeral host port is used.
+          docker compose -f docker-compose.ci.yml down -v --remove-orphans
+          docker compose -f docker-compose.ci.yml up -d db
+          DB_CONTAINER_ID="$(docker compose -f docker-compose.ci.yml ps -q db)"
+          if [ -z "$DB_CONTAINER_ID" ]; then
+            echo "Could not find the CI Postgres container" >&2
+            docker compose -f docker-compose.ci.yml ps || true
             exit 1
           fi
-          export E2E_DB_HOST_PORT="$DB_HOST_PORT"
-          echo "E2E_DB_HOST_PORT=${DB_HOST_PORT}" >> "$GITHUB_ENV"
-          echo "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:${DB_HOST_PORT}/test" >> "$GITHUB_ENV"
-          echo "DIRECT_URL=postgresql://postgres:postgres@127.0.0.1:${DB_HOST_PORT}/test" >> "$GITHUB_ENV"
-          echo "Discovered Postgres host port: ${DB_HOST_PORT}"
-          # Wait for postgres to actually accept connections
+          DB_HOST_IP="$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$DB_CONTAINER_ID")"
+          if ! [[ "$DB_HOST_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Could not discover a valid CI Postgres container IP" >&2
+            docker inspect "$DB_CONTAINER_ID" || true
+            exit 1
+          fi
+          echo "E2E_DB_HOST_IP=${DB_HOST_IP}" >> "$GITHUB_ENV"
+          echo "DATABASE_URL=postgresql://postgres:postgres@${DB_HOST_IP}:5432/test" >> "$GITHUB_ENV"
+          echo "DIRECT_URL=postgresql://postgres:postgres@${DB_HOST_IP}:5432/test" >> "$GITHUB_ENV"
+          echo "Discovered Postgres container IP: ${DB_HOST_IP}"
+          # Check both the database inside the container and the address that
+          # host-run Prisma will use. This avoids the unreliable loopback port
+          # path that failed on the previous main run.
           for i in $(seq 1 90); do
-            if docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T db pg_isready -U postgres -d test >/dev/null 2>&1 && \
-               (timeout 2 bash -c "echo > /dev/tcp/127.0.0.1:${DB_HOST_PORT}") 2>/dev/null; then
-              # pg_isready inside the container proves postgres accepts the
-              # user/db, but prisma connects over the HOST port — the
-              # /dev/tcp check verifies the dynamically published listener.
-              echo "DB ready after ${i}s (container + host port)"
+            if docker compose -f docker-compose.ci.yml exec -T db pg_isready -U postgres -d test >/dev/null 2>&1 && (timeout 2 bash -c "echo > /dev/tcp/${DB_HOST_IP}/5432") 2>/dev/null; then
+              echo "DB ready after ${i}s (container + bridge network)"
               exit 0
             fi
             sleep 1
           done
-          echo "DB did not become ready within 90s on host port ${DB_HOST_PORT}" >&2
-          docker compose -f docker-compose.yml -f docker-compose.ci.yml ps
-          docker logs "$(docker compose -f docker-compose.yml -f docker-compose.ci.yml ps -q db)" 2>&1 | tail -30 || true
+          echo "DB did not become ready within 90s at ${DB_HOST_IP}:5432" >&2
+          docker compose -f docker-compose.ci.yml ps
+          docker logs "$DB_CONTAINER_ID" 2>&1 | tail -30 || true
           exit 1
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: test
-
       - run: npm ci --ignore-scripts --no-audit --no-fund
 
       - run: npx prisma generate
@@ -200,8 +195,8 @@ jobs:
         # for the local-auth session cookie (src/lib/session-signing.ts uses it
         # when SESSION_SIGNING_SECRET is unset), and NEXT_PUBLIC_* let the app
         # client talk to Supabase. DATABASE_URL is intentionally omitted — the
-        # job/env pins both prisma and the app at the local postgres on
-        # the dynamically allocated local Postgres port. npm start reads this file itself.
+        # job/env pins both prisma and the app at the Postgres container on
+        # the CI bridge network. npm start reads this file itself.
         run: |
           cat > .env.local << 'EOF'
           NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -243,6 +238,10 @@ jobs:
           name: playwright-report-e2e
           path: e2e-report/
           retention-days: 30
+
+      - name: Stop CI services
+        if: always()
+        run: docker compose -f docker-compose.ci.yml down -v --remove-orphans
 
   # ── Job 4: Deploy to Vercel (Production) ─────────────────────────────────
   # Deploys via the Vercel CLI using the project's own build pipeline + env
