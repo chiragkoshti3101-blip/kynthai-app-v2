@@ -41,6 +41,8 @@ export async function POST(req: NextRequest) {
     const description = formData.get('description') as string || '';
     const visibility = (formData.get('visibility') as unknown as DocumentVisibility) || 'PRIVATE';
     const familyId = formData.get('familyId') as string || null;
+    const providerRole = formData.get('providerRole') as string | null;
+    const providerSlot = formData.get('providerSlot') as string | null;
 
     // SECURITY: sharedWith is a JSON array of user IDs — validate strictly.
     // Never trust client JSON blindly (malformed payloads would 500; oversized
@@ -71,6 +73,22 @@ export async function POST(req: NextRequest) {
     }
     if (!type || !Object.values(DocumentType).includes(type)) {
       return NextResponse.json({ error: 'Invalid document type' }, { status: 400 });
+    }
+    if (type === 'CERTIFICATE') {
+      const validSlots = providerRole === 'doctor'
+        ? ['license', 'degree', 'id', 'photo']
+        : providerRole === 'lab'
+          ? ['license', 'clia', 'business_insurance', 'photo']
+          : [];
+      if (!validSlots.includes(providerSlot || '')) {
+        return NextResponse.json({ error: 'Provider role and certification slot are required' }, { status: 400 });
+      }
+      if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type)) {
+        return NextResponse.json({ error: 'Certification files must be PDF, JPEG, or PNG' }, { status: 400 });
+      }
+      if (category !== 'ADMINISTRATIVE' || visibility !== 'PRIVATE' || file.size > 5 * 1024 * 1024) {
+        return NextResponse.json({ error: 'Certification uploads must be private administrative files no larger than 5 MB' }, { status: 400 });
+      }
     }
     if (!Object.values(DocumentCategory).includes(category)) {
       return NextResponse.json({ error: 'Invalid document category' }, { status: 400 });
@@ -136,7 +154,6 @@ export async function POST(req: NextRequest) {
       fileExt,
       encryptedData,
       {
-        originalName: file.name,
         mimeType: file.type,
         uploadedBy: user.id,
       }
@@ -157,8 +174,14 @@ export async function POST(req: NextRequest) {
         familyId,
         type,
         category,
-        title: sanitizeText(title || file.name, 200) || file.name,
-        description,
+        title:
+          type === 'CERTIFICATE'
+            ? `${providerRole} certification — ${providerSlot}`
+            : sanitizeText(title || file.name, 200) || file.name,
+        description:
+          type === 'CERTIFICATE'
+            ? JSON.stringify({ provider: providerRole, slot: providerSlot })
+            : description,
         mimeType: file.type,
         fileSize: file.size,
         storagePath,
