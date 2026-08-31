@@ -306,7 +306,8 @@ export async function detectNoShows(): Promise<{ refunded: number; flagged: numb
         const payment = await db.payment.findFirst({
           where: {
             userId: appt.patientId,
-            description: { contains: `Consultation with ${appt.doctor.user.name}` },
+            appointmentId: appt.id,
+            type: 'consultation',
           },
           orderBy: { createdAt: 'desc' },
         });
