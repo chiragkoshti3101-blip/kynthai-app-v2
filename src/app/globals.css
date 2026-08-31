@@ -3,10 +3,10 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* deploy-1788083405772ts:1788083405 — forces new CSS hash on every deploy */
+/* deploy-1788115310308ts:1788115310 — forces new CSS hash on every deploy */
 
 @theme inline {
-  --deploy-hash: 9905db5-mtfmoxxn;
+  --deploy-hash: 2ddc135-mtg5orms;
   /* DEPLOY: --deploy-hash forces new CSS hash on every deploy */
   --deploy-marker: var(--deploy-hash);
   --color-background: var(--background);
