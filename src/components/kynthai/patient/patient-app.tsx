@@ -243,12 +243,21 @@ function formatApptDay(value: string): string {
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
+// Keep read-only demo appointments relative to the current date so a demo
+// never decays into an empty state simply because its sample dates are stale.
+function demoAppointmentIso(daysFromToday: number, hour: number, minute: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromToday);
+  date.setHours(hour, minute, 0, 0);
+  return date.toISOString();
+}
+
 const DEMO_APPOINTMENTS: Appointment[] = [
   {
     id: 'a1',
     doctor: 'Dr. Sarah Chen',
     specialty: 'Cardiology',
-    date: '2026-07-16',
+    date: demoAppointmentIso(1, 10, 0),
     time: '10:00 AM',
     type: 'in-person',
     status: 'confirmed',
@@ -257,7 +266,7 @@ const DEMO_APPOINTMENTS: Appointment[] = [
     id: 'a2',
     doctor: 'Dr. James Miller',
     specialty: 'General Care',
-    date: '2026-07-22',
+    date: demoAppointmentIso(3, 14, 30),
     time: '2:30 PM',
     type: 'video',
     status: 'upcoming',
@@ -266,7 +275,7 @@ const DEMO_APPOINTMENTS: Appointment[] = [
     id: 'a3',
     doctor: 'Dr. Priya Gupta',
     specialty: 'Dermatology',
-    date: '2026-07-25',
+    date: demoAppointmentIso(7, 11, 0),
     time: '11:00 AM',
     type: 'video',
     status: 'pending',
@@ -506,14 +515,14 @@ function HomeTab({
     } catch {
       /* keep 0 */
     }
-  }, [user.id]);
+  }, [user.id, isDemo]);
 
   React.useEffect(() => {
     loadHome();
   }, [loadHome, appointmentsVersion]);
 
   const demoAppointments = DEMO_APPOINTMENTS.filter(a => a.status !== 'completed');
-  const appointments = isDemo && !apptsLoaded ? demoAppointments : liveAppointments;
+  const appointments = isDemo ? demoAppointments : liveAppointments;
 
   // Achievement celebration state (defined before JSX for proper closure)
   const achievementState = React.useState({ show: false, type: 'adherence' as const, milestone: 0 });

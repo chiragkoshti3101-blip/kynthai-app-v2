@@ -223,8 +223,14 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
   const canAdvance = (s: string) => ['pending', 'confirmed', 'sample_collected'].includes(s)
   const nextStatus = (s: string) => s === 'pending' ? 'confirmed' : s === 'confirmed' ? 'sample_collected' : 'completed'
 
-  const fmtDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})
+  const fmtDateTime = (iso: string) =>
+    new Date(iso).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
 
   const fmtMoney = (n: number) =>
     new Intl.NumberFormat('en-US', {style: 'currency', currency: 'USD'}).format((n ?? 0) / 100)
@@ -357,7 +363,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium truncate">{b.patientName}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {(b.tests ?? []).map((t: any) => t?.name).filter(Boolean).join(', ') || 'No tests listed'} · {fmtDate(b.scheduledAt)}
+                                  {(b.tests ?? []).map((t: any) => t?.name).filter(Boolean).join(', ') || 'No tests listed'} · {fmtDateTime(b.scheduledAt)}
                                 </p>
                               </div>
                               <span className={cn('shrink-0 gap-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs', cfg.bg, cfg.color)}>
@@ -408,7 +414,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                           {(b.tests ?? []).map((t: any) => t?.name).filter(Boolean).join(', ') || 'No tests listed'}
                         </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {fmtDate(b.scheduledAt)}
+                          {fmtDateTime(b.scheduledAt)}
                           {b.homeCollection ? ' · Home collection' : ' · In-lab'}
                         </p>
                       </div>
@@ -463,7 +469,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                       <div>
                         <p className="text-sm font-semibold">{b.patientName}</p>
                         <p className="text-xs text-muted-foreground">
-                          {(b.tests ?? []).map((t: any) => t?.name).filter(Boolean).join(', ') || '—'} · {fmtDate(b.scheduledAt)}
+                          {(b.tests ?? []).map((t: any) => t?.name).filter(Boolean).join(', ') || '—'} · {fmtDateTime(b.scheduledAt)}
                         </p>
                       </div>
                       <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium', cfg.bg, cfg.color)}>
