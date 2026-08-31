@@ -6,7 +6,7 @@ import { sanitizeText, rateLimit } from '@/lib/security'
 import { checkCsrf } from '@/lib/csrf'
 import { jsonError, jsonOk, readJson, audit, parseJsonCol, requireAuth } from '@/lib/api-helpers'
 import { labProfileSchema } from '@/lib/schemas'
-import { validateDocuments } from '@/lib/document-validation'
+import { validateProviderDocuments } from '@/lib/provider-documents'
 export const dynamic = 'force-dynamic'
 
 // GET /api/labs — public list of verified labs. Supports ?city=&search=&userId=
@@ -118,16 +118,9 @@ export async function POST(req: NextRequest) {
 
   const docs = body.documents ?? {}
 
-  // Fraud prevention: strictly validate uploaded documents (type allowlist +
-  // magic-byte check + size cap) — rejects arbitrary base64 blobs.
-  const docCheck = validateDocuments(docs)
+  const docCheck = await validateProviderDocuments(docs, session.id, 'lab')
   if (!docCheck.ok) return jsonError(docCheck.error, 400)
-
-  const docsJson = JSON.stringify(
-    Object.entries(docs)
-      .filter(([, v]) => !!v)
-      .map(([k, v]) => ({ id: k, name: v })),
-  )
+  const docsJson = JSON.stringify(docCheck.documents.map(({ id, slot }) => ({ id, slot })))
 
   const existing = await db.labProfile.findUnique({ where: { userId: session.id } })
 

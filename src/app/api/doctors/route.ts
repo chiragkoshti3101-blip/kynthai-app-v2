@@ -7,7 +7,7 @@ import { encrypt, decryptValue } from '@/lib/encryption';
 import { checkCsrf } from '@/lib/csrf';
 import { jsonError, jsonOk, readJson, audit, parseJsonCol, requireAuth } from '@/lib/api-helpers';
 import { verifyNpi } from '@/lib/npi-verify';
-import { validateDocuments } from '@/lib/document-validation';
+import { validateProviderDocuments } from '@/lib/provider-documents';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,10 +129,7 @@ export async function POST(req: NextRequest) {
     city?: string;
     bio?: string;
     videoCallEnabled?: boolean;
-    documents?: Record<
-      string,
-      { id?: string; name?: string; type?: string; size?: number; data?: string } | null
-    >;
+    documents?: Record<string, { id?: string } | null>;
     ssnLikeId?: string;
     taxId?: string;
     degreeType?: string;
@@ -169,18 +166,9 @@ export async function POST(req: NextRequest) {
   }
 
   const docs = body.documents ?? {};
-
-  // Fraud prevention: strictly validate uploaded documents (type allowlist +
-  // magic-byte check + size cap) — same standards as /api/upload. Rejects
-  // arbitrary base64 blobs that used to be stored unvalidated.
-  const docCheck = validateDocuments(docs);
+  const docCheck = await validateProviderDocuments(docs, session.id, 'doctor');
   if (!docCheck.ok) return jsonError(docCheck.error, 400);
-
-  const docsJson = JSON.stringify(
-    Object.entries(docs)
-      .filter(([, v]) => !!v)
-      .map(([k, v]) => ({ id: k, ...(v && typeof v === 'object' ? v : { name: v }) }))
-  );
+  const docsJson = JSON.stringify(docCheck.documents.map(({ id, slot }) => ({ id, slot })));
 
   const existing = await db.doctorProfile.findUnique({ where: { userId: session.id } });
 
