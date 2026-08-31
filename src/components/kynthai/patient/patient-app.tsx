@@ -76,6 +76,7 @@ import { ShareSheet } from '@/components/kynthai/share-sheet';
 import { FadeIn } from '@/components/kynthai/animations';
 import { LabResultsViewer } from '@/components/kynthai/patient/lab-results-viewer';
 import { BookAppointment } from '@/components/kynthai/patient/book-appointment';
+import { formatAppointmentTime } from '@/lib/appointment-time';
 import dynamic from 'next/dynamic';
 
 // ── dynamic video-call load ───────────────────────────────────────────────
@@ -470,7 +471,7 @@ function HomeTab({
             doctor: String(r.doctorName ?? 'Your doctor'),
             specialty: String(r.specialization ?? 'General Care'),
             date: String(r.scheduledAt ?? ''),
-            time: '',
+            time: formatAppointmentTime(r.scheduledAt),
             type: r.type === 'video' ? ('video' as const) : ('in-person' as const),
             status: r.status === 'pending' ? ('pending' as const) : ('confirmed' as const),
           }));
