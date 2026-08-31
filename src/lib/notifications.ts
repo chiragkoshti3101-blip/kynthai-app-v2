@@ -630,8 +630,10 @@ export async function sendEscalation(
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(userId)), ...overrides }
   const r = await sendNotification(target, {
-    title: 'Missed dose — please take now',
-    body: `Your ${medName} reminder at ${scheduledTime} was missed. Please take it now or mark as skipped.`,
+    // Keep push/email/SMS preview text generic. The exact medication and time
+    // remain in the authenticated in-app workflow via the data payload.
+    title: 'Care reminder needs attention',
+    body: 'A scheduled medication reminder was missed. Open Kynthai to review it.',
     type: 'reminder_escalation',
     data: { medName, scheduledTime, escalated: '1', url: '/patient' },
     ...(dedupeKey ? { dedupeKey: `${dedupeKey}:patient` } : {}),
@@ -641,8 +643,8 @@ export async function sendEscalation(
   if (caretakerId && caretakerId !== userId) {
     const ct = { ...(await loadUserTarget(caretakerId)) }
     await sendNotification(ct, {
-      title: 'Family member missed a dose',
-      body: `Your family member missed ${medName} at ${scheduledTime}. You may want to reach out.`,
+      title: 'Family care reminder needs attention',
+      body: 'A family member missed a scheduled medication reminder. Open Kynthai to review it.',
       type: 'reminder_escalation',
       data: { medName, scheduledTime, forUserId: userId, url: '/caretaker' },
       ...(dedupeKey ? { dedupeKey: `${dedupeKey}:caretaker` } : {}),
