@@ -1,0 +1,641 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* deploy-1788115310308ts:1788115310 — forces new CSS hash on every deploy */
+
+@theme inline {
+  --deploy-hash: 2ddc135-mtg5orms;
+  /* DEPLOY: --deploy-hash forces new CSS hash on every deploy */
+  --deploy-marker: var(--deploy-hash);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.75rem;
+  /* ── Safari < 16.4 fallbacks (hex) ─────────────────────────────────────
+   * Tailwind v4 emits oklch() colors, which Safari before 16.4 cannot
+   * parse: every design token silently fails, leaving the app unstyled.
+   * Modern browsers override these with the oklch() values in the
+   * @supports blocks below. */
+  --background: #f9fdfb;
+  --foreground: #09140f;
+  --card: #ffffff;
+  --card-foreground: #09140f;
+  --popover: #ffffff;
+  --popover-foreground: #09140f;
+  /* Emerald primary */
+  --primary: #089868;
+  --primary-foreground: #f9fdfb;
+  --secondary: #e9f5ef;
+  --secondary-foreground: #13261e;
+  --muted: #ecf4f0;
+  --muted-foreground: #596760;
+  --accent: #daf2e6;
+  --accent-foreground: #02291c;
+  --destructive: #e7000b;
+  --border: #e2e5e8;
+  --input: #dfe7e3;
+  --ring: #089868;
+  --chart-1: #089868;
+  --chart-2: #24b6a1;
+  --chart-3: #6bc670;
+  --chart-4: #d8b501;
+  --chart-5: #ee560c;
+  --sidebar: #f7fbf9;
+  --sidebar-foreground: #09140f;
+  --sidebar-primary: #089868;
+  --sidebar-primary-foreground: #f9fdfb;
+  --sidebar-accent: #daf2e6;
+  --sidebar-accent-foreground: #02291c;
+  --sidebar-border: #d8e0dc;
+  --sidebar-ring: #089868;
+}
+
+@supports (color: oklch(0% 0 0)) {
+  :root {
+    --background: oklch(0.99 0.005 160);
+    --foreground: oklch(0.18 0.02 165);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.18 0.02 165);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.18 0.02 165);
+    /* Emerald primary */
+    --primary: oklch(0.6 0.13 162);
+    --primary-foreground: oklch(0.99 0.005 160);
+    --secondary: oklch(0.96 0.015 165);
+    --secondary-foreground: oklch(0.25 0.03 165);
+    --muted: oklch(0.96 0.01 165);
+    --muted-foreground: oklch(0.5 0.02 165);
+    --accent: oklch(0.94 0.03 165);
+    --accent-foreground: oklch(0.25 0.05 165);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.92 0.005 250);
+    --input: oklch(0.92 0.01 165);
+    --ring: oklch(0.6 0.13 162);
+    --chart-1: oklch(0.6 0.13 162);
+    --chart-2: oklch(0.7 0.12 180);
+    --chart-3: oklch(0.75 0.15 145);
+    --chart-4: oklch(0.78 0.16 95);
+    --chart-5: oklch(0.65 0.2 40);
+    --sidebar: oklch(0.985 0.005 160);
+    --sidebar-foreground: oklch(0.18 0.02 165);
+    --sidebar-primary: oklch(0.6 0.13 162);
+    --sidebar-primary-foreground: oklch(0.99 0.005 160);
+    --sidebar-accent: oklch(0.94 0.03 165);
+    --sidebar-accent-foreground: oklch(0.25 0.05 165);
+    --sidebar-border: oklch(0.9 0.01 165);
+    --sidebar-ring: oklch(0.6 0.13 162);
+  }
+}
+
+.dark {
+  /* ── Safari < 16.4 fallbacks (hex) ──────────────────────────────────── */
+  --background: #070f0c;
+  --foreground: #f2f6f4;
+  --card: #0f1b16;
+  --card-foreground: #f2f6f4;
+  --popover: #0f1b16;
+  --popover-foreground: #f2f6f4;
+  /* Emerald primary (lighter for dark mode) */
+  --primary: #24c187;
+  --primary-foreground: #01110a;
+  --secondary: #1d2a24;
+  --secondary-foreground: #f2f6f4;
+  --muted: #1d2a24;
+  --muted-foreground: #94a39b;
+  --accent: #193429;
+  --accent-foreground: #f2f6f4;
+  --destructive: #ff6467;
+  --border: rgba(226, 229, 232, 0.12);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #24c187;
+  --chart-1: #24c187;
+  --chart-2: #24b6a1;
+  --chart-3: #6bc670;
+  --chart-4: #d8b501;
+  --chart-5: #ee560c;
+  --sidebar: #0f1b16;
+  --sidebar-foreground: #f2f6f4;
+  --sidebar-primary: #24c187;
+  --sidebar-primary-foreground: #01110a;
+  --sidebar-accent: #193429;
+  --sidebar-accent-foreground: #f2f6f4;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: #24c187;
+}
+
+@supports (color: oklch(0% 0 0)) {
+  .dark {
+    --background: oklch(0.16 0.015 165);
+    --foreground: oklch(0.97 0.005 160);
+    --card: oklch(0.21 0.02 165);
+    --card-foreground: oklch(0.97 0.005 160);
+    --popover: oklch(0.21 0.02 165);
+    --popover-foreground: oklch(0.97 0.005 160);
+    /* Emerald primary (lighter for dark mode) */
+    --primary: oklch(0.72 0.15 162);
+    --primary-foreground: oklch(0.16 0.03 165);
+    --secondary: oklch(0.27 0.02 165);
+    --secondary-foreground: oklch(0.97 0.005 160);
+    --muted: oklch(0.27 0.02 165);
+    --muted-foreground: oklch(0.7 0.02 165);
+    --accent: oklch(0.3 0.04 165);
+    --accent-foreground: oklch(0.97 0.005 160);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(0.92 0.005 250 / 12%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.72 0.15 162);
+    --chart-1: oklch(0.72 0.15 162);
+    --chart-2: oklch(0.7 0.12 180);
+    --chart-3: oklch(0.75 0.15 145);
+    --chart-4: oklch(0.78 0.16 95);
+    --chart-5: oklch(0.65 0.2 40);
+    --sidebar: oklch(0.21 0.02 165);
+    --sidebar-foreground: oklch(0.97 0.005 160);
+    --sidebar-primary: oklch(0.72 0.15 162);
+    --sidebar-primary-foreground: oklch(0.16 0.03 165);
+    --sidebar-accent: oklch(0.3 0.04 165);
+    --sidebar-accent-foreground: oklch(0.97 0.005 160);
+    --sidebar-border: oklch(1 0 0 / 12%);
+    --sidebar-ring: oklch(0.72 0.15 162);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Accessible focus visible for keyboard navigation */
+@layer base {
+  *:focus-visible {
+    @apply outline-3 outline-offset-2 outline-primary/85;
+  }
+}
+
+/* ── Global horizontal-overflow guard ──────────────────────────────────────
+ * NEVER put overflow-x (hidden OR clip) on html/body: root-level overflow
+ * propagates to the viewport and silently disables position:sticky for the
+ * WHOLE document — every portal header stopped pinning on scroll (iOS Safari,
+ * Android Chrome, desktop Chrome; founder bug "the top layer is not fixed",
+ * reproduced live 2026-02: headerTop -447 @ scrollY 600 with root clip,
+ * headerTop 0 with root visible).
+ * The guard lives on top-level page wrappers instead. `clip` (unlike
+ * `hidden`) creates no scroll container, so sticky/fixed keep working below
+ * this level; verified: clip on a non-root ancestor does NOT break sticky.
+ * ------------------------------------------------------------------------- */
+body > div {
+  overflow-x: hidden;
+}
+@supports (overflow-x: clip) {
+  body > div {
+    overflow-x: clip;
+  }
+}
+
+/* Reduced motion accessibility for vestibular disorders */
+/* Exclude loading spinners and essential feedback animations */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Allow loading spinners to animate — they provide essential UX feedback */
+  .animate-spin,
+  [class*="animate-spin"],
+  .loading-spinner,
+  [role="status"] > div {
+    animation-duration: 1s !important;
+    animation-iteration-count: infinite !important;
+    -webkit-animation-duration: 1s !important;
+    -webkit-animation-iteration-count: infinite !important;
+  }
+
+  /* Allow pulse animations on loading text */
+  .animate-pulse,
+  [class*="animate-pulse"] {
+    animation-duration: 2s !important;
+    animation-iteration-count: infinite !important;
+    -webkit-animation-duration: 2s !important;
+    -webkit-animation-iteration-count: infinite !important;
+  }
+}
+
+/* ── BULLETPROOF SPINNER FIX — works on ALL browsers including mobile Safari ── */
+/* Force spin animation with all vendor prefixes + hardware acceleration */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@-webkit-keyframes spin {
+  from { -webkit-transform: rotate(0deg); }
+  to { -webkit-transform: rotate(360deg); }
+}
+@-moz-keyframes spin {
+  from { -moz-transform: rotate(0deg); }
+  to { -moz-transform: rotate(360deg); }
+}
+@-o-keyframes spin {
+  from { -o-transform: rotate(0deg); }
+  to { -o-transform: rotate(360deg); }
+}
+@-ms-keyframes spin {
+  from { -ms-transform: rotate(0deg); }
+  to { -ms-transform: rotate(360deg); }
+}
+
+/* Override Tailwind's animate-spin with bulletproof version */
+.animate-spin,
+[class*="animate-spin"] {
+  -webkit-animation: spin 1s linear infinite !important;
+  -moz-animation: spin 1s linear infinite !important;
+  -o-animation: spin 1s linear infinite !important;
+  -ms-animation: spin 1s linear infinite !important;
+  animation: spin 1s linear infinite !important;
+  -webkit-transform: translate3d(0, 0, 0) !important;
+  -moz-transform: translate3d(0, 0, 0) !important;
+  transform: translate3d(0, 0, 0) !important;
+  -webkit-backface-visibility: hidden !important;
+  backface-visibility: hidden !important;
+  -webkit-perspective: 1000px !important;
+  perspective: 1000px !important;
+  will-change: transform !important;
+}
+
+/* Also fix border-based spinners (border-t-transparent) */
+[class*="animate-spin"][class*="border"] {
+  -webkit-animation: spin 0.8s linear infinite !important;
+  animation: spin 0.8s linear infinite !important;
+}
+
+/* Mobile Safari specific — force GPU rendering */
+@supports (-webkit-touch-callout: none) {
+  .animate-spin,
+  [class*="animate-spin"] {
+    -webkit-animation: spin 1s linear infinite !important;
+    animation: spin 1s linear infinite !important;
+    -webkit-transform: translate3d(0, 0, 0) !important;
+    transform: translate3d(0, 0, 0) !important;
+  }
+}
+
+/* Print-friendly styles for health records */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  a {
+    text-decoration: underline !important;
+  }
+}
+
+/* Custom scrollbar */
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 9999px;
+  opacity: 0.4;
+}
+.custom-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* High contrast mode support */
+@media (forced-colors: active) {
+  .border-border {
+    border-color: CanvasText;
+  }
+}
+
+/* ── Phone mockup animation keyframes (used by PhoneMockup) ──────────── */
+/* GPU-composited: use transform/opacity only to avoid paint thrashing */
+@keyframes phone-pulse-bell { 0%,100%{transform:scale(1)} 50%{transform:scale(1.35)} }
+@keyframes phone-ring-pulse { 0%{opacity:0;transform:scale(0.8)} 35%{opacity:0.22;transform:scale(1.15)} 70%{opacity:0.08;transform:scale(1.4)} 100%{opacity:0;transform:scale(1.7)} }
+@keyframes phone-tick { 0%,100%{transform:translateY(0)} 20%{transform:translateY(-4px)} 40%{transform:translateY(0)} 65%{transform:translateY(-2px)} }
+@keyframes phone-sheen { 
+  0%   { transform: translateX(-120%) skew(-15deg); }
+  45%  { transform: translateX(200%) skew(-15deg); }
+  55%  { transform: translateX(200%) skew(-15deg); }
+  100% { transform: translateX(-120%) skew(-15deg); }
+}
+.animate-phone-pulse-bell { animation: phone-pulse-bell 2.5s ease-in-out infinite; }
+.animate-phone-tick { animation: phone-tick 3s ease-in-out infinite; }
+.animate-phone-sheen { 
+  animation: phone-sheen 4s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ── Phone mockup — fluid, engine-proof scaling ────────────────────────────
+ * PhoneMockup is designed at a constant 340px canvas. The canvas is
+ * uniformly zoom-scaled to fit its column via a container query, so the
+ * composition is pixel-identical on every device:
+ *   .phone-scale-container → the hosting column (container-type: inline-size)
+ *   .phone-canvas          → 340px design canvas; zoom = min(1, col/340)
+ * Graceful degradation: browsers without `zoom` support (Safari < 17.4)
+ * drop the zoom declaration and fall back to width:min(340px, 100%) — the
+ * phone simply reflows to the column instead of scaling, and because no
+ * ancestor clips it (see hero-section), it can never be cut off.
+ * ------------------------------------------------------------------------ */
+.phone-scale-container {
+  container-type: inline-size;
+}
+.phone-canvas {
+  width: min(340px, 100%);
+  margin-inline: auto;
+  zoom: min(1, calc(100cqw / 340px));
+}
+
+/* Phone frame — softens the bezels in light mode. The dark bg + emerald border
+   look great in dark mode (blends into dark page) but are harsh against a white
+   background. In light mode, this override gives a premium titanium look with a
+   subtle neutral shadow instead. */
+html:not(.dark) .phone-frame {
+  background: linear-gradient(160deg, #4a4a4a 0%, #2a2a2a 100%) !important;
+  border-color: rgba(180, 180, 180, 0.4) !important;
+  border-width: 2px !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* ── Premium motion + texture utilities ───────────────────────────────── */
+
+/* ── OTP/Input caret blink (moved from the removed legacy index.css) ─────── */
+@keyframes caret-blink {
+  0%, 70%, 100% { opacity: 1; }
+  35% { opacity: 0; }
+}
+.animate-caret-blink {
+  animation: caret-blink 1.2s ease-in-out infinite;
+}
+
+/* Subtle grain overlay for premium feel */
+.grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+}
+
+/* Readable focus ring for accessibility */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px oklch(0.99 0.005 160), 0 0 0 4px oklch(0.6 0.13 162 / 0.35);
+}
+
+/* Pulse animation for active reminder */
+@keyframes soft-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(0.6 0.13 162 / 0.4); }
+  50% { box-shadow: 0 0 0 8px oklch(0.6 0.13 162 / 0); }
+}
+.animate-soft-pulse {
+  animation: soft-pulse 2s ease-in-out infinite;
+}
+
+/* ---------------------------------------------------------------------------
+ * Safe-area utilities for iOS PWA (notch + home-indicator awareness).
+ *
+ * Requires `viewport-fit: cover` (set via the `viewport` export in layout.tsx),
+ * otherwise env(safe-area-inset-*) returns 0 on iOS Safari.
+ *
+ *   pt-safe         padding-top:    env(safe-area-inset-top)
+ *   pb-safe         padding-bottom: env(safe-area-inset-bottom)
+ *   pl-safe         padding-left:   env(safe-area-inset-left)
+ *   pr-safe         padding-right:  env(safe-area-inset-right)
+ *   h-safe-bottom   height:         env(safe-area-inset-bottom)  (spacer)
+ *   h-safe-top      height:         env(safe-area-inset-top)     (spacer)
+ *
+ * Apply `pt-safe` to sticky headers, `pb-safe` to bottom navs / sheets, and
+ * `h-safe-bottom` for spacer divs at the foot of scroll containers.
+ * ------------------------------------------------------------------------- */
+@layer utilities {
+  /* Two-tier safe-area strategy (Capacitor 8 / Android 15+ edge-to-edge fix):
+     1. env(safe-area-inset-*) — correct on iOS Safari / PWA browsers.
+     2. --safe-area-inset-* — injected as real pixel values by Capacitor 8's
+        built-in SystemBars plugin when the WebView is drawn edge-to-edge
+        (targetSdk 35/36 enforces it) and the page opts in via
+        viewport-fit=cover. Android's WebView reports env() as 0, so without
+        the injected variable every APK page drew UNDER the status bar. */
+  .pt-safe {
+    padding-top: var(--safe-area-inset-top, env(safe-area-inset-top));
+  }
+  /* Capacitor 7 legacy: with overlaysWebView:false the WebView did NOT extend
+     under the status bar, but env() still reported the inset → double gap.
+     Keep the native-shell override, but let the Capacitor 8 injected variable
+     win: var present → real inset (no overlap, no gap); var absent → 0
+     (identical to the old behaviour, so nothing regresses on old shells). */
+  .plt-capacitor .pt-safe,
+  html.plt-capacitor .pt-safe {
+    padding-top: var(--safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom));
+  }
+  .pl-safe {
+    padding-left: var(--safe-area-inset-left, env(safe-area-inset-left));
+  }
+  .pr-safe {
+    padding-right: var(--safe-area-inset-right, env(safe-area-inset-right));
+  }
+  .h-safe-top {
+    height: var(--safe-area-inset-top, env(safe-area-inset-top));
+  }
+  .h-safe-bottom {
+    height: var(--safe-area-inset-bottom, env(safe-area-inset-bottom));
+  }
+  /* Combo: full inset padding for sheet/drawer content that must clear all
+     four edges (rare — usually you want top OR bottom only). */
+  .p-safe {
+    padding: var(--safe-area-inset-top, env(safe-area-inset-top))
+      var(--safe-area-inset-right, env(safe-area-inset-right))
+      var(--safe-area-inset-bottom, env(safe-area-inset-bottom))
+      var(--safe-area-inset-left, env(safe-area-inset-left));
+  }
+
+  /* Mobile touch targets: enforce 44pt minimum height for interactive elements
+     on coarse-pointer devices (touch screens). */
+  @media (pointer: coarse) {
+    button,
+    [role="button"] {
+      min-height: 44px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+  }
+
+  /* iOS Safari: prevent font-size auto-adjust in landscape (body + focus).
+     Without this, input focus can zoom the page unexpectedly. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  /* PWA standalone mode — hide install prompts, adjust padding */
+  @media (display-mode: standalone) {
+    .pwa-only { display: block !important; }
+    .no-pwa { display: none !important; }
+  }
+
+  @media all and (display-mode: browser) {
+    .pwa-only { display: none !important; }
+  }
+
+  /* ponytail: deploy cache-buster — this comment's content changes with each
+     deploy (via build env), forcing Turbopack to generate a new CSS content
+     hash and filename. Without this, Turbopack sometimes reuses the same
+     CSS filename across deploys, and immutable CDN headers prevent browsers
+     from fetching fresh styles. */
+  :root { --deploy-1787412600000id: 3001563; }
+
+  /* ── Switch toggle — iOS pill, never a circle ─────────────────────────
+     Phone bug (Aug 2026): Settings → Notifications rendered as green
+     donuts / radios. Causes:
+       1. JS-measured width/height on <button> ignored by iOS Safari
+       2. className="scale-90" overwrote thumb translate
+       3. prefers-color-scheme thumb color used light-theme --foreground
+          (#09140f) = dark hole in a green circle
+       4. Cached CSS (h-6 w-6 / size-5) from a previous deploy
+     These rules are the single source of truth. Do not size switches in JS. */
+  /* deploy-hash: 20260822-mobile-switch-pill */
+  [data-slot="switch"],
+  .kynthai-switch {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    flex: 0 0 51px !important;
+    flex-shrink: 0 !important;
+    width: 51px !important;
+    min-width: 51px !important;
+    max-width: 51px !important;
+    height: 31px !important;
+    min-height: 31px !important;
+    max-height: 31px !important;
+    aspect-ratio: 51 / 31 !important;
+    padding: 2px !important;
+    border: 0 !important;
+    border-radius: 999px !important;
+    transform: none !important;
+    cursor: pointer;
+    transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  [data-slot="switch"][data-state="checked"],
+  .kynthai-switch[data-state="checked"] {
+    background-color: var(--primary) !important;
+  }
+  [data-slot="switch"][data-state="unchecked"],
+  .kynthai-switch[data-state="unchecked"] {
+    background-color: var(--input) !important;
+  }
+  [data-slot="switch-thumb"],
+  .kynthai-switch-thumb {
+    display: block !important;
+    box-sizing: border-box !important;
+    width: 27px !important;
+    min-width: 27px !important;
+    height: 27px !important;
+    min-height: 27px !important;
+    border-radius: 999px !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28) !important;
+    pointer-events: none;
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  [data-slot="switch"][data-state="unchecked"] [data-slot="switch-thumb"],
+  .kynthai-switch[data-state="unchecked"] .kynthai-switch-thumb {
+    transform: translateX(0) !important;
+  }
+  [data-slot="switch"][data-state="checked"] [data-slot="switch-thumb"],
+  .kynthai-switch[data-state="checked"] .kynthai-switch-thumb {
+    transform: translateX(20px) !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    [data-slot="switch"],
+    [data-slot="switch-thumb"],
+    .kynthai-switch,
+    .kynthai-switch-thumb {
+      transition: none !important;
+    }
+  }
+}
+
+/* DEPLOY-HASH: 20260823-switch-pill-v3 — force iOS pill, never oval */
+:root { --deploy-hash: 20260823-switch-pill-v3; }
+html { --deploy-hash-ref: var(--deploy-hash); }
+
+
+/* Premium reading defaults */
+@layer base {
+  body {
+    font-feature-settings: "ss01" on, "cv01" on;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection {
+    background-color: color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+}
+
+/* Parent rows must not crush the switch */
+.kynthai-switch {
+  margin-left: auto;
+}
