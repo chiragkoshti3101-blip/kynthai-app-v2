@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { readNotificationPrefs } from '@/lib/notifications'
 import { clockParts, DEFAULT_TZ } from '@/lib/reminder-clock'
+import { safeNotificationPreview } from '@/lib/notification-privacy'
 export const dynamic = 'force-dynamic'
 
 // GET /api/notifications
@@ -153,11 +154,20 @@ export async function GET(req: NextRequest) {
     })
     const syntheticUnread = notifications.filter((n) => n.id.startsWith('rem-')).length
 
-    // Map status → read boolean for the frontend
-    const mapped = notifications.map((n) => ({
-      ...n,
-      read: n.status === 'read',
-    }))
+    // Privacy boundary: notification rows are encrypted at rest, but their
+    // preview text can still be exposed on a shared/unlocked screen. Return
+    // generic copy for clinical, family, appointment, lab, and legacy rows;
+    // authorized detail remains available after the user opens the app.
+    const mapped = notifications.map((n) => {
+      const safe = safeNotificationPreview(n)
+      return {
+        ...n,
+        title: safe.title,
+        body: safe.body,
+        isEmergency: safe.isEmergency,
+        read: n.status === 'read',
+      }
+    })
 
     await logAudit(user.id, 'notifications.list', `count=${mapped.length}`)
 

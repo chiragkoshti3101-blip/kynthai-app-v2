@@ -18,6 +18,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { SosToast } from './sos-toast'
+import { safeNotificationPreview } from '@/lib/notification-privacy'
 
 type NotificationType = 'reminder' | 'alert' | 'achievement' | 'family' | 'system' | string
 
@@ -31,6 +32,7 @@ interface Notification {
   createdAt: string
   dedupeKey?: string | null
   read: boolean
+  isEmergency?: boolean
 }
 
 interface NotificationCenterProps {
@@ -51,6 +53,17 @@ function normalizeType(t: string): NotificationType {
   return x || 'system'
 }
 
+function sanitizeNotification(notification: Notification): Notification {
+  const safe = safeNotificationPreview(notification)
+  return {
+    ...notification,
+    type: normalizeType(String(notification.type)),
+    title: safe.title,
+    body: safe.body,
+    isEmergency: safe.isEmergency,
+  }
+}
+
 export function NotificationCenter({ userId, isDemo, role, onNavigate }: NotificationCenterProps) {
   const [open, setOpen] = React.useState(false)
   const [notifications, setNotifications] = React.useState<Notification[]>([])
@@ -66,33 +79,36 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
     if (isDemo) {
       const now = Date.now()
       const r = (role || 'patient').toLowerCase()
+      const setDemoNotifications = (items: Notification[]) => {
+        setNotifications(items.map(sanitizeNotification))
+      }
       if (r === 'doctor') {
-        setNotifications([
-          { id: 'd1', channel: 'app', type: 'appointment', title: 'New consultation request', body: 'Alex Rivera · Video · Accept or Decline', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
-          { id: 'd2', channel: 'app', type: 'appointment', title: 'Patient cancelled', body: 'Jordan Lee cancelled tomorrow 10:00 AM', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
+        setDemoNotifications([
+          { id: 'd1', channel: 'app', type: 'appointment', title: 'New consultation request', body: 'A patient consultation request is available.', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
+          { id: 'd2', channel: 'app', type: 'appointment', title: 'Patient cancelled', body: 'An appointment was cancelled.', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
           { id: 'd3', channel: 'app', type: 'system', title: 'Welcome, Doctor', body: 'New consult requests appear here and as device alerts when enabled.', status: 'sent', createdAt: new Date(now - 7200000).toISOString(), read: true },
         ])
       } else if (r === 'lab') {
-        setNotifications([
-          { id: 'l1', channel: 'app', type: 'lab', title: 'New lab booking', body: 'CBC + Lipid panel · Confirm slot', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
-          { id: 'l2', channel: 'app', type: 'lab', title: 'Results ready to share', body: 'Patient waiting on metabolic panel', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
+        setDemoNotifications([
+          { id: 'l1', channel: 'app', type: 'lab', title: 'New lab booking', body: 'A lab booking needs review.', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
+          { id: 'l2', channel: 'app', type: 'lab', title: 'Results ready to share', body: 'A lab result is ready to review.', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
         ])
       } else if (r === 'admin') {
-        setNotifications([
+        setDemoNotifications([
           { id: 'a1', channel: 'app', type: 'system', title: 'Platform health check', body: 'Notification routing and delivery diagnostics are available in Admin.', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
           { id: 'a2', channel: 'app', type: 'alert', title: 'Review queue update', body: 'High-priority operational items are ready for review.', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
         ])
       } else if (r === 'caretaker' || r === 'family') {
-        setNotifications([
-          { id: 'c1', channel: 'app', type: 'family', title: 'Missed dose alert', body: 'Robert · Atorvastatin 10mg · 8:00 AM', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
-          { id: 'c2', channel: 'app', type: 'reminder', title: 'Upcoming: Emma', body: 'Vitamin D3 · 6:00 PM', status: 'sent', createdAt: new Date(now - 1800000).toISOString(), read: false },
-          { id: 'c3', channel: 'app', type: 'family', title: 'Dose taken', body: 'Noah marked morning dose as taken', status: 'sent', createdAt: new Date(now - 7200000).toISOString(), read: true },
+        setDemoNotifications([
+          { id: 'c1', channel: 'app', type: 'family', title: 'Missed dose alert', body: 'A family member missed a scheduled dose.', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
+          { id: 'c2', channel: 'app', type: 'reminder', title: 'Upcoming reminder', body: 'A family medication reminder is scheduled.', status: 'sent', createdAt: new Date(now - 1800000).toISOString(), read: false },
+          { id: 'c3', channel: 'app', type: 'family', title: 'Dose taken', body: 'A family member marked a scheduled dose as taken.', status: 'sent', createdAt: new Date(now - 7200000).toISOString(), read: true },
         ])
       } else {
-        setNotifications([
-          { id: '1', channel: 'app', type: 'reminder', title: 'Time for Metformin', body: 'Take your 500mg dose', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
-          { id: '2', channel: 'app', type: 'appointment', title: 'Consultation confirmed', body: 'Dr. Sharma accepted your request', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
-          { id: '3', channel: 'app', type: 'lab', title: 'Lab results ready', body: 'Open Lab to view your report', status: 'sent', createdAt: new Date(now - 7200000).toISOString(), read: true },
+        setDemoNotifications([
+          { id: '1', channel: 'app', type: 'reminder', title: 'Medication reminder', body: 'A scheduled medication reminder is available.', status: 'sent', createdAt: new Date(now).toISOString(), read: false },
+          { id: '2', channel: 'app', type: 'appointment', title: 'Consultation confirmed', body: 'Your consultation was confirmed.', status: 'sent', createdAt: new Date(now - 3600000).toISOString(), read: false },
+          { id: '3', channel: 'app', type: 'lab', title: 'Lab results ready', body: 'A lab result is ready to review.', status: 'sent', createdAt: new Date(now - 7200000).toISOString(), read: true },
         ])
       }
       setLoading(false)
