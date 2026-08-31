@@ -73,6 +73,7 @@ model User {
   role                       UserRole         @default(patient)
   phone                      String?
   phone_enc                  String?          @map("phone_enc")
+  phone_hash                 String?          @map("phone_hash")
   password                   String? // bcrypt hash (null for demo accounts)
   emailVerified              DateTime?          // timestamp when email was verified
   subscriptionTier           SubscriptionTier @default(free)
@@ -105,9 +106,11 @@ model User {
   allergies_enc              String?          @map("allergies_enc")
   passwordResetToken         String? // secure random token for password reset flow
   passwordResetToken_enc     String?          @map("passwordResetToken_enc")
+  passwordResetToken_hash    String?          @map("passwordResetToken_hash")
   passwordResetExpires       DateTime? // expiry window for reset token
   emailVerificationToken     String? // verification token for email verification
   emailVerificationToken_enc String?          @map("emailVerificationToken_enc")
+  emailVerificationToken_hash String?         @map("emailVerificationToken_hash")
   emailVerificationExpires   DateTime? // expiry window for verification token
   createdAt                  DateTime         @default(now())
   updatedAt                  DateTime         @updatedAt
@@ -182,6 +185,7 @@ model DoctorProfile {
   specialization      String
   licenseNumber       String?
   licenseNumber_enc   String?                  @map("licenseNumber_enc")
+  licenseNumber_hash  String?                  @map("licenseNumber_hash")
   experience          Int                      @default(0)
   consultationFee     Int                      @default(100)
   videoCallEnabled    Boolean                  @default(false)
@@ -228,6 +232,7 @@ model LabProfile {
   labName_enc         String?      @map("labName_enc")
   licenseNumber       String?
   licenseNumber_enc   String?      @map("licenseNumber_enc")
+  licenseNumber_hash  String?      @map("licenseNumber_hash")
   address             String?
   address_enc         String?      @map("address_enc")
   testsOffered        String       @default("[]")
@@ -282,6 +287,7 @@ model LabBooking {
   lab                  LabProfile @relation(fields: [labId], references: [id], onDelete: Cascade)
   patient              User       @relation(fields: [patientId], references: [id], onDelete: Cascade)
   tests                String     @default("[]")
+  tests_enc            String?    @map("tests_enc")
   scheduledAt          DateTime
   status               String     @default("pending")
   price                Int        @default(0)
@@ -510,8 +516,10 @@ model FamilyMember {
   photoUrl                  String?
   inviteEmail               String?
   inviteEmail_enc           String?      @map("inviteEmail_enc")
+  inviteEmail_hash          String?      @map("inviteEmail_hash")
   inviteToken               String?
   inviteToken_enc           String?      @map("inviteToken_enc")
+  inviteToken_hash          String?      @map("inviteToken_hash")
   inviteStatus              String       @default("accepted")
   inviteExpiresAt           DateTime?
   relationVerificationToken String? // token proving the invitee's relationship identity
@@ -558,11 +566,13 @@ model Payment {
   provider        String        @default("mock")
   providerRef     String?
   providerEventId String?       @unique
+  appointmentId   String?
   description     String?
   description_enc String?       @map("description_enc")
   createdAt       DateTime      @default(now())
   refunds         Refund[]
 
+  @@index([appointmentId])
   @@map("payments")
 }
 
