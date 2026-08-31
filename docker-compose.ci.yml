@@ -1,0 +1,14 @@
+# CI-only Compose override. Production keeps the backend network internal.
+# The E2E runner executes Prisma and Next on the host, so its throwaway
+# Postgres must be reachable on localhost:5432.
+services:
+  db:
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - backend
+      - ci-host
+
+networks:
+  ci-host:
+    driver: bridge
