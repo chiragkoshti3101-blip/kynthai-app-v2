@@ -43,23 +43,26 @@ export async function GET(req: NextRequest) {
 
   const and: any[] = [{ verified: true }]
   if (city) and.push({ city: { contains: city } })
-  if (search) {
-    and.push({
-      OR: [
-        { labName: { contains: search } },
-        { city: { contains: search } },
-        { address: { contains: search } },
-      ],
-    })
-  }
 
+  // `labName` and `address` are encrypted with randomized ciphertext and
+  // cannot support SQL `contains`. Scope to verified labs/city first, then
+  // filter the decrypted values in memory before returning the public list.
   const where: any = { AND: and }
-  const labs = await db.labProfile.findMany({
+  const candidates = await db.labProfile.findMany({
     where,
     include: { user: true },
     orderBy: { rating: 'desc' },
-    take: 100,
+    ...(search ? {} : { take: 100 }),
   })
+  const needle = search?.toLocaleLowerCase()
+  const labs = needle
+    ? candidates
+        .filter((lab: any) =>
+          [lab.labName, lab.city, lab.address]
+            .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(needle)),
+        )
+        .slice(0, 100)
+    : candidates
 
   return jsonOk(
     labs.map((l: any) => ({

@@ -60,8 +60,9 @@ export interface NotificationPayload {
   body: string
   type: string // reminder | escalation | nudge | invite | follow_up | emergency | general
   data?: Record<string, string>
-  /** Stable per-event key (e.g. `dose:<reminderId>`). Stored in the in-app log
-   *  body so cron ticks can dedupe and never re-send the same event. */
+  /** Stable per-event key (e.g. `dose:<reminderId>`). Stored in the
+   *  dedicated notification-log column so cron ticks can dedupe safely; the
+   *  legacy in-body marker is retained for historical compatibility. */
   dedupeKey?: string
 }
 
@@ -510,10 +511,9 @@ export async function sendNotification(
           where: {
             userId: target.userId,
             channel: { in: ['in-app', 'app'] },
-            OR: [
-              { dedupeKey: payload.dedupeKey },
-              { body: { contains: `[ref:${payload.dedupeKey}]` } },
-            ],
+            // Notification bodies are encrypted at rest; use the stable event
+            // key instead of an unsupported encrypted substring query.
+            dedupeKey: payload.dedupeKey,
           },
           select: { id: true },
         }).catch(() => null)

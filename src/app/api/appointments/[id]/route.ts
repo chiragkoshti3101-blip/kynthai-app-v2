@@ -149,6 +149,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           type: 'consultation',
           status: 'succeeded',
           provider: 'mock',
+          appointmentId: appt.id,
           description: `Consultation with ${appt.doctor.user.name} — ${new Date(appt.scheduledAt).toLocaleDateString()}`,
         },
       });
