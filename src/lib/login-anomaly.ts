@@ -50,16 +50,27 @@ export async function assessLoginRisk(ctx: LoginContext): Promise<RiskAssessment
   const factors: RiskFactor[] = [];
   let totalScore = 0;
 
-  // Get recent successful logins for this user (last 30 days)
-  const recentLogins = await db.auditLog.findMany({
-    where: {
-      userId: ctx.userId,
-      action: 'auth.login',
-      createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 20,
-  });
+  // Get recent successful logins for this user (last 30 days).
+  // Risk scoring is advisory: an audit-history/schema outage must never turn
+  // valid credentials into a failed login.
+  let recentLogins: Array<{
+    ip: string | null;
+    metadata: string | null;
+    createdAt: Date;
+  }> = [];
+  try {
+    recentLogins = await db.auditLog.findMany({
+      where: {
+        userId: ctx.userId,
+        action: 'auth.login',
+        createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    });
+  } catch (error) {
+    logger.phiSafeError(error, 'auth.login.risk-history');
+  }
 
   // Factor 1: New IP detection
   if (recentLogins.length > 0) {
