@@ -28,6 +28,7 @@ import { useAppStore } from '@/lib/store'
 import type { AuthUser } from '@/lib/store'
 import { KynthaiBrand } from '../logo'
 import { LogOut } from 'lucide-react'
+import { apiFetch } from '@/lib/client-fetch'
 
 interface LabVerificationProps {
   user: AuthUser
@@ -39,6 +40,13 @@ interface TestEntry {
   id: string
   name: string
   price: string
+}
+
+interface UploadedDoc {
+  id: string
+  name: string
+  type: string
+  size: number
 }
 
 const DOC_TYPES = [
@@ -59,7 +67,8 @@ export function LabVerification({ user, onSubmitted, onLogout }: LabVerification
     { id: 't1', name: 'Complete Blood Count', price: '35' },
     { id: 't2', name: 'Lipid Panel', price: '49' },
   ])
-  const [documents, setDocuments] = React.useState<Record<string, File | undefined>>({})
+  const [documents, setDocuments] = React.useState<Record<string, UploadedDoc | undefined>>({})
+  const [uploading, setUploading] = React.useState<Record<string, boolean>>({})
   const [submitting, setSubmitting] = React.useState(false)
 
   const addTest = () =>
@@ -68,6 +77,33 @@ export function LabVerification({ user, onSubmitted, onLogout }: LabVerification
     setTests((p) => p.filter((t) => t.id !== id))
   const updateTest = (id: string, key: keyof TestEntry, value: string) =>
     setTests((p) => p.map((t) => (t.id === id ? { ...t, [key]: value } : t)))
+
+  const uploadFile = async (docId: string, file: File) => {
+    setUploading((p) => ({ ...p, [docId]: true }))
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'CERTIFICATE')
+      formData.append('category', 'ADMINISTRATIVE')
+      formData.append('visibility', 'PRIVATE')
+      formData.append('title', `Lab certification — ${docId}`)
+      formData.append('providerRole', 'lab')
+      formData.append('providerSlot', docId)
+      const res = await apiFetch('/api/documents/upload', { method: 'POST', body: formData })
+      if (!res.ok) throw new Error('Upload failed')
+      const payload = await res.json()
+      const saved = payload.document
+      if (!saved?.id) throw new Error('Upload response was missing a document ID')
+      setDocuments((p) => ({
+        ...p,
+        [docId]: { id: saved.id, name: file.name, type: file.type, size: file.size },
+      }))
+    } catch {
+      toast({ title: 'Upload failed', description: 'The encrypted certificate could not be stored.', variant: 'destructive' })
+    } finally {
+      setUploading((p) => ({ ...p, [docId]: false }))
+    }
+  }
 
   const submit = async () => {
     if (!labName) {
@@ -102,20 +138,25 @@ export function LabVerification({ user, onSubmitted, onLogout }: LabVerification
           homeCollection,
           tests: validTests.map((t) => ({ name: t.name, price: parseFloat(t.price) || 0 })),
           documents: Object.fromEntries(
-            Object.entries(documents).map(([k, v]) => [k, v ? v.name : null])
+            Object.entries(documents).map(([k, v]) => [k, v ? { id: v.id } : null])
           ),
         }),
       })
-      if (!res.ok && res.status !== 404) {
-        throw new Error('Submit failed')
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        throw new Error(payload?.error || 'Submit failed')
       }
       toast({
         title: 'Application submitted',
         description: 'Your lab profile is being reviewed.',
       })
       onSubmitted()
-    } catch {
-      onSubmitted()
+    } catch (error) {
+      toast({
+        title: 'Submission failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      })
     } finally {
       setSubmitting(false)
     }
@@ -169,7 +210,7 @@ export function LabVerification({ user, onSubmitted, onLogout }: LabVerification
                       id="lab-license"
                       value={licenseNumber}
                       onChange={(e) => setLicenseNumber(e.target.value)}
-                      placeholder="CLIA-XXXXX or state lab license"
+                      placeholder="License or registration number"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -262,7 +303,8 @@ export function LabVerification({ user, onSubmitted, onLogout }: LabVerification
                     key={d.id}
                     label={d.label}
                     file={documents[d.id]}
-                    onChange={(f) => setDocuments((p) => ({ ...p, [d.id]: f }))}
+                    uploading={!!uploading[d.id]}
+                    onChange={(f) => (f ? uploadFile(d.id, f) : setDocuments((p) => ({ ...p, [d.id]: undefined })))}
                   />
                 ))}
               </div>
@@ -327,10 +369,12 @@ function Section({
 function DocUpload({
   label,
   file,
+  uploading,
   onChange,
 }: {
   label: string
-  file?: File
+  file?: UploadedDoc
+  uploading: boolean
   onChange: (file?: File) => void
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null)
@@ -340,14 +384,23 @@ function DocUpload({
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
+        disabled={uploading}
         className={cn(
           'mt-1.5 flex w-full items-center gap-2 rounded-xl border border-dashed p-3 text-left transition-all',
           file
             ? 'border-emerald-500/50 bg-emerald-500/5'
-            : 'border-border hover:border-emerald-500/40'
+            : 'border-border hover:border-emerald-500/40',
+          uploading && 'opacity-60 cursor-wait'
         )}
       >
-        {file ? (
+        {uploading ? (
+          <>
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </span>
+            <span className="text-xs text-muted-foreground">Uploading...</span>
+          </>
+        ) : file ? (
           <>
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
               <FileText className="h-4 w-4" />
