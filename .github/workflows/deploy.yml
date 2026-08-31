@@ -135,13 +135,13 @@ jobs:
           # pg_isready while crash-recovering and dies mid-write, so `prisma db
           # push` P1001s seconds after the readiness check passed (seen on the
           # fdd3cfe run: Start services OK in 10s, db push unreachable at ~40s).
-          docker compose -f docker-compose.yml down -v
-          docker compose -f docker-compose.yml up -d db
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d db
           # Wait for postgres to actually accept connections — the image pull on
           # a cold runner can take 30s+, so `sleep 8` was never a readiness
           # wait (symptom: P1001 on `prisma db push` right after).
           for i in $(seq 1 90); do
-            if docker compose -f docker-compose.yml exec -T db pg_isready -U postgres -d test >/dev/null 2>&1 && \
+            if docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T db pg_isready -U postgres -d test >/dev/null 2>&1 && \
                (timeout 2 bash -c '</dev/tcp/127.0.0.1/5432') 2>/dev/null; then
               # pg_isready inside the container proves postgres accepts the
               # user/db, but prisma connects over the HOST port — the
@@ -152,8 +152,8 @@ jobs:
             sleep 1
           done
           echo "DB did not become ready within 90s" >&2
-          docker compose -f docker-compose.yml ps
-          docker logs "$(docker compose -f docker-compose.yml ps -q db)" 2>&1 | tail -30 || true
+          docker compose -f docker-compose.yml -f docker-compose.ci.yml ps
+          docker logs "$(docker compose -f docker-compose.yml -f docker-compose.ci.yml ps -q db)" 2>&1 | tail -30 || true
           exit 1
         env:
           POSTGRES_USER: postgres
