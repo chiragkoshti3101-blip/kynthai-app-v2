@@ -1,16 +1,23 @@
-# CI-only Compose override. Production keeps the backend network internal.
-# The E2E runner executes Prisma and Next on the host, so its throwaway
-# Postgres must be reachable from host-run E2E steps.
-# Port 0 asks Docker to allocate a free host port; the workflow exports the
-# actual mapping before Prisma, Next, and Playwright run.
-# !override is required: Compose otherwise appends to docker-compose.yml's
-# production-style 5432:5432 mapping, defeating the ephemeral allocation.
+# CI-only disposable Postgres fixture.
+# Keep this definition separate from production Compose so CI never inherits
+# production ports, secrets, networks, or app services.
+# Host-run Prisma, Next, and Playwright connect to the container's IPv4 address
+# on this dedicated bridge network; no host port is published or assumed.
 services:
   db:
-    ports: !override
-      - "127.0.0.1::5432"
+    image: postgres:16-alpine
+    restart: "no"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: test
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
     networks:
-      - backend
       - ci-host
 
 networks:
