@@ -35,6 +35,7 @@ import { LogOut } from 'lucide-react';
 import type { AuthUser } from '@/lib/store';
 import { KynthaiBrand } from '../logo';
 import { t, initLanguage } from '@/lib/i18n';
+import { apiFetch } from '@/lib/client-fetch';
 
 interface DoctorVerificationProps {
   user: AuthUser;
@@ -77,7 +78,6 @@ interface UploadedDoc {
   name: string;
   type: string;
   size: number;
-  data: string;
 }
 
 interface DocSlot {
@@ -129,12 +129,23 @@ export function DoctorVerification({ user, existing, onSubmitted, onLogout }: Do
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetch('/api/upload', { method: 'POST', body: formData });
+      formData.append('type', 'CERTIFICATE');
+      formData.append('category', 'ADMINISTRATIVE');
+      formData.append('visibility', 'PRIVATE');
+      formData.append('title', `Doctor certification — ${docId}`);
+      formData.append('providerRole', 'doctor');
+      formData.append('providerSlot', docId);
+      const res = await apiFetch('/api/documents/upload', { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Upload failed');
-      const data: UploadedDoc = await res.json();
-      setDocuments(p => ({ ...p, [docId]: data }));
+      const payload = await res.json();
+      const saved = payload.document;
+      if (!saved?.id) throw new Error('Upload response was missing a document ID');
+      setDocuments(p => ({
+        ...p,
+        [docId]: { id: saved.id, name: file.name, type: file.type, size: file.size },
+      }));
     } catch {
-      toast({ title: 'Upload failed', variant: 'destructive' });
+      toast({ title: 'Upload failed', description: 'The encrypted certificate could not be stored.', variant: 'destructive' });
     } finally {
       setUploading(p => ({ ...p, [docId]: false }));
     }
@@ -174,10 +185,7 @@ export function DoctorVerification({ user, existing, onSubmitted, onLogout }: Do
           bio,
           videoCallEnabled: videoCall,
           documents: Object.fromEntries(
-            Object.entries(documents).map(([k, v]) => [
-              k,
-              v ? { id: v.id, name: v.name, type: v.type, size: v.size, data: v.data } : null,
-            ])
+            Object.entries(documents).map(([k, v]) => [k, v ? { id: v.id } : null])
           ),
           degreeType,
           medicalCouncil,
@@ -186,14 +194,17 @@ export function DoctorVerification({ user, existing, onSubmitted, onLogout }: Do
           state,
         }),
       });
-      // Even if the endpoint is not implemented, simulate success
-      if (!res.ok && res.status !== 404) {
-        throw new Error('Submit failed');
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        throw new Error(payload?.error || 'Submit failed');
       }
       onSubmitted();
-    } catch (e) {
-      // Still call onSubmitted to show pending state in the demo
-      onSubmitted();
+    } catch (error) {
+      toast({
+        title: 'Submission failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setSubmitting(false);
     }
@@ -389,7 +400,7 @@ export function DoctorVerification({ user, existing, onSubmitted, onLogout }: Do
                       id="npi"
                       value={npiNumber}
                       onChange={e => setNpiNumber(e.target.value)}
-                      placeholder="10-digit NPI"
+                      placeholder="Optional 10-digit US NPI"
                       maxLength={10}
                     />
                   </div>
@@ -456,7 +467,7 @@ export function DoctorVerification({ user, existing, onSubmitted, onLogout }: Do
                     label={d.label}
                     doc={documents[d.id]}
                     uploading={!!uploading[d.id]}
-                    onChange={f => f && uploadFile(d.id, f)}
+                    onChange={f => (f ? uploadFile(d.id, f) : updateDoc(d.id, undefined))}
                   />
                 ))}
               </div>
@@ -543,7 +554,7 @@ function DocUpload({
   label: string;
   doc?: UploadedDoc;
   uploading: boolean;
-  onChange: (file: File) => void;
+  onChange: (file?: File) => void;
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   return (
@@ -581,7 +592,7 @@ function DocUpload({
               className="h-4 w-4 text-muted-foreground hover:text-destructive"
               onClick={e => {
                 e.stopPropagation();
-                onChange(undefined as unknown as File);
+                onChange(undefined);
               }}
             />
           </>
