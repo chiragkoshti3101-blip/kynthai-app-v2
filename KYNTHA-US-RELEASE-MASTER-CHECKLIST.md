@@ -126,8 +126,8 @@ Owner: Security / DevOps | Sprint: Hour 0-4 (pre-production)
 
 #### BLOCKER B11: Missing prisma-encryption-middleware.ts — ✅ RESOLVED
 File: HIPAA-COMPLIANCE.md:17 references src/lib/prisma-encryption-middleware.ts
-Actual: `src/lib/prisma-encryption-middleware.ts` EXISTS (full AES-256-GCM middleware with per-field map).
-Remaining (status tracked in HIPAA-COMPLIANCE.md): the middleware is NOT installed on the Prisma client and `_enc` columns are not backfilled — field-level encryption is PREPARED, not enabled. Activation requires: backfill migration → `installEncryptionMiddleware()` at `src/lib/db.ts` → `ENCRYPTION_TRANSITIONAL=false`. Until then general DB fields are plaintext; uploads/prescription images are encrypted today.
+Actual: `src/lib/prisma-encryption-middleware.ts` EXISTS (AES-256-GCM query extension with per-field map).
+Current status (tracked in HIPAA-COMPLIANCE.md): the middleware is installed and new ORM writes use `_enc` columns, but existing rows are not yet backfilled and strict mode remains disabled. Completion requires: apply the additive schema migration → run the controlled backfill → verify reads and empty plaintext columns → set `ENCRYPTION_TRANSITIONAL=false`. Until then, transitional fallback remains active; uploads/prescription images are encrypted today.
 Owner: Security | Sprint: Hour 0-24
 
 #### BLOCKER B12: HIPAA Production Checklist Items
