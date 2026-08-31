@@ -430,6 +430,21 @@ export function LoginPage({
         useAppStore.getState().completeOnboarding(user.role);
       }
 
+      // Navigate as soon as the authenticated session is established. The
+      // invite lookup below is best-effort UI enrichment; it must never hold
+      // the user on /login or make a successful sign-in appear to time out.
+      const portalPath =
+        user.role === 'patient'
+          ? '/patient'
+          : user.role === 'doctor'
+            ? '/doctor'
+            : user.role === 'lab'
+              ? '/lab'
+              : user.role === 'admin'
+                ? '/admin'
+                : '/caretaker';
+      router.replace(portalPath);
+
       // Wave-8: the pending family-invite check used to fire on EVERY form
       // sign-in for all five portals. It is only meaningful for the roles with
       // family UX (patient / caretaker) — doctor and lab logins no longer make
