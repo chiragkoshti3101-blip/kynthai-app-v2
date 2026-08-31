@@ -9,6 +9,16 @@ export function isDemoEnabled(): boolean {
   return process.env.NEXT_PUBLIC_ENABLE_DEMO === 'true'
 }
 
+/**
+ * Explicit demo sign-in is safe to expose in production because it performs a
+ * normal, authenticated login against the seeded read-only account. Keep this
+ * separate from isDemoEnabled(): that flag also controls the development-only
+ * unauthenticated portal bypass used by local previews and middleware.
+ */
+export function isDemoLoginEnabled(): boolean {
+  return true
+}
+
 /** True for seeded demo accounts (patient@kynthai.app, etc.) even in production. */
 export function isDemoUser(user?: { isDemo?: boolean; email?: string | null } | null): boolean {
   if (!user) return false
