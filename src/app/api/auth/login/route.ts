@@ -188,14 +188,28 @@ export async function POST(req: NextRequest) {
       req.headers.get('sec-ch-ua') || undefined
     );
 
-    const riskAssessment = await assessLoginRisk({
-      userId: user.id,
-      email: user.email,
-      ip,
-      userAgent: req.headers.get('user-agent') || '',
-      deviceFingerprint,
-      timestamp: new Date(),
-    });
+    // Risk scoring is advisory. Credential validation and account controls above
+    // remain mandatory, but an audit-history or detector failure must not turn
+    // valid credentials into a 500 response.
+    let riskAssessment: Awaited<ReturnType<typeof assessLoginRisk>> = {
+      score: 0,
+      level: 'low',
+      factors: [],
+      shouldChallenge: false,
+      shouldBlock: false,
+    };
+    try {
+      riskAssessment = await assessLoginRisk({
+        userId: user.id,
+        email: user.email,
+        ip,
+        userAgent: req.headers.get('user-agent') || '',
+        deviceFingerprint,
+        timestamp: new Date(),
+      });
+    } catch (riskError) {
+      logger.phiSafeError(riskError, 'auth.login.risk-assessment');
+    }
 
     if (riskAssessment.shouldBlock) {
       await logSuspiciousLogin(user.id, {
