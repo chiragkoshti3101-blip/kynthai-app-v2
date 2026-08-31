@@ -113,10 +113,6 @@ jobs:
     needs: build
     permissions:
       contents: read
-    env:
-      # schema.prisma requires both DATABASE_URL and DIRECT_URL
-      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
-      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/test
     steps:
       - uses: actions/checkout@v4
 
@@ -128,30 +124,41 @@ jobs:
       - name: Start services
         run: |
           # Only the db is used by the e2e steps (they run npm/prisma/server on
-          # the runner against localhost:5432). Building the full app image here
-          # adds ~5 min and needs the whole prod env.
+          # the runner against a dynamically allocated localhost port). Building
+          # the full app image here adds ~5 min and needs the whole prod env.
           # down -v first: a recycled runner can hand us a leftover db container
           # or a pgdata volume with a stale postmaster.pid. postgres then passes
           # pg_isready while crash-recovering and dies mid-write, so `prisma db
-          # push` P1001s seconds after the readiness check passed (seen on the
-          # fdd3cfe run: Start services OK in 10s, db push unreachable at ~40s).
+          # push` can P1001 seconds after the readiness check passed.
           docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v
           docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d db
-          # Wait for postgres to actually accept connections — the image pull on
-          # a cold runner can take 30s+, so `sleep 8` was never a readiness
-          # wait (symptom: P1001 on `prisma db push` right after).
+          # Compose allocates a free host port because the runner may already use 5432.
+          # Export the discovered mapping so every later host-run DB client uses it.
+          DB_HOST_PORT="$(docker compose -f docker-compose.yml -f docker-compose.ci.yml port db 5432 2>/dev/null | grep -oE '[0-9]+$' | tail -1 || true)"
+          if ! [[ "$DB_HOST_PORT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Could not discover the published Postgres host port" >&2
+            docker compose -f docker-compose.yml -f docker-compose.ci.yml ps || true
+            docker logs "$(docker compose -f docker-compose.yml -f docker-compose.ci.yml ps -q db)" 2>&1 | tail -30 || true
+            exit 1
+          fi
+          export E2E_DB_HOST_PORT="$DB_HOST_PORT"
+          echo "E2E_DB_HOST_PORT=${DB_HOST_PORT}" >> "$GITHUB_ENV"
+          echo "DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:${DB_HOST_PORT}/test" >> "$GITHUB_ENV"
+          echo "DIRECT_URL=postgresql://postgres:postgres@127.0.0.1:${DB_HOST_PORT}/test" >> "$GITHUB_ENV"
+          echo "Discovered Postgres host port: ${DB_HOST_PORT}"
+          # Wait for postgres to actually accept connections
           for i in $(seq 1 90); do
             if docker compose -f docker-compose.yml -f docker-compose.ci.yml exec -T db pg_isready -U postgres -d test >/dev/null 2>&1 && \
-               (timeout 2 bash -c '</dev/tcp/127.0.0.1/5432') 2>/dev/null; then
+               (timeout 2 bash -c "echo > /dev/tcp/127.0.0.1:${DB_HOST_PORT}") 2>/dev/null; then
               # pg_isready inside the container proves postgres accepts the
               # user/db, but prisma connects over the HOST port — the
-              # /dev/tcp check verifies the published 127.0.0.1:5432 listener.
+              # /dev/tcp check verifies the dynamically published listener.
               echo "DB ready after ${i}s (container + host port)"
               exit 0
             fi
             sleep 1
           done
-          echo "DB did not become ready within 90s" >&2
+          echo "DB did not become ready within 90s on host port ${DB_HOST_PORT}" >&2
           docker compose -f docker-compose.yml -f docker-compose.ci.yml ps
           docker logs "$(docker compose -f docker-compose.yml -f docker-compose.ci.yml ps -q db)" 2>&1 | tail -30 || true
           exit 1
@@ -176,19 +183,13 @@ jobs:
             sleep 5
           done
           exit 1
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
 
       - name: Seed demo data
         # Demo accounts (Demo@2024) must exist for the auth specs to log in.
         run: node prisma/seed.js
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
 
       - name: Build
         run: npm run build
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
 
       - name: Install Playwright
         run: npx playwright install --with-deps
@@ -200,7 +201,7 @@ jobs:
         # when SESSION_SIGNING_SECRET is unset), and NEXT_PUBLIC_* let the app
         # client talk to Supabase. DATABASE_URL is intentionally omitted — the
         # job/env pins both prisma and the app at the local postgres on
-        # localhost:5432/test. `npm start` (next start) reads this file itself.
+        # the dynamically allocated local Postgres port. npm start reads this file itself.
         run: |
           cat > .env.local << 'EOF'
           NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -219,9 +220,6 @@ jobs:
         # ponytail: ceiling — single worker. next start was validated for
         # --workers=1 but not heavy parallel load; this job runs workers=1.
         run: npm start &
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
-          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/test
 
       - name: Wait for server
         run: npx wait-on http://localhost:3000 --timeout 30000
@@ -236,7 +234,6 @@ jobs:
         # auth-guard redirect) instead of expect(true).toBe(true).
         run: npx playwright test e2e/ci-smoke.spec.ts e2e/auth.spec.ts --project=chromium-desktop --workers=1
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
           PLAYWRIGHT_BASE_URL: http://localhost:3000
 
       - name: Upload Playwright report
