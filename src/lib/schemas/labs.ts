@@ -12,7 +12,7 @@ export const labProfileSchema = z.object({
   name:  z.string().min(1).max(120),
   price: z.number().nonnegative().optional().default(0),
 })).optional().default([]),
-  documents:         z.record(z.string().max(200).nullable()).optional().default({}),
+  documents:         z.record(z.object({ id: z.string().min(1).max(100) }).nullable()).optional().default({}),
 })
 
 /** GET /api/labs — query parameters */
