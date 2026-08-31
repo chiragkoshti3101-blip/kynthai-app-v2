@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { logAudit } from '@/lib/auth'
 import { sanitizeText, rateLimit } from '@/lib/security'
 
-import { encryptValue, decryptValue } from '@/lib/encryption' // ENCRYPTION-AT-REST
+// Prescription image data is encrypted by the Prisma field-encryption extension.
 
 import {
   requireAuth,
@@ -88,9 +88,9 @@ export async function GET(req: NextRequest) {
       patientName: p.patient.name,
       medications: parseJsonCol(p.medications, []),
       notes: p.notes,
-      // ENCRYPTION-AT-REST: decrypt the stored imageBase64 before returning.
-      // The DB only stores the encrypted blob; [present] was the old placeholder.
-      imageBase64: p.imageBase64 ? (decryptValue(p.imageBase64) ? '[present]' : null) : null,
+      // The API exposes presence only; the Prisma extension decrypts the field
+      // for the server and transitional legacy rows remain readable.
+      imageBase64: p.imageBase64 ? '[present]' : null,
       followUpDate: p.followUpDate?.toISOString() ?? null,
       followUpNotes: p.followUpNotes,
       inviteStatus: (p as any).inviteStatus,
@@ -136,18 +136,17 @@ export async function POST(req: NextRequest) {
   if (!doctor) return jsonError('Doctor not found', 404)
 
   const meds = Array.isArray(body.medications) ? body.medications : []
-  // ENCRYPTION-AT-REST: wrap the imageBase64 (prescription photo data URI)
-  // with AES-256-GCM before persisting to the database.
-  // The raw base64 string is sanitized for size (200 KB cap) then encrypted.
-  const encryptedImage = body.imageBase64
-    ? encryptValue(sanitizeText(body.imageBase64, 200000))
+  // The Prisma field-encryption extension encrypts the sanitized image data
+  // into imageBase64_enc before persistence.
+  const imageData = body.imageBase64
+    ? sanitizeText(body.imageBase64, 200000)
     : null
   const prescription = await db.prescription.create({
     data: {
       doctorId,
       patientId,
       notes: sanitizeText(body.notes, 2000) || null,
-      imageBase64: encryptedImage, // ENCRYPTED — decryptValue() to read back
+      imageBase64: imageData,
       medications: JSON.stringify(meds),
       followUpDate: body.followUpDate ? new Date(body.followUpDate) : null,
       inviteStatus: 'accepted',

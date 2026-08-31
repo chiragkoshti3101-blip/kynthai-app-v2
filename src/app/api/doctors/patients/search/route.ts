@@ -38,18 +38,20 @@ export async function GET(req: NextRequest) {
     const linkedPatientIds = [...new Set(linkedAppointments.map((a: any) => a.patientId))]
     if (linkedPatientIds.length === 0) return jsonOk({ patients: [] })
 
-    // Search only within the doctor's existing patient set.
-    const patients = await db.user.findMany({
-      where: {
-        id: { in: linkedPatientIds },
-        OR: [
-          { name: { contains: q } },
-          { email: { contains: q } },
-        ],
-      },
+    // Search only within the doctor's existing patient set. `name` is
+    // encrypted with randomized ciphertext, so fetch the already-scoped
+    // identity fields and apply the substring match after decryption.
+    const candidates = await db.user.findMany({
+      where: { id: { in: linkedPatientIds } },
       select: { id: true, name: true, email: true },
-      take: 10,
     })
+    const needle = q.toLocaleLowerCase()
+    const patients = candidates
+      .filter((patient: any) =>
+        [patient.name, patient.email]
+          .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(needle)),
+      )
+      .slice(0, 10)
     return jsonOk({ patients })
   } catch (error) {
     logger.phiSafeError(error)

@@ -217,10 +217,9 @@ async function run(req: NextRequest) {
               channel: 'push',
               type: 'reminder',
               status: 'sent',
-              OR: [
-                { dedupeKey },
-                { body: { contains: dedupeKey } },
-              ],
+              // `body` is encrypted at rest and cannot support substring
+              // matching; dedupeKey is the stable indexed event identifier.
+              dedupeKey,
               createdAt: { gte: new Date(now.getTime() - 20 * 60 * 60 * 1000) },
             },
             select: { id: true },

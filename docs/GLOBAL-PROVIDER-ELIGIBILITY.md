@@ -74,6 +74,10 @@ Until the register marks a jurisdiction `eligible`, KynthAI should not market pr
 - Demo/provider seed records are read-only and must never be used as evidence of real-world licensing.
 - Notifications, lock-screen previews, and public provider cards must not expose unnecessary patient or clinical details.
 
+## Reviewed matrix
+
+See [GLOBAL-PROVIDER-ELIGIBILITY-MATRIX.md](./GLOBAL-PROVIDER-ELIGIBILITY-MATRIX.md) for the bounded source-backed market register reviewed 31 August 2026.
+
 ## Explicit non-claims
 
 This policy does not claim HIPAA, GDPR, or any other legal compliance; medical-device authorization; professional licensure; laboratory accreditation; or availability in a specific country. Those are separate questions requiring authoritative, jurisdiction-specific review before the owner makes the corresponding claim.
