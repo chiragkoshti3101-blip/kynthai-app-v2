@@ -35,7 +35,7 @@ import { FadeIn } from './animations';
 import { TurnstileWidget, type TurnstileWidgetHandle } from './turnstile-widget';
 import { runDemoLogin, demoRolePath, type DemoRole, DEMO_ROLES } from '@/lib/demo-login';
 import { AppLoader } from '@/components/kynthai/app-loader';
-import { isDemoEnabled } from '@/lib/demo-mode'
+import { isDemoLoginEnabled } from '@/lib/demo-mode'
 
 interface PortalConfig {
   id: LoginPortal;
@@ -157,7 +157,7 @@ export function LoginPage({
       ['patient', 'doctor', 'caretaker', 'lab', 'admin'].includes(
         (window.location.hash || '').replace('#', '').toLowerCase()
       ));
-  const bootRequestingDemo = isDemoEnabled() && (initialDemo || hasDemoMarker);
+  const bootRequestingDemo = isDemoLoginEnabled() && (initialDemo || hasDemoMarker);
   const [demoBooting, setDemoBooting] = React.useState(bootRequestingDemo);
   const [hideDownloadCta, setHideDownloadCta] = React.useState(false);
   React.useEffect(() => {
@@ -275,7 +275,7 @@ export function LoginPage({
   // redirecting them to /patient — breaking the real sign-in journey
   // (the middleware gate is NODE_ENV-aware, but this effect wasn't).
   React.useEffect(() => {
-    if (!isDemoEnabled()) return;
+    if (!isDemoLoginEnabled()) return;
     if (user) return;
     if (loading || demoBusy) return;
     if (typeof window === 'undefined') return;
@@ -666,7 +666,7 @@ export function LoginPage({
                   </button>
                 </div>
 
-                {isDemoEnabled() && (
+                {isDemoLoginEnabled() && (
                   <div className="mb-5">
                     <button
                       type="button"
