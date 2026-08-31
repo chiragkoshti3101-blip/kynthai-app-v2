@@ -1,0 +1,65 @@
+{
+  "id": "/?pwa=kynthai",
+  "name": "Kynthai - Your Health Companion",
+  "short_name": "Kynthai",
+  "description": "AI-powered health assistant for medicines, appointments, and connected family care worldwide",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f9fdfb",
+  "theme_color": "#089868",
+  "orientation": "portrait-primary",
+  "version": "2ddc135-mtg5orms",
+  "categories": [
+    "health",
+    "medical",
+    "lifestyle"
+  ],
+  "screenshots": [
+    {
+      "src": "/og-image.webp",
+      "sizes": "1200x630",
+      "type": "image/webp",
+      "form_factor": "wide",
+      "label": "Kynthai: AI health companion for families"
+    },
+    {
+      "src": "/hero_9x16.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Smart medication reminders and health tracking"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add Medication",
+      "url": "/patient",
+      "description": "Quickly add or manage medications"
+    },
+    {
+      "name": "SOS Emergency",
+      "url": "/patient",
+      "description": "Send emergency alert to your contacts"
+    },
+    {
+      "name": "AI Health Chat",
+      "url": "/patient",
+      "description": "Ask the AI health assistant"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
