@@ -459,6 +459,7 @@ export async function requireSystemToken(req: NextRequest) {
       role: 'admin',
       phone: null,
       phone_enc: null,
+      phone_hash: null,
       password: null,
       emailVerified: new Date(),
       subscriptionTier: 'free',
@@ -493,9 +494,11 @@ export async function requireSystemToken(req: NextRequest) {
       updatedAt: new Date(0),
       passwordResetToken: null,
       passwordResetToken_enc: null,
+      passwordResetToken_hash: null,
       passwordResetExpires: null,
       emailVerificationToken: null,
       emailVerificationToken_enc: null,
+      emailVerificationToken_hash: null,
       emailVerificationExpires: null,
     };
     return { response: null, user: systemUser };
