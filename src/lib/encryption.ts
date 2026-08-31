@@ -7,7 +7,7 @@
 // but this means encrypted data from dev sessions cannot be decrypted
 // after a server restart. NEVER use dev-generated keys for production data.
 
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto';
+import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // 96 bits for GCM
@@ -196,8 +196,9 @@ export function sanitizeFilename(filename: string): string {
  * Decrypt buffer with master key (for backwards compatibility)
  */
 export function decrypt(buffer: Buffer): string {
-  // Expects format: iv:authTag:encrypted (all base64)
-  const parts = buffer.toString('base64').split(':');
+  // Expects format: iv:authTag:encrypted (all base64). The string returned
+  // by encrypt() is UTF-8 text, not a base64-wrapped buffer.
+  const parts = buffer.toString('utf8').split(':');
   if (parts.length !== 3) throw new Error('Invalid encrypted format');
   
   const iv = Buffer.from(parts[0]!, 'base64');
@@ -227,6 +228,14 @@ export function encrypt(buffer: Buffer): string {
  */
 export function encryptValue(value: string): string {
   return encrypt(Buffer.from(value, 'utf8'));
+}
+
+/**
+ * Create a deterministic, keyed digest for exact-match lookups.
+ * This is not reversible and must not be used for contains/range queries.
+ */
+export function hashValue(value: string): string {
+  return createHmac('sha256', getKey()).update(value, 'utf8').digest('hex');
 }
 
 /**
