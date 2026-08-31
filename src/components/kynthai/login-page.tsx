@@ -35,7 +35,7 @@ import { FadeIn } from './animations';
 import { TurnstileWidget, type TurnstileWidgetHandle } from './turnstile-widget';
 import { runDemoLogin, demoRolePath, type DemoRole, DEMO_ROLES } from '@/lib/demo-login';
 import { AppLoader } from '@/components/kynthai/app-loader';
-import { isDemoLoginEnabled } from '@/lib/demo-mode'
+import { isDemoLoginEnabled, isDemoUser } from '@/lib/demo-mode'
 
 interface PortalConfig {
   id: LoginPortal;
@@ -276,7 +276,6 @@ export function LoginPage({
   // (the middleware gate is NODE_ENV-aware, but this effect wasn't).
   React.useEffect(() => {
     if (!isDemoLoginEnabled()) return;
-    if (user) return;
     if (loading || demoBusy) return;
     if (typeof window === 'undefined') return;
     // Explicit opt-in gate — no URL marker, no auto-login.
@@ -284,6 +283,22 @@ export function LoginPage({
     const wantsDemo = qs.get('demo') === '1';
     const hashRole = (window.location.hash || '').replace('#', '').toLowerCase();
     if (!wantsDemo && !(DEMO_ROLES as string[]).includes(hashRole)) return;
+
+    // A signed-in real user must never be silently replaced. An existing
+    // seeded demo session may explicitly switch to the requested demo role,
+    // which keeps role links reliable when the browser already has a demo
+    // cookie from a prior portal visit.
+    const requestedRole = (DEMO_ROLES as string[]).includes(hashRole)
+      ? (hashRole as DemoRole)
+      : 'patient';
+    if (user && !isDemoUser(user)) {
+      setDemoBooting(false);
+      return;
+    }
+    if (user && user.role === requestedRole) {
+      router.replace(demoRolePath(requestedRole));
+      return;
+    }
 
     // CONSUME the demo marker immediately: once we've decided to auto-login
     // from `?demo=1` / `#role`, strip it from the URL so a LATER visit to
@@ -305,8 +320,9 @@ export function LoginPage({
         return;
       }
       setDemoBusy(false); // session failed — fall back to the sign-in form
+      setDemoBooting(false);
     })();
-  }, []);
+  }, [user, loading, demoBusy, router]);
 
   const portalEmpathy: Record<LoginPortal, string> = {
     caretaker: 'Keep the whole family on track with shared reminders.',

@@ -6,6 +6,8 @@ import { logger } from '@/lib/logger'
 import { readNotificationPrefs } from '@/lib/notifications'
 import { clockParts, DEFAULT_TZ } from '@/lib/reminder-clock'
 import { safeNotificationPreview } from '@/lib/notification-privacy'
+import { isDemoUser } from '@/lib/demo-mode'
+import { getDemoNotifications } from '@/lib/demo-notifications'
 export const dynamic = 'force-dynamic'
 
 // GET /api/notifications
@@ -13,6 +15,30 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   const { response, user } = await requireAuth(req)
   if (response || !user) return response!
+
+  // Seeded demo accounts are read-only and must not expose persisted database
+  // history. Keep this response aligned with the client fixture so the badge,
+  // rows, and role-specific content are deterministic and coherent.
+  if (isDemoUser(user)) {
+    const url = new URL(req.url)
+    const all = getDemoNotifications(user.role)
+    const notifications = url.searchParams.get('unreadOnly') === 'true'
+      ? all.filter((notification) => !notification.read)
+      : all
+    const safeNotifications = notifications.map((notification) => {
+      const safe = safeNotificationPreview(notification)
+      return {
+        ...notification,
+        title: safe.title,
+        body: safe.body,
+        isEmergency: safe.isEmergency,
+      }
+    })
+    return jsonOk({
+      notifications: safeNotifications,
+      unreadCount: all.filter((notification) => !notification.read).length,
+    })
+  }
 
   try {
     const url = new URL(req.url)
