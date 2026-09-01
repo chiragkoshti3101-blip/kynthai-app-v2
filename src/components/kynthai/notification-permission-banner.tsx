@@ -16,6 +16,7 @@ import {
 } from '@/lib/push'
 import { isNativeShell } from '@/lib/native-shell'
 import { openNativeNotificationSettings } from '@/lib/native-alarms'
+import { nativePushPermission } from '@/lib/fcm'
 
 const DISMISS = 'kynthai.notif-banner.dismiss.v1'
 
@@ -26,7 +27,8 @@ export function NotificationPermissionBanner() {
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    if (!pushSupported()) return
+    const native = isNativeShell()
+    if (!native && !pushSupported()) return
     // Session dismiss applies to EVERY variant (incl. the iOS hint below) —
     // "Later" must silence the strip for the whole session.
     try {
@@ -34,9 +36,21 @@ export function NotificationPermissionBanner() {
     } catch {
       /* ignore */
     }
-    if (!isIosStandalone()) {
+    if (!native && !isIosStandalone()) {
       setShow(true)
       setMsg('iPhone: Share → Add to Home Screen, open from the icon, then allow notifications.')
+      return
+    }
+    if (native) {
+      void nativePushPermission().then((perm) => {
+        if (perm === 'granted') return
+        setMsg(
+          perm === 'denied'
+            ? 'Notifications are blocked. Open phone settings for Kynthai and turn Notifications on.'
+            : 'Allow notifications so medication, doctor, and lab alerts reach this phone even when Kynthai is closed.',
+        )
+        setShow(true)
+      })
       return
     }
     const perm = permissionState()
@@ -59,8 +73,9 @@ export function NotificationPermissionBanner() {
   const onEnable = async () => {
     setBusy(true)
     try {
-      // If already denied on Android native, open system settings (allowNoti=false cannot be fixed by prompt alone)
-      if (permissionState() === 'denied' && isNativeShell()) {
+      // If already denied on a native build, open system settings (a denied
+      // OS permission cannot be fixed by a browser prompt).
+      if (isNativeShell() && (await nativePushPermission()) === 'denied') {
         const opened = await openNativeNotificationSettings()
         if (opened) {
           setMsg('Turn Notifications ON for Kynthai, then return here.')
