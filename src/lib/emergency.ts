@@ -41,7 +41,7 @@ export const EMERGENCY_COUNTRIES: EmergencyCountry[] = [
   { code: 'AE', name: 'United Arab Emirates', number: '998 / 999', dialNumber: '998', callingCode: '+971', note: 'Ambulance / police' },
   { code: 'GB', name: 'United Kingdom', number: '999 / 112', dialNumber: '999', callingCode: '+44' },
   { code: 'US', name: 'United States', number: '911', dialNumber: '911', callingCode: '+1' },
-  { code: 'ZZ', name: 'Other / international', number: '112', dialNumber: '112', callingCode: '', note: 'Use 112 only where supported; check local guidance' },
+  { code: 'ZZ', name: 'Unknown / international', number: 'Local emergency number', dialNumber: '', callingCode: '', note: 'Country-specific number unavailable; verify local guidance before calling' },
 ]
 
 export const DEFAULT_EMERGENCY_COUNTRY = 'ZZ'
