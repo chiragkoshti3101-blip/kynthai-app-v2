@@ -4,4 +4,5 @@
     <string name="title_activity_main">Kynthai</string>
     <string name="package_name">app.kynthai.health</string>
     <string name="custom_url_scheme">app.kynthai.health</string>
+    <string name="default_notification_channel_id">kynthai_dose_alarm</string>
 </resources>
