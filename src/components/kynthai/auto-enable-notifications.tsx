@@ -15,23 +15,36 @@ import {
   isIosStandalone,
 } from '@/lib/push'
 import { isNativeShell } from '@/lib/native-shell'
-import { requestNativeNotificationPermission } from '@/lib/native-alarms'
+import { registerFcmDevice } from '@/lib/fcm'
 
 const KEY = 'kynthai.push.auto-asked.v4'
 
 export function AutoEnableNotifications() {
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    if (!pushSupported()) return
+    const native = isNativeShell()
+    if (!native && !pushSupported()) return
+
+    let disposed = false
+    const onAuthReady = () => {
+      if (native && !disposed) void registerFcmDevice()
+    }
+    if (native) window.addEventListener('kynthai:auth-ready', onAuthReady)
 
     const run = async () => {
       // Slight delay so UI mounts first; keep short so permission prompt appears early
       await new Promise((r) => setTimeout(r, 600))
+      if (disposed) return
 
-      // iPhone browser tab cannot get system push — only Home Screen app
-      if (!isIosStandalone()) return
+      // iPhone browser tab cannot get system push — only Home Screen app.
+      // A native iPhone build uses APNs and is already a standalone app.
+      if (!native && !isIosStandalone()) return
 
       try {
+        if (native) {
+          await registerFcmDevice()
+          return
+        }
         if (permissionState() === 'denied') {
           try {
             localStorage.setItem(KEY, '1')
@@ -47,13 +60,8 @@ export function AutoEnableNotifications() {
           return
         }
 
-        // Ask once per device (unless native shell — always try so APK users get the OS dialog)
-        const native = isNativeShell()
-        if (native) {
-          try {
-            await requestNativeNotificationPermission()
-          } catch { /* ignore */ }
-        }
+        // Ask once per device. Native shells were handled above using the
+        // platform push plugin; browser/PWA keeps the Web Push flow below.
         try {
           if (!native && localStorage.getItem(KEY) === '1') return
         } catch {
@@ -74,6 +82,10 @@ export function AutoEnableNotifications() {
     }
 
     void run()
+    return () => {
+      disposed = true
+      if (native) window.removeEventListener('kynthai:auth-ready', onAuthReady)
+    }
   }, [])
 
   return null
