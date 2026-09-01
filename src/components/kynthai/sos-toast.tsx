@@ -97,13 +97,16 @@ export function SosToast({ alert, onDismiss, onNavigate }: SosToastProps) {
               <Button
                 variant="outline"
                 onClick={() => {
-                  // Call emergency services
-                  if (typeof window !== 'undefined') {
+                  // Call emergency services only when the account country is known.
+                  if (typeof window !== 'undefined' && country.dialNumber) {
                     window.location.href = `tel:${country.dialNumber}`;
                   }
                 }}
+                disabled={!country.dialNumber}
                 className="h-11 w-11 rounded-full"
-                aria-label={`Call emergency services at ${country.number}`}
+                aria-label={country.dialNumber
+                  ? `Call emergency services at ${country.number}`
+                  : 'Local emergency number unavailable'}
               >
                 <Phone className="h-4 w-4 text-rose-600" />
               </Button>
