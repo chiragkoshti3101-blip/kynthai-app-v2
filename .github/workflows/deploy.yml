@@ -23,9 +23,9 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -67,9 +67,9 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -114,9 +114,9 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
@@ -240,7 +240,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-e2e
           path: e2e-report/
@@ -250,39 +250,25 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.ci.yml down -v --remove-orphans
 
-  # ── Job 4: Deploy to Vercel (Production) ─────────────────────────────────
-  # Deploys via the Vercel CLI using the project's own build pipeline + env
-  # vars (Supabase, etc. live in Vercel, not GitHub). Runs after `build` so a
-  # broken commit never ships; intentionally does NOT depend on `e2e` (that job
-  # needs Docker, which is flaky on GitHub-hosted runners).
+
+  # ── Job 4: Vercel Git integration handoff ────────────────────────────────
+  # Production is deployed by Vercel's Git integration from the same push to
+  # main. This job records the handoff after the build without requiring a
+  # long-lived Vercel token in GitHub.
   deploy:
-    name: Deploy to Vercel
+    name: Vercel Git integration handoff
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 15
+    timeout-minutes: 5
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      # The deploy runs only when VERCEL_TOKEN exists. Without the token the
-      # job succeeds with a warning (CI stays green on pushes; the operator
-      # ships via the CLI) and the very same run auto-deploys the moment the
-      # VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID secrets are added.
-      - name: Check for VERCEL_TOKEN
-        id: token_check
-        env:
-          VERCEL_TOKEN_PRESENT: ${{ secrets.VERCEL_TOKEN != '' && 'true' || 'false' }}
-        run: echo "available=${VERCEL_TOKEN_PRESENT}" >> "$GITHUB_OUTPUT"
-
-      - name: Skip notice (no VERCEL_TOKEN secret)
-        if: steps.token_check.outputs.available != 'true'
+      - name: Record production deployment handoff
         run: |
-          echo "::warning::VERCEL_TOKEN secret is not set — skipping Vercel production deploy. Add VERCEL_TOKEN (+ VERCEL_ORG_ID / VERCEL_PROJECT_ID) repo secrets and this same workflow will deploy on every push to main."
-
-      - name: Deploy to Vercel (Production)
-        if: steps.token_check.outputs.available == 'true'
-        run: npx vercel@latest deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          echo "Vercel Git integration deploys main automatically; no CLI credential is required."
+          {
+            echo "## Vercel production handoff"
+            echo ""
+            echo "Vercel Git integration owns the production deployment for this main commit."
+            echo "The build passed before this handoff job completed."
+          } >> "$GITHUB_STEP_SUMMARY"
