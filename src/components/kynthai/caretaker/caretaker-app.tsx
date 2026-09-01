@@ -1141,7 +1141,7 @@ function SosTab({
               {/* Always-available emergency call — never hidden behind the trigger
                   state so a family member can always dial emergency services. */}
               {country.dialNumber ? (
-                              <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
+                <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
                 <Button
                   size="lg"
                   className="w-full h-14 text-base bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800"
