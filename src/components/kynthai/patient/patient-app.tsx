@@ -1247,15 +1247,23 @@ function SosTab({ phone }: { phone?: string | null }) {
           {/* Always-available call actions — never hidden behind the trigger state */}
           <div className="space-y-3">
             <EmergencyNumberCard phone={phone} />
-            <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
-              <Button
-                size="lg"
-                className="w-full h-14 text-base bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800"
-              >
-                <Phone className="h-5 w-5" /> Call {country.number}
-              </Button>
-            </a>
-            <p className="text-[0.6875rem] text-muted-foreground mt-1">Use your local emergency number</p>
+            {country.dialNumber ? (
+              <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
+                <Button
+                  size="lg"
+                  className="w-full h-14 text-base bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800"
+                >
+                  <Phone className="h-5 w-5" /> Call {country.number}
+                </Button>
+              </a>
+            ) : (
+              <p className="rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-muted-foreground">
+                Country-specific emergency number unavailable — check local guidance before calling.
+              </p>
+            )}
+            {country.dialNumber && (
+              <p className="text-[0.6875rem] text-muted-foreground mt-1">Use your local emergency number</p>
+            )}
             {callContact ? (
               <a href={`tel:${callContact.phone}`} aria-label={`Call ${callContact.name}`} className="block">
                 <Button
