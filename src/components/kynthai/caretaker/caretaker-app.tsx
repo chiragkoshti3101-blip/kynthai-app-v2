@@ -326,7 +326,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
           return;
         }
         const famData = await famRes.json();
-        const members: Array<{ id: string; name: string; relation?: string; age?: number | null }> =
+        const members: Array<{ id: string; name: string; relation?: string; age?: number | null; phone?: string | null }> =
           famData.members ?? [];
         if (cancelled || members.length === 0) return;
 
@@ -344,6 +344,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
             pending: 0,
             lowStock: 0,
             age: m.age ?? 0,
+            phone: m.phone ?? undefined,
           }))
           setFamily(realFamily)
           setSelectedMember(prev => {
@@ -1139,14 +1140,20 @@ function SosTab({
               <EmergencyNumberCard phone={phone} />
               {/* Always-available emergency call — never hidden behind the trigger
                   state so a family member can always dial emergency services. */}
-              <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
+              {country.dialNumber ? (
+                              <a href={`tel:${country.dialNumber}`} aria-label={`Call emergency services at ${country.number}`} className="block">
                 <Button
                   size="lg"
                   className="w-full h-14 text-base bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800"
                 >
                   <Phone className="h-5 w-5" /> Call {country.number}
                 </Button>
-              </a>
+                </a>
+              ) : (
+                <p className="rounded-lg border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs text-muted-foreground">
+                  Country-specific emergency number unavailable — check local guidance before calling.
+                </p>
+              )}
               <Button
                 size="lg"
                 onClick={() => trigger('critical')}
@@ -1271,7 +1278,6 @@ function AddMemberDialog({
   const [relation, setRelation] = React.useState('spouse');
   const [age, setAge] = React.useState('');
   const [email, setEmail] = React.useState('');
-  const [phone, setPhone] = React.useState('');
 
   const submit = async () => {
     if (!name || !relation) return;
@@ -1296,7 +1302,6 @@ function AddMemberDialog({
       name,
       relation,
       email: trimmedEmail,
-      phone: phone || undefined,
       age: clampedAge,
       adherence: 100,
       pending: 0,
@@ -1336,7 +1341,6 @@ function AddMemberDialog({
       setRelation('spouse');
       setAge('');
       setEmail('');
-      setPhone('');
       showToast({ title: 'Invite sent', description: data.message || `${name} has been invited.` });
     } catch {
       showToast({
@@ -1353,7 +1357,7 @@ function AddMemberDialog({
         <DialogHeader>
           <DialogTitle>Add family member</DialogTitle>
           <DialogDescription>
-            Add someone you care for. You can manage up to 10 members.
+            Add someone you care for. You can manage up to 4 members. The invitee adds and verifies their own phone after accepting.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
@@ -1412,15 +1416,6 @@ function AddMemberDialog({
               placeholder="e.g. aarav@example.com"
             />
             <p className="text-[11px] text-muted-foreground">The family invite is sent to this address.</p>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="fm-phone">Phone</Label>
-            <Input
-              id="fm-phone"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              placeholder="e.g. +1 (555) 123-4567"
-            />
           </div>
         </div>
         <DialogFooter>
