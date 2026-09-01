@@ -167,7 +167,7 @@ model PushSubscription {
   userId        String
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   endpoint      String
-  type          String   @default("webpush") // "webpush" | "fcm"
+  type          String   @default("webpush") // "webpush" | "fcm" | "apns"
   token         String?  // FCM device token (type="fcm")
   p256dh        String   // public key (Web Push)
   auth          String   // auth secret (Web Push)

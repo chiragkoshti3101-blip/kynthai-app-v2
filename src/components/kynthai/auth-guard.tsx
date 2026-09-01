@@ -139,6 +139,11 @@ export function AuthGuard({ redirectTo = '/login', onUnauthorized, disableMountC
           }
           login(authUser)
         }
+        try {
+          window.dispatchEvent(new CustomEvent('kynthai:auth-ready'))
+        } catch {
+          /* native push retry is best-effort */
+        }
         // Best-effort: sync the browser's IANA timezone so the reminder cron
         // fires doses on the user's local wall clock (not New York time).
         // Runs at most once per session; silent on any failure.

@@ -12,6 +12,8 @@ import {
 } from '@/lib/push'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { isNativeShell } from '@/lib/native-shell'
+import { nativePushPermission, registerFcmDevice, unregisterNativePushDevice } from '@/lib/fcm'
 
 /**
  * Enable / disable browser push for the current device.
@@ -24,6 +26,20 @@ export function PushNotificationToggle({ className }: { className?: string }) {
   const [hint, setHint] = React.useState<string | null>(null)
 
   React.useEffect(() => {
+    const native = isNativeShell()
+    if (native) {
+      void nativePushPermission().then((perm) => {
+        setEnabled(perm === 'granted')
+        setHint(
+          perm === 'denied'
+            ? 'Notifications blocked. Open phone settings for Kynthai and turn Notifications on.'
+            : perm === 'unsupported'
+              ? 'Native push is unavailable in this build.'
+              : null,
+        )
+      })
+      return
+    }
     if (!pushSupported()) {
       setHint('Not supported in this browser')
       return
@@ -55,12 +71,20 @@ export function PushNotificationToggle({ className }: { className?: string }) {
     setBusy(true)
     try {
       if (enabled) {
-        await disablePush()
+        if (isNativeShell()) await unregisterNativePushDevice()
+        else await disablePush()
         setEnabled(false)
         setHint(null)
         toast({ title: 'Notifications off on this device' })
       } else {
-        const result = await enablePushDetailed()
+        const result = isNativeShell()
+          ? await (async () => {
+              const ok = await registerFcmDevice()
+              return ok
+                ? ({ ok: true } as const)
+                : ({ ok: false, reason: 'subscribe_failed' as const, message: 'Could not register this phone for push notifications.' })
+            })()
+          : await enablePushDetailed()
         if (result.ok) {
           setEnabled(true)
           setHint(null)
@@ -79,7 +103,7 @@ export function PushNotificationToggle({ className }: { className?: string }) {
     }
   }
 
-  if (!pushSupported()) {
+  if (!pushSupported() && !isNativeShell()) {
     return (
       <p className={cn('text-xs text-muted-foreground', className)}>
         Push notifications are not available in this browser.

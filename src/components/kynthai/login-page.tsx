@@ -425,6 +425,11 @@ export function LoginPage({
         aiTrainingConsent: Boolean((data as { aiTrainingConsent?: boolean }).aiTrainingConsent),
       };
       login(user);
+      try {
+        window.dispatchEvent(new CustomEvent('kynthai:auth-ready'))
+      } catch {
+        /* native push retry is best-effort */
+      }
       // First-time only: Welcome tour. Returning users with consent go straight in.
       if (user.consentAccepted) {
         useAppStore.getState().completeOnboarding(user.role);

@@ -6,7 +6,9 @@
 - [x] Auth CSRF + rate limits
 - [x] Notification banner + auto-enable (web)
 - [x] Hide Download CTAs inside native shell (web code)
-- [ ] **New APK** with MainActivity permission + DoseAlarm schedule on `/download`
+- [x] Android native push channel + FCM token registration in the new APK path
+- [x] iPhone APNs token registration and native tap/foreground routing in the iOS project
+- [ ] Configure production Firebase Admin + APNs credentials and test on physical devices
 
 ## Android APK (this week)
 
@@ -34,9 +36,10 @@ Local:
 
 ## Next product engineering
 
-1. **FCM** in APK (firebase `google-services.json`) for reliable data push
+1. Configure the server-only `FIREBASE_*` and `APNS_*` variables, then run one
+   Android and one physical iPhone delivery test.
 2. **Signed release** + Play Store listing (keystore in GitHub secrets)
-3. **iOS** TestFlight + APNs (Capacitor iOS project already present)
+3. **iOS** TestFlight/App Store signing and Apple Push Notifications capability
 4. CI: `tsc` + `next build` required green on every PR
 
 ## Honest bar
@@ -53,4 +56,5 @@ Soft launch: web + sideload APK is fine for early users.
 
 ## Capacitor plugins
 
-Bootstrap runs on native only (`native-shell-bootstrap.ts`): StatusBar, App, LocalNotifications channel, Haptics.
+Bootstrap runs on native only (`native-shell-bootstrap.ts`): StatusBar, App,
+LocalNotifications channel, PushNotifications, and Haptics.

@@ -7,6 +7,9 @@
  * - Clear failure modes (no VAPID, denied, iOS not installed as PWA)
  */
 
+import { isNativeShell } from '@/lib/native-shell'
+import { nativePushPermission, registerFcmDevice } from '@/lib/fcm'
+
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 const VAPID_SYNC_STORAGE_KEY = 'kynthai.push.vapid-key.v1'
 
@@ -26,8 +29,11 @@ export type PushEnableResult =
     }
 
 export function pushSupported(): boolean {
+  if (typeof window === 'undefined') return false
+  // Capacitor apps use APNs (iPhone) or FCM (Android), not the browser
+  // ServiceWorker/PushManager APIs. Treat the native plugin as the capability.
+  if (isNativeShell()) return true
   return (
-    typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
     'PushManager' in window &&
     'Notification' in window
@@ -136,6 +142,20 @@ export async function enablePush(): Promise<boolean> {
 }
 
 export async function enablePushDetailed(): Promise<PushEnableResult> {
+  if (isNativeShell()) {
+    const registered = await registerFcmDevice()
+    if (registered) return { ok: true }
+    const permission = await nativePushPermission()
+    return {
+      ok: false,
+      reason: permission === 'denied' ? 'denied' : 'subscribe_failed',
+      message:
+        permission === 'denied'
+          ? 'Notifications are blocked. Allow notifications for Kynthai in the phone settings, then try again.'
+          : 'Kynthai could not register this phone for push notifications. Sign in and try again.',
+    }
+  }
+
   if (!pushSupported()) {
     return {
       ok: false,
