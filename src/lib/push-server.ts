@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { Notification } from '@parse/node-apn'
 import webpush from 'web-push'
 
 export type PushPayload = {
@@ -64,6 +65,17 @@ function getFcmMessaging(): { send: (m: unknown) => Promise<{ messageId?: string
   return _fcmMessaging as never
 }
 
+type StringData = Record<string, string>
+
+function stringData(value: unknown): StringData {
+  if (!value || typeof value !== 'object') return {}
+  const output: StringData = {}
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof item === 'string') output[key] = item
+  }
+  return output
+}
+
 async function sendFcm(token: string, message: string, isClinical: boolean): Promise<string> {
   const messaging = getFcmMessaging()
   if (!messaging) throw new Error('FCM is not configured')
@@ -88,9 +100,127 @@ async function sendFcm(token: string, message: string, isClinical: boolean): Pro
       headers: { 'apns-priority': isClinical ? '10' : '5', 'apns-push-type': 'alert' },
       payload: { aps: { sound: 'default', 'content-available': 1 } },
     },
-    data: (parsed.data || {}) as Record<string, string>,
+    // FCM rejects undefined/non-string data values. The push payload contains
+    // optional fields, so strip those values before sending.
+    data: stringData(parsed.data),
   })
   return result.messageId || 'fcm:accepted'
+}
+
+type ApnsProvider = {
+  send: (
+    notification: unknown,
+    recipients: string | string[],
+  ) => Promise<{
+    sent: Array<{ device: string }>
+    failed: Array<{
+      device: string
+      status?: number
+      response?: { reason?: string; timestamp?: string }
+      error?: Error
+    }>
+  }>
+}
+
+let _apnsProvider: ApnsProvider | null = null
+let _apnsChecked = false
+
+function apnsPrivateKey(value: string): string {
+  const normalised = value.replace(/\\n/g, '\n').trim()
+  if (normalised.includes('BEGIN PRIVATE KEY')) return normalised
+  try {
+    const decoded = Buffer.from(normalised, 'base64').toString('utf8').trim()
+    if (decoded.includes('BEGIN PRIVATE KEY')) return decoded
+  } catch {
+    /* use the original value; node-apn will report a useful configuration error */
+  }
+  return normalised
+}
+
+/**
+ * Lazily create one APNs provider per server process. APNs uses HTTP/2 and a
+ * provider-authentication .p8 key; the key is read only from server env vars,
+ * never from the client bundle or a request body.
+ */
+function getApnsProvider(): ApnsProvider | null {
+  if (_apnsChecked) return _apnsProvider
+  _apnsChecked = true
+
+  const key = process.env.APNS_AUTH_KEY
+  const keyId = process.env.APNS_KEY_ID
+  const teamId = process.env.APNS_TEAM_ID
+  if (!key || !keyId || !teamId) return null
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const apn = require('@parse/node-apn') as {
+      Provider: new (options: unknown) => ApnsProvider
+    }
+    _apnsProvider = new apn.Provider({
+      token: {
+        key: apnsPrivateKey(key),
+        keyId,
+        teamId,
+      },
+      production: process.env.APNS_PRODUCTION !== 'false',
+      // Avoid holding a request open indefinitely if Apple or the network is unavailable.
+      requestTimeout: 8000,
+      connectionRetryLimit: 2,
+    })
+  } catch {
+    _apnsProvider = null
+  }
+  return _apnsProvider
+}
+
+async function sendApns(token: string, message: string, isClinical: boolean): Promise<string> {
+  const provider = getApnsProvider()
+  if (!provider) throw new Error('APNs is not configured')
+
+  let parsed: {
+    title?: string
+    body?: string
+    type?: string
+    tag?: string
+    url?: string
+    data?: Record<string, unknown>
+  }
+  try {
+    parsed = JSON.parse(message)
+  } catch {
+    parsed = { title: 'Kynthai', body: message }
+  }
+
+  // node-apn accepts the hex APNs device token returned by Capacitor on iOS.
+  const note = new Notification()
+  note.topic = process.env.APNS_BUNDLE_ID || 'app.kynthai.health'
+  note.alert = {
+    title: parsed.title || 'Kynthai',
+    body: parsed.body || '',
+  }
+  note.sound = 'default'
+  note.badge = 1
+  note.priority = 10
+  note.pushType = 'alert'
+  note.expiry = Math.floor(Date.now() / 1000) + (isClinical ? 1800 : 3600)
+  note.threadId = (parsed.tag || parsed.type || 'kynthai-notification').slice(0, 64)
+  note.aps['interruption-level'] = isClinical ? 'time-sensitive' : 'active'
+  note.contentAvailable = true
+  note.payload = {
+    ...stringData(parsed.data),
+    url: parsed.url || stringData(parsed.data).url || (isClinical ? '/patient?alarm=1' : '/'),
+    type: parsed.type || 'kynthai',
+  }
+
+  const result = await provider.send(note, token)
+  if (result.sent.length > 0) return 'apns:accepted'
+
+  const failure = result.failed[0]
+  const reason = failure?.response?.reason || failure?.error?.message || 'APNs rejected notification'
+  const error = new Error(reason) as Error & { statusCode?: number; body?: string }
+  error.statusCode = failure?.status
+  error.body = failure?.response ? JSON.stringify(failure.response) : undefined
+  throw error
 }
 
 /**
@@ -193,7 +323,7 @@ export async function sendPushToUser(
     })
 
     // Parallel fan-out — no sequential delay across devices.
-    // FCM device tokens (native APK/iOS) and Web Push subscriptions are
+    // FCM device tokens (native APK), APNs device tokens (native iPhone), and Web Push subscriptions are
     // both dispatched. FCM delivers to the OS even when the app process
     // is dead — the Zomato/Swiggy-class channel.
     const results = await Promise.all(
@@ -202,6 +332,11 @@ export async function sendPushToUser(
           if (sub.type === 'fcm') {
             if (!sub.token) throw new Error('FCM subscription has no token')
             await sendFcm(sub.token, message, isClinical)
+            return { ok: true as const, id: sub.id }
+          }
+          if (sub.type === 'apns') {
+            if (!sub.token) throw new Error('APNs subscription has no token')
+            await sendApns(sub.token, message, isClinical)
             return { ok: true as const, id: sub.id }
           }
           if (!webPushConfigured) throw new Error('Web Push is not configured')
