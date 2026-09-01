@@ -52,7 +52,7 @@ const nextConfig = {
   },
 
   // External packages that shouldn't be traced/bundled (fixes NFT warnings)
-  serverExternalPackages: ['@prisma/client', 'bcryptjs', 'speakeasy', 'qrcode'],
+  serverExternalPackages: ['@prisma/client', '@parse/node-apn', 'bcryptjs', 'speakeasy', 'qrcode'],
 
 
   // Common marketing / auth aliases (crawlers + user bookmarks)
