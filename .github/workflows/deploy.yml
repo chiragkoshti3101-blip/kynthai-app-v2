@@ -189,11 +189,18 @@ jobs:
       - name: Install Playwright
         run: npx playwright install --with-deps
 
+      - name: Create ephemeral session signing key
+        # The E2E job intentionally uses a disposable local-auth database, so it
+        # must not depend on production Supabase secrets just to sign the local
+        # kynthai-session cookie. GITHUB_ENV makes the random key available to
+        # `next start` without storing or exposing a credential.
+        run: echo "SESSION_SIGNING_SECRET=$(node -e 'process.stdout.write(require("crypto").randomBytes(32).toString("hex"))')" >> "$GITHUB_ENV"
+
       - name: Create .env.local (runtime secrets)
         # Writes the runtime secrets the server needs (env vars, NOT a build-time
-        # concern): SUPABASE_SERVICE_ROLE_KEY doubles as the HMAC signing secret
-        # for the local-auth session cookie (src/lib/session-signing.ts uses it
-        # when SESSION_SIGNING_SECRET is unset), and NEXT_PUBLIC_* let the app
+        # concern): SESSION_SIGNING_SECRET is generated above for the disposable
+        # local-auth session cookie; SUPABASE_SERVICE_ROLE_KEY remains available
+        # for server-side Supabase APIs, and NEXT_PUBLIC_* let the app
         # client talk to Supabase. DATABASE_URL is intentionally omitted — the
         # job/env pins both prisma and the app at the Postgres container on
         # the CI bridge network. npm start reads this file itself.
