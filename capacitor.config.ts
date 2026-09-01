@@ -28,6 +28,11 @@ const config: CapacitorConfig = {
       iconColor: '#10b981',
       sound: 'default',
     },
+    PushNotifications: {
+      // Capacitor's NotificationRouter consumes this on iOS when the app is
+      // foregrounded; Android uses the FCM notification channel below.
+      presentationOptions: ['badge', 'sound', 'alert'],
+    },
     SplashScreen: {
       launchAutoHide: true,
       launchShowDuration: 0,
