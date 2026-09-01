@@ -103,6 +103,9 @@ export async function GET(req: NextRequest) {
       color: m.color,
       conditions: parseJsonCol(m.conditions, []),
       photoUrl: m.photoUrl,
+      // Pending invitees have no account phone yet; linked members expose the
+      // phone they entered on their own account to authorized family managers.
+      phone: m.user?.phone ?? undefined,
       // ponytail: count medications from both FamilyMember and linked User
       medicationsCount: (m.medications as any[]).length + ((m.user?.medications as any[])?.length ?? 0),
     })),
