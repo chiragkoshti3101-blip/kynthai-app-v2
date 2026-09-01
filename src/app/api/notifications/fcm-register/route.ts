@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server'
+import { createHash } from 'node:crypto'
 import { db } from '@/lib/db'
 import { logAudit } from '@/lib/auth'
 import { rateLimit } from '@/lib/security'
@@ -8,10 +9,12 @@ export const dynamic = 'force-dynamic'
 
 /**
  * POST /api/notifications/fcm-register
- * Public endpoint — stores an FCM device token for a user.
- * Called from native Java (no session cookies) and from the web layer.
- * An FCM token is only useful for delivering push to that specific device,
- * so there's no security risk in accepting it without full auth.
+ * Store one authenticated native device registration.
+ *
+ * Android sends an FCM token; iPhone sends the APNs token emitted by
+ * @capacitor/push-notifications. The type is explicit because an APNs token
+ * cannot be delivered through Firebase Admin and an FCM token cannot be sent
+ * directly to Apple.
  */
 export async function POST(req: NextRequest) {
   const limited = rateLimit(req)
@@ -19,42 +22,43 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null)
   const token = typeof body?.token === 'string' ? body.token.trim() : ''
-  const email = typeof body?.email === 'string' ? body.email.trim() : ''
-  if (!token || token.length < 20) return jsonError('Missing FCM token', 400)
+  const requestedType = typeof body?.type === 'string' ? body.type.trim().toLowerCase() : 'fcm'
+  if (requestedType !== 'fcm' && requestedType !== 'apns') {
+    return jsonError('Unsupported native push token type', 400)
+  }
+  if (!token || token.length < 20 || token.length > 4096) {
+    return jsonError(`Invalid ${requestedType.toUpperCase()} token`, 400)
+  }
+  if (requestedType === 'apns' && !/^[0-9a-f]{64}$/i.test(token)) {
+    return jsonError('Invalid APNs device token', 400)
+  }
 
-  // FIX: resolve the user from the SESSION first. The old flow required an
-  // email in the body — the web client never sent one (silent 400) and the
-  // native fallback hardcoded a demo address, registering every APK install
-  // under one account. Requests from the WebView carry session cookies; the
-  // email fallback now only applies for pre-session native registration.
-  let user = null as Awaited<ReturnType<typeof db.user.findUnique>>
-  try {
-    const { response, user: sessionUser } = await requireAuth(req)
-    if (!response && sessionUser) {
-      user = await db.user.findUnique({ where: { id: sessionUser.id } })
-    }
-  } catch {
-    /* fall through to email lookup */
-  }
-  if (!user && email) {
-    user = await db.user.findUnique({ where: { email } })
-  }
+  // Resolve the user from the verified session. Never accept an email in the
+  // request body: that could attach an attacker-controlled device to another
+  // account. Native Java uses the WebView session cookie; the web layer sends
+  // the same cookie plus its normal CSRF token.
+  const { response, user: sessionUser } = await requireAuth(req)
+  if (response || !sessionUser) return response || jsonError('Unauthorized', 401)
+  const user = await db.user.findUnique({ where: { id: sessionUser.id } })
   if (!user) return jsonError('Sign in to register this device for push', 401)
+
+  const tokenFingerprint = createHash('sha256').update(token).digest('hex').slice(0, 40)
+  const endpoint = `${requestedType}:${tokenFingerprint}`
 
   try {
     await db.pushSubscription.upsert({
       where: {
-        userId_type_token: { userId: user.id, type: 'fcm', token },
+        userId_type_token: { userId: user.id, type: requestedType, token },
       },
       create: {
         userId: user.id,
-        endpoint: `fcm:${token.slice(0, 40)}`,
-        type: 'fcm',
+        endpoint,
+        type: requestedType,
         token,
         p256dh: '',
         auth: '',
       },
-      update: { endpoint: `fcm:${token.slice(0, 40)}` },
+      update: { endpoint },
     })
   } catch {
     try {
@@ -82,23 +86,56 @@ export async function POST(req: NextRequest) {
         await db.$executeRawUnsafe(sql).catch(() => {})
       }
       await db.pushSubscription.upsert({
-        where: { userId_type_token: { userId: user.id, type: 'fcm', token } },
+        where: { userId_type_token: { userId: user.id, type: requestedType, token } },
         create: {
           userId: user.id,
-          endpoint: `fcm:${token.slice(0, 40)}`,
-          type: 'fcm',
+          endpoint,
+          type: requestedType,
           token,
           p256dh: '',
           auth: '',
         },
-        update: { endpoint: `fcm:${token.slice(0, 40)}` },
+        update: { endpoint },
       })
     } catch (e) {
       console.error('[fcm-register] store failed', e)
-      return jsonError('Failed to store FCM token', 500)
+      return jsonError('Failed to store native push token', 500)
     }
   }
 
-  await logAudit(user.id, 'push.fcm_register', `token:${token.slice(0, 24)}…`)
+  await logAudit(user.id, 'push.native_register', `${requestedType}:${tokenFingerprint}`)
   return jsonOk({ success: true })
+}
+
+/**
+ * DELETE /api/notifications/fcm-register
+ * Remove only the current native device registration.
+ */
+export async function DELETE(req: NextRequest) {
+  const limited = rateLimit(req)
+  if (limited) return limited
+
+  const body = await req.json().catch(() => null)
+  const token = typeof body?.token === 'string' ? body.token.trim() : ''
+  const requestedType = typeof body?.type === 'string' ? body.type.trim().toLowerCase() : 'fcm'
+  if (
+    (requestedType !== 'fcm' && requestedType !== 'apns') ||
+    !token ||
+    token.length < 20 ||
+    token.length > 4096
+  ) {
+    return jsonError('Invalid native push registration', 400)
+  }
+  if (requestedType === 'apns' && !/^[0-9a-f]{64}$/i.test(token)) {
+    return jsonError('Invalid APNs device token', 400)
+  }
+
+  const { response, user } = await requireAuth(req)
+  if (response || !user) return response || jsonError('Unauthorized', 401)
+
+  const result = await db.pushSubscription.deleteMany({
+    where: { userId: user.id, type: requestedType, token },
+  }).catch(() => ({ count: 0 }))
+  await logAudit(user.id, 'push.native_unregister', `${requestedType}:${result.count}`)
+  return jsonOk({ success: true, removed: result.count })
 }
