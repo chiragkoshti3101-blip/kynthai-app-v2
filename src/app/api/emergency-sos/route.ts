@@ -48,7 +48,10 @@ export async function POST(req: NextRequest) {
     // Never trust a client-selected country. The account phone is captured at
     // registration and is the single source of truth for SOS routing.
     const emergencyCountry = getEmergencyCountryFromPhone(user.phone)
-    const emergencyNumber = emergencyCountry.dialNumber
+    const emergencyNumber = emergencyCountry.dialNumber || null
+    const emergencyContactText = emergencyNumber
+      ? `Contact emergency services at ${emergencyNumber}`
+      : 'Contact your local emergency services'
 
     // Get user's family memberships
     const memberships = await db.familyMember.findMany({

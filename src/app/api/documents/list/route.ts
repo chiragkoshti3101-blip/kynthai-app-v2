@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '20');
   const skip = (page - 1) * limit;
 
-  const where: any = {
-    userId: u.id,
-  };
+  const where: any = familyId
+    ? { familyId, visibility: 'FAMILY' }
+    : { userId: u.id };
 
   if (type) {
     where.type = type;
@@ -27,13 +27,15 @@ export async function GET(req: NextRequest) {
 
   if (familyId) {
     // Verify family membership
-    const membership = await db.familyMember.findFirst({
-      where: { familyId, userId: u.id, inviteStatus: 'accepted' },
-    });
-    if (!membership) {
+    const [membership, family] = await Promise.all([
+      db.familyMember.findFirst({
+        where: { familyId, userId: u.id, inviteStatus: 'accepted' },
+      }),
+      db.family.findUnique({ where: { id: familyId }, select: { ownerId: true } }),
+    ]);
+    if (!membership && family?.ownerId !== u.id) {
       return jsonError('Not a family member', 403);
     }
-    where.familyId = familyId;
   }
 
   const [documents, total] = await Promise.all([

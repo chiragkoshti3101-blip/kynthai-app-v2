@@ -10,7 +10,7 @@ import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 
 export interface IdentityDocument {
   id: string;
-  type: 'passport' | 'drivers_license' | 'state_id' | 'other';
+  type: 'passport' | 'drivers_license' | 'national_id' | 'other';
   fileName: string;
   uploadedAt: string;
   verified: boolean;
@@ -147,8 +147,8 @@ export function createAffidavitPayload(name: string, email: string): {
  * Allowed ID document types for patient verification.
  */
 export const ID_DOCUMENT_TYPES = [
-  { value: 'drivers_license', label: "Driver's License" },
-  { value: 'state_id', label: 'State ID Card' },
+  { value: 'drivers_license', label: "Driver's licence / driving ID" },
+  { value: 'national_id', label: 'National ID / government ID card' },
   { value: 'passport', label: 'Passport' },
   { value: 'other', label: 'Other Government ID' },
 ] as const;

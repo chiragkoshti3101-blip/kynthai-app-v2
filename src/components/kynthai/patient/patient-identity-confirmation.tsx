@@ -27,6 +27,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { apiFetch } from '@/lib/client-fetch';
 import {
   Select,
   SelectContent,
@@ -260,27 +261,46 @@ export function PatientIdentityConfirmation({
     }
     setLoading(true);
     try {
-      // Convert file to base64
-      const reader = new FileReader();
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(idFile);
-      });
+      // Files are encrypted and stored by the document API. The verification
+      // endpoint receives IDs only, never raw base64 PHI.
+      const uploadSecureDocument = async (file: File, title: string) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', 'OTHER');
+        formData.append('category', 'LEGAL');
+        formData.append('visibility', 'PRIVATE');
+        formData.append('title', title);
 
-      const res = await fetch('/api/users/verify', {
+        const uploadRes = await apiFetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const uploadData = await uploadRes.json().catch(() => ({}));
+        if (!uploadRes.ok || !uploadData?.document?.id) {
+          throw new Error(uploadData?.error || 'Secure document upload failed');
+        }
+        return String(uploadData.document.id);
+      };
+
+      const documentId = await uploadSecureDocument(idFile, 'Identity document (' + idType + ')');
+      const selfieDocumentId = selfieFile
+        ? await uploadSecureDocument(selfieFile, 'Identity verification selfie')
+        : undefined;
+
+      const res = await apiFetch('/api/users/verify', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'upload_id',
           idDocumentType: idType,
-          idDocumentData: base64,
           idDocumentName: idFile.name,
+          documentId,
+          selfieDocumentId,
         }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || 'Upload failed');
+        throw new Error(data?.error || 'Verification submission failed');
       }
       toast({ title: 'Document uploaded for review' });
       onComplete('pending_review');
