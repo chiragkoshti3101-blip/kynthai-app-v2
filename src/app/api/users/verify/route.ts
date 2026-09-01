@@ -90,9 +90,9 @@ export async function PATCH(req: NextRequest) {
     smsCode?: string;
     identityConfirmed?: boolean;
     idDocumentType?: string;
-    idDocumentData?: string;
     idDocumentName?: string;
-    selfieData?: string;
+    documentId?: string;
+    selfieDocumentId?: string;
   }>(req);
   if (!body) return jsonError('Invalid JSON', 400);
 
@@ -233,16 +233,68 @@ export async function PATCH(req: NextRequest) {
 
     // ── Action: upload_id ─────────────────────────────────────────────
     if (action === 'upload_id') {
-      if (!body.idDocumentType || !body.idDocumentData) {
-        return jsonError('Document type and file data required', 400);
+      const allowedDocumentTypes = new Set(['passport', 'drivers_license', 'national_id', 'other']);
+      if (!body.idDocumentType || !allowedDocumentTypes.has(body.idDocumentType)) {
+        return jsonError('Valid identity document type required', 400);
       }
 
-      // Store document reference (in production, upload to S3/Cloudinary)
+      // Identity files must go through the encrypted medical-document upload
+      // route. Never accept or persist base64 document data in this endpoint.
+      const documentId = sanitizeText(body.documentId || '', 100);
+      const selfieDocumentId = sanitizeText(body.selfieDocumentId || '', 100) || null;
+      if (!documentId) {
+        return jsonError('Secure document upload required before verification submission', 400);
+      }
+
+      const documentIds = [documentId, selfieDocumentId].filter(
+        (id): id is string => Boolean(id),
+      );
+      const documents = await db.medicalDocument.findMany({
+        where: {
+          id: { in: documentIds },
+          userId: session.id,
+          uploadedById: session.id,
+          visibility: 'PRIVATE',
+        },
+        select: {
+          id: true,
+          type: true,
+          category: true,
+          mimeType: true,
+          title: true,
+        },
+      });
+
+      const idDocument = documents.find((document) => document.id === documentId);
+      if (
+        !idDocument ||
+        idDocument.type !== 'OTHER' ||
+        idDocument.category !== 'LEGAL' ||
+        !['application/pdf', 'image/jpeg', 'image/png'].includes(idDocument.mimeType)
+      ) {
+        return jsonError('Invalid identity document upload', 400);
+      }
+
+      if (selfieDocumentId) {
+        const selfieDocument = documents.find((document) => document.id === selfieDocumentId);
+        if (
+          !selfieDocument ||
+          selfieDocument.type !== 'OTHER' ||
+          selfieDocument.category !== 'LEGAL' ||
+          !['image/jpeg', 'image/png'].includes(selfieDocument.mimeType)
+        ) {
+          return jsonError('Invalid selfie upload', 400);
+        }
+      }
+
+      // Store only private document IDs and non-sensitive metadata in the user
+      // row. The encrypted file remains in the medical-documents bucket.
       const docRef = JSON.stringify({
+        documentId,
+        selfieDocumentId,
         type: body.idDocumentType,
-        name: body.idDocumentName || 'id_document',
+        name: sanitizeText(body.idDocumentName || '', 200) || 'id_document',
         uploadedAt: new Date().toISOString(),
-        // Data stored as base64 (in production: cloud URL)
       });
 
       await db.user.update({
@@ -254,7 +306,7 @@ export async function PATCH(req: NextRequest) {
         },
       });
 
-      await logAudit(session.id, 'user.verify.id_uploaded', `type=${body.idDocumentType}`);
+      await logAudit(session.id, 'user.verify.id_uploaded', 'type=' + body.idDocumentType);
       return jsonOk({ message: 'Document uploaded. Pending admin review.', verificationLevel: 'pending_review' });
     }
 

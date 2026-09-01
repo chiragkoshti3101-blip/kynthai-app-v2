@@ -32,10 +32,16 @@ export function EmergencyNumberCard({ phone, className }: { phone?: string | nul
       <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
         <Phone className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-600" />
         <span>
-          Automatically set from your sign-in phone number:{' '}
-          <a href={`tel:${country.dialNumber}`} className="font-semibold text-foreground underline underline-offset-2">
-            {country.number}
-          </a>
+          {country.dialNumber ? (
+            <>
+              Automatically set from your sign-in phone number:{' '}
+              <a href={`tel:${country.dialNumber}`} className="font-semibold text-foreground underline underline-offset-2">
+                {country.number}
+              </a>
+            </>
+          ) : (
+            <strong className="font-semibold text-foreground">Check your local emergency number</strong>
+          )}
           {country.note ? ` — ${country.note}` : ''}
         </span>
       </p>

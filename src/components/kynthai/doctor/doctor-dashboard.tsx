@@ -286,11 +286,11 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
     setLangState(next);
   };
   const [videoOn, setVideoOn] = React.useState(profile.videoCallEnabled);
-  const [downloadingPdfId, setDownloadingPdfId] = React.useState<string | null>(null);
+  const [downloadingPrintableId, setDownloadingPrintableId] = React.useState<string | null>(null);
 
-  const downloadPdf = React.useCallback(
+  const downloadPrintablePrescription = React.useCallback(
     async (prescriptionId: string) => {
-      setDownloadingPdfId(prescriptionId);
+      setDownloadingPrintableId(prescriptionId);
       try {
         // Fetch CSRF token first
         const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
@@ -330,7 +330,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         // Revoke after a delay to allow the new tab to load the blob
         setTimeout(() => URL.revokeObjectURL(url), 10000);
         toast({
-          title: 'Prescription downloaded',
+          title: 'Printable prescription ready',
           description: isIOS
             ? 'Opened in new tab — use Share → Save to Files or Print → Save as PDF.'
             : 'Open in browser and use Print → Save as PDF.',
@@ -342,7 +342,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
           variant: 'destructive',
         });
       } finally {
-        setDownloadingPdfId(null);
+        setDownloadingPrintableId(null);
       }
     },
     [toast]
@@ -1728,21 +1728,21 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                             if (isDemo) {
                               toast({
                                 title: 'Demo data',
-                                description: 'This prescription is demo data — PDF preview needs a real prescription.',
+                                description: 'This prescription is demo data — a printable preview needs a real prescription.',
                                 variant: 'destructive',
                               });
                               return;
                             }
-                            await downloadPdf(rx.id);
+                            await downloadPrintablePrescription(rx.id);
                           }}
-                          disabled={downloadingPdfId === rx.id}
+                          disabled={downloadingPrintableId === rx.id}
                         >
-                          {downloadingPdfId === rx.id ? (
+                          {downloadingPrintableId === rx.id ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
                             <FileText className="h-3 w-3" />
                           )}
-                          {downloadingPdfId === rx.id ? '...' : 'PDF'}
+                          {downloadingPrintableId === rx.id ? '...' : 'Printable'}
                         </Button>
                       </div>
                     </CardContent>
