@@ -125,12 +125,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify family membership if familyId provided
+    // Verify family membership or ownership if familyId is provided.
+    // Owners may not have a FamilyMember row, but must still be able to
+    // publish a FAMILY-visible document for their own family.
     if (familyId) {
-      const membership = await db.familyMember.findFirst({
-        where: { familyId, userId: user.id, inviteStatus: 'accepted' },
-      });
-      if (!membership) {
+      const [membership, family] = await Promise.all([
+        db.familyMember.findFirst({
+          where: { familyId, userId: user.id, inviteStatus: 'accepted' },
+        }),
+        db.family.findUnique({ where: { id: familyId }, select: { ownerId: true } }),
+      ]);
+      if (!membership && family?.ownerId !== user.id) {
         return NextResponse.json({ error: 'Not a member of this family' }, { status: 403 });
       }
     }
