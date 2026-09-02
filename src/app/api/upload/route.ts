@@ -10,7 +10,7 @@ import {
   userPrefixFor,
   HealthFileStorageError,
 } from '@/lib/health-files';
-import { scanBuffer } from '@/lib/antivirus';
+import { isAntivirusRequired, scanBuffer } from '@/lib/antivirus';
 import { logger } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
@@ -86,13 +86,17 @@ export async function POST(req: NextRequest) {
   }
 
   // SECURITY: malware scan (ClamAV) — read the full raw bytes and scan them
-  // BEFORE encrypting/storing. If ClamAV is unavailable (e.g. serverless) the
-  // scan degrades gracefully unless KYNTHAI_REQUIRE_AV=1.
+  // BEFORE encrypting/storing. In production, an unavailable or failed scan is
+  // rejected rather than silently treating a health file as clean.
   const rawBuffer = Buffer.from(await file.arrayBuffer());
   const verdict = await scanBuffer(rawBuffer, file.name);
-  if (verdict.engine === 'clamav' && verdict.infected) {
+  if (verdict.infected) {
     await logAudit(session.id, 'upload.rejected_malware', { resourceType: 'upload', details: verdict.details });
     return jsonError('This file was flagged as potentially malicious and was not uploaded.', 400, 'MALWARE_DETECTED');
+  }
+  if (isAntivirusRequired() && !verdict.clean) {
+    await logAudit(session.id, 'upload.rejected_av_unavailable', { resourceType: 'upload' });
+    return jsonError('Secure malware scanning is temporarily unavailable. Please try again later.', 503, 'MALWARE_SCANNER_UNAVAILABLE');
   }
 
   // Sanitize filename: strip path components, keep only safe chars + one extension.
