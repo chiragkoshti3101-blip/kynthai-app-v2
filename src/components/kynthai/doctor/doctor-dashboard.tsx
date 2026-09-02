@@ -2129,6 +2129,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                 loading={patientChartLoading}
                 error={patientChartError}
                 isDemo={isDemo}
+                onRetry={selectedPatient ? () => void loadPatientChart(selectedPatient.id) : undefined}
               />
             </div>
             <DialogFooter>
