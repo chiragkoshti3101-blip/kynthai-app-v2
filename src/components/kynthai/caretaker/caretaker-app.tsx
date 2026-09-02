@@ -40,6 +40,7 @@ import { KynthaiBrand } from '@/components/kynthai/logo';
 import { useAppStore, type AuthUser } from '@/lib/store';
 import { useRouter } from 'next/navigation';
 import { useGreeting } from '@/lib/greeting';
+import { isDemoUser } from '@/lib/demo-mode';
 import { useToast } from '@/hooks/use-toast';
 import { logger } from '@/lib/logger';
 import { AiChat } from '@/components/medication/ai-chat';
@@ -240,7 +241,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
   const { toast } = useToast();
   const [tab, setTab] = React.useState<Tab>('family');
   const greeting = useGreeting();
-  const isDemo = !!user.isDemo || user.email?.endsWith('@kynthai.app');
+  const isDemo = isDemoUser(user);
   const [profileOpen, setProfileOpen] = React.useState(false);
 
   const handleLogout = React.useCallback(async () => {
