@@ -15,5 +15,8 @@ ALTER TABLE "lab_bookings"
 ALTER TABLE "lab_bookings"
   ADD COLUMN IF NOT EXISTS "deliveryPricingSource" TEXT NOT NULL DEFAULT 'platform_fixed';
 
+ALTER TABLE "lab_bookings"
+  ADD COLUMN IF NOT EXISTS "resultsSharedWith" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];
+
 CREATE INDEX IF NOT EXISTS "idx_lab_bookings_delivery_pricing"
   ON "lab_bookings"("deliveryPricingSource");
