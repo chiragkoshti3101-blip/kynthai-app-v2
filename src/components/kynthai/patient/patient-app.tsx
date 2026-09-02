@@ -28,6 +28,7 @@ import {
   ChevronRight,
   FlaskConical,
   LayoutGrid,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -837,7 +838,198 @@ function MedsTab({ userId, isDemo, showDebugAlarm }: { userId: string; isDemo: b
       )}
       <TodayView userId={userId} isDemo={isDemo} externalAlarm />
       <MedicationsList userId={userId} isDemo={isDemo} />
+      <PatientPrescriptions userId={userId} isDemo={isDemo} />
     </div>
+  );
+}
+
+// ── Patient prescriptions ───────────────────────────────────────────────────
+type PatientPrescription = {
+  id: string;
+  doctorName?: string | null;
+  specialization?: string | null;
+  medications?: Array<{ name?: string | null }> | null;
+  createdAt: string;
+};
+
+function PatientPrescriptions({ userId, isDemo }: { userId: string; isDemo: boolean }) {
+  const { toast } = useToast();
+  const [prescriptions, setPrescriptions] = React.useState<PatientPrescription[]>([]);
+  const [loading, setLoading] = React.useState(!isDemo);
+  const [downloadingId, setDownloadingId] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (isDemo) {
+      setPrescriptions([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/prescriptions?patientId=${encodeURIComponent(userId)}`,
+          { credentials: 'include', cache: 'no-store' },
+        );
+        if (!res.ok) throw new Error('Unable to load prescriptions');
+        const data = await res.json();
+        if (!cancelled) setPrescriptions(Array.isArray(data) ? data : []);
+      } catch (error) {
+        if (!cancelled) {
+          setPrescriptions([]);
+          toast({
+            title: 'Could not load prescriptions',
+            description: error instanceof Error ? error.message : 'Please try again later.',
+            variant: 'destructive',
+          });
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDemo, toast, userId]);
+
+  const downloadPrescription = React.useCallback(
+    async (prescriptionId: string) => {
+      setDownloadingId(prescriptionId);
+      try {
+        const csrfRes = await fetch('/api/auth/csrf', {
+          credentials: 'include',
+          cache: 'no-store',
+        });
+        const csrf = (await csrfRes.json().catch(() => ({})))?.token;
+        if (!csrf) throw new Error('Could not start a secure download');
+
+        const res = await fetch('/api/doctors/prescription-pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrf,
+          },
+          credentials: 'include',
+          body: JSON.stringify({ prescriptionId }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || 'Failed to generate prescription');
+        }
+
+        const html = await res.text();
+        const url = URL.createObjectURL(new Blob([html], { type: 'text/html; charset=utf-8' }));
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        if (isIOS) {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        } else {
+          const anchor = document.createElement('a');
+          anchor.href = url;
+          anchor.download = `prescription-${prescriptionId.slice(0, 8)}.html`;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+        }
+        window.setTimeout(() => URL.revokeObjectURL(url), 10000);
+        toast({
+          title: 'Prescription downloaded',
+          description: isIOS
+            ? 'Opened in a new tab. Use Share or Print to save it.'
+            : 'Open the downloaded file and choose Print → Save as PDF.',
+        });
+      } catch (error) {
+        toast({
+          title: 'Download failed',
+          description: error instanceof Error ? error.message : 'Please try again later.',
+          variant: 'destructive',
+        });
+      } finally {
+        setDownloadingId(null);
+      }
+    },
+    [toast],
+  );
+
+  return (
+    <Card className="border-emerald-100 dark:border-emerald-900/40">
+      <CardContent className="space-y-3 p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-semibold">Prescriptions</h3>
+            <p className="text-xs text-muted-foreground">
+              Download a printable copy of prescriptions issued to you.
+            </p>
+          </div>
+          <BookOpen className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+        </div>
+
+        {loading ? (
+          <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading prescriptions
+          </div>
+        ) : prescriptions.length === 0 ? (
+          <p className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+            Prescriptions issued by your doctors will appear here.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {prescriptions.map((prescription) => {
+              const medicationNames = Array.isArray(prescription.medications)
+                ? prescription.medications
+                    .map((medication) => medication?.name)
+                    .filter(Boolean)
+                    .slice(0, 3)
+                    .join(', ')
+                : '';
+
+              return (
+                <div
+                  key={prescription.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border p-3"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">
+                      Dr. {prescription.doctorName || 'Your doctor'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {prescription.specialization || 'Prescription'} ·{' '}
+                      {new Date(prescription.createdAt).toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </p>
+                    {medicationNames && (
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {medicationNames}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1.5"
+                    disabled={downloadingId === prescription.id}
+                    onClick={() => downloadPrescription(prescription.id)}
+                  >
+                    {downloadingId === prescription.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    {downloadingId === prescription.id ? 'Preparing…' : 'Download'}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
