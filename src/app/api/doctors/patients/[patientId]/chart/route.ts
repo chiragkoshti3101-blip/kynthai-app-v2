@@ -125,11 +125,13 @@ export async function GET(
             tests: true,
             scheduledAt: true,
             status: true,
+            notes: true,
             resultsFile: true,
             resultsNote: true,
             resultUploadedAt: true,
             shareToken: true,
             shareExpiresAt: true,
+            resultsSharedWith: true,
             lab: { select: { labName: true } },
           },
         },
@@ -174,6 +176,7 @@ export async function GET(
 
     const allergies = parseStringList(patient.allergies)
     const age = patient.dateOfBirth ? calculateAge(patient.dateOfBirth) : null
+    const now = new Date()
 
     await logAudit({
       userId: user.id,
@@ -258,6 +261,9 @@ export async function GET(
         type: appointment.type,
         status: appointment.status,
         reason: appointment.reason,
+        // Keep other clinicians' private appointment notes out of a shared
+        // chart; the requesting doctor can see their own notes below.
+        notes: appointment.doctorId === doctor.id ? appointment.notes : null,
         doctor: {
           name: appointment.doctor.user.name || 'Doctor',
           specialization: appointment.doctor.specialization,
@@ -270,9 +276,20 @@ export async function GET(
         scheduledAt: booking.scheduledAt.toISOString(),
         status: booking.status,
         resultsAvailable: Boolean(booking.resultsFile),
-        resultsNote: booking.resultsNote,
+        // A lab result note is part of the report; disclose it only when the
+        // patient shared this booking with the requesting doctor's profile.
+        notes: booking.notes,
+        resultsNote: booking.shareToken && booking.shareExpiresAt && booking.shareExpiresAt > now &&
+          (booking.resultsSharedWith.length === 0 || booking.resultsSharedWith.includes(doctor.id))
+          ? booking.resultsNote
+          : null,
         resultUploadedAt: booking.resultUploadedAt?.toISOString() ?? null,
-        resultsShared: Boolean(booking.shareToken && booking.shareExpiresAt && booking.shareExpiresAt > new Date()),
+        resultsShared: Boolean(
+          booking.shareToken &&
+          booking.shareExpiresAt &&
+          booking.shareExpiresAt > now &&
+          (booking.resultsSharedWith.length === 0 || booking.resultsSharedWith.includes(doctor.id))
+        ),
       })),
       consultationNotes: consultationNotes.map((note) => ({
         id: note.id,
