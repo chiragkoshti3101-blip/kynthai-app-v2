@@ -15,6 +15,15 @@ const manifest = {
   theme_color: '#089868',
   orientation: 'portrait-primary',
   categories: ['health', 'medical', 'lifestyle'],
+  screenshots: [
+    {
+      src: '/og-image.webp',
+      sizes: '1200x630',
+      type: 'image/webp',
+      form_factor: 'wide',
+      label: 'Kynthai: AI health companion for families',
+    },
+  ],
   shortcuts: [
     {
       name: 'Add Medication',
