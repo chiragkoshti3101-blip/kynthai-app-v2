@@ -10,11 +10,12 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/doctors/patients/:patientId/chart
  *
- * Returns the minimum useful longitudinal chart for a doctor who actually
+ * Returns the complete permitted longitudinal chart for a doctor who actually
  * treats the patient. This is intentionally not a generic patient export:
  * private journals and private documents stay private, while clinical
  * documents are returned as metadata and remain protected by their download
- * endpoint.
+ * endpoint. The doctor UI requests history=full so older records are not
+ * silently hidden behind a recent-record cap.
  */
 export async function GET(
   req: NextRequest,
@@ -29,6 +30,7 @@ export async function GET(
 
   const { patientId } = await params
   if (!patientId || patientId.length > 120) return jsonError('Invalid patient id', 400)
+  const fullHistoryRequested = req.nextUrl.searchParams.get('history') === 'full'
 
   try {
     const doctor = await db.doctorProfile.findUnique({
@@ -93,7 +95,7 @@ export async function GET(
         },
         prescriptionsReceived: {
           orderBy: { createdAt: 'desc' },
-          take: 100,
+          ...(fullHistoryRequested ? {} : { take: 100 }),
           include: {
             doctor: {
               select: {
@@ -106,7 +108,7 @@ export async function GET(
         appointments: {
           where: { deletedAt: null },
           orderBy: { scheduledAt: 'desc' },
-          take: 100,
+          ...(fullHistoryRequested ? {} : { take: 100 }),
           include: {
             doctor: {
               select: {
@@ -119,7 +121,7 @@ export async function GET(
         labBookings: {
           where: { status: { not: 'cancelled' } },
           orderBy: { scheduledAt: 'desc' },
-          take: 100,
+          ...(fullHistoryRequested ? {} : { take: 100 }),
           select: {
             id: true,
             tests: true,
@@ -141,7 +143,7 @@ export async function GET(
             category: { in: ['CLINICAL', 'ADMINISTRATIVE'] },
           },
           orderBy: { uploadedAt: 'desc' },
-          take: 100,
+          ...(fullHistoryRequested ? {} : { take: 100 }),
         },
       },
     })
@@ -171,7 +173,7 @@ export async function GET(
     const consultationNotes = await db.consultationNote.findMany({
       where: { doctorId: doctor.id, patientId },
       orderBy: { createdAt: 'desc' },
-      take: 100,
+      ...(fullHistoryRequested ? {} : { take: 100 }),
     })
 
     const allergies = parseStringList(patient.allergies)
@@ -290,6 +292,11 @@ export async function GET(
           booking.shareExpiresAt > now &&
           (booking.resultsSharedWith.length === 0 || booking.resultsSharedWith.includes(doctor.id))
         ),
+        resultDownloadPath: booking.resultsFile && booking.shareToken && booking.shareExpiresAt &&
+          booking.shareExpiresAt > now &&
+          (booking.resultsSharedWith.length === 0 || booking.resultsSharedWith.includes(doctor.id))
+          ? `/api/lab-bookings/${booking.id}/results/file?share=${encodeURIComponent(booking.shareToken)}`
+          : null,
       })),
       consultationNotes: consultationNotes.map((note) => ({
         id: note.id,

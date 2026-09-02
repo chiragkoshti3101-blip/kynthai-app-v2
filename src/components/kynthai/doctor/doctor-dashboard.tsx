@@ -394,7 +394,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
 
     setPatientChartLoading(true);
     try {
-      const res = await fetch(`/api/doctors/patients/${encodeURIComponent(patientId)}/chart`, {
+      const res = await fetch(`/api/doctors/patients/${encodeURIComponent(patientId)}/chart?history=full`, {
         credentials: 'include',
         cache: 'no-store',
       });

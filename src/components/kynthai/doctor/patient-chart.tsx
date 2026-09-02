@@ -86,6 +86,7 @@ export interface DoctorPatientChart {
     resultsNote: string | null
     resultUploadedAt: string | null
     resultsShared: boolean
+    resultDownloadPath: string | null
   }>
   consultationNotes: Array<{
     id: string
@@ -170,7 +171,7 @@ export function PatientChart({
         <div className="flex items-start gap-2">
           <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
-            Authorized clinical view. Treatment relationship: {chart.access.relationship}. Private journals and private documents are excluded; every chart view is audit logged.
+            Authorized clinical view with the complete permitted longitudinal history. Treatment relationship: {chart.access.relationship}. Private journals and private documents are excluded; every chart view is audit logged.
           </span>
         </div>
       </div>
@@ -292,9 +293,16 @@ export function PatientChart({
             </div>
             {booking.notes && <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">Collection note: {booking.notes}</p>}
             {booking.resultsAvailable ? (
-              <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
-                Results uploaded {booking.resultUploadedAt ? formatDate(booking.resultUploadedAt) : ''}{booking.resultsShared ? ' and shared with a doctor.' : ' — patient sharing is still required for the report file.'}
-              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-emerald-700 dark:text-emerald-300">
+                <p>
+                  Results uploaded {booking.resultUploadedAt ? formatDate(booking.resultUploadedAt) : ''}{booking.resultsShared ? ' and shared with a doctor.' : ' — patient sharing is still required for the report file.'}
+                </p>
+                {booking.resultDownloadPath && (
+                  <a href={booking.resultDownloadPath} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 px-2 py-1 font-medium hover:bg-emerald-500/10">
+                    <Download className="h-3 w-3" /> Open report
+                  </a>
+                )}
+              </div>
             ) : <p className="mt-2 text-xs text-muted-foreground">No result file recorded yet.</p>}
             {booking.resultsNote && <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">Lab note: {booking.resultsNote}</p>}
           </div>
