@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
             status: true,
             price: true,
             commission: true,
+            deliveryFee: true,
             createdAt: true,
           },
         }),
@@ -122,9 +123,9 @@ export async function GET(req: NextRequest) {
     let labCommission = 0;
     for (const b of labBookings) {
       labStatus[b.status] = (labStatus[b.status] ?? 0) + 1;
-      if (b.status !== 'cancelled') labGross += b.price;
+      if (b.status !== 'cancelled') labGross += b.price + b.deliveryFee;
       if (b.status === 'completed') {
-        labGrossCompleted += b.price;
+        labGrossCompleted += b.price + b.deliveryFee;
         labCommission += b.commission;
       }
     }
