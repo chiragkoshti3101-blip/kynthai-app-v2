@@ -243,7 +243,7 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 z-50 mt-2 w-[min(100vw-2rem,22rem)] overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl shadow-black/10"
+              className="fixed inset-x-2 top-[calc(env(safe-area-inset-top,0px)+4.5rem)] z-50 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl shadow-black/10 sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[22rem]"
             >
               <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
                 <p className="text-sm font-semibold">Notifications</p>
