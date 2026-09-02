@@ -94,6 +94,7 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     '/grievance',
     '/patient-rights',
     '/privacy-practices',
+    '/faq',
     '/feedback',
     '/admin-login',
   ]);
@@ -366,19 +367,12 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   }
 
   // Wait for zustand rehydration before auth-aware decisions on `/`.
-  // Without this, a logged-in user reopening the app at `/` briefly sees the
-  // marketing LandingPage (user is still null) → then Loader → portal.
-  // Portal/protected paths keep their server-rendered children during
-  // rehydration so we don't flash a second loader over the real shell.
+  // The server-rendered landing fallback is intentionally kept visible while
+  // the store hydrates. This gives anonymous crawlers and no-JS users complete
+  // marketing content instead of an empty loader; authenticated users are
+  // redirected by the auth-aware branch immediately after hydration.
   if (!hydrated) {
-    if (isLandingPage) {
-      return (
-        <ErrorBoundary>
-          <AppLoader label="Loading…" />
-        </ErrorBoundary>
-      );
-    }
-    if (isPortalPath || isProtectedPath) {
+    if (isLandingPage || isPortalPath || isProtectedPath) {
       return <ErrorBoundary>{children}</ErrorBoundary>;
     }
   }
