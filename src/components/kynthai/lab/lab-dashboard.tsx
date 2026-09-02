@@ -34,16 +34,22 @@ interface BookingRow {
   price: number
   commission: number
   homeCollection: boolean
+  deliveryDistanceKm?: number | null
+  deliveryFee?: number
+  deliveryQuoteAccepted?: boolean
+  deliveryPricingSource?: string
   hasResultsFile?: boolean
 }
 
 interface LabDashboardProps {
   user: AuthUser
   profile: {
+    id: string
     labName: string
     city: string
     verified: boolean
     homeCollection: boolean
+    longDistanceTravelFeeCents?: number | null
   }
   onLogout: () => void
 }
@@ -112,6 +118,10 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
   const [notes, setNotes] = React.useState('')
   const [resultFile, setResultFile] = React.useState<File|null>(null)
   const [uploadingFor, setUploadingFor] = React.useState<string|null>(null)
+  const [travelQuoteDollars, setTravelQuoteDollars] = React.useState(
+    profile.longDistanceTravelFeeCents ? (profile.longDistanceTravelFeeCents / 100).toFixed(2) : '',
+  )
+  const [savingTravelQuote, setSavingTravelQuote] = React.useState(false)
 
   const { toast } = useToast()
 
@@ -124,7 +134,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
   const fetchData = React.useCallback(async () => {
     // Demo mode: use sample data directly — skip API calls that fail without a real DB
     if (isDemoAccount) {
-      // Mirror the production /api/labs/dashboard calc: revenue = Σ(price − commission) over completed
+      // Mirror the production /api/labs/dashboard calc: revenue = Σ(price + travel − commission) over completed
       setStats({
         bookingsTotal: DEMO_BOOKINGS.length,
         pending: DEMO_BOOKINGS.filter((b) => b.status === 'pending').length,
@@ -156,6 +166,37 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
   }, [toast, isDemoAccount])
 
   React.useEffect(() => { fetchData() }, [fetchData])
+
+  const saveTravelQuote = async () => {
+    if (isDemoAccount) {
+      toast({ title: 'Demo profile is read-only', description: 'Use a real lab account to set travel pricing.' })
+      return
+    }
+    const trimmed = travelQuoteDollars.trim()
+    const cents = trimmed === '' ? null : Math.round(Number(trimmed) * 100)
+    if (cents !== null && (!Number.isFinite(cents) || cents < 100 || cents > 1000000)) {
+      toast({ title: 'Invalid provider quote', description: 'Enter a value from $1.00 to $10,000.00, or leave it blank to disable long-distance online booking.', variant: 'destructive' })
+      return
+    }
+    setSavingTravelQuote(true)
+    try {
+      const csrf = await fetch('/api/auth/csrf', { credentials: 'include' }).then(r => r.json()).then(d => d.token)
+      const res = await fetch(`/api/labs/${profile.id}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf || '' },
+        body: JSON.stringify({ longDistanceTravelFeeCents: cents }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Unable to save provider quote')
+      setTravelQuoteDollars(data.longDistanceTravelFeeCents == null ? '' : (data.longDistanceTravelFeeCents / 100).toFixed(2))
+      toast({ title: 'Travel pricing saved', description: cents === null ? 'Long-distance online bookings are now disabled until you add a quote.' : 'Patients will see and accept this quote at 5 km or more.' })
+    } catch (error) {
+      toast({ title: 'Travel pricing update failed', description: error instanceof Error ? error.message : 'Please try again.', variant: 'destructive' })
+    } finally {
+      setSavingTravelQuote(false)
+    }
+  }
 
   React.useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -344,6 +385,41 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                     )}
                   </div>
                 </div>
+                <div className="rounded-xl border border-border/60 bg-card p-5 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                    <div>
+                      <p className="text-sm font-semibold">Home-collection travel pricing</p>
+                      <p className="mt-1 text-xs text-muted-foreground">Under 5 km is a fixed $8.00 patient charge. At 5 km or more, patients see and accept your quote before booking.</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <label className="flex-1 space-y-1 text-xs font-medium">
+                      <span>Your long-distance quote (USD)</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10000"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={travelQuoteDollars}
+                        onChange={e => setTravelQuoteDollars(e.target.value)}
+                        disabled={isDemoAccount || savingTravelQuote}
+                        placeholder="e.g. 15.00"
+                        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-60"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={saveTravelQuote}
+                      disabled={isDemoAccount || savingTravelQuote}
+                      className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+                    >
+                      {savingTravelQuote ? 'Saving…' : 'Save quote'}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Leave blank to stop online long-distance bookings. The platform keeps no hard-coded $15/$30 tiers.</p>
+                </div>
                 <div className="rounded-xl border border-border/60 bg-card">
                   <div className="px-5 py-4 border-b border-border/40">
                     <p className="text-sm font-semibold flex items-center gap-2">
@@ -416,10 +492,11 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {fmtDateTime(b.scheduledAt)}
                           {b.homeCollection ? ' · Home collection' : ' · In-lab'}
+                          {b.homeCollection && b.deliveryDistanceKm != null ? ` · ${b.deliveryDistanceKm} km · travel ${fmtMoney(b.deliveryFee ?? 0)}` : ''}
                         </p>
                       </div>
                       <div className="text-right shrink-0 space-y-1">
-                        <p className="text-sm font-semibold">{fmtMoney(b.price)}</p>
+                        <p className="text-sm font-semibold">{fmtMoney(b.price + (b.deliveryFee ?? 0))}</p>
                         <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium', cfg.bg, cfg.color)}>
                           <SIcon className="h-3 w-3" /> {cfg.label}
                         </span>

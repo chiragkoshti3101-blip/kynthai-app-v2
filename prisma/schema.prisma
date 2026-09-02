@@ -240,9 +240,12 @@ model LabProfile {
   rating              Float        @default(4.5)
   reviewCount         Int          @default(0)
   documents           String       @default("[]")
-  homeCollection      Boolean      @default(true)
-  city                String       @default("")
-  verificationStatus  String       @default("pending")
+  homeCollection               Boolean      @default(true)
+  // Provider-set home-collection charge for journeys at or beyond 5 km.
+  // Stored in cents; null means the provider has not enabled long-distance service.
+  longDistanceTravelFeeCents   Int?
+  city                         String       @default("")
+  verificationStatus           String       @default("pending")
   rejectionReason     String?
   rejectionReason_enc String?      @map("rejectionReason_enc")
   submittedAt         DateTime?
@@ -293,14 +296,18 @@ model LabBooking {
   price                Int        @default(0)
   commission           Int        @default(0)
   homeCollection       Boolean    @default(true)
-  // Delivery fee fields
-  deliveryAddress      String?
-  deliveryCity         String?
-  deliveryZip          String?
-  deliveryDistanceMi   Float?
-  deliveryFee          Int        @default(0)   // in cents, tiered by distance
-  deliveryPlatformFee  Int        @default(0)   // 18% of deliveryFee
-  notes                String?
+  // Home-collection travel pricing fields (all money values are cents).
+  deliveryAddress           String?
+  deliveryCity              String?
+  deliveryZip               String?
+  deliveryDistanceMi        Float? // legacy compatibility; new writes also store km
+  deliveryDistanceKm        Float?
+  deliveryFee               Int        @default(0) // fixed $8 under 5 km or provider quote at/over 5 km
+  deliveryPlatformFee       Int        @default(0) // platform share of deliveryFee
+  deliveryQuoteAccepted     Boolean    @default(false)
+  deliveryPricingSource     String     @default("platform_fixed") // platform_fixed | provider_quote
+  resultsSharedWith         String[]   @default([]) // doctor profile IDs explicitly selected by the patient
+  notes                     String?
   notes_enc            String?    @map("notes_enc")
   resultsFile          String?
   resultsNote          String?

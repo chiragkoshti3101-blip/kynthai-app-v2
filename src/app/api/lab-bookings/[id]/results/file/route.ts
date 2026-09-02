@@ -63,6 +63,18 @@ export async function GET(
       booking.shareExpiresAt &&
       booking.shareExpiresAt > new Date()
     ) {
+      if (u.role === 'doctor') {
+        const profile = await db.doctorProfile.findUnique({
+          where: { userId: u.id },
+          select: { id: true, verified: true },
+        })
+        if (!profile?.verified) return jsonError('Verified doctor access is required', 403)
+        // Empty means a legacy share created before recipient scoping was
+        // added. New shares are restricted to the selected doctor profiles.
+        if (booking.resultsSharedWith.length > 0 && !booking.resultsSharedWith.includes(profile.id)) {
+          return jsonError('These results were not shared with this doctor', 403)
+        }
+      }
       shareValid = true
     }
   }

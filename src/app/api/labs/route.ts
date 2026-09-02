@@ -7,6 +7,7 @@ import { checkCsrf } from '@/lib/csrf'
 import { jsonError, jsonOk, readJson, audit, parseJsonCol, requireAuth } from '@/lib/api-helpers'
 import { labProfileSchema } from '@/lib/schemas'
 import { validateProviderDocuments } from '@/lib/provider-documents'
+import { extractZip } from '@/lib/delivery-fee'
 export const dynamic = 'force-dynamic'
 
 // GET /api/labs — public list of verified labs. Supports ?city=&search=&userId=
@@ -33,6 +34,8 @@ export async function GET(req: NextRequest) {
       city: profile.city,
       testsOffered: parseJsonCol(profile.testsOffered, []),
       homeCollection: profile.homeCollection,
+      serviceZip: extractZip(profile.address || ''),
+      longDistanceTravelFeeCents: profile.longDistanceTravelFeeCents,
       verified: profile.verified,
       verificationStatus: profile.verificationStatus,
       rejectionReason: profile.rejectionReason,
@@ -71,8 +74,10 @@ export async function GET(req: NextRequest) {
       labName: l.labName,
       city: l.city,
       address: l.address,
+      serviceZip: extractZip(l.address || ''),
       testsOffered: parseJsonCol(l.testsOffered, []),
       homeCollection: l.homeCollection,
+      longDistanceTravelFeeCents: l.longDistanceTravelFeeCents,
       rating: l.rating,
       reviewCount: l.reviewCount,
     })),
@@ -112,12 +117,13 @@ export async function POST(req: NextRequest) {
   const address = sanitizeText(body.address, 500)
   const tests = Array.isArray(body.tests)
     ? body.tests
-        .filter((t) => t && t.name)
+        .filter((t) => t && t.name && Number(t.price) > 0)
         .map((t) => ({ name: sanitizeText(t.name, 120), price: Number(t.price) || 0 }))
     : []
   if (!labName) return jsonError('Lab name is required', 400)
   if (!licenseNumber) return jsonError('License number is required', 400)
   if (!city) return jsonError('City is required', 400)
+  if (tests.length === 0) return jsonError('Add at least one priced test', 400)
 
   const docs = body.documents ?? {}
 
@@ -173,7 +179,9 @@ export async function POST(req: NextRequest) {
     licenseNumber: profile.licenseNumber,
     city: profile.city,
     address: profile.address,
+    serviceZip: extractZip(profile.address || ''),
     homeCollection: profile.homeCollection,
+    longDistanceTravelFeeCents: profile.longDistanceTravelFeeCents,
     testsOffered: parseJsonCol(profile.testsOffered, []),
     verified: profile.verified,
     verificationStatus: profile.verificationStatus,

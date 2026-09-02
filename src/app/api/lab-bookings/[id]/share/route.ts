@@ -80,7 +80,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Update booking with share token
   await db.labBooking.update({
     where: { id },
-    data: { shareToken, shareExpiresAt },
+    data: {
+      shareToken,
+      shareExpiresAt,
+      // Keep the recipient list with the booking so chart access and the
+      // result-file endpoint can enforce the patient's specific selection.
+      resultsSharedWith: validDoctorIds,
+    },
   })
 
   // Get doctor details for notifications
