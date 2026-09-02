@@ -7,6 +7,7 @@ import { decryptFile } from '@/lib/encryption';
 import { downloadMedicalDocument, getSignedDocumentUrl } from '@/lib/storage';
 import { logger } from '@/lib/logger';
 import { requireAuth, jsonError } from '@/lib/api-helpers';
+import { canAccessDocument } from '@/lib/auth';
 
 export async function GET(
   req: NextRequest,
@@ -28,8 +29,11 @@ export async function GET(
       return jsonError('Document not found', 404);
     }
 
-    // Check access permissions
-    const hasAccess = await checkDocumentAccess(u.id, u.role, document);
+    // Check access permissions through the shared policy used by all callers.
+    const hasAccess = await canAccessDocument(
+      { id: u.id, email: u.email, role: u.role, name: u.name ?? undefined },
+      document,
+    );
     if (!hasAccess) {
       return jsonError('Forbidden', 403);
     }
@@ -125,85 +129,4 @@ export async function GET(
     logger.phiSafeError(error, 'documents.download');
     return jsonError('Internal server error', 500);
   }
-}
-
-async function checkDocumentAccess(
-  userId: string,
-  userRole: string,
-  document: {
-    id: string;
-    userId: string;
-    uploadedById: string;
-    familyId: string | null;
-    category: string;
-    visibility: string;
-    sharedWith: string[];
-  }
-): Promise<boolean> {
-  // Owner
-  if (document.userId === userId) return true;
-
-  // Uploader
-  if (document.uploadedById === userId) return true;
-
-  // Explicit sharing is a direct patient/provider grant. It is checked
-  // before role-specific defaults so a patient can share a document with a
-  // named clinician even when there is no appointment link yet.
-  if (document.sharedWith.includes(userId)) return true;
-
-  // Doctor access: a DOCTOR-visible clinical/administrative document is
-  // available only to a verified doctor with a real care relationship and
-  // active patient clinical-data consent. Previously this check compared the
-  // category values against `visibility`, so legitimate chart documents could
-  // be listed but not opened.
-  if (
-    userRole === 'doctor' &&
-    document.visibility === 'DOCTOR' &&
-    ['CLINICAL', 'ADMINISTRATIVE'].includes(document.category)
-  ) {
-    const profile = await db.doctorProfile.findUnique({
-      where: { userId },
-      select: { id: true, verified: true },
-    });
-    if (profile?.verified) {
-      const [patient, apt, rx] = await Promise.all([
-        db.user.findUnique({
-          where: { id: document.userId },
-          select: { consentAccepted: true, dataProcessingConsent: true },
-        }),
-        db.appointment.findFirst({
-          where: { doctorId: profile.id, patientId: document.userId, deletedAt: null },
-          select: { id: true },
-        }),
-        db.prescription.findFirst({
-          where: { doctorId: profile.id, patientId: document.userId },
-          select: { id: true },
-        }),
-      ]);
-      if (patient?.consentAccepted && patient.dataProcessingConsent && (apt || rx)) return true;
-    }
-    // No consent, verified care relationship, or valid document visibility.
-    return false;
-  }
-
-  // Family access
-  if (document.familyId && document.visibility === 'FAMILY') {
-    const membership = await db.familyMember.findFirst({
-      where: { familyId: document.familyId, userId, inviteStatus: 'accepted' },
-    });
-    if (membership) return true;
-  }
-
-  // Emergency access is a break-glass path for verified doctors only.
-  if (document.visibility === 'EMERGENCY' && userRole === 'doctor') {
-    const profile = await db.doctorProfile.findUnique({
-      where: { userId },
-      select: { verified: true },
-    });
-    if (!profile?.verified) return false;
-    logger.warn(`EMERGENCY ACCESS: ${userId} accessed document ${document.id}`);
-    return true;
-  }
-
-  return false;
 }
