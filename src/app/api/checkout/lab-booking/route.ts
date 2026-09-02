@@ -7,7 +7,7 @@
  * Requires: STRIPE_SECRET_KEY in env.
  */
 import { NextRequest } from 'next/server'
-import { requireAuthWithCsrf, jsonError, jsonOk, readJson } from '@/lib/api-helpers'
+import { requireAuthWithCsrf, jsonError, jsonOk, readJson, parseJsonCol } from '@/lib/api-helpers'
 import { rateLimit } from '@/lib/security'
 import { logger } from '@/lib/logger'
 import Stripe from 'stripe'
@@ -40,21 +40,10 @@ export async function POST(req: NextRequest) {
 
   if (!body) return jsonError('Invalid JSON', 400)
   if (!body.bookingId) return jsonError('bookingId is required', 400)
-  if (!body.tests || body.tests.length === 0) return jsonError('tests are required', 400)
 
-  const stripe = getStripe()
-  if (!stripe) {
-    // Stripe not configured — create a mock payment record and confirm the booking
-    return jsonOk({
-      sessionId: null,
-      url: null,
-      mockMode: true,
-      message: 'Stripe not configured — booking confirmed without payment.',
-    })
-  }
-
-  // SECURITY: validate prices server-side — never trust client-supplied amounts.
-  // Look up the booking from DB and compute the total from verified data.
+  // SECURITY: load the booking before checking the payment provider. The
+  // booking record, including the accepted provider quote, is authoritative;
+  // client-supplied tests, fees, names, and addresses are display-only.
   const { db } = await import('@/lib/db')
   const booking = await db.labBooking.findUnique({
     where: { id: body.bookingId },
@@ -64,14 +53,38 @@ export async function POST(req: NextRequest) {
   if (booking.patientId !== user.id && user.role !== 'admin') {
     return jsonError('Unauthorized', 403)
   }
+  if (booking.deliveryPricingSource === 'provider_quote' && !booking.deliveryQuoteAccepted) {
+    return jsonError('The provider travel quote must be accepted before checkout.', 409, 'TRAVEL_QUOTE_NOT_ACCEPTED')
+  }
 
-  // Use server-side price — client prices are ignored for the checkout total
+  const parsedTests = parseJsonCol<unknown[]>(booking.tests, [])
+  const serverTests = parsedTests.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return []
+    const item = entry as { name?: unknown; price?: unknown }
+    const name = typeof item.name === 'string' ? item.name.trim() : ''
+    const price = Number(item.price)
+    return name && Number.isFinite(price) && price > 0 ? [{ name, price: Math.round(price) }] : []
+  })
+  // Legacy bookings stored only test names. Preserve their verified booking
+  // total as one line item instead of trusting a replacement client payload.
+  const lineTests = serverTests.length > 0
+    ? serverTests
+    : [{ name: 'Lab tests', price: booking.price }]
   const serverTotalCents = booking.price
-  const serverDeliveryFee = booking.deliveryFee || 0
+  const deliveryFee = booking.deliveryFee || 0
+  const totalCents = serverTotalCents + deliveryFee
 
-  const testsTotal = body.tests.reduce((s, t) => s + (t.price || 0), 0)
-  const deliveryFee = serverDeliveryFee
-  const totalCents = serverTotalCents
+  const stripe = getStripe()
+  if (!stripe) {
+    return jsonOk({
+      sessionId: null,
+      url: null,
+      mockMode: true,
+      bookingId: booking.id,
+      total: totalCents,
+      message: 'Stripe is not configured. The booking is recorded as pending payment; no charge was made.',
+    })
+  }
 
   try {
     const session = await stripe.checkout.sessions.create({
@@ -81,12 +94,12 @@ export async function POST(req: NextRequest) {
       customer_email: user.email || undefined,
       line_items: [
         // Test fees
-        ...body.tests.map((t) => ({
+        ...lineTests.map((t) => ({
           price_data: {
             currency: 'usd',
             product_data: {
               name: t.name,
-              description: `Lab test at ${body.labName || 'Kynthai partner lab'}`,
+              description: `Lab test at ${booking.lab.labName || 'Kynthai partner lab'}`,
             },
             unit_amount: t.price,
           },
@@ -99,7 +112,7 @@ export async function POST(req: NextRequest) {
                 currency: 'usd',
                 product_data: {
                   name: 'Home collection delivery',
-                  description: `Delivery to ${body.deliveryAddress || 'your address'}`,
+                  description: `Delivery to ${booking.deliveryAddress || 'your address'}`,
                 },
                 unit_amount: deliveryFee,
               },
