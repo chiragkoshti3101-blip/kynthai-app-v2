@@ -19,6 +19,7 @@ function PricingTeaser({
   type Tier = {
     name: string;
     price: string;
+    amount: number;
     cadence: string;
     features: string[];
     cta: string;
@@ -32,6 +33,7 @@ function PricingTeaser({
     {
       name: 'Free',
       price: '$0',
+      amount: 0,
       cadence: 'free plan',
       features: [
         '1 member profile',
@@ -48,6 +50,7 @@ function PricingTeaser({
     {
       name: 'Plus',
       price: formatPrice(PRICING[currency].plus.monthly, currency),
+      amount: PRICING[currency].plus.monthly,
       cadence: '/ month',
       yearlyNote: `${PRICING[currency].plus.yearly}/yr (billed annually)`,
       features: [
@@ -67,6 +70,7 @@ function PricingTeaser({
     {
       name: 'Family Pro',
       price: formatPrice(PRICING[currency].family_pro.monthly, currency),
+      amount: PRICING[currency].family_pro.monthly,
       cadence: '/ month',
       yearlyNote: `${PRICING[currency].family_pro.yearly}/yr (billed annually)`,
       features: [
@@ -124,7 +128,16 @@ function PricingTeaser({
 
       <div className="mx-auto mt-8 grid max-w-5xl gap-4 sm:gap-5 md:grid-cols-3 items-stretch">
         {tiers.map(t => (
-          <div key={t.name} className={cn('flex h-full', t.highlight ? 'md:-mt-2 md:mb-0' : '')}>
+          <div
+            key={t.name}
+            itemScope
+            itemType="https://schema.org/Offer"
+            className={cn('flex h-full', t.highlight ? 'md:-mt-2 md:mb-0' : '')}
+          >
+            <meta itemProp="name" content={t.name} />
+            <meta itemProp="price" content={String(t.amount)} />
+            <meta itemProp="priceCurrency" content={currency} />
+            <meta itemProp="url" content="https://kynthai.app/pricing" />
             <Card
               className={cn(
                 'relative flex w-full flex-col p-6 sm:p-7 transition-all duration-200',
