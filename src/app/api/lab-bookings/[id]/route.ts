@@ -84,7 +84,8 @@ export async function PATCH(
   if (updated.status === 'cancelled' && booking.status !== 'cancelled') {
     const isPatient = u.id === booking.patientId
     const isLab = u.id === booking.lab.userId
-    const refundAmount = updated.price - updated.commission
+    const bookingTotal = updated.price + updated.deliveryFee
+    const refundAmount = bookingTotal - updated.commission
 
     if (refundAmount > 0 && (isPatient || isLab)) {
       // Find the payment record for this booking
@@ -125,7 +126,7 @@ export async function PATCH(
   try {
     if (updated.status !== booking.status) {
       const statusMsg = updated.status === 'cancelled'
-        ? `Your lab booking has been cancelled. Refund of $${((updated.price - updated.commission) / 100).toFixed(2)} has been processed.`
+        ? `Your lab booking has been cancelled. Refund of $${((updated.price + updated.deliveryFee - updated.commission) / 100).toFixed(2)} has been processed.`
         : `${booking.lab.labName}: ${statusLabel(updated.status)}.`;
       await sendNotification(
         { userId: updated.patientId },
@@ -210,6 +211,16 @@ export async function GET(
     price: booking.price,
     commission: booking.commission,
     homeCollection: booking.homeCollection,
+    deliveryAddress: booking.deliveryAddress,
+    deliveryCity: booking.deliveryCity,
+    deliveryZip: booking.deliveryZip,
+    deliveryDistanceMi: booking.deliveryDistanceMi,
+    deliveryDistanceKm: booking.deliveryDistanceKm,
+    deliveryFee: booking.deliveryFee,
+    deliveryPlatformFee: booking.deliveryPlatformFee,
+    deliveryQuoteAccepted: booking.deliveryQuoteAccepted,
+    deliveryPricingSource: booking.deliveryPricingSource,
+    total: booking.price + booking.deliveryFee,
     notes: booking.notes,
     hasResultsFile: !!booking.resultsFile,
     resultsNote: booking.resultsNote,
