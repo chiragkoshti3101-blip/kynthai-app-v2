@@ -15,20 +15,12 @@
   <!-- Subtle pattern -->
   <circle cx="100" cy="500" r="300" fill="rgba(255,255,255,0.04)"/>
   <circle cx="900" cy="100" r="250" fill="rgba(255,255,255,0.04)"/>
-  <!-- Flag -->
-  <rect x="60" y="60" width="48" height="48" rx="4" fill="rgba(255,255,255,0.15)"/>
-  <text x="66" y="92" font-family="Arial,sans-serif" font-size="28" fill="white">🇺🇸</text>
-  <!-- Headline -->
+  <!-- Global, region-neutral headline -->
   <text x="80" y="260" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="64" fill="white" letter-spacing="-1">
     Kynthai
   </text>
-  <text x="250" y="260" font-family="Arial,Helvetica,sans-serif" font-weight="400" font-size="64" fill="rgba(255,255,255,0.8)" letter-spacing="-1">
-  </text>
   <text x="80" y="340" font-family="Arial,Helvetica,sans-serif" font-weight="300" font-size="36" fill="rgba(255,255,255,0.9)" letter-spacing="-0.5">
-    America's AI Health Companion
-  </text>
-  <text x="80" y="390" font-family="Arial,Helvetica,sans-serif" font-weight="300" font-size="36" fill="rgba(255,255,255,0.9)" letter-spacing="-0.5">
-    for Families
+    Your family's health, connected.
   </text>
   <!-- Separator -->
   <rect x="80" y="420" width="60" height="4" rx="2" fill="rgba(255,255,255,0.4)"/>

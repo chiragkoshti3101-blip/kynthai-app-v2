@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
+import { isDemoUser } from '@/lib/demo-mode'
 import { AppLoader } from '@/components/kynthai/app-loader'
 import { ArrowLeft, Pill, Calendar, AlertTriangle, CheckCircle2, Clock, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -45,7 +46,7 @@ export default function FamilyMemberDetailClient({ memberId, user }: { memberId:
   const { toast } = useToast()
   const [data, setData] = React.useState<MemberData | null>(null)
   const [loading, setLoading] = React.useState(true)
-  const demoAccount = !!user.isDemo || (user.email || '').toLowerCase().endsWith('@kynthai.app')
+  const demoAccount = isDemoUser(user)
 
   // ponytail: navigate back to the portal the user came from. The family
   // circle lives in /caretaker (caretaker portal) and /patient (Care Hub),

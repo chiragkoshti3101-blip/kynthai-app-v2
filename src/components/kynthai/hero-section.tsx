@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
-import { PhoneMockup } from './phone-mockup-wrapper';
 
 interface HeroSectionProps {
   onGetStarted: (portal?: string) => void;
@@ -138,10 +138,20 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
           </div>
         </div>
 
-        {/* Right: phone mockup — hidden on mobile (takes too much space),
-            visible on desktop where it looks good alongside the text. */}
-        <div className="hidden lg:flex mt-4 w-full min-w-0 items-center justify-center lg:mt-0">
-          <PhoneMockup />
+        {/* Right: real product preview — eager because it is the hero visual.
+            Explicit dimensions prevent layout shift; the asset is local and
+            lightweight, so it does not depend on a remote image origin. */}
+        <div className="mt-4 flex w-full min-w-0 items-center justify-center lg:mt-0">
+          <Image
+            src="/kynthai-hero-preview.svg"
+            alt="Kynthai family health app preview showing medication reminders and care coordination tools"
+            width={960}
+            height={720}
+            priority
+            fetchPriority="high"
+            sizes="(max-width: 1023px) 92vw, 48vw"
+            className="h-auto w-full max-w-[600px] rounded-[2rem] shadow-xl shadow-emerald-950/10"
+          />
         </div>
       </div>
     </section>

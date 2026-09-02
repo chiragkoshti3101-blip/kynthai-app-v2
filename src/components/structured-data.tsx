@@ -1,33 +1,43 @@
+import type { FaqEntry } from '@/components/kynthai/faq-data'
+
 /**
- * StructuredData — Server Component
+ * StructuredData — Server Component.
  *
- * Renders JSON-LD <script> tags directly from the server. No "use client"
- * directive, no usePathname hook, no React runtime overhead. The breadcrumbs
- * that depend on the current pathname are passed in as a prop so the parent
- * page.tsx can supply them.
+ * Site identity is rendered once from the root layout. Page-specific WebPage,
+ * breadcrumb, and FAQ schema are supplied by the route that owns the content.
+ * Keeping FAQ data route-local prevents unrelated pages from advertising FAQs
+ * they do not visibly contain.
  */
 
-// ─── Schema definitions (pure data — no hooks, no subscriptions) ──────────────
+const BASE_URL = 'https://kynthai.app'
 
-// No registered mailing address to publish (company not yet registered; a
-// placeholder/inferred address would be a false claim). Contact is email-only:
-// hello@kynthai.app (support) / privacy@kynthai.app (privacy).
-const KYNETHA_CONTACT = {
+const KYNTHAI_CONTACT = {
   email: 'privacy@kynthai.app',
-} as const;
+} as const
 
-// Only list profiles that actually exist. Empty until social accounts are live.
-const SOCIAL_PROFILES = [] as const;
+// Only list profiles that actually exist. Empty until official social profiles
+// are live; never invent or infer social URLs.
+const SOCIAL_PROFILES = [] as const
+
+const WEBSITE_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': `${BASE_URL}/#website`,
+  name: 'Kynthai',
+  url: BASE_URL,
+  inLanguage: 'en',
+  publisher: { '@id': `${BASE_URL}/#organization` },
+} as const
 
 const WEBAPP_SCHEMA = {
   '@context': 'https://schema.org',
   '@type': 'WebApplication',
-  '@id': 'https://kynthai.app/#webapp',
+  '@id': `${BASE_URL}/#webapp`,
   name: 'Kynthai',
   alternateName: 'Kynthai Health',
   description:
     "Your family's connected health companion for smart reminders, doctor consultations, lab tests, and family care.",
-  url: 'https://kynthai.app',
+  url: BASE_URL,
   applicationCategory: 'HealthApplication',
   operatingSystem: 'iOS, Android, Web',
   softwareVersion: '2.0.0',
@@ -50,158 +60,156 @@ const WEBAPP_SCHEMA = {
   ],
   availableOnDemand: true,
   inLanguage: ['en'],
-  author: {
-    '@type': 'Organization',
-    '@id': 'https://kynthai.app/#organization',
-    name: 'Kynthai',
-  },
-  publisher: { '@id': 'https://kynthai.app/#organization' },
-} as const;
+  author: { '@id': `${BASE_URL}/#organization` },
+  publisher: { '@id': `${BASE_URL}/#organization` },
+} as const
 
-const MEDICAL_ORG_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'Organization',
-  '@id': 'https://kynthai.app/#medicalorganization',
-  name: 'Kynthai',
-  description:
-    "Kynthai connects patients, families, doctors, and labs in one privacy-first care experience.",
-  url: 'https://kynthai.app',
-  ...KYNETHA_CONTACT,
-  foundingDate: '2025',
-  ...(SOCIAL_PROFILES.length ? { sameAs: [...SOCIAL_PROFILES] } : {}),
-  areaServed: { '@type': 'Place', name: 'Worldwide' },
-} as const;
-
+// One canonical organization entity. Kynthai is a health-management company;
+// this does not claim that Kynthai itself is a hospital or licensed provider.
 const ORG_SCHEMA = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
-  '@id': 'https://kynthai.app/#organization',
+  '@id': `${BASE_URL}/#organization`,
   name: 'Kynthai',
   description:
     'Kynthai connects patients, families, doctors, and labs in one privacy-first care experience worldwide.',
-  url: 'https://kynthai.app',
-  ...KYNETHA_CONTACT,
+  url: BASE_URL,
+  ...KYNTHAI_CONTACT,
   foundingDate: '2025',
   ...(SOCIAL_PROFILES.length ? { sameAs: [...SOCIAL_PROFILES] } : {}),
   areaServed: { '@type': 'Place', name: 'Worldwide' },
-} as const;
+  knowsAbout: [
+    'Medication Adherence',
+    'Family Health Management',
+    'AI Health Assistant',
+    'Telemedicine',
+    'Lab Test Booking',
+    'Privacy-first Healthcare',
+  ],
+} as const
+
+function normalizePathname(pathname: string): string {
+  if (!pathname || pathname === '/') return ''
+  const path = pathname.startsWith('/') ? pathname : `/${pathname}`
+  return path.endsWith('/') ? path.slice(0, -1) : path
+}
 
 function breadcrumbSchema(pathname: string) {
-  const parts = pathname.split('/').filter(Boolean);
+  const normalizedPath = normalizePathname(pathname)
+  const parts = normalizedPath.split('/').filter(Boolean)
   const items = parts.map((part, i) => ({
     '@type': 'ListItem' as const,
-    position: i + 1,
-    name: part.charAt(0).toUpperCase() + part.slice(1),
-    item: `https://kynthai.app/${parts.slice(0, i + 1).join('/')}`,
-  }));
+    position: i + 2,
+    name: part
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' '),
+    item: `${BASE_URL}/${parts.slice(0, i + 1).join('/')}`,
+  }))
+
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList' as const,
-    '@id': `https://kynthai.app${pathname}#breadcrumb`,
+    '@id': `${BASE_URL}${normalizedPath || '/'}#breadcrumb`,
     itemListElement: [
-      { '@type': 'ListItem' as const, position: 1, name: 'Home', item: 'https://kynthai.app' },
+      { '@type': 'ListItem' as const, position: 1, name: 'Home', item: BASE_URL },
       ...items,
     ],
-  };
+  }
 }
 
-const WEBPAGE_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'WebPage',
-  '@id': 'https://kynthai.app/#webpage',
-  name: "Kynthai — Your family's health, connected.",
-  description:
-    "Smart reminders, doctor consultations, and lab tests—all in one place.",
-  url: 'https://kynthai.app',
-  inLanguage: 'en',
-  isAccessibleForFree: true,
-  accessibilitySummary: 'Designed for keyboard navigation and screen readers; accessibility is an ongoing effort.',
-} as const;
+function webPageSchema(pathname: string) {
+  const normalizedPath = normalizePathname(pathname)
+  const url = `${BASE_URL}${normalizedPath}`
+  const isFaq = normalizedPath === '/faq'
 
-const FAQ_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  '@id': 'https://kynthai.app/#faqpage',
-  mainEntity: [
-    {
-      '@type': 'Question' as const,
-      name: 'Is Kynthai free to use?',
-      acceptedAnswer: {
-        '@type': 'Answer' as const,
-        text: 'Kynthai Free Plan includes 1 member profile, 10 medications, 3 AI chats per day, and all smart reminders. No credit card required.',
-      },
-    },
-    {
-      '@type': 'Question' as const,
-      name: 'What payment methods are supported?',
-      acceptedAnswer: {
-        '@type': 'Answer' as const,
-        text: 'We accept all major credit/debit cards (Visa, Mastercard, Amex), Apple Pay, Google Pay, and ACH bank transfer via Stripe.',
-      },
-    },
-    {
-      '@type': 'Question' as const,
-      name: 'Is my data safe with Kynthai?',
-      acceptedAnswer: {
-        '@type': 'Answer' as const,
-        text: 'Kynthai protects your data in transit with TLS 1.3, and uploads/prescription images are encrypted at rest with AES-256-GCM. No health data is sold to third parties. You can export or delete your data anytime. For questions: privacy@kynthai.app.',
-      },
-    },
-    {
-      '@type': 'Question' as const,
-      name: 'Where is my data stored?',
-      acceptedAnswer: {
-        '@type': 'Answer' as const,
-        text: 'Application data is stored with cloud providers in US regions where configured. Contact privacy@kynthai.app with data-location questions.',
-      },
-    },
-  ],
-} as const;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    '@id': `${url || BASE_URL}#webpage`,
+    name: isFaq ? 'Frequently asked questions — Kynthai' : "Kynthai — Your family's health, connected.",
+    description: isFaq
+      ? 'Common questions about Kynthai medication reminders, notifications, the Android app, and accounts.'
+      : 'Smart reminders, doctor consultations, and lab tests—all in one place.',
+    url: url || BASE_URL,
+    inLanguage: 'en',
+    isAccessibleForFree: true,
+    accessibilitySummary:
+      'Designed for keyboard navigation and screen readers; accessibility is an ongoing effort.',
+    isPartOf: { '@id': `${BASE_URL}/#website` },
+  }
+}
 
-// ─── Component ───────────────────────────────────────────────────────────
+function faqSchema(pathname: string, entries: readonly FaqEntry[]) {
+  const normalizedPath = normalizePathname(pathname)
+  const url = `${BASE_URL}${normalizedPath}`
 
-const STATIC_SCHEMAS = [
-  WEBAPP_SCHEMA,
-  MEDICAL_ORG_SCHEMA,
-  ORG_SCHEMA,
-  WEBPAGE_SCHEMA,
-  FAQ_SCHEMA,
-] as const;
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    '@id': `${url || BASE_URL}#faqpage`,
+    mainEntity: entries.map(entry => ({
+      '@type': 'Question' as const,
+      name: entry.q,
+      acceptedAnswer: {
+        '@type': 'Answer' as const,
+        text: entry.a,
+      },
+    })),
+  }
+}
 
 interface StructuredDataProps {
-  pathname: string;
+  /** Adds the canonical site identity when this is the root layout. */
+  includeSiteIdentity?: boolean
+  /** Adds route-specific WebPage and breadcrumb schema. */
+  pathname?: string
+  /** Include only FAQs that are actually rendered on this route. */
+  faqEntries?: readonly FaqEntry[]
 }
 
-export function StructuredData({ pathname }: StructuredDataProps) {
-  const breadcrumb = breadcrumbSchema(pathname);
-  const schemas = [...STATIC_SCHEMAS, breadcrumb] as unknown as Record<string, unknown>[];
+export function StructuredData({
+  includeSiteIdentity = true,
+  pathname,
+  faqEntries,
+}: StructuredDataProps) {
+  const schemas: Record<string, unknown>[] = includeSiteIdentity
+    ? [WEBSITE_SCHEMA, WEBAPP_SCHEMA, ORG_SCHEMA]
+    : []
+
+  if (pathname) {
+    schemas.push(webPageSchema(pathname), breadcrumbSchema(pathname))
+  }
+
+  if (pathname && faqEntries?.length) {
+    schemas.push(faqSchema(pathname, faqEntries))
+  }
 
   return (
     <>
       {schemas.map((schema, i) => (
         <script
-          key={i}
+          key={`${schema['@type']}-${i}`}
           type="application/ld+json"
-
           dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
         />
       ))}
     </>
-  );
+  )
 }
 
 /**
- * Hook equivalent — returns the schema objects (server-compatible).
- * Intended for use in Server Components alongside StructuredData.
+ * Compatibility helper for callers that need the schema objects directly.
  */
-
-export function usePageStructuredData(pathname: string) {
+export function usePageStructuredData(
+  pathname: string,
+  faqEntries: readonly FaqEntry[] = [],
+) {
   return {
     webApp: WEBAPP_SCHEMA,
-    medicalOrg: MEDICAL_ORG_SCHEMA,
     org: ORG_SCHEMA,
     breadcrumb: breadcrumbSchema(pathname),
-    webpage: WEBPAGE_SCHEMA,
-    faq: FAQ_SCHEMA,
-  };
+    webpage: webPageSchema(pathname),
+    faq: faqEntries.length ? faqSchema(pathname, faqEntries) : null,
+  }
 }

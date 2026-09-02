@@ -1,51 +1,11 @@
-'use client';
-
-import React from 'react';
-import { ContactEmail, ContactEmailText } from '@/components/kynthai/contact-email';
+import { ChevronDown } from 'lucide-react';
+import { ContactEmail } from '@/components/kynthai/contact-email';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { Card } from '@/components/ui/card';
+import { HOME_FAQS } from '@/components/kynthai/faq-data';
 
 function FAQ() {
-  const faqs: Array<{ q: string; a: string }> = [
-    {
-      q: 'Is Kynthai a doctor or hospital?',
-      a: 'No. Kynthai is a health management app — reminders, organization, and optional tools. It does not diagnose, treat, or replace emergency care. In an emergency contact local emergency services. See our Medical Disclaimer.',
-    },
-    {
-      q: 'Is my health data safe?',
-      a: 'We design for privacy. Traffic uses TLS. Uploaded documents and prescription images are encrypted at rest (AES-256-GCM). We do not sell your personal health data. You can request export or deletion from your account or by emailing privacy@kynthai.app.',
-    },
-    {
-      q: 'Are you HIPAA compliant?',
-      a: 'Kynthai is a consumer health app. We are not a HIPAA covered entity or business associate and do not claim HIPAA compliance. See our Privacy Policy for how we handle data under applicable US consumer privacy rules.',
-    },
-    {
-      q: 'Is it really free to start?',
-      a: 'Yes. The Free plan includes a member profile, a limited set of medications and AI chats, and smart reminders. No credit card is required to sign up. Paid plans unlock more capacity when you need them.',
-    },
-    {
-      q: 'What do paid plans cost?',
-      a: 'Listed early pricing is in USD (for example Plus about $9.99/mo and Family Pro about $19.99/mo). Prices can change with notice. Cancel from your account when billing is active.',
-    },
-    {
-      q: 'Are doctors on the platform verified?',
-      a: 'When doctor listing is available, our team reviews credentials before access. A platform badge means our review was completed — doctors remain responsible for their own licenses with state boards.',
-    },
-    {
-      q: 'Can I cancel anytime?',
-      a: 'Yes. When you have a paid subscription, cancel from your profile. You keep access through the end of the paid period where applicable.',
-    },
-    {
-      q: "What if my doctor is not on Kynthai?",
-      a: 'You can still use reminders, AI chat (health topics), and other patient tools. Invite your clinician when they are ready to join.',
-    },
-  ];
+  const faqs = HOME_FAQS;
 
   return (
     <section className="border-y border-border/60 bg-muted/30 py-10 lg:py-16">
@@ -71,18 +31,22 @@ function FAQ() {
         </div>
 
         <Card className="mt-4 p-2 sm:p-4">
-          <Accordion type="single" collapsible className="w-full">
-            {faqs.map((f, i) => (
-              <AccordionItem key={f.q} value={`item-${i}`}>
-                <AccordionTrigger className="px-3 text-left text-base font-medium sm:text-[15px]">
-                  {f.q}
-                </AccordionTrigger>
-                <AccordionContent className="px-3 text-sm leading-relaxed text-muted-foreground sm:text-[13.5px]">
+          <div className="w-full">
+            {faqs.map((f) => (
+              <details key={f.q} className="group border-b last:border-b-0">
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-4 rounded-md px-3 py-4 text-left text-base font-medium outline-none transition-all hover:underline focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                  <span>{f.q}</span>
+                  <ChevronDown
+                    aria-hidden="true"
+                    className="pointer-events-none mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-open:rotate-180"
+                  />
+                </summary>
+                <div className="px-3 pb-4 text-sm leading-relaxed text-muted-foreground sm:text-[13.5px]">
                   {f.a}
-                </AccordionContent>
-              </AccordionItem>
+                </div>
+              </details>
             ))}
-          </Accordion>
+          </div>
         </Card>
       </div>
     </section>

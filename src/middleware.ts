@@ -347,8 +347,27 @@ function applyHeaders(res: NextResponse, pathname: string, requestId: string) {
     res.headers.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
   }
 
-  // Static pages cache (landing, pricing, legal) — short cache for SEO + performance
-  const staticPages = ['/' , '/pricing', '/privacy', '/terms', '/cookies', '/accessibility', '/medical-disclaimer', '/refund-cancellation'];
+  // Static public pages cache briefly for SEO + performance. Authenticated
+  // portals and API responses are never included in this list.
+  const staticPages = [
+    '/',
+    '/about',
+    '/features',
+    '/pricing',
+    '/download',
+    '/faq',
+    '/contact',
+    '/privacy',
+    '/terms',
+    '/cookies',
+    '/accessibility',
+    '/medical-disclaimer',
+    '/refund-cancellation',
+    '/privacy-practices',
+    '/patient-rights',
+    '/ccpa',
+    '/grievance',
+  ];
   if (staticPages.includes(pathname)) {
     res.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   }
@@ -601,6 +620,9 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   if (isPortalPath(pathname) && !isApi && !supabaseUser && !isDemoMode) {
     const redirect = NextResponse.redirect(new URL('/login', req.url));
     applyHeaders(redirect, pathname, requestId);
+    // Never let an authentication redirect be stored as a public response.
+    redirect.headers.set('Cache-Control', 'private, no-store');
+    redirect.headers.set('Pragma', 'no-cache');
     return redirect;
   }
 

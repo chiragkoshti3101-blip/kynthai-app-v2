@@ -22,13 +22,6 @@
       "type": "image/webp",
       "form_factor": "wide",
       "label": "Kynthai: AI health companion for families"
-    },
-    {
-      "src": "/hero_9x16.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Smart medication reminders and health tracking"
     }
   ],
   "shortcuts": [

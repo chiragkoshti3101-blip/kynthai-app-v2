@@ -14,6 +14,7 @@ import { ErrorBoundary } from '@/components/kynthai/error-boundary'
 import { User } from 'lucide-react'
 import { AppLoader } from '@/components/kynthai/app-loader'
 import type { PulseMember } from '@/components/kynthai/family/family-circle'
+import { isDemoUser } from '@/lib/demo-mode'
 
 type Tab = 'circle' | 'pulse' | 'feed' | 'analytics' | 'ai'
 
@@ -58,7 +59,7 @@ export default function FamilyPortalClient({ user }: { user: { id: string; name?
   const router = useRouter()
   const [tab, setTab] = React.useState<Tab>('circle')
   const [pulseData, setPulseData] = React.useState<PulseMember[]>([])
-  const isDemoAccount = !!user.isDemo || user.email?.endsWith('@kynthai.app')
+  const isDemoAccount = isDemoUser(user)
   const [loading, setLoading] = React.useState(!isDemoAccount)
 
   const handlePulseLoaded = React.useCallback((members: FamilyMemberPulse[]) => {

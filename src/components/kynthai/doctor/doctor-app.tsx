@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { DoctorVerification } from './doctor-verification';
 import { DoctorDashboard } from './doctor-dashboard';
 import { AppLoader } from '@/components/kynthai/app-loader';
+import { isDemoUser } from '@/lib/demo-mode';
 
 type ProfileState = 'loading' | 'none' | 'pending' | 'verified' | 'rejected';
 
@@ -46,7 +47,7 @@ export function DoctorApp({ user }: { user: AuthUser }) {
   const { toast } = useToast();
   const { setScreen, logout } = useAppStore();
   const router = useRouter();
-  const isDemo = !!user.isDemo;
+  const isDemo = isDemoUser(user);
   const [state, setState] = React.useState<ProfileState>('loading');
   const [profile, setProfile] = React.useState<DoctorProfile | null>(null);
 
@@ -63,10 +64,9 @@ export function DoctorApp({ user }: { user: AuthUser }) {
 
   const load = React.useCallback(async () => {
     setState('loading');
-    // Demo login: skip backend entirely so the dashboard renders.
-    // isDemo flag may be lost during SSR hydration, so also check the email
-    // directly — demo accounts are pre-seeded with verified profiles.
-    if (user.isDemo || user.email?.endsWith('@kynthai.app')) {
+    // Demo accounts are explicitly flagged or match the small seeded identity
+    // allowlist. Never treat an entire company email domain as demo data.
+    if (isDemo) {
       setProfile(DEMO_PROFILE);
       setState('verified');
       return;
@@ -87,7 +87,7 @@ export function DoctorApp({ user }: { user: AuthUser }) {
       // No backend table yet — fall back to "none" so the form is shown.
       setState('none');
     }
-  }, [user.id, user.isDemo]);
+  }, [user.id, isDemo]);
 
   React.useEffect(() => {
     // Safety timeout — never let loading state hang forever
@@ -127,7 +127,7 @@ export function DoctorApp({ user }: { user: AuthUser }) {
     );
   }
 
-  if (profile) return <DoctorDashboard user={user} profile={profile} isDemo={!!user.isDemo || user.email?.endsWith('@kynthai.app')} />;
+  if (profile) return <DoctorDashboard user={user} profile={profile} isDemo={isDemo} />;
 
   return null;
 }
@@ -141,7 +141,7 @@ function PendingState({
   onRefresh: () => void;
   onLogout: () => void;
 }) {
-  const isDemo = !!user.isDemo;
+  const isDemo = isDemoUser(user);
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-amber-50/50 via-background to-background dark:from-amber-950/20">
       <div className="mx-auto max-w-md px-4 py-12">

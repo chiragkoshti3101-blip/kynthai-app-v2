@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { supabaseAdmin } from './storage';
 import { db } from './db';
+import { recordAuditSync } from './audit-logger';
 
 export interface AuthUser {
   id: string;
@@ -84,7 +85,11 @@ export async function getAuthUser(): Promise<AuthUser | null> {
           });
           if (revoked) active = null;
         } catch (err) {
-          console.error('[auth] Revocation check failed (failing open):', err);
+          // A database failure must not turn a signed but revoked session into
+          // an authenticated session. Deny access until revocation state is
+          // available again.
+          console.error('[auth] Revocation check failed (failing closed):', err);
+          active = null;
         }
       }
       if (active) {
@@ -241,58 +246,94 @@ export function hasRole(user: AuthUser, roles: string[]): boolean {
 export async function canAccessDocument(
   user: AuthUser,
   document: {
+    id: string;
     userId: string;
     uploadedById: string;
     familyId: string | null;
+    category: string;
     visibility: string;
     sharedWith: string[];
   }
 ): Promise<boolean> {
-  // Owner can always access
+  // Owner can always access their own document.
   if (user.id === document.userId) return true;
 
-  // Uploader can access
+  // Uploader can access the document they uploaded.
   if (user.id === document.uploadedById) return true;
 
-  // Doctor access: only if a real care relationship exists (appointment or
-  // prescription linking this doctor to the patient). Previously any doctor
-  // could read any patient's clinical documents (C2 — PHI leak).
-  if (user.role === 'doctor' && ['CLINICAL', 'ADMINISTRATIVE'].includes(document.visibility)) {
-    const profile = (await supabaseAdmin()
-      .from('doctor_profiles')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle()) as unknown as { data: { id: string } | null; error: unknown };
-    if (profile.data) {
-      const [apt, rx] = await Promise.all([
-        supabaseAdmin().from('appointments').select('id').eq('doctor_id', profile.data.id).eq('patient_id', document.userId).maybeSingle(),
-        supabaseAdmin().from('prescriptions').select('id').eq('doctor_id', profile.data.id).eq('patient_id', document.userId).maybeSingle(),
-      ]);
-      if ((apt as { data?: unknown }).data || (rx as { data?: unknown }).data) return true;
-    }
-    // No care relationship → no access.
-    return false;
+  // Explicit sharing is a direct patient/provider grant. It is checked before
+  // role-specific defaults so a patient can share a document with a named
+  // clinician even when there is no appointment link yet.
+  if (document.sharedWith.includes(user.id)) return true;
+
+  // Doctor access requires all three safeguards: verified clinician, active
+  // patient clinical-data consent, and a real treatment relationship. Keep the
+  // category check separate from visibility; comparing the wrong fields was
+  // the reason legitimate chart documents could be listed but not opened.
+  if (
+    user.role === 'doctor' &&
+    document.visibility === 'DOCTOR' &&
+    ['CLINICAL', 'ADMINISTRATIVE'].includes(document.category)
+  ) {
+    const profile = await db.doctorProfile.findUnique({
+      where: { userId: user.id },
+      select: { id: true, verified: true },
+    });
+    if (!profile?.verified) return false;
+
+    const [patient, appointment, prescription] = await Promise.all([
+      db.user.findUnique({
+        where: { id: document.userId },
+        select: { consentAccepted: true, dataProcessingConsent: true },
+      }),
+      db.appointment.findFirst({
+        where: {
+          doctorId: profile.id,
+          patientId: document.userId,
+          status: { in: ['pending', 'confirmed', 'rescheduled', 'completed'] },
+          deletedAt: null,
+        },
+        select: { id: true },
+      }),
+      db.prescription.findFirst({
+        where: { doctorId: profile.id, patientId: document.userId },
+        select: { id: true },
+      }),
+    ]);
+
+    return Boolean(
+      patient?.consentAccepted &&
+      patient.dataProcessingConsent &&
+      (appointment || prescription),
+    );
   }
 
-  // Family access
+  // Family access is limited to accepted membership in the document's family.
   if (document.familyId && document.visibility === 'FAMILY') {
-    const { data: membership } = await supabaseAdmin()
-      .from('family_members')
-      .select('id')
-      .eq('family_id', document.familyId)
-      .eq('user_id', user.id)
-      .eq('status', 'ACTIVE')
-      .single();
+    const membership = await db.familyMember.findFirst({
+      where: { familyId: document.familyId, userId: user.id, inviteStatus: 'accepted' },
+      select: { id: true },
+    });
     if (membership) return true;
   }
 
-  // Explicitly shared
-  if (document.sharedWith.includes(user.id)) return true;
-
-  // Emergency access (break-glass)
+  // Emergency access is a verified-doctor break-glass path. The durable audit
+  // record is mandatory; if it cannot be written, deny the document.
   if (document.visibility === 'EMERGENCY' && user.role === 'doctor') {
-    // Log emergency access
-    console.warn(`EMERGENCY ACCESS: ${user.id} accessed document`);
+    const profile = await db.doctorProfile.findUnique({
+      where: { userId: user.id },
+      select: { verified: true },
+    });
+    if (!profile?.verified) return false;
+
+    const auditResult = await recordAuditSync(user.id, 'document.break_glass.read', {
+      category: 'security',
+      resourceType: 'MedicalDocument',
+      resourceId: document.id,
+      outcome: 'success',
+      metadata: { visibility: 'EMERGENCY' },
+    });
+    if (!auditResult.ok) return false;
     return true;
   }
 
