@@ -18,7 +18,6 @@ import {
   RefreshCw,
   Mail,
   Phone,
-  ExternalLink,
   Edit3,
   Save,
   X,
@@ -44,6 +43,7 @@ import { t, getLanguage, setLanguage, initLanguage } from '@/lib/i18n';
 import { useGreeting } from '@/lib/greeting';
 import { ProfileHub } from '@/components/kynthai/patient/profile-hub';
 import { PatientCare } from './patient-care';
+import { PatientChart, type DoctorPatientChart } from './patient-chart';
 import { OfflineIndicator } from '@/components/kynthai/offline-indicator';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
 import { cn } from '@/lib/utils';
@@ -378,11 +378,35 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
     takenWeek: number;
     inviteLink?: string | null;
   } | null>(null);
+  const [patientChart, setPatientChart] = React.useState<DoctorPatientChart | null>(null);
+  const [patientChartLoading, setPatientChartLoading] = React.useState(false);
+  const [patientChartError, setPatientChartError] = React.useState<string | null>(null);
   const [joiningCallApptId, setJoiningCallApptId] = React.useState<string | null>(null);
   const [updatingApptId, setUpdatingApptId] = React.useState<string | null>(null);
   const [rescheduleApptId, setRescheduleApptId] = React.useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = React.useState('');
   const [rescheduleTime, setRescheduleTime] = React.useState('');
+
+  const loadPatientChart = React.useCallback(async (patientId: string) => {
+    setPatientChart(null);
+    setPatientChartError(null);
+    if (isDemo) return;
+
+    setPatientChartLoading(true);
+    try {
+      const res = await fetch(`/api/doctors/patients/${encodeURIComponent(patientId)}/chart`, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Unable to load the patient chart');
+      setPatientChart(data as DoctorPatientChart);
+    } catch (error) {
+      setPatientChartError(error instanceof Error ? error.message : 'Unable to load the patient chart');
+    } finally {
+      setPatientChartLoading(false);
+    }
+  }, [isDemo]);
 
   // Auto-fetch notes whenever the selected patient changes (even while dialog is open)
   React.useEffect(() => {
@@ -1623,7 +1647,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
             <div className="pt-2">
               <PatientCare
                 isDemo={isDemo}
-                onPatientClick={p =>
+                onPatientClick={p => {
                   setSelectedPatient({
                     id: p.id,
                     name: p.name,
@@ -1635,8 +1659,9 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                     weekReminders: p.weekReminders,
                     takenWeek: p.takenWeek,
                     inviteLink: p.inviteLink,
-                  })
-                }
+                  });
+                  void loadPatientChart(p.id);
+                }}
               />
             </div>
           </>
@@ -2004,12 +2029,21 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         </Dialog>
       )}
 
-      {/* Patient profile dialog */}
+      {/* Patient profile + authorized clinical chart dialog */}
       {selectedPatient && (
-        <Dialog open={!!selectedPatient} onOpenChange={o => !o && setSelectedPatient(null)}>
-          <DialogContent className="max-w-md">
+        <Dialog
+          open={!!selectedPatient}
+          onOpenChange={o => {
+            if (!o) {
+              setSelectedPatient(null);
+              setPatientChart(null);
+              setPatientChartError(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto custom-scroll">
             <DialogHeader>
-              <DialogTitle>{t('patient_profile')}</DialogTitle>
+              <DialogTitle>{t('patient_profile')} · Clinical chart</DialogTitle>
               <DialogDescription>{selectedPatient.name}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
@@ -2089,20 +2123,17 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                   </p>
                 </div>
               )}
+
+              <PatientChart
+                chart={patientChart}
+                loading={patientChartLoading}
+                error={patientChartError}
+                isDemo={isDemo}
+              />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setSelectedPatient(null)}>
                 Close
-              </Button>
-              <Button
-                onClick={() => {
-                  setSelectedPatient(null);
-                  setView('patients');
-                }}
-                className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white gap-1.5"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                {t('view_full_profile')}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -19,6 +19,7 @@ interface LabProfile {
   city: string;
   address: string;
   homeCollection: boolean;
+  longDistanceTravelFeeCents?: number | null;
   tests: { name: string; price: number }[];
   testsOffered?: { name: string; price: number }[];
   verified: boolean;
@@ -32,6 +33,7 @@ const DEMO_PROFILE: LabProfile = {
   city: 'Austin, TX',
   address: '1400Health Ave, Austin, TX 78701',
   homeCollection: true,
+  longDistanceTravelFeeCents: 1200,
   tests: [
     { name: 'Complete Blood Count', price: 35 },
     { name: 'Lipid Panel', price: 49 },

@@ -46,8 +46,19 @@ export async function GET(
     return jsonError('Share link has expired', 410)
   }
 
-  // Verify this doctor is the intended recipient (optional: could check if doctor was in notified list)
-  // For now, any verified doctor with the link can access - token is the auth
+  // The token is still required, but it is not the only authorization
+  // boundary. New shares carry the selected doctor profile IDs; an empty list
+  // is retained as a legacy-token fallback for old bookings.
+  if (u.role === 'doctor') {
+    const profile = await db.doctorProfile.findUnique({
+      where: { userId: u.id },
+      select: { id: true, verified: true },
+    })
+    if (!profile?.verified) return jsonError('Verified doctor access is required', 403)
+    if (booking.resultsSharedWith.length > 0 && !booking.resultsSharedWith.includes(profile.id)) {
+      return jsonError('These results were not shared with this doctor', 403)
+    }
+  }
 
   await logAudit(u.id, 'lab_bookings.share.access', `booking=${booking.id}`)
 
