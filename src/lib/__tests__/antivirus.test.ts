@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { scanBuffer } from '../antivirus';
 import { execSync } from 'child_process';
 
@@ -12,15 +12,17 @@ describe('antivirus (ClamAV)', () => {
     expect(typeof scanBuffer).toBe('function');
   });
 
-  it('flags EICAR test string as infected when clamscan exists', async () => {
+  it('flags EICAR test string as infected when a working scanner exists', async () => {
     if (!hasClam) return; // skip — clamscan absent in this env
     const v = await scanBuffer(EICAR, 'evil.txt');
+    if (v.engine === 'unavailable') return; // binary exists but signatures may not be installed
     expect(v.infected).toBe(true);
   }, 40000);
 
-  it('returns clean for a benign PDF when clamscan exists', async () => {
+  it('returns clean for a benign PDF when a working scanner exists', async () => {
     if (!hasClam) return;
     const v = await scanBuffer(cleanPdf, 'doc.pdf');
+    if (v.engine === 'unavailable') return; // binary exists but signatures may not be installed
     expect(v.clean).toBe(true);
     expect(v.infected).toBe(false);
   }, 40000);
@@ -29,5 +31,21 @@ describe('antivirus (ClamAV)', () => {
     if (hasClam) return; // only meaningful without clamscan
     const v = await scanBuffer(EICAR, 'evil.txt');
     expect(v.engine).toBe('unavailable');
+  });
+
+  it('fails closed when antivirus is required but the scanner is missing', async () => {
+    const previousRequired = process.env.KYNTHAI_REQUIRE_AV;
+    const previousScanner = process.env.KYNTHAI_CLAMSCAN;
+    process.env.KYNTHAI_REQUIRE_AV = '1';
+    process.env.KYNTHAI_CLAMSCAN = '/definitely/missing/kynthai-clamscan';
+    try {
+      const v = await scanBuffer(cleanPdf, 'doc.pdf');
+      expect(v).toMatchObject({ clean: false, infected: false, engine: 'unavailable' });
+    } finally {
+      if (previousRequired === undefined) delete process.env.KYNTHAI_REQUIRE_AV;
+      else process.env.KYNTHAI_REQUIRE_AV = previousRequired;
+      if (previousScanner === undefined) delete process.env.KYNTHAI_CLAMSCAN;
+      else process.env.KYNTHAI_CLAMSCAN = previousScanner;
+    }
   });
 });
