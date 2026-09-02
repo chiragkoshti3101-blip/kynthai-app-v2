@@ -306,6 +306,7 @@ model LabBooking {
   deliveryPlatformFee       Int        @default(0) // platform share of deliveryFee
   deliveryQuoteAccepted     Boolean    @default(false)
   deliveryPricingSource     String     @default("platform_fixed") // platform_fixed | provider_quote
+  resultsSharedWith         String[]   @default([]) // doctor profile IDs explicitly selected by the patient
   notes                     String?
   notes_enc            String?    @map("notes_enc")
   resultsFile          String?
