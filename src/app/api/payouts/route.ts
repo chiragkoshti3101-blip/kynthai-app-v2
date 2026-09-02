@@ -65,19 +65,20 @@ export async function POST(req: NextRequest) {
       return jsonError('Lab booking must be completed before payout', 400);
     }
 
-    // CRITICAL SECURITY: calculate amount server-side from verified booking price.
-    // Never trust client-supplied amount or commission — labs could inflate arbitrarily.
-    const serverAmount = booking.price - (booking.commission || Math.round(booking.price * 0.18));
-
-    const commissionAmt = booking.commission || Math.round(booking.price * 0.18);
+    // CRITICAL SECURITY: calculate amount server-side from verified booking
+    // price plus the recorded travel charge. Never trust client-supplied
+    // amount or commission — labs could inflate arbitrarily.
+    const grossAmount = booking.price + booking.deliveryFee;
+    const commissionAmt = booking.commission || Math.round(grossAmount * 0.18);
+    const serverAmount = grossAmount - commissionAmt;
     const payout = await db.payout.create({
       data: {
         userId: booking.patientId,
         doctorId: booking.labId,
         appointmentId: booking.id,
-        amount: booking.price,
+        amount: grossAmount,
         platformFee: commissionAmt,
-        netAmount: booking.price - commissionAmt,
+        netAmount: serverAmount,
         status: 'processing',
       },
     });
