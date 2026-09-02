@@ -19,8 +19,14 @@ export async function POST(req: NextRequest) {
   if (response || !user) return response!
   const u = user!
 
-  await logAudit(user.id, 'doctor.prescription.pdf', { resourceType: 'Prescription' })
-  if (user.role !== 'doctor') return jsonError('Only doctors may generate prescriptions', 403)
+  const isDoctor = user.role === 'doctor'
+  const isPatient = user.role === 'patient'
+  await logAudit(user.id, isDoctor ? 'doctor.prescription.pdf' : 'patient.prescription.pdf', {
+    resourceType: 'Prescription',
+  })
+  if (!isDoctor && !isPatient) {
+    return jsonError('Only the issuing doctor or the patient may download this prescription', 403)
+  }
 
   const body = await readJson<{ prescriptionId: string }>(req)
   if (!body?.prescriptionId) return jsonError('prescriptionId is required', 400)
@@ -30,7 +36,8 @@ export async function POST(req: NextRequest) {
     include: { doctor: { include: { user: true } }, patient: true },
   })
   if (!prescription) return jsonError('Prescription not found', 404)
-  if (prescription.doctor.userId !== user.id) return jsonError('Forbidden', 403)
+  if (isDoctor && prescription.doctor.userId !== user.id) return jsonError('Forbidden', 403)
+  if (isPatient && prescription.patientId !== user.id) return jsonError('Forbidden', 403)
 
   const doctor = prescription.doctor
   const patient = prescription.patient
