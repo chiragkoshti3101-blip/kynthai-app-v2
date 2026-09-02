@@ -9,6 +9,7 @@ import { LabDashboard } from './lab-dashboard';
 import { AppLoader } from '@/components/kynthai/app-loader';
 import { InstallAppBanner } from '@/components/kynthai/install-app-banner'
 import { NotificationPermissionBanner } from '@/components/kynthai/notification-permission-banner';
+import { isDemoUser } from '@/lib/demo-mode';
 
 type ProfileState = 'loading' | 'none' | 'exists';
 
@@ -48,6 +49,7 @@ const DEMO_PROFILE: LabProfile = {
 export function LabApp({ user }: { user: AuthUser }) {
   const { logout } = useAppStore();
   const router = useRouter();
+  const isDemo = isDemoUser(user);
   const [state, setState] = React.useState<ProfileState>('loading');
   const [profile, setProfile] = React.useState<LabProfile | null>(null);
 
@@ -61,10 +63,9 @@ export function LabApp({ user }: { user: AuthUser }) {
 
   const load = React.useCallback(async () => {
     setState('loading');
-    // Demo login: skip backend so the dashboard renders immediately.
-    // isDemo flag may be lost during SSR hydration, so also check the email
-    // directly — demo accounts are pre-seeded with verified profiles.
-    if (user.isDemo || user.email?.endsWith('@kynthai.app')) {
+    // Demo accounts are explicitly flagged or match the small seeded identity
+    // allowlist. Never treat an entire company email domain as demo data.
+    if (isDemo) {
       setProfile(DEMO_PROFILE);
       setState('exists');
       return;
@@ -83,7 +84,7 @@ export function LabApp({ user }: { user: AuthUser }) {
       // Backend not implemented — show the verification form by default
       setState('none');
     }
-  }, [user.id, user.isDemo]);
+  }, [user.id, isDemo]);
 
   React.useEffect(() => {
     // Safety timeout — never let loading state hang forever

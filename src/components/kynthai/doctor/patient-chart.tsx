@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 
 export interface DoctorPatientChart {
@@ -118,11 +119,13 @@ export function PatientChart({
   loading,
   error,
   isDemo,
+  onRetry,
 }: {
   chart: DoctorPatientChart | null
   loading: boolean
   error: string | null
   isDemo: boolean
+  onRetry?: () => void
 }) {
   if (isDemo) {
     return (
@@ -144,7 +147,14 @@ export function PatientChart({
     return (
       <div className="flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/5 p-3 text-xs text-rose-700 dark:text-rose-300">
         <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>{error}</span>
+        <div className="min-w-0 flex-1">
+          <p>{error}</p>
+          {onRetry && (
+            <Button type="button" size="sm" variant="outline" onClick={onRetry} className="mt-2 h-8 text-xs">
+              Try again
+            </Button>
+          )}
+        </div>
       </div>
     )
   }
@@ -298,7 +308,7 @@ export function PatientChart({
                   Results uploaded {booking.resultUploadedAt ? formatDate(booking.resultUploadedAt) : ''}{booking.resultsShared ? ' and shared with a doctor.' : ' — patient sharing is still required for the report file.'}
                 </p>
                 {booking.resultDownloadPath && (
-                  <a href={booking.resultDownloadPath} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 px-2 py-1 font-medium hover:bg-emerald-500/10">
+                  <a href={booking.resultDownloadPath} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 px-2 py-1 font-medium hover:bg-emerald-500/10">
                     <Download className="h-3 w-3" /> Open report
                   </a>
                 )}
@@ -328,7 +338,7 @@ export function PatientChart({
               <p className="truncate text-sm font-medium">{document.title}</p>
               <p className="text-[11px] text-muted-foreground">{document.type.replaceAll('_', ' ')} · {formatDate(document.uploadedAt)}</p>
             </div>
-            <a href={document.downloadPath} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
+            <a href={document.downloadPath} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
               <Download className="h-3 w-3" /> Open
             </a>
           </div>

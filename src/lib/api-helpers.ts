@@ -8,6 +8,7 @@ import { rateLimit, rateLimitProduction, getIp } from './security';
 import { checkCsrf } from './csrf';
 import { db } from './db';
 import type { User } from '@prisma/client';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 // Production requires ADMIN_EMAILS env var. Dev uses demo fallback.
 const rawAdminEmails = process.env.ADMIN_EMAILS;
@@ -227,31 +228,42 @@ export async function requireAuth(
   const limited = await rateLimitProduction(req);
   if (limited) return { response: limited, user: null };
 
-  // Use Supabase auth for session validation
-  const { createServerClient } = await import('@supabase/ssr');
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return req.cookies.getAll(); },
-        setAll() {},
-      },
-    }
-  );
-  const { data: { user: supabaseUser }, error } = await supabase.auth.getUser();
+  // Use Supabase auth for session validation. A missing or malformed local
+  // configuration must not turn an anonymous request into an unhandled 500;
+  // fall through to the signed local-session path and ultimately return 401.
+  let supabaseUser: SupabaseUser | null = null;
+  let supabaseAuthFailed = false;
+  try {
+    const { createServerClient } = await import('@supabase/ssr');
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return req.cookies.getAll(); },
+          setAll() {},
+        },
+      }
+    );
+    const result = await supabase.auth.getUser();
+    supabaseUser = result.data.user;
+    supabaseAuthFailed = Boolean(result.error);
+  } catch (error) {
+    supabaseAuthFailed = true;
+    console.error('[auth] Supabase session validation unavailable:', error);
+  }
 
   // Fallback: local kynthai-session cookie for dev/demo mode — HMAC verified
   let userId: string | null = null
-  if (error || !supabaseUser) {
+  if (supabaseAuthFailed || !supabaseUser) {
     const kynthaiSession = req.cookies.get('kynthai-session')
     if (kynthaiSession?.value) {
       userId = await verifySessionToken(kynthaiSession.value)
       // verifySessionToken returns null on any tampering — fail closed (treat as unauth)
       // Revocation check (Node runtime — Edge middleware cannot run Prisma):
       // an unexpired revoked_sessions row invalidates the fallback session
-      // (bounded by the row's 7-day expiresAt TTL). Fail-open on DB error —
-      // the profile lookup below fails the request anyway if the DB is down.
+      // (bounded by the row's 7-day expiresAt TTL). A database failure must
+      // fail closed so a revoked session is never accepted during an outage.
       if (userId) {
         try {
           const { db } = await import('@/lib/db')
@@ -262,7 +274,8 @@ export async function requireAuth(
           })
           if (revoked) userId = null
         } catch (err) {
-          console.error('[auth] Revocation check failed (failing open):', err)
+          console.error('[auth] Revocation check failed (failing closed):', err)
+          userId = null
         }
       }
     }
@@ -274,7 +287,7 @@ export async function requireAuth(
 
   // Look up Prisma profile
   let profile: any = null
-  if (supabaseUser && !error) {
+  if (supabaseUser && !supabaseAuthFailed) {
     const { getSupabaseProfile } = await import('@/lib/supabase/sync')
     profile = await getSupabaseProfile(supabaseUser)
   } else {

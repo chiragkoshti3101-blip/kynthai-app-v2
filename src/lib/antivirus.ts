@@ -7,14 +7,15 @@
  *
  * Deployment reality:
  *  - Self-hosted / local / a box with the `clamscan` binary: REAL scanning.
- *  - Vercel serverless: `clamscan` is NOT available, so scans degrade to a
- *    no-op and are logged (uploads still work). If malware scanning is a hard
- *    requirement, route uploads to a separate scanner service/worker instead.
+ *  - Vercel serverless: `clamscan` is normally unavailable. In production,
+ *    uploads therefore fail closed until a scanner is configured; use a
+ *    separate scanner service/worker for serverless deployments.
  *
  * Policy:
- *  - `KYNTHAI_REQUIRE_AV=1` makes Av REQUIRED: uploads are rejected when the
- *    scanner is unavailable (fail-closed). Off by default so a scan
- *    misconfiguration never breaks legit uploads in prod.
+ *  - `KYNTHAI_REQUIRE_AV=0` explicitly permits a best-effort scan.
+ *  - Otherwise AV is required in production and whenever
+ *    `KYNTHAI_REQUIRE_AV=1` is set. An unavailable, errored, or timed-out scan
+ *    is never reported as clean when AV is required.
  */
 
 import { spawn } from 'child_process';
@@ -22,6 +23,12 @@ import { logger } from '@/lib/logger';
 
 export type ScanVerdict =
   | { clean: boolean; infected: boolean; engine: 'clamav' | 'unavailable'; details?: string };
+
+export function isAntivirusRequired(): boolean {
+  return process.env.KYNTHAI_REQUIRE_AV !== '0' && (
+    process.env.NODE_ENV === 'production' || process.env.KYNTHAI_REQUIRE_AV === '1'
+  )
+}
 
 /**
  * Scan a file's bytes with ClamAV (clamscan reading from stdin). Returns a
@@ -41,7 +48,12 @@ export function scanBuffer(buffer: Buffer, filename?: string): Promise<ScanVerdi
     let stderr = '';
     const timer = setTimeout(() => {
       child.kill('SIGKILL');
-      resolve({ clean: true, infected: false, engine: 'clamav', details: 'scan timeout (treated as clean)' });
+      resolve({
+        clean: !isAntivirusRequired(),
+        infected: false,
+        engine: 'unavailable',
+        details: 'scan timeout',
+      });
     }, 30000); // 30s hard cap per file
 
     child.stdout.on('data', (d) => (stdout += d));
@@ -50,13 +62,14 @@ export function scanBuffer(buffer: Buffer, filename?: string): Promise<ScanVerdi
     child.on('error', (err: NodeJS.ErrnoException) => {
       clearTimeout(timer);
       // clamscan not installed / not executable.
-      const required = process.env.KYNTHAI_REQUIRE_AV === '1';
+      const required = isAntivirusRequired();
       logger.phiSafeError(err, 'antivirus.scan-missing');
-      if (required) {
-        resolve({ clean: false, infected: false, engine: 'clamav', details: 'AV unavailable (fail-closed)' });
-      } else {
-        resolve({ clean: true, infected: false, engine: 'unavailable', details: err.message });
-      }
+      resolve({
+        clean: !required,
+        infected: false,
+        engine: 'unavailable',
+        details: required ? 'AV unavailable (fail-closed)' : err.message,
+      });
     });
 
     child.on('close', (code) => {
@@ -72,13 +85,15 @@ export function scanBuffer(buffer: Buffer, filename?: string): Promise<ScanVerdi
           details: m?.[1] || 'malware signature matched',
         });
       }
-      // code 2 (scan error) — fail-closed if AV is required, else treat as clean.
-      const required = process.env.KYNTHAI_REQUIRE_AV === '1';
+      // code 2 (scan error) is not evidence of a clean file. It is an
+      // unavailable verdict; uploads reject it whenever AV is required.
+      const required = isAntivirusRequired();
+      logger.warn('antivirus.scan-unavailable', { code });
       resolve({
         clean: !required,
         infected: false,
-        engine: 'clamav',
-        details: `clamscan error (code ${code})`, 
+        engine: 'unavailable',
+        details: `clamscan error (code ${code})`,
       });
     });
 

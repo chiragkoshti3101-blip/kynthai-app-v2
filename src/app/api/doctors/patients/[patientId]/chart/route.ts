@@ -44,7 +44,12 @@ export async function GET(
     // allow a doctor to enumerate arbitrary patients by changing the URL.
     const [appointmentLink, prescriptionLink] = await Promise.all([
       db.appointment.findFirst({
-        where: { doctorId: doctor.id, patientId, deletedAt: null },
+        where: {
+          doctorId: doctor.id,
+          patientId,
+          status: { in: ['pending', 'confirmed', 'rescheduled', 'completed'] },
+          deletedAt: null,
+        },
         select: { id: true },
       }),
       db.prescription.findFirst({
@@ -89,7 +94,7 @@ export async function GET(
             reminders: {
               where: { deletedAt: null },
               orderBy: { date: 'desc' },
-              take: 90,
+              ...(fullHistoryRequested ? {} : { take: 90 }),
             },
           },
         },

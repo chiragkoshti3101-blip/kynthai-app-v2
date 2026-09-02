@@ -34,20 +34,52 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams
   const patientId = sp.get('patientId')?.trim()
-  const doctorId = sp.get('doctorId')?.trim()
+  let doctorId = sp.get('doctorId')?.trim()
 
   const and: any[] = []
   if (patientId) {
-    if (patientId !== u.id && u.role !== 'admin') {
-      return jsonError('Forbidden', 403)
-    }
     if (patientId !== u.id && u.role === 'doctor') {
-      const treatmentLink = await db.appointment.findFirst({
-        where: { patientId, doctor: { userId: u.id }, status: { in: ['confirmed', 'completed', 'pending'] as any } },
+      const profile = await db.doctorProfile.findUnique({
+        where: { userId: u.id },
+        select: { id: true, verified: true },
       })
-      if (!treatmentLink) {
+      if (!profile?.verified) {
+        return jsonError('Only verified doctors may view a patient prescription history', 403)
+      }
+
+      const [patient, appointmentLink, prescriptionLink] = await Promise.all([
+        db.user.findUnique({
+          where: { id: patientId },
+          select: { consentAccepted: true, dataProcessingConsent: true },
+        }),
+        db.appointment.findFirst({
+          where: {
+            patientId,
+            doctorId: profile.id,
+            status: { in: ['confirmed', 'completed', 'pending', 'rescheduled'] as any },
+            deletedAt: null,
+          },
+          select: { id: true },
+        }),
+        db.prescription.findFirst({
+          where: { patientId, doctorId: profile.id },
+          select: { id: true },
+        }),
+      ])
+      if (!patient?.consentAccepted || !patient.dataProcessingConsent) {
+        return jsonError('Patient clinical-data consent is not active', 403)
+      }
+      if (!appointmentLink && !prescriptionLink) {
         return jsonError('Forbidden — you do not treat this patient', 403)
       }
+
+      // A doctor querying a patient may only see prescriptions from their own
+      // practice through this endpoint. The full permitted longitudinal view
+      // remains available from the dedicated chart route.
+      if (doctorId && doctorId !== profile.id) return jsonError('Forbidden', 403)
+      doctorId = profile.id
+    } else if (patientId !== u.id && u.role !== 'admin') {
+      return jsonError('Forbidden', 403)
     }
     and.push({ patientId })
   }

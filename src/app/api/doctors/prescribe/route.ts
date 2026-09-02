@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { logAudit } from '@/lib/auth'
@@ -46,6 +47,25 @@ export async function GET(req: NextRequest) {
   }
 }
 
+function parseAllergyList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  }
+  if (typeof value !== 'string' || !value.trim()) return []
+
+  try {
+    const parsed = JSON.parse(value)
+    if (Array.isArray(parsed)) return parseAllergyList(parsed)
+  } catch {
+    // Legacy rows may contain a comma-separated list instead of JSON.
+  }
+
+  return value.split(',').map((item) => item.trim()).filter(Boolean)
+}
+
 interface MedInput {
   name?: string
   dosage?: string
@@ -91,11 +111,9 @@ export async function POST(req: NextRequest) {
   }
   if (!patient) return jsonError('Patient not found. Add the patient first by email.', 404)
 
-  // Check patient allergies before prescribing
-  let patientAllergies: string[] = []
-  if ((patient as any).allergies) {
-    try { patientAllergies = JSON.parse((patient as any).allergies) } catch { /* ignore */ }
-  }
+  // Check patient allergies before prescribing. Handle both current JSON rows
+  // and legacy comma-separated rows so a format mismatch cannot skip the alert.
+  const patientAllergies = parseAllergyList((patient as any).allergies)
   const medNames = body.medications?.map((m) => sanitizeText(m.name, 120).toLowerCase()) ?? []
   const allergyWarnings = patientAllergies.filter((a) =>
     medNames.some((m) => m.includes(a.toLowerCase()) || a.toLowerCase().includes(m))
@@ -109,7 +127,12 @@ export async function POST(req: NextRequest) {
 
   // IDOR: verify this doctor actually treats this patient
   const treatmentLink = await db.appointment.findFirst({
-    where: { doctorId: profile.id, patientId: patient.id, status: { in: ['confirmed', 'completed', 'pending'] as AppointmentStatus[] } },
+    where: {
+      doctorId: profile.id,
+      patientId: patient.id,
+      status: { in: ['confirmed', 'completed', 'pending', 'rescheduled'] as AppointmentStatus[] },
+      deletedAt: null,
+    },
   })
   if (!treatmentLink) return jsonError('Forbidden — you do not treat this patient', 403)
 
@@ -128,66 +151,77 @@ export async function POST(req: NextRequest) {
   const inviteToken = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '')
   const inviteLink = `/invite?token=${inviteToken}`
 
-  // Auto-create Medication rows for the patient.
-  const createdMeds = await Promise.all(
-    cleanedMeds.map((m) =>
-      db.medication.create({
-        data: {
-          userId: patient!.id,
-          name: m.name,
-          dosage: m.dosage,
-          times: JSON.stringify(m.times.length ? m.times : ['09:00']),
-          frequency: m.frequency,
-          instructions: m.instructions || null,
-          active: true,
-        },
-      }),
-    ),
-  )
+  const followUpAt = body.followUpDate ? new Date(body.followUpDate) : null
+  if (followUpAt && Number.isNaN(followUpAt.getTime())) {
+    return jsonError('Follow-up date is invalid', 422, 'VALIDATION_ERROR')
+  }
 
-  // Create the prescription record (with invite token).
+  // Medication rows, the prescription invite, and an optional follow-up are a
+  // single clinical write. If any part fails, roll back the entire operation
+  // rather than leaving orphan medications or a prescription without its
+  // scheduled follow-up.
   const inviteExpiresAt = new Date()
   inviteExpiresAt.setDate(inviteExpiresAt.getDate() + 30) // 30-day expiry
 
-  const prescription = await db.prescription.create({
-    data: {
-      doctorId: profile.id,
-      patientId: patient.id,
-      notes: sanitizeText(body.notes, 2000),
-      medications: JSON.stringify(
-        cleanedMeds.map((m, i) => ({ id: createdMeds[i]!.id, ...m })),
-      ),
-      inviteToken,
-      inviteStatus: 'sent',
-      inviteExpiresAt,
-      followUpDate: body.followUpDate ? new Date(body.followUpDate) : null,
-    },
-  })
+  const { createdMeds, prescription, followUp } = await db.$transaction(async (tx) => {
+    const createdMeds: any[] = []
+    for (const medication of cleanedMeds) {
+      createdMeds.push(await tx.medication.create({
+        data: {
+          userId: patient!.id,
+          name: medication.name,
+          dosage: medication.dosage,
+          times: JSON.stringify(medication.times.length ? medication.times : ['09:00']),
+          frequency: medication.frequency,
+          instructions: medication.instructions || null,
+          active: true,
+        },
+      }))
+    }
 
-  // Create follow-up appointment if date provided.
-  let followUp: { id: string; scheduledAt: string } | null = null
-  if (body.followUpDate) {
-    const created = await db.appointment.create({
+    const prescription = await tx.prescription.create({
       data: {
         doctorId: profile.id,
         patientId: patient.id,
-        scheduledAt: new Date(body.followUpDate),
-        type: 'video',
-        status: 'pending',
-        price: profile.consultationFee,
-        commission: 0,
-        reason: 'Follow-up consultation',
+        notes: sanitizeText(body.notes, 2000),
+        medications: JSON.stringify(
+          cleanedMeds.map((medication, index) => ({ id: createdMeds[index]!.id, ...medication })),
+        ),
+        inviteToken,
+        inviteStatus: 'sent',
+        inviteExpiresAt,
+        followUpDate: followUpAt,
       },
     })
-    followUp = { id: created.id, scheduledAt: created.scheduledAt.toISOString() }
 
-    // Send follow-up reminder (push + in-app + email when enabled).
+    let followUp: { id: string; scheduledAt: string } | null = null
+    if (followUpAt) {
+      const created = await tx.appointment.create({
+        data: {
+          doctorId: profile.id,
+          patientId: patient.id,
+          scheduledAt: followUpAt,
+          type: 'video',
+          status: 'pending',
+          price: profile.consultationFee,
+          commission: 0,
+          reason: 'Follow-up consultation',
+        },
+      })
+      followUp = { id: created.id, scheduledAt: created.scheduledAt.toISOString() }
+    }
+
+    return { createdMeds, prescription, followUp }
+  })
+
+  // Send follow-up reminder only after the clinical records have committed.
+  if (followUp) {
     try {
       await sendFollowUp(
         patient.id,
         u.name ?? 'Doctor',
-        created.scheduledAt.toISOString(),
-        created.id,
+        followUp.scheduledAt,
+        followUp.id,
         {
           email: patient.email,
           phone: null,

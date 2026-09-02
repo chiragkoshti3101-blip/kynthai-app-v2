@@ -97,11 +97,13 @@ export function PatientCare({ onPatientClick, isDemo = false }: { onPatientClick
   React.useEffect(() => { initLanguage() }, [])
   const [patients, setPatients] = React.useState<PatientAdherence[]>([])
   const [loading, setLoading] = React.useState(true)
+  const [loadError, setLoadError] = React.useState<string | null>(null)
   const [prescribeOpen, setPrescribeOpen] = React.useState(false)
   const [copiedId, setCopiedId] = React.useState<string | null>(null)
 
   const load = React.useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     if (isDemo) {
       setPatients([
         { id: 'demo_dp1', name: 'Alex Johnson', email: 'alex@example.com', medications: 2, todayReminders: 3, takenToday: 2, weekReminders: 21, takenWeek: 18, adherence: 86, inviteLink: '/invite?t=demo' },
@@ -116,9 +118,9 @@ export function PatientCare({ onPatientClick, isDemo = false }: { onPatientClick
       if (!res.ok) throw new Error('Failed to load')
       const data = await res.json()
       setPatients(data.patients ?? [])
-    } catch {
-      // Show empty state on error
+    } catch (error) {
       setPatients([])
+      setLoadError(error instanceof Error ? error.message : 'Unable to load patients')
     } finally {
       setLoading(false)
     }
@@ -222,6 +224,19 @@ export function PatientCare({ onPatientClick, isDemo = false }: { onPatientClick
         <h3 className="mb-3 text-sm font-semibold text-muted-foreground">{t('your_patients')}</h3>
         {loading ? (
           <LoadingState label="Loading patients…" fullPage={false} />
+        ) : loadError ? (
+          <Card className="border-rose-500/30 bg-rose-500/5">
+            <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
+              <AlertCircle className="h-8 w-8 text-rose-600 dark:text-rose-400" />
+              <div>
+                <p className="text-sm font-semibold">Could not load your patients</p>
+                <p className="mt-1 text-xs text-muted-foreground">{loadError}</p>
+              </div>
+              <Button onClick={() => void load()} size="sm" variant="outline">
+                Try again
+              </Button>
+            </CardContent>
+          </Card>
         ) : patients.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
@@ -300,10 +315,7 @@ function PatientCard({
         : 'text-rose-600 dark:text-rose-400'
 
   return (
-    <Card
-      className={cn(patient.adherence < 60 && 'ring-1 ring-amber-500/20', onClick && 'cursor-pointer hover:ring-2 hover:ring-emerald-500/30 transition-all')}
-      onClick={onClick}
-    >
+    <Card className={cn(patient.adherence < 60 && 'ring-1 ring-amber-500/20')}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
           <Avatar className="h-10 w-10">
@@ -352,14 +364,20 @@ function PatientCard({
           )}
         </div>
 
-        {/* Actions */}
-        <div className="mt-3 flex gap-2">
-          <Button size="sm" variant="outline" onClick={onNudge} className="flex-1 h-8 text-xs">
+        {/* Actions stay independent so nudge/copy never trigger chart loading. */}
+        <div className="mt-3 flex flex-wrap gap-2" onClick={(event) => event.stopPropagation()}>
+          {onClick && (
+            <Button size="sm" variant="outline" onClick={onClick} className="h-8 flex-1 text-xs">
+              <BookOpen className="h-3 w-3" />
+              View chart
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={onNudge} className="h-8 flex-1 text-xs">
             <Bell className="h-3 w-3" />
             {t('nudge')}
           </Button>
           {patient.inviteLink && (
-            <Button size="sm" variant="outline" onClick={onCopyInvite} className="flex-1 h-8 text-xs">
+            <Button size="sm" variant="outline" onClick={onCopyInvite} className="h-8 flex-1 text-xs">
               {copied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
               {copied ? t('copied') : t('invite_link')}
             </Button>

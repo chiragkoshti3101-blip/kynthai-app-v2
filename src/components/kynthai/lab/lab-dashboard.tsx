@@ -21,6 +21,7 @@ import { LAB_BASE_FEE_PCT } from '@/lib/commission'
 import { useRouter } from 'next/navigation'
 import { ProfileHub } from '@/components/kynthai/patient/profile-hub'
 import { LoadingState } from '@/components/kynthai/loading-state'
+import { isDemoUser } from '@/lib/demo-mode'
 
 type LabTab = 'overview' | 'bookings' | 'results'
 
@@ -104,7 +105,7 @@ const DEMO_BOOKINGS: BookingRow[] = [
 
 export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
   const router = useRouter()
-  const isDemoAccount = user.isDemo || user.email?.endsWith('@kynthai.app') || false
+  const isDemoAccount = isDemoUser(user)
   const [labOnline, setLabOnline] = React.useState(true)
   const [tab, setTab] = React.useState<LabTab>('overview')
   const [profileOpen, setProfileOpen] = React.useState(false)
@@ -295,7 +296,7 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
           <div className="flex items-center gap-1">
             <NotificationCenter role="lab"
               userId={user.id}
-              isDemo={!!user.isDemo || (user.email || '').endsWith('@kynthai.app')}
+              isDemo={isDemoAccount}
               onNavigate={(t: string) => {
                 if (t === 'meds' || t === 'care') setTab('bookings')
                 else setTab('overview')
