@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
     const completed = bookings.filter((b) => b.status === 'completed')
     const pending = bookings.filter((b) => b.status === 'pending')
-    const revenue = completed.reduce((s, b) => s + b.price - b.commission, 0)
+    const revenue = completed.reduce((s, b) => s + b.price + b.deliveryFee - b.commission, 0)
 
     return jsonOk({
       profile: {
@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
         city: profile.city,
         testsOffered: parseJsonCol(profile.testsOffered, []),
         homeCollection: profile.homeCollection,
+        longDistanceTravelFeeCents: profile.longDistanceTravelFeeCents,
         verified: profile.verified,
         verificationStatus: profile.verificationStatus,
         rejectionReason: profile.rejectionReason,
@@ -71,6 +72,10 @@ export async function GET(req: NextRequest) {
         price: b.price,
         commission: b.commission,
         homeCollection: b.homeCollection,
+        deliveryDistanceKm: b.deliveryDistanceKm,
+        deliveryFee: b.deliveryFee,
+        deliveryQuoteAccepted: b.deliveryQuoteAccepted,
+        deliveryPricingSource: b.deliveryPricingSource,
       })),
     })
   } catch (error) {
