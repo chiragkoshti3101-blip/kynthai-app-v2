@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import { headers } from 'next/headers';
 import Script from 'next/script';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
@@ -97,26 +96,20 @@ export const viewport = {
   interactiveWidget: 'resizes-content',
 } as const;
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const headerStore = await headers();
-  const pathname = headerStore.get('x-nextjs-url') || '/';
-
   return (
     <html lang="en" suppressHydrationWarning data-deploy-version={process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'local'}>
       <head>
-        <StructuredData pathname={pathname} />
+        <StructuredData />
         <meta name="theme-color" content="#f9fdfb" />
         <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#070f0c" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         {/* Instant first paint — prevents black/white flash on PWA cold start */}
         <style dangerouslySetInnerHTML={{ __html: 'html,body{background:#f9fdfb!important;margin:0;min-height:100%;background-color:#f9fdfb}html.dark,html.dark body{background:#070f0c!important;background-color:#070f0c}#kynthai-boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#f9fdfb;color:#064e3b;font-family:system-ui,sans-serif;font-weight:600;font-size:18px;letter-spacing:0.02em;transition:opacity .2s}html.dark #kynthai-boot{background:#070f0c;color:#ecfdf5}#kynthai-boot.done{opacity:0;pointer-events:none;transition:opacity .25s}' }} />
-        <meta httpEquiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-        <meta httpEquiv="Pragma" content="no-cache" />
-        <meta httpEquiv="Expires" content="0" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Preconnect to critical origins for faster DNS + TLS */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
