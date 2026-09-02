@@ -76,6 +76,7 @@ interface LabCard {
   city: string
   zip: string
   homeCollection: boolean
+  longDistanceTravelFeeCents?: number | null
   rating: number
   tests: Array<{ name: string; price: number }>
 }
@@ -504,12 +505,15 @@ function LabsTab() {
           id: String(l.id ?? ''),
           name: String(l.labName ?? l.name ?? 'Lab'),
           city: String(l.city ?? ''),
-          zip: '', // public listing does not expose zip
+          zip: String(l.serviceZip ?? ''),
           homeCollection: Boolean(l.homeCollection),
+          longDistanceTravelFeeCents: l.longDistanceTravelFeeCents == null ? null : Number(l.longDistanceTravelFeeCents),
           rating: Number(l.rating ?? 0),
-          tests: (Array.isArray(l.testsOffered) ? (l.testsOffered as Record<string, unknown>[]) : [])
-            .map((t) => ({ name: String(t.name ?? 'Test'), price: Number(t.price ?? 0) }))
-            .filter((t) => t.name),
+          tests: (Array.isArray(l.testsOffered) ? l.testsOffered : [])
+            .map((t) => typeof t === 'string'
+              ? { name: t.trim(), price: 0 }
+              : { name: String((t as Record<string, unknown>).name ?? 'Test'), price: Number((t as Record<string, unknown>).price ?? 0) })
+            .filter((t) => t.name && t.price > 0),
         }))
         setLiveLabs(mapped)
         setLabsError(false)
@@ -636,9 +640,12 @@ function LabsTab() {
                 deliveryCity: deliveryInfo?.city || null,
                 deliveryZip: deliveryInfo?.zip || null,
                 deliveryDistanceMi: deliveryInfo?.distanceMi ?? null,
+                deliveryDistanceKm: deliveryInfo?.distanceKm ?? null,
                 deliveryFee: deliveryInfo?.deliveryFeeCents || 0,
                 deliveryPlatformFee: deliveryInfo?.platformFeeCents || 0,
-                paymentStatus: deliveryInfo?.contactLab ? 'pending' : 'pending',
+                deliveryQuoteAccepted: deliveryInfo?.deliveryQuoteAccepted ?? false,
+                deliveryPricingSource: deliveryInfo?.pricingSource ?? 'platform_fixed',
+                paymentStatus: 'pending',
               }),
             })
             if (!res.ok) {
@@ -676,19 +683,27 @@ function LabBookingDialog({
     city: string
     zip: string
     distanceMi: number | null
+    distanceKm: number | null
     deliveryFeeCents: number
     platformFeeCents: number
+    deliveryQuoteAccepted: boolean
+    pricingSource: 'platform_fixed' | 'provider_quote'
     contactLab: boolean
   }) => void
 }) {
   const [address, setAddress] = React.useState('')
   const [city, setCity] = React.useState('')
   const [zip, setZip] = React.useState('')
+  const [deliveryQuoteAccepted, setDeliveryQuoteAccepted] = React.useState(false)
   const [deliveryResult, setDeliveryResult] = React.useState<{
+    distanceKm: number | null
     distanceMi: number | null
     deliveryFeeCents: number
     platformFeeCents: number
     contactLab: boolean
+    quoteRequired: boolean
+    quoteAvailable: boolean
+    providerQuoteCents: number | null
     distanceLabel: string
   } | null>(null)
 
@@ -696,27 +711,43 @@ function LabBookingDialog({
     ? lab.tests.filter((t) => selected.includes(t.name)).reduce((s, t) => s + t.price, 0)
     : 0
 
+  // Clear address and quote state whenever the patient switches providers.
+  React.useEffect(() => {
+    setAddress('')
+    setCity('')
+    setZip('')
+    setDeliveryResult(null)
+    setDeliveryQuoteAccepted(false)
+  }, [lab?.id])
+
   // Calculate delivery fee when zip changes
   React.useEffect(() => {
     if (!zip || zip.length !== 5 || !lab?.zip) {
       setDeliveryResult(null)
+      setDeliveryQuoteAccepted(false)
       return
     }
-    // Client-side distance calculation using the same haversine logic
+    // Client-side preview uses the same policy as the server. The server
+    // recalculates it again, so a tampered browser cannot change the charge.
     import('@/lib/delivery-fee').then(({ calculateDeliveryFee }) => {
-      const result = calculateDeliveryFee(zip, lab.zip)
+      const result = calculateDeliveryFee(zip, lab.zip, lab.longDistanceTravelFeeCents)
       setDeliveryResult(result)
+      setDeliveryQuoteAccepted(false)
     })
-  }, [zip, lab?.zip])
+  }, [zip, lab?.zip, lab?.longDistanceTravelFeeCents])
 
   const deliveryFeeDollars = deliveryResult ? deliveryResult.deliveryFeeCents / 100 : 0
   const total = testsTotal + deliveryFeeDollars
-  // Home collection requires a computable delivery result inside the delivery
-  // area (0-30 mi). "Contact lab" (30+ mi or unknown zip) must NOT be bookable —
-  // otherwise the patient books with a $0 delivery fee, losing money on the run.
+  // Home collection requires a known distance. Long-distance journeys also
+  // require a configured provider quote and an explicit patient acceptance.
   const canBook =
     selected.length > 0 &&
-    (!lab?.homeCollection || (deliveryResult !== null && !deliveryResult.contactLab))
+    (!lab?.homeCollection || (
+      deliveryResult !== null &&
+      !deliveryResult.contactLab &&
+      deliveryResult.quoteAvailable &&
+      (!deliveryResult.quoteRequired || deliveryQuoteAccepted)
+    ))
 
   return (
     <Dialog open={!!lab} onOpenChange={(o) => !o && onClose()}>
@@ -768,7 +799,7 @@ function LabBookingDialog({
               <p className="text-sm font-semibold">Home collection address</p>
             </div>
             <p className="text-xs text-muted-foreground">
-              Delivery fee is calculated based on distance from the lab.
+              Under 5 km: fixed $8 travel charge. At or beyond 5 km: this provider sets the travel price, and you must review and accept the quote before booking.
             </p>
             <input
               type="text"
@@ -804,8 +835,24 @@ function LabBookingDialog({
                 </div>
                 {deliveryResult.contactLab && (
                   <p className="text-xs text-amber-600 dark:text-amber-400">
-                    This location is outside our delivery area. Please contact the lab directly to arrange home collection.
+                    We cannot calculate a safe service distance for this address. Please contact the provider directly to arrange home collection.
                   </p>
+                )}
+                {deliveryResult.quoteRequired && !deliveryResult.quoteAvailable && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    This provider has not configured a long-distance travel quote, so online home collection is unavailable for this address.
+                  </p>
+                )}
+                {deliveryResult.quoteRequired && deliveryResult.quoteAvailable && (
+                  <label className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-2 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={deliveryQuoteAccepted}
+                      onChange={(e) => setDeliveryQuoteAccepted(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 accent-emerald-600"
+                    />
+                    <span>I have reviewed and accept the provider travel charge of <strong>${(deliveryResult.providerQuoteCents! / 100).toFixed(2)}</strong> for this address.</span>
+                  </label>
                 )}
               </div>
             )}
@@ -823,16 +870,16 @@ function LabBookingDialog({
                   <span>${t.price.toFixed(2)}</span>
                 </div>
               ))}
-              {deliveryFeeDollars > 0 && (
+              {lab?.homeCollection && deliveryResult && !deliveryResult.contactLab && deliveryResult.quoteAvailable && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Home collection ({deliveryResult?.distanceLabel})</span>
+                  <span className="text-muted-foreground">Home collection travel</span>
                   <span className="text-emerald-600 dark:text-emerald-400">${deliveryFeeDollars.toFixed(2)}</span>
                 </div>
               )}
-              {deliveryFeeDollars === 0 && lab?.homeCollection && deliveryResult && !deliveryResult.contactLab && (
+              {lab?.homeCollection && deliveryResult && !deliveryResult.contactLab && !deliveryResult.quoteAvailable && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Home collection</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">Free</span>
+                  <span className="text-muted-foreground">Home collection travel</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-medium">Provider quote required</span>
                 </div>
               )}
             </div>
@@ -859,8 +906,11 @@ function LabBookingDialog({
                   city,
                   zip,
                   distanceMi: deliveryResult.distanceMi,
+                  distanceKm: deliveryResult.distanceKm,
                   deliveryFeeCents: deliveryResult.deliveryFeeCents,
                   platformFeeCents: deliveryResult.platformFeeCents,
+                  deliveryQuoteAccepted,
+                  pricingSource: deliveryResult.quoteRequired ? 'provider_quote' : 'platform_fixed',
                   contactLab: false,
                 })
               } else if (!lab?.homeCollection) {
@@ -870,11 +920,19 @@ function LabBookingDialog({
             }}
             className="bg-gradient-to-r from-emerald-500 to-teal-600 text-white"
           >
-            {selected.length > 0
-              ? deliveryResult?.contactLab
-                ? 'Contact lab'
-                : `Pay $${total.toFixed(2)}`
-              : 'Select tests'}
+            {selected.length === 0
+              ? 'Select tests'
+              : !lab?.homeCollection
+                ? `Pay $${total.toFixed(2)}`
+                : !deliveryResult
+                  ? 'Enter address'
+                  : deliveryResult.contactLab
+                    ? 'Contact provider'
+                    : !deliveryResult.quoteAvailable
+                      ? 'Provider quote unavailable'
+                      : deliveryResult.quoteRequired && !deliveryQuoteAccepted
+                        ? 'Accept travel quote'
+                        : `Pay $${total.toFixed(2)}`}
           </Button>
         </DialogFooter>
       </DialogContent>
