@@ -41,6 +41,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { isDemoUser } from '@/lib/demo-mode';
 import { KynthaiBrand } from '@/components/kynthai/logo';
 import { NotificationCenter } from '@/components/kynthai/notification-center';
 import { NotificationPermissionBanner } from '@/components/kynthai/notification-permission-banner';
@@ -234,7 +235,7 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
             <NotificationCenter
               role="admin"
               userId={user.id}
-              isDemo={!!user.isDemo || (user.email || '').endsWith('@kynthai.app')}
+              isDemo={isDemoUser(user)}
               onNavigate={() => setTab('overview')}
             />
             <Badge
