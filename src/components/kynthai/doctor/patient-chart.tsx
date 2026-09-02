@@ -72,6 +72,7 @@ export interface DoctorPatientChart {
     type: string
     status: string
     reason: string | null
+    notes: string | null
     doctor: { name: string; specialization: string }
   }>
   labHistory: Array<{
@@ -81,6 +82,7 @@ export interface DoctorPatientChart {
     scheduledAt: string
     status: string
     resultsAvailable: boolean
+    notes: string | null
     resultsNote: string | null
     resultUploadedAt: string | null
     resultsShared: boolean
@@ -266,6 +268,7 @@ export function PatientChart({
               <p className="text-sm font-medium">{formatDateTime(appointment.scheduledAt)}</p>
               <p className="text-[11px] text-muted-foreground">{appointment.doctor.name} · {appointment.doctor.specialization}</p>
               {appointment.reason && <p className="mt-1 text-xs">Reason: {appointment.reason}</p>}
+              {appointment.notes && <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">Clinical note: {appointment.notes}</p>}
             </div>
             <Badge variant="outline" className="shrink-0 text-[10px] capitalize">{appointment.type.replace('_', ' ')} · {appointment.status.replace('_', ' ')}</Badge>
           </div>
@@ -287,6 +290,7 @@ export function PatientChart({
                 <Badge key={`${booking.id}-${index}`} variant="secondary" className="text-[10px]">{String(item.name ?? 'Laboratory test')}</Badge>
               ))}
             </div>
+            {booking.notes && <p className="mt-2 whitespace-pre-wrap text-xs text-muted-foreground">Collection note: {booking.notes}</p>}
             {booking.resultsAvailable ? (
               <p className="mt-2 text-xs text-emerald-700 dark:text-emerald-300">
                 Results uploaded {booking.resultUploadedAt ? formatDate(booking.resultUploadedAt) : ''}{booking.resultsShared ? ' and shared with a doctor.' : ' — patient sharing is still required for the report file.'}
