@@ -620,6 +620,9 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   if (isPortalPath(pathname) && !isApi && !supabaseUser && !isDemoMode) {
     const redirect = NextResponse.redirect(new URL('/login', req.url));
     applyHeaders(redirect, pathname, requestId);
+    // Never let an authentication redirect be stored as a public response.
+    redirect.headers.set('Cache-Control', 'private, no-store');
+    redirect.headers.set('Pragma', 'no-cache');
     return redirect;
   }
 
