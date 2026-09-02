@@ -308,7 +308,7 @@ export function PatientChart({
                   Results uploaded {booking.resultUploadedAt ? formatDate(booking.resultUploadedAt) : ''}{booking.resultsShared ? ' and shared with a doctor.' : ' — patient sharing is still required for the report file.'}
                 </p>
                 {booking.resultDownloadPath && (
-                  <a href={booking.resultDownloadPath} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 px-2 py-1 font-medium hover:bg-emerald-500/10">
+                  <a href={booking.resultDownloadPath} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 px-2 py-1 font-medium hover:bg-emerald-500/10">
                     <Download className="h-3 w-3" /> Open report
                   </a>
                 )}
@@ -338,7 +338,7 @@ export function PatientChart({
               <p className="truncate text-sm font-medium">{document.title}</p>
               <p className="text-[11px] text-muted-foreground">{document.type.replaceAll('_', ' ')} · {formatDate(document.uploadedAt)}</p>
             </div>
-            <a href={document.downloadPath} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
+            <a href={document.downloadPath} target="_blank" rel="noopener noreferrer" className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
               <Download className="h-3 w-3" /> Open
             </a>
           </div>
