@@ -43,6 +43,7 @@ export const HOME_FAQS: readonly FaqEntry[] = [
 ]
 
 /** FAQ content for the dedicated, fully crawlable /faq page. */
+// Keep both collections here so visible copy and structured data cannot drift.
 export const FAQ_PAGE_ENTRIES: readonly FaqEntry[] = [
   {
     q: 'Is Kynthai a medical device or emergency service?',
