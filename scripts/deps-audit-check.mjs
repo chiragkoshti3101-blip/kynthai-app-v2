@@ -4,7 +4,7 @@
  *
  * Runs `npm audit --json` and fails the build on every HIGH or CRITICAL
  * advisory, except for an explicit, reviewed allowlist entry in
- * check-deps.mjs. The advisory allowlist is narrow and explicit; the
+ * check-deps.mjs. No advisory exceptions are currently required; the
  * package-level fallback remains empty.
  *
  * Exit 0 = clean or only explicitly allowlisted advisories.
