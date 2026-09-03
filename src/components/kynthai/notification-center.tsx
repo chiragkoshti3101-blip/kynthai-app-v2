@@ -65,20 +65,97 @@ function sanitizeNotification(notification: Notification): Notification {
   }
 }
 
+const DEMO_READ_STORAGE_PREFIX = 'kynthai.demo.notifications.read.v2'
+
+function demoReadStorageKey(userId: string, role?: string): string {
+  return `${DEMO_READ_STORAGE_PREFIX}:${encodeURIComponent(userId)}:${encodeURIComponent(role || 'patient')}`
+}
+
+function readDemoNotificationIds(key: string): Set<string> {
+  if (typeof window === 'undefined') return new Set()
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(key) || '[]')
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((id): id is string => typeof id === 'string' && id.length > 0)
+        : [],
+    )
+  } catch {
+    return new Set()
+  }
+}
+
+function persistDemoNotificationIds(key: string, ids: string[]): void {
+  if (typeof window === 'undefined' || ids.length === 0) return
+  try {
+    const all = new Set(readDemoNotificationIds(key))
+    ids.forEach((id) => all.add(id))
+    window.localStorage.setItem(key, JSON.stringify(Array.from(all)))
+  } catch {
+    /* best-effort; the current view still updates */
+  }
+}
+
 export function NotificationCenter({ userId, isDemo, role, onNavigate }: NotificationCenterProps) {
   const [open, setOpen] = React.useState(false)
   const [notifications, setNotifications] = React.useState<Notification[]>([])
   const [loading, setLoading] = React.useState(true)
   const [marking, setMarking] = React.useState(false)
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+  const [alarmActive, setAlarmActive] = React.useState(false)
   const dropdownRef = React.useRef<HTMLDivElement>(null)
   const [sosAlert, setSosAlert] = React.useState<Notification | null>(null)
+  const demoReadKey = demoReadStorageKey(userId, role)
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const update = (event?: Event) => {
+      const activeFromEvent = (event as CustomEvent<{ active?: unknown }> | undefined)?.detail?.active
+      const active = typeof activeFromEvent === 'boolean'
+        ? activeFromEvent
+        : document.documentElement.dataset.kynthaiAlarmActive === 'true'
+      setAlarmActive(active)
+      if (active) setOpen(false)
+    }
+    update()
+    window.addEventListener('kynthai:alarm-state', update)
+    return () => window.removeEventListener('kynthai:alarm-state', update)
+  }, [])
+
+  const persistRead = React.useCallback(async (ids: string[]): Promise<void> => {
+    if (ids.length === 0) return
+    let csrf: string | undefined
+    try {
+      const csrfResponse = await fetch('/api/auth/csrf', { credentials: 'include' })
+      const csrfData = await csrfResponse.json().catch(() => ({})) as { token?: unknown }
+      if (typeof csrfData.token === 'string') csrf = csrfData.token
+    } catch {
+      /* the API will return a visible error if CSRF is required */
+    }
+    const response = await fetch('/api/notifications', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
+      },
+      body: JSON.stringify({ notificationIds: ids }),
+    })
+    if (!response.ok) throw new Error('notification read update failed')
+  }, [])
+
   const loadNotifications = React.useCallback(async () => {
     setLoading(true)
+    setErrorMessage(null)
     if (isDemo) {
-      setNotifications(getDemoNotifications(role).map(sanitizeNotification))
+      const readIds = readDemoNotificationIds(demoReadKey)
+      setNotifications(
+        getDemoNotifications(role)
+          .map(sanitizeNotification)
+          .map((notification) => readIds.has(notification.id) ? { ...notification, read: true } : notification),
+      )
       setLoading(false)
       return
     }
@@ -87,23 +164,23 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
         cache: 'no-store',
         credentials: 'include',
       })
-      if (res.ok) {
-        const data = await res.json()
-        const list = (data.notifications ?? []).map((n: Notification) => ({
-          ...n,
-          type: normalizeType(String(n.type)),
-          title: n.title || 'Notification',
-          body: n.body || '',
-          read: n.read === true || n.status === 'read',
-        }))
-        setNotifications(list)
-      }
+      if (!res.ok) throw new Error('notification list failed')
+      const data = await res.json()
+      if (!Array.isArray(data.notifications)) throw new Error('invalid notification list')
+      const list = data.notifications.map((n: Notification) => ({
+        ...n,
+        type: normalizeType(String(n.type)),
+        title: n.title || 'Notification',
+        body: n.body || '',
+        read: n.read === true || n.status === 'read',
+      }))
+      setNotifications(list)
     } catch {
-      /* silent */
+      setErrorMessage('Notifications are temporarily unavailable. Try again.')
     } finally {
       setLoading(false)
     }
-  }, [isDemo, role])
+  }, [demoReadKey, isDemo, role])
 
   React.useEffect(() => {
     loadNotifications()
@@ -119,50 +196,51 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
 
   React.useEffect(() => {
     const unreadSos = notifications.find(
-      (n) => n.type === 'alert' && !n.read && n.title?.toLowerCase().includes('sos'),
+      (n) => n.type === 'alert' && !n.read && (n.isEmergency || /sos/i.test(`${n.title} ${n.body}`)),
     )
-    if (unreadSos) setSosAlert(unreadSos)
+    setSosAlert(unreadSos || null)
   }, [notifications])
 
   const markAllRead = async () => {
     setMarking(true)
     const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id)
-    if (isDemo) {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-      setMarking(false)
-      return
-    }
     if (unreadIds.length === 0) {
       setMarking(false)
       return
     }
     try {
-      // CSRF via shared interceptor if present; also mint token explicitly
-      let csrf: string | undefined
-      try {
-        const c = await fetch('/api/auth/csrf', { credentials: 'include' }).then((r) => r.json())
-        csrf = c.token
-      } catch {
-        /* ignore */
+      if (isDemo) {
+        persistDemoNotificationIds(demoReadKey, unreadIds)
+      } else {
+        await persistRead(unreadIds)
       }
-      await fetch('/api/notifications', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrf ? { 'X-CSRF-Token': csrf } : {}),
-        },
-        body: JSON.stringify({ notificationIds: unreadIds }),
-      })
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+      setErrorMessage(null)
     } catch {
-      /* silent */
+      setErrorMessage('Could not mark notifications as read. Try again.')
     } finally {
       setMarking(false)
     }
   }
 
-  const handleClick = (notif: Notification) => {
+  const handleClick = async (notif: Notification) => {
+    setErrorMessage(null)
+    if (!notif.read) {
+      setMarking(true)
+      try {
+        if (isDemo) {
+          persistDemoNotificationIds(demoReadKey, [notif.id])
+        } else {
+          await persistRead([notif.id])
+        }
+        setNotifications((prev) => prev.map((n) => n.id === notif.id ? { ...n, read: true } : n))
+      } catch {
+        setErrorMessage('Could not mark this notification as read. Try again.')
+        setMarking(false)
+        return
+      }
+      setMarking(false)
+    }
     if (onNavigate) {
       if (notif.type === 'reminder') onNavigate(role === 'lab' ? 'bookings' : 'meds')
       else if (notif.type === 'appointment') onNavigate(role === 'doctor' ? 'appointments' : 'home')
@@ -222,11 +300,17 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
         <button
           type="button"
           onClick={() => {
+            if (alarmActive) return
             setOpen((o) => !o)
             if (!open) loadNotifications()
           }}
-          className="relative flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          aria-label={unreadCount ? `${unreadCount} unread notifications` : 'Notifications'}
+          disabled={alarmActive}
+          className="relative flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={alarmActive
+            ? 'Notifications unavailable while medication alarm is active'
+            : unreadCount
+              ? `${unreadCount} unread notifications`
+              : 'Notifications'}
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
@@ -237,7 +321,7 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
         </button>
 
         <AnimatePresence>
-          {open && (
+          {open && !alarmActive && (
             <motion.div
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -271,6 +355,11 @@ export function NotificationCenter({ userId, isDemo, role, onNavigate }: Notific
                   </button>
                 </div>
               </div>
+              {errorMessage && (
+                <div role="status" className="border-b border-rose-500/20 bg-rose-500/5 px-4 py-2 text-xs text-rose-700 dark:text-rose-300">
+                  {errorMessage}
+                </div>
+              )}
               <ScrollArea className="h-80">
                 {loading ? (
                   <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">

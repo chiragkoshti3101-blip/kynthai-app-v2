@@ -437,6 +437,20 @@ export function MedicationAlarmHost({
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [alarmEnabled, isDemo])
 
+  React.useEffect(() => {
+    if (typeof document === 'undefined') return
+    const active = Boolean(alarmTarget)
+    if (active) document.documentElement.dataset.kynthaiAlarmActive = 'true'
+    else delete document.documentElement.dataset.kynthaiAlarmActive
+    window.dispatchEvent(new CustomEvent('kynthai:alarm-state', { detail: { active } }))
+    return () => {
+      if (active) {
+        delete document.documentElement.dataset.kynthaiAlarmActive
+        window.dispatchEvent(new CustomEvent('kynthai:alarm-state', { detail: { active: false } }))
+      }
+    }
+  }, [alarmTarget])
+
   // Lock body scroll while full-screen overlay is up
   React.useEffect(() => {
     if (!alarmTarget) return

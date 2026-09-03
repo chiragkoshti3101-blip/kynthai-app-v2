@@ -9,6 +9,8 @@ import {
   permissionState,
   pushSupported,
   isIosStandalone,
+  isIosDevice,
+  openBrowserNotificationSettings,
 } from '@/lib/push'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
@@ -55,12 +57,12 @@ export function PushNotificationToggle({ className }: { className?: string }) {
       // for web-push banners on iPhone — the full chime rings in-app when the
       // dose alarm opens. Android plays the system/chime sound normally.
       setHint(
-        isIosStandalone()
+        isIosDevice()
           ? 'On. Note: iPhones stay silent for web notifications (Apple limitation) — open Kynthai and the dose alarm rings with the full chime.'
           : null,
       )
     } else if (perm === 'denied') {
-      setHint('Notifications blocked. Open system Settings → Apps → Kynthai → Notifications → Allow.')
+      setHint('Notifications blocked for this site. Open site settings, allow kynthai.app, then try again.')
     } else if (perm === 'default') {
       setHint('Tap Enable notifications so dose, doctor, and lab alerts can reach this phone.')
     }
@@ -77,6 +79,15 @@ export function PushNotificationToggle({ className }: { className?: string }) {
         setHint(null)
         toast({ title: 'Notifications off on this device' })
       } else {
+        if (!isNativeShell() && permissionState() === 'denied') {
+          const opened = openBrowserNotificationSettings()
+          setHint(
+            opened
+              ? 'Allow notifications for kynthai.app in the browser settings, then return and try again.'
+              : 'Use the site controls icon beside the address bar to allow notifications for kynthai.app, then try again.',
+          )
+          return
+        }
         const result = isNativeShell()
           ? await (async () => {
               const ok = await registerFcmDevice()
@@ -128,7 +139,11 @@ export function PushNotificationToggle({ className }: { className?: string }) {
         ) : (
           <BellOff className="h-4 w-4" />
         )}
-        {enabled ? 'Notifications on' : 'Enable notifications'}
+        {enabled
+          ? 'Notifications on'
+          : !isNativeShell() && permissionState() === 'denied'
+            ? 'Open site settings'
+            : 'Enable notifications'}
       </Button>
       {hint && <p className="text-xs text-muted-foreground leading-relaxed">{hint}</p>}
     </div>
