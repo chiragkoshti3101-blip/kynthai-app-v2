@@ -105,36 +105,105 @@ export async function GET(req: NextRequest) {
           orderBy: { time: 'asc' },
           take: 20,
         })
+        // Materialize a fallback reminder into the same in-app log used by
+        // cron delivery. The old `rem-<id>` rows were ephemeral, so Mark all
+        // read could never persist them and every refresh resurrected them.
+        const doseKeys = pending.map((r) => `dose:${r.id}`)
+        const reminderLogs = doseKeys.length
+          ? await db.notificationLog.findMany({
+              where: {
+                userId: user.id,
+                channel: { in: ['in-app', 'app'] },
+                dedupeKey: { in: doseKeys },
+              },
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                channel: true,
+                type: true,
+                title: true,
+                body: true,
+                recipient: true,
+                status: true,
+                cost: true,
+                dedupeKey: true,
+                createdAt: true,
+              },
+            }).catch(() => [])
+          : []
         const existingKeys = new Set(
           notifications.map((n) => `${n.type}|${n.title}|${n.body}`),
         )
         for (const r of pending) {
           const medName = r.medication?.name || 'medication'
           const due = r.time <= clock.timeStr
-          const title = due ? `Time to take ${medName}` : `Upcoming: ${medName}`
-          const body = [r.medication?.dosage, r.time].filter(Boolean).join(' · ')
-          const key = `reminder|${title}|${body}`
-          // Generic cron rows share the time in their body — don't create a
-          // second inbox entry for a dose already represented.
+          const detailTitle = due ? `Time to take ${medName}` : `Upcoming: ${medName}`
+          const detailBody = [r.medication?.dosage, r.time].filter(Boolean).join(' · ')
           const doseKey = `dose:${r.id}`
+          const existing = reminderLogs.find((n) => n.dedupeKey === doseKey)
+          if (existing) {
+            // If the initial page was already full, keep the persisted reminder
+            // visible so its read state remains stable across refreshes.
+            if (!unreadOnly || existing.status !== 'read') {
+              if (!notifications.some((n) => n.id === existing.id)) notifications.push(existing)
+            }
+            continue
+          }
+
+          // Generic cron rows share the time in their body — don't create a
+          // second inbox entry for a dose already represented by a legacy row.
+          const legacyKey = `reminder|${detailTitle}|${detailBody}`
           const covered = notifications.some(
             (n) => n.dedupeKey === doseKey ||
-              (n.dedupeKey == null && n.type === 'reminder' && n.title === title && n.body === body),
+              (n.dedupeKey == null && n.type === 'reminder' && n.title === detailTitle && n.body === detailBody),
           )
-          if (existingKeys.has(key) || covered) continue
-          existingKeys.add(key)
-          notifications.push({
+          if (existingKeys.has(legacyKey) || covered) continue
+
+          const created = await db.notificationLog.create({
+            data: {
+              userId: user.id,
+              channel: 'in-app',
+              type: 'reminder',
+              // Store only the generic preview. Medication details stay in the
+              // authorized medication workflow rather than the inbox row.
+              title: 'Medication reminder',
+              body: 'A scheduled medication reminder is available. Open Meds to review it.',
+              recipient: user.id,
+              status: 'sent',
+              cost: 0,
+              dedupeKey: doseKey,
+              createdAt: r.createdAt,
+            },
+            select: {
+              id: true,
+              channel: true,
+              type: true,
+              title: true,
+              body: true,
+              recipient: true,
+              status: true,
+              cost: true,
+              dedupeKey: true,
+              createdAt: true,
+            },
+          }).catch(() => null)
+
+          // A transient database/index issue must not hide a due reminder;
+          // retain the old in-memory fallback, but the normal path is now
+          // persistent and can be marked read by id.
+          notifications.push(created ?? {
             id: `rem-${r.id}`,
             channel: 'in-app',
             type: 'reminder',
-            title,
-            body,
+            title: detailTitle,
+            body: detailBody,
             recipient: user.id,
             status: 'sent',
             cost: 0,
             dedupeKey: doseKey,
             createdAt: r.createdAt,
           })
+          existingKeys.add(legacyKey)
         }
         notifications.sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
       }
@@ -231,18 +300,75 @@ export async function POST(req: NextRequest) {
       return jsonError('No valid notification IDs provided', 400)
     }
 
-    // Mark as read — only for the current user's notifications
-    const result = await db.notificationLog.updateMany({
-      where: {
-        id: { in: validIds.filter((id) => !id.startsWith('rem-')) },
-        userId: user.id,
-      },
-      data: { status: 'read' },
-    })
+    // Mark persisted rows as read — only for the current user's notifications.
+    const persistedIds = validIds.filter((id) => !id.startsWith('rem-'))
+    const result = persistedIds.length
+      ? await db.notificationLog.updateMany({
+          where: {
+            id: { in: persistedIds },
+            userId: user.id,
+          },
+          data: { status: 'read' },
+        })
+      : { count: 0 }
 
-    await logAudit(user.id, 'notifications.markRead', `marked=${result.count}`)
+    // Handle the short-lived fallback IDs emitted if a reminder log could not
+    // be materialized during GET. Never change the medication itself here:
+    // reading a reminder is separate from taking or skipping its dose.
+    const reminderIds = validIds
+      .filter((id) => id.startsWith('rem-'))
+      .map((id) => id.slice(4))
+      .filter((id) => id.length > 0 && id.length <= 128)
+    let reminderMarked = 0
+    if (reminderIds.length) {
+      const reminders = await db.reminder.findMany({
+        where: {
+          id: { in: reminderIds },
+          medication: {
+            OR: [
+              { userId: user.id },
+              { familyMember: { family: { ownerId: user.id } } },
+            ],
+          },
+        },
+        select: { id: true },
+      }).catch(() => [])
+      for (const reminder of reminders) {
+        const doseKey = `dose:${reminder.id}`
+        const existing = await db.notificationLog.findFirst({
+          where: { userId: user.id, channel: { in: ['in-app', 'app'] }, dedupeKey: doseKey },
+          select: { id: true },
+        }).catch(() => null)
+        if (existing) {
+          const updated = await db.notificationLog.updateMany({
+            where: { id: existing.id, userId: user.id },
+            data: { status: 'read' },
+          })
+          reminderMarked += updated.count
+        } else {
+          const created = await db.notificationLog.create({
+            data: {
+              userId: user.id,
+              channel: 'in-app',
+              type: 'reminder',
+              title: 'Medication reminder',
+              body: 'A scheduled medication reminder is available. Open Meds to review it.',
+              recipient: user.id,
+              status: 'read',
+              cost: 0,
+              dedupeKey: doseKey,
+            },
+            select: { id: true },
+          }).catch(() => null)
+          if (created) reminderMarked += 1
+        }
+      }
+    }
 
-    return jsonOk({ marked: result.count })
+    const marked = result.count + reminderMarked
+    await logAudit(user.id, 'notifications.markRead', `marked=${marked}`)
+
+    return jsonOk({ marked })
   } catch (error) {
     logger.phiSafeError(error)
     return jsonError('Internal server error', 500)
