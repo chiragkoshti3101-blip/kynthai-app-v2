@@ -40,13 +40,17 @@ export function pushSupported(): boolean {
   )
 }
 
+/** True when the current browser is an iPhone/iPad browser. */
+export function isIosDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  return /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
 /** iOS Safari only delivers web push for home-screen (standalone) PWAs. */
 export function isIosStandalone(): boolean {
   if (typeof window === 'undefined') return false
-  const ua = navigator.userAgent || ''
-  const isIOS = /iPad|iPhone|iPod/.test(ua) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  if (!isIOS) return true // not iOS → treat as fine for this check
+  if (!isIosDevice()) return true // not iOS → treat as fine for this check
   const standalone =
     ('standalone' in navigator && (navigator as Navigator & { standalone?: boolean }).standalone === true) ||
     window.matchMedia('(display-mode: standalone)').matches
@@ -56,6 +60,30 @@ export function isIosStandalone(): boolean {
 export function permissionState(): NotificationPermission {
   if (typeof window === 'undefined' || !('Notification' in window)) return 'denied'
   return Notification.permission
+}
+
+/**
+ * Return the browser's notification settings surface when it exposes one.
+ * Internal browser URLs may still be blocked by the browser; callers should
+ * always keep an in-app recovery message as the fallback.
+ */
+export function browserNotificationSettingsUrl(userAgent?: string): string | null {
+  const ua = userAgent ?? (typeof navigator !== 'undefined' ? navigator.userAgent : '')
+  if (/Edg\//i.test(ua)) return 'edge://settings/content/notifications'
+  if (/Firefox\//i.test(ua)) return 'about:preferences#privacy'
+  if (/Chrome\//i.test(ua) || /CriOS\//i.test(ua)) return 'chrome://settings/content/notifications'
+  return null
+}
+
+export function openBrowserNotificationSettings(): boolean {
+  if (typeof window === 'undefined') return false
+  const url = browserNotificationSettingsUrl()
+  if (!url) return false
+  try {
+    return Boolean(window.open(url, '_blank', 'noopener,noreferrer'))
+  } catch {
+    return false
+  }
 }
 
 async function getRegistration(): Promise<ServiceWorkerRegistration | null> {
