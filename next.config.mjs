@@ -23,7 +23,7 @@ const nextConfig = {
   // Standalone output — required by Dockerfile.prod runner stage
   // (copies /app/.next/standalone); without it docker builds fail with
   // "/app/.next/standalone: not found".
-  output: 'standalone',
+  output: process.env.VERCEL ? undefined : 'standalone',
 
   // Production source maps (hidden in prod, available for error tracking)
   productionBrowserSourceMaps: false,
@@ -143,7 +143,11 @@ export default withSentryConfig(
   {
     silent: true,
     hideSourceMaps: false,
-    disableLogger: true,
+    webpack: {
+      treeshake: {
+        removeDebugLogging: true,
+      },
+    },
     telemetry: false,
   }
 );
