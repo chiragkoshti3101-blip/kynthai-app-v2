@@ -2,12 +2,11 @@
 /**
  * CI dependency audit gate runner.
  *
- * Runs `npm audit --json`, fails the build on any HIGH or CRITICAL advisory
- * UNLESS the advisory is a known next-bundled platform advisory that is
- * unfixable without upgrading next to a version that breaks the Vercel
- * production build (see check-deps.mjs for the allowlist and reasoning).
+ * Runs `npm audit --json` and fails the build on every HIGH or CRITICAL
+ * advisory, except for an explicit, reviewed allowlist entry in
+ * check-deps.mjs. The allowlist is empty by default.
  *
- * Exit 0 = clean or only allowlisted advisories.
+ * Exit 0 = clean or only explicitly allowlisted advisories.
  * Exit 1 = an un-allowlisted high/critical advisory (blocks release).
  */
 import { execFileSync } from 'node:child_process';
@@ -74,7 +73,7 @@ for (const [name, info] of Object.entries(vulnerabilities)) {
 
 if (allowlisted.length) {
   console.log(
-    '[deps] allowlisted next-bundled advisories (unfixable without breaking prod build):\n' +
+    '[deps] explicitly allowlisted advisories:\n' +
       allowlisted
         .map((a) => `  - ${a.name} (${a.severity}) ${a.range} via ${a.ghsas.join(', ')}`)
         .join('\n')
