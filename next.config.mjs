@@ -22,7 +22,8 @@ const nextConfig = {
 
   // Standalone output — required by Dockerfile.prod runner stage
   // (copies /app/.next/standalone); without it docker builds fail with
-  // "/app/.next/standalone: not found".
+  // "/app/.next/standalone: not found". Vercel does not use that runner,
+  // and keeping standalone there triggers the Next 16.3 adapter NFT bug.
   output: process.env.VERCEL ? undefined : 'standalone',
 
   // Production source maps (hidden in prod, available for error tracking)
