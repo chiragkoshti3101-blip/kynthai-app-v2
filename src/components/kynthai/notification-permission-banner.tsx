@@ -13,6 +13,7 @@ import {
   permissionState,
   pushSupported,
   isIosStandalone,
+  openBrowserNotificationSettings,
 } from '@/lib/push'
 import { isNativeShell } from '@/lib/native-shell'
 import { openNativeNotificationSettings } from '@/lib/native-alarms'
@@ -24,6 +25,22 @@ export function NotificationPermissionBanner() {
   const [show, setShow] = React.useState(false)
   const [busy, setBusy] = React.useState(false)
   const [msg, setMsg] = React.useState<string | null>(null)
+  const [alarmActive, setAlarmActive] = React.useState(false)
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return
+    const update = (event?: Event) => {
+      const activeFromEvent = (event as CustomEvent<{ active?: unknown }> | undefined)?.detail?.active
+      setAlarmActive(
+        typeof activeFromEvent === 'boolean'
+          ? activeFromEvent
+          : document.documentElement.dataset.kynthaiAlarmActive === 'true',
+      )
+    }
+    update()
+    window.addEventListener('kynthai:alarm-state', update)
+    return () => window.removeEventListener('kynthai:alarm-state', update)
+  }, [])
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -57,9 +74,7 @@ export function NotificationPermissionBanner() {
     if (perm === 'granted') return
     if (perm === 'denied') {
       setMsg(
-        isNativeShell()
-          ? 'Notifications are blocked. Settings → Apps → Kynthai → Notifications → Allow, then reopen the app.'
-          : 'Notifications are blocked for this site. Enable them in browser site settings, then tap again.',
+        'Notifications are blocked for this site. Open site settings, allow notifications for kynthai.app, then return here.',
       )
       setShow(true)
       return
@@ -68,11 +83,22 @@ export function NotificationPermissionBanner() {
     setShow(true)
   }, [])
 
-  if (!show) return null
+  if (!show || alarmActive) return null
 
   const onEnable = async () => {
     setBusy(true)
     try {
+      // A denied browser permission cannot be repaired by another prompt. Open
+      // the browser settings surface instead of pretending the request worked.
+      if (!isNativeShell() && permissionState() === 'denied') {
+        const opened = openBrowserNotificationSettings()
+        setMsg(
+          opened
+            ? 'Allow notifications for kynthai.app in the browser settings, then return here and try again.'
+            : 'Use the site controls icon beside the address bar to allow notifications for kynthai.app, then try again.',
+        )
+        return
+      }
       // If already denied on a native build, open system settings (a denied
       // OS permission cannot be fixed by a browser prompt).
       if (isNativeShell() && (await nativePushPermission()) === 'denied') {
@@ -122,7 +148,11 @@ export function NotificationPermissionBanner() {
           <div className="flex flex-wrap gap-2">
             <Button size="sm" className="min-h-11 gap-1.5" disabled={busy} onClick={() => void onEnable()}>
               <Bell className="h-3.5 w-3.5" />
-              {busy ? 'Requesting…' : 'Allow notifications'}
+              {busy
+                ? 'Requesting…'
+                : !isNativeShell() && permissionState() === 'denied'
+                  ? 'Open site settings'
+                  : 'Allow notifications'}
             </Button>
             <Button size="sm" variant="ghost" className="min-h-11" onClick={dismiss}>
               Later
