@@ -89,6 +89,15 @@ async function postTokenToServer(token: string, type: NativePushType): Promise<b
   }
 }
 
+async function waitForPostedToken(type: NativePushType, timeoutMs = 5000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    if (lastPostedToken.startsWith(`${type}:`)) return true
+    await new Promise((resolve) => window.setTimeout(resolve, 100))
+  }
+  return lastPostedToken.startsWith(`${type}:`)
+}
+
 async function getStoredAndroidToken(): Promise<string | null> {
   try {
     const { registerPlugin } = await import('@capacitor/core')
@@ -199,6 +208,9 @@ export async function registerFcmDevice(): Promise<boolean> {
 
   registrationInFlight = (async () => {
     const type = nativePushType()
+    // Do not let a token posted for an earlier session make this registration
+    // look healthy before the current authenticated POST succeeds.
+    lastPostedToken = ''
 
     try {
       const { PushNotifications } = await import('@capacitor/push-notifications')
@@ -238,10 +250,10 @@ export async function registerFcmDevice(): Promise<boolean> {
         }
       }
 
-      // Registration events are delivered asynchronously after register(). A
-      // granted permission plus successful register call is enough to report a
-      // healthy native setup; the event handler performs the authenticated POST.
-      return true
+      // Registration events are delivered asynchronously after register().
+      // Wait for the authenticated token POST before reporting success; a
+      // granted OS permission alone does not mean this account can receive push.
+      return await waitForPostedToken(type)
     } catch {
       // Android fallback for a bridge that exposes the custom plugin but not the
       // Capacitor push plugin yet. iOS has no safe token fallback here.
