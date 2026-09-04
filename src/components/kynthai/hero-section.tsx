@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
+import { HeroCarePreview } from './hero-care-preview';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
 
@@ -13,21 +13,9 @@ interface HeroSectionProps {
 export function HeroSection({ onGetStarted }: HeroSectionProps) {
   return (
     /*
-     * Clipping strategy — never clip the phone mockup:
-     *
-     * The old `overflow-x-clip` here was fragile: per the CSS spec, when one
-     * axis is `clip` the other computes to `clip` too — so the hero silently
-     * clipped the phone mockup vertically on devices where its content
-     * rendered a few px taller (Safari font fallbacks, larger accessibility
-     * text, etc.). That's the "phone cut off after the first card" bug.
-     *
-     * Now the hero sets NO overflow at all. The gradient orbs live in an
-     * `absolute inset-0 -z-10 overflow-hidden` backdrop layer, so they are
-     * bounded to the hero box and can never cause horizontal overflow. The
-     * global `html, body { overflow-x: clip }` guard in globals.css also
-     * guarantees zero horizontal scrolling at every width. The phone mockup
-     * therefore renders in the natural flow: it can never be clipped — worst
-     * case it grows.
+     * Keep the hero's visual content-first and device-free. The gradient orbs
+     * live in an isolated backdrop layer, while the care overview stays in
+     * normal responsive flow so it remains legible at every viewport width.
      *
      * `pl-safe pr-safe` LIVE HERE on the section (NOT on the grid): with
      * `viewport-fit: cover` (layout.tsx) iOS lays out into the notch +
@@ -138,20 +126,9 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
           </div>
         </div>
 
-        {/* Right: real product preview — eager because it is the hero visual.
-            Explicit dimensions prevent layout shift; the asset is local and
-            lightweight, so it does not depend on a remote image origin. */}
+        {/* Right: care overview — content-first and device-free. */}
         <div className="mt-4 flex w-full min-w-0 items-center justify-center lg:mt-0">
-          <Image
-            src="/kynthai-hero-preview.svg"
-            alt="Kynthai family health app preview showing medication reminders and care coordination tools"
-            width={960}
-            height={720}
-            priority
-            fetchPriority="high"
-            sizes="(max-width: 1023px) 92vw, 48vw"
-            className="h-auto w-full max-w-[600px] rounded-[2rem] shadow-xl shadow-emerald-950/10"
-          />
+          <HeroCarePreview />
         </div>
       </div>
     </section>
