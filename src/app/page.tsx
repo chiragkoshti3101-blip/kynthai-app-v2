@@ -1,6 +1,6 @@
-import Image from 'next/image'
 import Link from 'next/link'
 import { HOME_FAQS } from '@/components/kynthai/faq-data'
+import { HeroCarePreview } from '@/components/kynthai/hero-care-preview'
 import { StructuredData } from '@/components/structured-data'
 
 // Keep the public landing route fresh without making every request dynamic.
@@ -13,7 +13,7 @@ export const revalidate = 60
  * The interactive landing experience is mounted by PortalClient after the
  * client store hydrates. This lightweight, complete fallback is rendered first
  * so crawlers and users with JavaScript disabled still receive meaningful
- * product copy, a product image, and the FAQ answers.
+ * product copy, a care overview, and the FAQ answers.
  */
 export default function RootPage() {
   return (
@@ -61,16 +61,7 @@ function LandingSeoFallback() {
           </div>
 
           <div className="flex items-center justify-center">
-            <Image
-              src="/kynthai-hero-preview.svg"
-              alt="Kynthai family health app preview showing medication reminders and care coordination tools"
-              width={960}
-              height={720}
-              priority
-              fetchPriority="high"
-              sizes="(max-width: 1023px) 92vw, 48vw"
-              className="h-auto w-full max-w-[600px] rounded-[2rem] shadow-xl shadow-emerald-950/10"
-            />
+            <HeroCarePreview />
           </div>
         </div>
       </section>
