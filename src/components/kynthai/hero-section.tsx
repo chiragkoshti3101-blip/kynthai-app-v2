@@ -62,11 +62,10 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
             </Badge>
           </div>
 
-          {/* H1 — dominant, high-contrast */}
-          <h1 className="text-balance text-[2rem] leading-[1.08] font-bold tracking-tight sm:text-5xl lg:text-[3.7rem]">
-            Your family's health,
-            <br />
-            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 bg-clip-text text-transparent">
+          {/* H1 — keep “connected.” attached so the line never orphans after the comma */}
+          <h1 className="text-balance text-[2rem] leading-[1.12] font-bold tracking-tight sm:text-5xl lg:text-[3.7rem]">
+            Your family&apos;s health,{' '}
+            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 bg-clip-text text-transparent whitespace-nowrap">
               connected.
             </span>
           </h1>
@@ -76,7 +75,7 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
             <span className="bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">
               Smart reminders, doctor consultations, and lab tests
             </span>
-            <span className="text-foreground">— all in one place.</span>
+            <span className="text-foreground"> — all in one place.</span>
           </p>
 
           {/* Body copy — relaxed leading, muted opacity */}

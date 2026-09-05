@@ -558,24 +558,29 @@ export function LoginPage({
           )}
         </div>
 
-        <div className="grid flex-1 items-center gap-10 py-8 lg:grid-cols-2 lg:gap-16">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              {portalEmpathy[loginPortal]}
+        {/* Mobile: form first (order-1). Desktop: marketing left, form right. */}
+        <div className="grid flex-1 items-center gap-8 py-6 sm:gap-10 sm:py-8 lg:grid-cols-2 lg:gap-16">
+          <div className="order-2 lg:order-1">
+            <h1 className="hidden text-3xl font-bold tracking-tight sm:text-4xl lg:block">
+              {mode === 'signin' ? 'Sign in' : 'Create account'}
             </h1>
-            <p className="mt-3 text-muted-foreground">
+            <p className="hidden text-muted-foreground lg:mt-3 lg:block">
+              {portalEmpathy[loginPortal]}
+            </p>
+            <p className="hidden text-sm text-muted-foreground lg:mt-1 lg:block">
               {active.label} portal — sign in or create an account to continue.
             </p>
             {!hideDownloadCta && (
             <a
               href="/download"
-              className="mt-4 inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-500/10 dark:text-emerald-200"
+              className="mt-4 hidden items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-500/10 dark:text-emerald-200 lg:inline-flex"
             >
               <Download className="h-4 w-4 shrink-0" />
               Download Android app for reliable notifications
             </a>
             )}
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:max-w-md">
+            {/* Desktop: full role cards. Mobile chips live above the form. */}
+            <div className="mt-8 hidden grid-cols-1 gap-3 sm:max-w-md sm:grid-cols-2 lg:grid">
               {visiblePortals.map(p => (
                 <button
                   key={p.id}
@@ -603,9 +608,38 @@ export function LoginPage({
             </div>
           </div>
 
-          <FadeIn delay={0.1}>
+          <FadeIn delay={0.1} className="order-1 lg:order-2">
             <Card className="overflow-hidden border-emerald-500/20 shadow-xl shadow-emerald-900/5">
-              <CardContent className="p-6 sm:p-8">
+              <CardContent className="p-5 sm:p-8">
+                {/* Mobile-only: clear sign-in title + compact role chips */}
+                <div className="mb-5 lg:hidden">
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    {mode === 'signin' ? 'Sign in' : 'Create account'}
+                  </h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {active.label} portal — {portalEmpathy[loginPortal]}
+                  </p>
+                  <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {visiblePortals.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setLoginPortal(p.id)}
+                        aria-current={loginPortal === p.id ? 'page' : undefined}
+                        className={cn(
+                          'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-all',
+                          loginPortal === p.id
+                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                            : 'border-border text-muted-foreground hover:border-emerald-500/40'
+                        )}
+                      >
+                        <p.icon className="h-3.5 w-3.5" />
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {pendingInvites.length > 0 && (
                   <div className="mb-5 space-y-2">
                     {pendingInvites.map(inv => (
