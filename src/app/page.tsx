@@ -34,7 +34,8 @@ function LandingSeoFallback() {
               Kynthai health companion
             </p>
             <h1 id="landing-title" className="mt-4 text-balance text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Your family&apos;s health, connected.
+              Your family&apos;s health,{' '}
+              <span className="text-emerald-700 whitespace-nowrap">connected.</span>
             </h1>
             <p className="mt-5 max-w-2xl text-lg leading-relaxed text-muted-foreground">
               Smart medication reminders, doctor consultations, and lab tests — all in one place.

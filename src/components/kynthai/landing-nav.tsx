@@ -39,8 +39,9 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
 
   const goScreen = (s: AppScreen) => { setScreen(s); router.push('/') }
 
+  // Product links only — Privacy/Terms live in the footer. Download is a
+  // dedicated header button so it is not duplicated in this list.
   const links: NavLink[] = [
-    { label: 'Download app', href: '/download' },
     { label: 'Pricing', href: '/pricing' },
     { label: 'For Families', onClick: () => goToLogin('caretaker') },
     { label: 'For Patients', onClick: () => goToLogin('patient') },
@@ -49,8 +50,6 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
     ...(isDemoLoginEnabled()
       ? [{ label: 'Try the demo', href: '/login?demo=1' }]
       : []),
-    { label: 'Privacy', href: '/privacy' },
-    { label: 'Terms', href: '/terms' },
   ]
 
   return (
