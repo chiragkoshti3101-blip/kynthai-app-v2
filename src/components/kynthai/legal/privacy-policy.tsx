@@ -185,7 +185,7 @@ export function PrivacyPolicy() {
       <ul>
         <li><strong>Encryption in transit:</strong> All API and web traffic is protected with TLS 1.3.</li>
         <li><strong>Encryption at rest for high-sensitivity data:</strong> Government-issued identity fields are encrypted with AES-256-GCM (256-bit key, 128-bit IV, 128-bit authentication tag) before being written. Data is decrypted only when required for a specific authorised operation.</li>
-        <li><strong>Encryption at rest — general health data:</strong> Column-level encryption for general health columns (medications, lab results, AI chat logs, prescription images) is being rolled out. This will mirror the approach for identity fields. We will update this policy once rollout is complete.</li>
+        <li><strong>Encryption at rest — general health data:</strong> General health fields, including medications, lab results, AI chat logs, and prescription metadata, are protected by the application encryption layer using AES-256-GCM before persistence. Production deployments require a 256-bit ENCRYPTION_KEY and strict encrypted-column reads after migration verification.</li>
         <li><strong>Password storage:</strong> Passwords are hashed with bcrypt (cost factor 12).</li>
         <li><strong>Session tokens:</strong> Authentication sessions use HTTP-only, Secure, SameSite cookies. Session tokens are HMAC-SHA256 hashed before storage. Session TTL is 30 days from last activity; if fewer than 7 days remain it is automatically extended. Password reset tokens expire after 30 minutes. You can end all sessions by logging out or changing your password.</li>
         <li><strong>Access control:</strong> Role-based access control restricts data access to authorised personnel on a need-to-know basis.</li>
@@ -419,7 +419,7 @@ export function PrivacyPolicy() {
       <SectionTitle icon={Mail}>18. Contact & Privacy Officer</SectionTitle>
       <p>
         <strong>Kynthai Health Technologies</strong><br />
-        <strong>Address (United States):</strong> United States (correspondence via email)<br />
+        <strong>Address (United States):</strong> Registered office and correspondence details are available from Kynthai support<br />
 
         Email:{' '}
         <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />
@@ -432,13 +432,13 @@ export function PrivacyPolicy() {
         <strong>Privacy Officer:</strong><br />
         Name: Privacy Officer<br />
         Email: <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" /><br />
-        Address: United States
+        Address: Contact Kynthai support for current correspondence details
       </p>
       <p>
         <strong>Privacy Officer / Privacy Contact:</strong><br />
         Name: Privacy Officer<br />
         Email: <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" /><br />
-        Address: United States<br />
+        Address: Contact Kynthai support for current correspondence details<br />
         Acknowledgment: all complaints are acknowledged within 5 business days.
         Standard complaints are resolved within <strong>30 calendar days</strong>
         of acknowledgement. Where a complaint is complex or requires additional investigation, we will notify you
@@ -782,8 +782,8 @@ export function TermsOfService() {
         <strong>Subscriptions.</strong> You may cancel your subscription at any
         time from your account settings or by contacting
         <ContactEmailText address="hello@kynthai.app" />. Cancellation takes effect at the end of the current
-        billing period; you will retain access until that date. No partial-period
-        refunds are issued for unused days in the cancelled period.
+        billing period; you will retain access until that date. Unused subscription time is not automatically prorated after cancellation; access continues
+        through the end of the current billing period.
       </p>
       <p>
         <strong>Refund eligibility.</strong> A full refund may be requested
@@ -791,8 +791,8 @@ export function TermsOfService() {
         transaction. To request a refund, email
         <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />{' '}
         with your receipt number, the charged amount, and a brief description of
-        the issue. Refunds are processed within 10 business days to the original
-        payment method.
+        the issue. Eligible refund requests are reviewed and processed within 10 business days
+        to the original payment method.
       </p>
       <p>
         <strong>Non-refundable charges.</strong> Platform fees deducted from

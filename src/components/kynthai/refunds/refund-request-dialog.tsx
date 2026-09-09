@@ -85,7 +85,7 @@ export function RefundRequestDialog({
 
       toast({
         title: 'Refund request submitted',
-        description: `Your request for $${(data.refundAmount / 100).toFixed(2)} is under review. We'll respond within 7 business days.`,
+        description: `Your request for $${(data.refundAmount / 100).toFixed(2)} is under review. We'll respond within 10 business days.`,
       });
       onOpenChange(false);
       setReason('');
@@ -228,7 +228,7 @@ export function RefundRequestDialog({
           {/* 7-day notice */}
           <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
             <p className="text-xs text-amber-800 dark:text-amber-200">
-              Our team will review your request and proof within <strong>7 business days</strong>.
+              Our team will review your request and proof within <strong>10 business days</strong>.
               You will be notified of the decision via in-app notification.
             </p>
           </div>
