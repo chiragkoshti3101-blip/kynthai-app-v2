@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
       reason: eligibility.reason,
       policy: eligibility.policy,
       reviewDeadline: reviewDeadlineDate.toISOString(),
-      message: 'Your refund request is under review. You will hear back within 7 business days.',
+      message: 'Your refund request is under review. You will hear back within 10 business days.',
     },
     201
   );
