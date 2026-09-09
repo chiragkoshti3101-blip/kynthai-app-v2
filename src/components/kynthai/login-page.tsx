@@ -827,10 +827,8 @@ export function LoginPage({
                     <p className="mt-1 text-[0.6875rem] opacity-80">Your email was kept — fix the password and try again.</p>
                   </div>
                 )}
-                  {/* Registration fields - always rendered, hidden when mode === 'signin' */}
-                  <div
-                    className={cn('space-y-3.5', mode === 'register' ? 'block' : 'hidden')}
-                  >
+                  {mode === 'register' && (
+                  <div className="space-y-3.5">
                     <div className="space-y-1.5">
                       <Label htmlFor="name">
                         Full name <span className="text-rose-500">*</span>
@@ -905,6 +903,7 @@ export function LoginPage({
                       />
                     </div>
                   </div>
+                  )}
 
                   <div className="space-y-1.5">
                     <Label htmlFor="email">
@@ -972,13 +971,8 @@ export function LoginPage({
                     </div>
                   </div>
 
-                  {/* Consent checkboxes - always rendered to satisfy React 19 hooks rules */}
-                  <div
-                    className={cn(
-                      'space-y-3 rounded-xl border border-border/60 bg-muted/30 p-3',
-                      mode === 'register' ? 'block' : 'hidden'
-                    )}
-                  >
+                  {mode === 'register' && (
+                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/30 p-3">
                     <label className="flex items-start gap-2.5">
                       <Checkbox
                         checked={termsConsent}
@@ -1038,6 +1032,7 @@ export function LoginPage({
                       </span>
                     </label>
                   </div>
+                  )}
 
                   {turnstileSiteKey && (
                     <div className="flex justify-center">

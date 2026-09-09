@@ -398,9 +398,9 @@ function applyHeaders(res: NextResponse, pathname: string, requestId: string) {
         // static.cloudflareinsights.com: Cloudflare Web Analytics beacon (injected as <script data-cf-beacon> by the CDN).
         "script-src 'self' 'unsafe-inline' https://js.stripe.com https://challenges.cloudflare.com https://static.cloudflareinsights.com https://www.googletagmanager.com https://cdn.mxpnl.com",
         "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: blob: https: http:",
+        "img-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://www.google-analytics.com https://fcm.googleapis.com https://*.stripe.com",
         "font-src 'self' data:",
-        "connect-src 'self' https://api.stripe.com https://checkout.stripe.com https://*.upstash.com https://www.google-analytics.com https://analytics.google.com https://api.mixpanel.com https://fcm.googleapis.com https://*.googleapis.com https://updates.push.services.mozilla.com https://*.push.services.mozilla.com wss: stun: turn:",
+        "connect-src 'self' https://api.stripe.com https://checkout.stripe.com https://*.upstash.com https://www.google-analytics.com https://analytics.google.com https://api.mixpanel.com https://fcm.googleapis.com https://*.googleapis.com https://updates.push.services.mozilla.com https://*.push.services.mozilla.com wss://livekit.kynthai.app wss://livekit.io stun:stun.l.google.com:19302 stun:stun1.l.google.com:19302",
         "frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://*.stripe.com https://challenges.cloudflare.com",
         "frame-ancestors 'none'",
         "base-uri 'self'",

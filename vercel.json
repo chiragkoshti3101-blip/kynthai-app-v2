@@ -2,7 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "devCommand": "npm run dev",
-  "installCommand": "npm install --registry=https://registry.npmjs.org/",
+  "installCommand": "npm ci --registry=https://registry.npmjs.org/ --prefer-offline --no-audit --no-fund --fetch-retries=5 --fetch-retry-factor=2 --fetch-retry-mintimeout=20000 --fetch-retry-maxtimeout=120000",
   "framework": "nextjs",
   "crons": [
     {

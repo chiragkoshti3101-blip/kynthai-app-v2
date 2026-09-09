@@ -70,7 +70,7 @@ export default function RefundCancellationPage() {
                 <h3 className="font-semibold">Need a refund?</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   Email us at <ContactEmailText address="privacy@kynthai.app" className="font-medium text-foreground" /> with your account email and reason.
-                  We process refunds within 5 business days.
+                  Eligible refund requests are reviewed and processed within 10 business days.
                 </p>
               </div>
               <Button asChild variant="outline" className="shrink-0">
@@ -86,7 +86,7 @@ export default function RefundCancellationPage() {
               <ul className="mt-2 list-disc space-y-1 pl-5">
                 <li>Free plans may be cancelled anytime.</li>
                 <li>Paid plans renew automatically unless cancelled before the renewal date.</li>
-                <li>Refunds are prorated for unused time.</li>
+                <li>Cancellation takes effect at the end of the current billing period; unused subscription time is not automatically prorated.</li>
               </ul>
             </section>
 
