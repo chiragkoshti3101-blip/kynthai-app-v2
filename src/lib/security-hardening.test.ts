@@ -17,7 +17,7 @@ import {
 
 beforeAll(() => {
   // hashSmsCode requires an HMAC key; provide a stable one for tests.
-  process.env.SMS_CODE_HMAC_KEY = 'test-hmac-key-for-vitest-only';
+  process.env.SESSION_SECRET = 'test-session-secret-for-security-hardening-suite';
 });
 
 describe('SMS verification code hardening', () => {
