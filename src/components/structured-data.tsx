@@ -46,14 +46,14 @@ const WEBAPP_SCHEMA = {
     {
       '@type': 'Offer',
       name: 'Individual Plan',
-      price: '9.99',
+      price: '19.99',
       priceCurrency: 'USD',
       billingIncrement: 'P1M',
     },
     {
       '@type': 'Offer',
-      name: 'Family Pro Plan',
-      price: '19.99',
+      name: 'Family Plan',
+      price: '39.99',
       priceCurrency: 'USD',
       billingIncrement: 'P1M',
     },
