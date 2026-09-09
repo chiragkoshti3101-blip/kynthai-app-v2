@@ -12,8 +12,8 @@ export function TrustStats() {
     { label: 'AI-Powered Features', value: '10', note: 'In Plus plan' },
     { label: 'Medicine Added In', value: '<30s', note: 'AI-assisted' },
     { label: 'Starting Price', value: 'Free', note: 'Free plan available' },
-    { label: 'Individual Plan', value: '$9.99/mo', note: 'Early adopter pricing' },
-    { label: 'Family Plan', value: '$19.99/mo', note: 'Billed monthly' },
+    { label: 'Individual Plan', value: '$19.99/mo', note: 'Excludes taxes' },
+    { label: 'Family Plan', value: '$39.99/mo', note: 'Up to 4 members' },
     { label: 'Family members', value: 'Up to 4', note: 'Single dashboard' },
   ];
 
