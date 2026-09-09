@@ -223,7 +223,7 @@ function getEncCounterpart(model: string, fieldName: string): string | null {
  *   database migration. Complete the controlled backfill and verification
  *   before disabling this mode.
  */
-const TRANSITIONAL = process.env.ENCRYPTION_TRANSITIONAL !== 'false'
+const TRANSITIONAL = process.env.ENCRYPTION_TRANSITIONAL === 'true'
 
 function encryptPayload(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null

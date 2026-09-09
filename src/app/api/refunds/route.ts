@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
 
   await logAudit(u.id, 'refund.request', `refund=${refund.id} amount=${eligibility.refundAmount}`);
 
-  const reviewDeadlineDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const reviewDeadlineDate = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
   const deadline = reviewDeadlineDate.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
       reason: eligibility.reason,
       policy: eligibility.policy,
       reviewDeadline: reviewDeadlineDate.toISOString(),
-      message: 'Your refund request is under review. You will hear back within 7 business days.',
+      message: 'Your refund request is under review. You will hear back within 10 business days.',
     },
     201
   );
@@ -209,7 +209,7 @@ export async function GET(req: NextRequest) {
     // Overdue overrides any ?status= filter (pending is the only state that
     // can be overdue).
     where.status = 'pending';
-    where.createdAt = { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) };
+    where.createdAt = { lt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) };
   } else if (statusFilter) {
     where.status = statusFilter;
   }
