@@ -28,6 +28,35 @@ export const PRICING: Record<
   }
 > = {
   USD: {
+    plus: { monthly: 19.99, yearly: 199.99 },
+    family_pro: { monthly: 39.99, yearly: 399.99 },
+  },
+  EUR: {
+    plus: { monthly: 19.99, yearly: 199.99 },
+    family_pro: { monthly: 39.99, yearly: 399.99 },
+  },
+  GBP: {
+    plus: { monthly: 16.99, yearly: 169.99 },
+    family_pro: { monthly: 33.99, yearly: 339.99 },
+  },
+}
+
+/**
+ * Founding-member (grandfathered) prices.
+ *
+ * Kynthai published "forever pricing" to early adopters at these rates, so
+ * those subscriptions are honoured for as long as they stay active. Verify a
+ * legacy renewal with `legacyAmountMatchesTier` — NOT `amountMatchesTier`,
+ * which only accepts current prices. New customers are charged PRICING above.
+ */
+export const LEGACY_PRICING: Record<
+  Currency,
+  {
+    plus: { monthly: number; yearly: number }
+    family_pro: { monthly: number; yearly: number }
+  }
+> = {
+  USD: {
     plus: { monthly: 9.99, yearly: 99.99 },
     family_pro: { monthly: 19.99, yearly: 199.99 },
   },
@@ -47,6 +76,22 @@ export const EARLY_ADOPTER_PRICING = {
     individual: { monthly: 9.99, yearly: 99.99 },
     family: { monthly: 19.99, yearly: 199.99 },
   },
+}
+
+/** Months the promotional intro rate applies before standard pricing begins. */
+export const EARLY_ADOPTER_INTRO_MONTHS = 3
+
+/**
+ * Renewal price shown alongside any promotional rate. Disclosing this before
+ * checkout is required: the customer must see what they pay after the intro
+ * period ends.
+ */
+export function renewalPrice(
+  tier: TierKey,
+  currency: Currency = 'USD',
+  cycle: 'monthly' | 'yearly' = 'monthly'
+): number {
+  return PRICING[currency][tier][cycle]
 }
 
 /** Format a price amount with the currency symbol. */
@@ -103,9 +148,38 @@ export function amountMatchesTier(
   tier: TierKey,
   tolerance = 0.01
 ): boolean {
-  const pricing = PRICING[currency.toUpperCase() as Currency]
+  const code = currency.toUpperCase() as Currency
+  const pricing = PRICING[code]
   if (!pricing) return false
   const prices = pricing[tier]
+  return (
+    Math.abs(amountDollars - prices.monthly) <= tolerance ||
+    Math.abs(amountDollars - prices.yearly) <= tolerance
+  )
+}
+
+/**
+ * Verification for a GRANDFATHERED renewal.
+ *
+ * Founding members were promised their original rate permanently, so their
+ * recurring charge arrives at a legacy amount that no longer matches PRICING.
+ *
+ * This is deliberately NOT folded into `amountMatchesTier`: the new Individual
+ * price ($19.99) equals the legacy Family price, so accepting both sets in one
+ * check would let an Individual payment satisfy a Family claim — the
+ * upgrade-underpay attack. Callers must therefore prove the subscription is a
+ * pre-existing founding-member one (e.g. an existing Stripe subscription whose
+ * price ID predates the change) before consulting this function.
+ */
+export function legacyAmountMatchesTier(
+  amountDollars: number,
+  currency: string,
+  tier: TierKey,
+  tolerance = 0.01
+): boolean {
+  const legacy = LEGACY_PRICING[currency.toUpperCase() as Currency]
+  if (!legacy) return false
+  const prices = legacy[tier]
   return (
     Math.abs(amountDollars - prices.monthly) <= tolerance ||
     Math.abs(amountDollars - prices.yearly) <= tolerance
