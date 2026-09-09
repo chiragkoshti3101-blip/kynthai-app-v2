@@ -64,6 +64,13 @@ export function isValidSmsCode(code: string): boolean {
 export const SMS_MAX_ATTEMPTS = 5;
 
 /**
+ * Time-to-live for an SMS verification code, in milliseconds.
+ * Matches the 10-minute expiry enforced in the verify route.
+ */
+export const SMS_CODE_TTL_MS = 10 * 60 * 1000;
+
+
+/**
  * Constant-time string comparison — mitigates timing side-channels when
  * comparing secrets (OTP codes, tokens). Returns false immediately on
  * length mismatch without leaking how many leading bytes matched.
