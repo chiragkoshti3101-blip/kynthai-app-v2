@@ -90,11 +90,28 @@ export function labFeePct(lifetimeFulfilled: number): number {
   return Math.max(5, LAB_BASE_FEE_PCT - LOYALTY_TIERS[tier].feeDiscountPct)
 }
 
+/** Effective platform-fee percentage for a partner at a given tier. */
+export function effectiveFeePct(base: number, tier: LoyaltyTier): number {
+  const discount = LOYALTY_TIERS[tier].feeDiscountPct
+  return Math.max(0, base - discount)
+}
+
+/** Money math helpers. */
+export function platformFee(amount: number, feePct: number): number {
+  return Math.round(amount * (feePct / 100))
+}
+
+export function partnerKeeps(amount: number, feePct: number): number {
+  return amount - platformFee(amount, feePct)
+}
+
 /** Payout policy shown to partners. */
 export const PAYOUT_POLICY = {
   scheduleLabel: 'Weekly, every Friday',
+  cadence: 'Weekly, every Friday',
   minPayoutUsd: 50,
   holdDays: 7,
+  methods: ['ACH', 'Wire', 'Direct Deposit'],
   currency: 'USD',
 } as const
 
@@ -134,4 +151,12 @@ export function computeCommission(
   let ratePct = Math.max(0.05, tierRate - loyaltyDiscount)
   const commission = Math.round(baseAmount * ratePct)
   return { commission, net: baseAmount - commission, ratePct }
+}
+
+/** Compute doctor loyalty tier from lifetime completed appointments. */
+export function doctorLoyaltyTier(completed: number): { tier: LoyaltyTier; nextThreshold: number | null; progress: number } {
+  if (completed >= 300) return { tier: 'Platinum', nextThreshold: null, progress: 100 }
+  if (completed >= 150) return { tier: 'Gold', nextThreshold: 300, progress: Math.min(100, Math.round(((completed - 150) / 150) * 100)) }
+  if (completed >= 50) return { tier: 'Silver', nextThreshold: 150, progress: Math.min(100, Math.round(((completed - 50) / 100) * 100)) }
+  return { tier: 'Bronze', nextThreshold: 50, progress: Math.min(100, Math.round((completed / 50) * 100)) }
 }
