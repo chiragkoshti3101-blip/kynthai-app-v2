@@ -12,7 +12,7 @@ interface EarlyAdopterCardProps {
   onSelect: (type: 'individual' | 'family') => void;
 }
 
-// Early Adopter — founding member pricing (no fake countdown)
+// Launch offer — promotional intro pricing (no fake countdown)
 // Slot tracking — uses localStorage for demo
 
 export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
@@ -33,9 +33,9 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
               <Gift className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-bold text-lg">Early Bird Pricing</h3>
+              <h3 className="font-bold text-lg">Launch Offer</h3>
               <p className="text-sm text-muted-foreground">
-                Current early pricing for individuals and families
+                Reduced pricing for your first 3 months
               </p>
             </div>
           </div>
@@ -49,17 +49,18 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
               <span className="font-semibold">Individual Plan (Patient)</span>
             </div>
             <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              Early pricing
+              Launch offer
             </Badge>
           </div>
           <div className="flex items-baseline gap-2 mb-3">
             <>
               <span className="text-3xl font-bold text-emerald-600">$9.99</span>
-              <span className="text-muted-foreground">/month</span>
+              <span className="text-muted-foreground">/month for 3 months</span>
             </>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-            <span>Or $99.99/year</span>
+          <div className="flex flex-col gap-1 text-sm text-muted-foreground mb-3">
+            <span>Then $19.99/month · or $199.99/year</span>
+            <span className="text-xs">Renews automatically at $19.99/month. Taxes may apply.</span>
           </div>
           <Button onClick={() => handleSelect('individual')} className="min-h-11 w-full" variant="outline">
             Choose Individual
@@ -73,15 +74,16 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
               <span className="font-semibold">Family Plan</span>
             </div>
             <Badge className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-              Early pricing
+              Launch offer
             </Badge>
           </div>
           <div className="flex items-baseline gap-2 mb-3">
             <span className="text-3xl font-bold text-emerald-600">$19.99</span>
-            <span className="text-muted-foreground">/month</span>
+            <span className="text-muted-foreground">/month for 3 months</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-            <span>Or $199.99/year</span>
+          <div className="flex flex-col gap-1 text-sm text-muted-foreground mb-3">
+            <span>Then $39.99/month · or $399.99/year</span>
+            <span className="text-xs">Renews automatically at $39.99/month. Taxes may apply.</span>
           </div>
           <Button onClick={() => handleSelect('family')} className="min-h-11 w-full" variant="outline">
             Choose Family
@@ -92,7 +94,7 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-emerald-500" />
-            <span>Early pricing in USD — cancel anytime from your account</span>
+            <span>Launch offer in USD — cancel anytime from your account</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-emerald-500" />

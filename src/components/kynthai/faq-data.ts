@@ -26,7 +26,7 @@ export const HOME_FAQS: readonly FaqEntry[] = [
   },
   {
     q: 'What do paid plans cost?',
-    a: 'Listed early pricing is in USD (for example Plus about $9.99/mo and Family Pro about $19.99/mo). Prices can change with notice. Cancel from your account when billing is active.',
+    a: 'Standard pricing in USD is $19.99/mo for Individual and $39.99/mo for Family, excluding taxes. New subscribers may get a launch rate of $9.99/mo (Individual) or $19.99/mo (Family) for the first 3 months, then standard pricing — the renewal price is shown before checkout. Founding members keep the rate they subscribed at. Cancel from your account when billing is active.',
   },
   {
     q: 'Are doctors on the platform verified?',

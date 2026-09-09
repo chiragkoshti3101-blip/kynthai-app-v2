@@ -611,9 +611,16 @@ export function TermsOfService() {
       <p>Kynthai offers the following subscription tiers:</p>
       <ul>
         <li><strong>Free:</strong> Limited AI features (3 AI chats/day), basic medication tracking, family profiles for 1 member.</li>
-        <li><strong>Plus:</strong> $9.99/month or $99.99/year — unlimited AI consultations, drug interactions, weekly health insights, up to 4 family members.</li>
-        <li><strong>Family Pro:</strong> $19.99/month or $199.99/year — Includes all Plus features, plus caretaker dashboard, shared lab reports, family health journal, priority support.</li>
+        <li><strong>Individual:</strong> $19.99/month or $199.99/year — unlimited AI consultations, drug interactions, weekly health insights, up to 4 family members.</li>
+        <li><strong>Family:</strong> $39.99/month or $399.99/year — Includes all Individual features, plus caretaker dashboard, shared lab reports, family health journal, priority support.</li>
       </ul>
+      <p><strong>Launch offer.</strong> New subscribers may be offered a promotional rate of
+        $9.99/month (Individual) or $19.99/month (Family) for the first 3 billing months. The
+        standard price above applies automatically from the fourth month. The renewal price and
+        date are shown before you complete checkout.</p>
+      <p><strong>Founding members.</strong> Members who subscribed under our earlier founding-member
+        pricing keep the rate they signed up at ($9.99/month Individual, $19.99/month Family) for as
+        long as that subscription remains active. Price changes apply to new subscriptions only.</p>
       <p>All prices shown are the full charge — no hidden fees or surprise charges.
         State sales tax, if applicable, will be itemized at checkout per your state.
         All payments are processed securely by Stripe. Cancel anytime from your account settings
@@ -1218,31 +1225,42 @@ export function MedicalDisclaimer() {
       </ul>
       <p>
         Kynthai&apos;s Emergency SOS feature notifies your contacts and doctors,
-        but it is <strong>not</strong> a substitute for emergency medical services.
+        but it is <strong>not</strong> a substitute for calling emergency
+        services. Always call your local emergency number first.
       </p>
 
-      <SectionTitle icon={Users}>5. Doctor consultations are independent</SectionTitle>
+      <SectionTitle icon={AlertTriangle}>5. Medication reminders are not medical advice</SectionTitle>
       <p>
-        When you consult a doctor through Kynthai, you enter into a direct
-        doctor-patient relationship with that <strong>independent practitioner</strong>.
-        Kynthai is not responsible for:
+        Medication reminders are informational tools. They do not replace
+        instructions from your doctor or pharmacist. Always follow the dosage
+        and schedule prescribed by your healthcare professional. If you have
+        questions about your medication, consult your doctor or pharmacist.
       </p>
-      <ul>
-        <li>Any medical advice, diagnosis, or treatment provided by the doctor.</li>
-        <li>The accuracy or completeness of any prescription, test order, or medical recommendation.</li>
-        <li>Any harm, injury, or damage resulting from the doctor&apos;s advice or treatment.</li>
-      </ul>
 
-      <SectionTitle icon={ShieldAlert}>6. Governing law </SectionTitle>
+      <SectionTitle icon={AlertTriangle}>6. Drug interaction checker limitations</SectionTitle>
       <p>
-        This disclaimer is governed by <strong>US federal law and the laws of the State of Wyoming, United States</strong>. Any
-        dispute arising from your use of Kynthai&apos;s health features shall
-        be subject to the exclusive jurisdiction of courts in the State of
-        <strong>Wyoming, United States</strong>, and the Terms of
-        Service dispute resolution clause applies.
+        The drug interaction checker provides general information about
+        potential interactions. It may not cover all possible interactions and
+        is not a substitute for professional medical advice. Always consult your
+        doctor or pharmacist about potential drug interactions.
       </p>
 
-      <SectionTitle icon={Mail}>7. Questions</SectionTitle>
+      <SectionTitle icon={AlertTriangle}>7. Lab results interpretation</SectionTitle>
+      <p>
+        Lab results shown in Kynthai are informational. Only a qualified
+        healthcare professional can interpret lab results in the context of your
+        overall health. Do not make medical decisions based solely on lab
+        results shown in the app.
+      </p>
+
+      <SectionTitle icon={AlertTriangle}>8. No warranty</SectionTitle>
+      <p>
+        Kynthai provides its health features &quot;as is&quot; without warranties
+        of any kind. We do not warrant that the information provided is
+        accurate, complete, or up-to-date. You use Kynthai at your own risk.
+      </p>
+
+      <SectionTitle icon={AlertTriangle}>9. Contact</SectionTitle>
       <p>
         If you have questions about this disclaimer, contact us at{' '}
         <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />.
