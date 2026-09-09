@@ -26,9 +26,11 @@ Kynthai is a health-management platform operated by Kynthai Health Technologies.
 
 ## Plans & Pricing (USD)
 - Free: 1 member, up to 10 medications, 3 AI chats/day, all reminders — $0/month
-- Plus: Unlimited medications, unlimited AI, priority consults — $9.99/month ($99.99/year)
-- Family Pro: Up to 4 members, weekly AI insights, all features — $19.99/month ($199.99/year)
-- Early Founding Members: Locked at $9.99/mo (Plus) and $19.99/mo (Family Pro) — forever pricing
+- Individual: Unlimited medications, unlimited AI, priority consults — $19.99/month ($199.99/year)
+- Family: Up to 4 members, weekly AI insights, all features — $39.99/month ($399.99/year)
+- Launch offer (new customers): $9.99/month Individual and $19.99/month Family for the first 3 months, then standard pricing
+- Existing Founding Members: keep the $9.99/mo Individual and $19.99/mo Family rate they subscribed at — honoured for as long as their subscription stays active
+- Prices exclude taxes, which are shown at checkout where applicable
 
 ## Competitive Differentiation
 Unlike single-patient apps, Kynthai was built from day one for multi-member households. Your parents' medications and your kids' schedules live in the same dashboard with caretaker alerts. AI drug-interaction checking, prescription scanning via vision AI, and family health insights bring connected care to multi-member households worldwide.

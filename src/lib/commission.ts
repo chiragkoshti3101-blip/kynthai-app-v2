@@ -78,37 +78,44 @@ export function resolveTier(lifetimeFulfilled: number): LoyaltyTier {
   return 'Bronze'
 }
 
-/** Effective platform-fee percentage for a partner at a given tier. */
-export function effectiveFeePct(base: number, tier: LoyaltyTier): number {
-  const discount = LOYALTY_TIERS[tier].feeDiscountPct
-  return Math.max(0, base - discount)
+/** Effective platform fee for a doctor at a given loyalty tier. */
+export function doctorFeePct(lifetimeFulfilled: number): number {
+  const tier = resolveTier(lifetimeFulfilled)
+  return Math.max(5, DOCTOR_BASE_FEE_PCT - LOYALTY_TIERS[tier].feeDiscountPct)
 }
 
-/** Money math helpers. */
-export function platformFee(amount: number, feePct: number): number {
-  return Math.round(amount * (feePct / 100))
+/** Effective platform fee for a lab at a given loyalty tier. */
+export function labFeePct(lifetimeFulfilled: number): number {
+  const tier = resolveTier(lifetimeFulfilled)
+  return Math.max(5, LAB_BASE_FEE_PCT - LOYALTY_TIERS[tier].feeDiscountPct)
 }
 
-export function partnerKeeps(amount: number, feePct: number): number {
-  return amount - platformFee(amount, feePct)
-}
-
-/** Payout policy — surfaced to partners and admins. */
+/** Payout policy shown to partners. */
 export const PAYOUT_POLICY = {
-  cadence: 'Monthly',
+  scheduleLabel: 'Weekly, every Friday',
   minPayoutUsd: 50,
-  methods: ['ACH', 'Wire', 'Direct Deposit'],
+  holdDays: 7,
   currency: 'USD',
 } as const
 
 /** Kynthai subscription tiers — prices in USD per month. */
 export const SUBSCRIPTION_TIERS = {
   free: { monthly: 0, yearly: 0 },
+  plus: { monthly: 19.99, yearly: 199.99 },
+  family_pro: { monthly: 39.99, yearly: 399.99 },
+} as const
+
+/**
+ * Founding-member rates, honoured permanently for early adopters who
+ * subscribed under the published "forever pricing" commitment.
+ */
+export const LEGACY_SUBSCRIPTION_TIERS = {
+  free: { monthly: 0, yearly: 0 },
   plus: { monthly: 9.99, yearly: 99.99 },
   family_pro: { monthly: 19.99, yearly: 199.99 },
 } as const
 
-/** Early Adopter prices in USD per month. */
+/** Promotional intro prices in USD per month (first 3 months, then standard). */
 export const EARLY_ADOPTER_TIERS = {
   individual: { monthly: 9.99, yearly: 99.99 },
   family: { monthly: 19.99, yearly: 199.99 },
@@ -127,12 +134,4 @@ export function computeCommission(
   let ratePct = Math.max(0.05, tierRate - loyaltyDiscount)
   const commission = Math.round(baseAmount * ratePct)
   return { commission, net: baseAmount - commission, ratePct }
-}
-
-/** Compute doctor loyalty tier from lifetime completed appointments. */
-export function doctorLoyaltyTier(completed: number): { tier: LoyaltyTier; nextThreshold: number | null; progress: number } {
-  if (completed >= 300) return { tier: 'Platinum', nextThreshold: null, progress: 100 }
-  if (completed >= 150) return { tier: 'Gold', nextThreshold: 300, progress: Math.min(100, Math.round(((completed - 150) / 150) * 100)) }
-  if (completed >= 50) return { tier: 'Silver', nextThreshold: 150, progress: Math.min(100, Math.round(((completed - 50) / 100) * 100)) }
-  return { tier: 'Bronze', nextThreshold: 50, progress: Math.min(100, Math.round((completed / 50) * 100)) }
 }

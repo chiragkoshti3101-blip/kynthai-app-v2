@@ -20,10 +20,10 @@ export function EarlyAdopterBanner({ onGetStarted }: EarlyAdopterBannerProps) {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold leading-snug sm:text-base">
-                Pricing — $9.99/mo Individual · $19.99/mo Family
+                Launch offer — $9.99/mo Individual · $19.99/mo Family for 3 months
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-emerald-100 sm:text-sm">
-                Transparent pricing · no surprise charges at checkout
+                Then $19.99/mo Individual · $39.99/mo Family · renewal price shown before checkout
               </p>
             </div>
           </div>
