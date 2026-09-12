@@ -167,7 +167,7 @@ export function CareHub({ familyMemberId, memberName, familyPulse, pulseLoading 
                     )}
                     {t.scoped && memberName && (
                       <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
-                        {memberName.split(' ')[0]}
+                        {(memberName || 'Family member').split(' ')[0]}
                       </Badge>
                     )}
                   </div>

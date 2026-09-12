@@ -894,12 +894,12 @@ function FamilyTab({
                   <div className="flex items-center gap-3">
                     <Avatar className="h-11 w-11">
                       <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                        {m.name[0]}
+                        {(m.name || 'F')[0]}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-sm">{m.name}</h3>
+                        <h3 className="font-semibold text-sm">{m.name || 'Family member'}</h3>
                         <Badge variant="secondary" className="text-[10px]">
                           {m.relation}
                         </Badge>
@@ -948,7 +948,7 @@ function FamilyTab({
                 </CardContent>
               </Card>
               <FamilyMemberSchedule
-                memberName={m.name}
+                memberName={m.name || 'Family member'}
                 meds={memberMeds[m.id] ?? []}
                 onUpdate={(med, status) => onUpdateMemberMed(m.id, med, status)}
               />
@@ -1010,10 +1010,10 @@ function MemberSelector({
         >
           <Avatar className="h-5 w-5">
             <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-[10px]">
-              {m.name[0]}
+              {(m.name || 'F')[0]}
             </AvatarFallback>
           </Avatar>
-          {m.name.split(' ')[0]}
+          {(m.name || 'Family member').split(' ')[0]}
         </button>
       ))}
     </div>

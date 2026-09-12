@@ -164,7 +164,7 @@ function DoctorsTab() {
   const filtered = allDoctors.filter((d) => {
     if (!doctorOnline) return false
     if (spec !== 'all' && d.specialization !== spec) return false
-    if (query && !d.name.toLowerCase().includes(query.toLowerCase()) && !d.specialization.toLowerCase().includes(query.toLowerCase())) return false
+    if (query && !(d.name || '').toLowerCase().includes(query.toLowerCase()) && !d.specialization.toLowerCase().includes(query.toLowerCase())) return false
     return true
   })
 
@@ -212,12 +212,12 @@ function DoctorsTab() {
                 <div className="flex items-start gap-3">
                   <Avatar className="h-12 w-12">
                     <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                      {d.name.split(' ').slice(1, 3).map((p) => p[0]).join('')}
+                      {(d.name || 'Verified Doctor').split(' ').slice(1, 3).map((p) => p[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-sm">{d.name}</h3>
+                      <h3 className="font-semibold text-sm">{d.name || 'Verified Doctor'}</h3>
                       {d.available !== false ? (
                         <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                           Available

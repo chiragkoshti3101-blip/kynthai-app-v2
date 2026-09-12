@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 
 interface PatientInsight {
   id: string
-  name: string
+  name: string | null
   email: string
   adherence: number
   trend: "improving" | "declining" | "stable"
@@ -86,7 +86,7 @@ export function AdherenceInsights({ patients = [], summary, onPatientClick }: Ad
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 text-xs font-semibold">
-                        {p.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        {(p.name || 'Patient').split(' ').map((n) => n[0]).join('').slice(0, 2)}
                       </div>
                       <div>
                         <p className="text-xs font-semibold">{p.name}</p>
@@ -134,7 +134,7 @@ export function AdherenceInsights({ patients = [], summary, onPatientClick }: Ad
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className={"flex h-7 w-7 items-center justify-center rounded-md text-[10px] font-semibold " + (p.adherence >= 80 ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600" : "bg-amber-100 dark:bg-amber-900/50 text-amber-600")}>
-                        {p.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        {(p.name || 'Patient').split(' ').map((n) => n[0]).join('').slice(0, 2)}
                       </div>
                       <div>
                         <p className="text-xs font-medium">{p.name}</p>
