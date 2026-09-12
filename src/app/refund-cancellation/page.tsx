@@ -73,9 +73,12 @@ export default function RefundCancellationPage() {
                   Eligible refund requests are reviewed and processed within 10 business days.
                 </p>
               </div>
-              <Button asChild variant="outline" className="shrink-0">
-                <ContactEmail address="privacy@kynthai.app">Email Support</ContactEmail>
-              </Button>
+              <ContactEmail
+                address="privacy@kynthai.app"
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground"
+              >
+                Email Support
+              </ContactEmail>
             </CardContent>
           </Card>
 
