@@ -136,7 +136,7 @@ export function BookAppointment({ open, onOpenChange }: Props) {
       }
       toast({
         title: 'Appointment booked!',
-        description: `Confirmed with ${selectedDoctor.name}. Check your email for details.`,
+        description: `Confirmed with ${selectedDoctor.name || 'Verified Doctor'}. Check your email for details.`,
       });
       setStep('success');
     } catch (e) {
@@ -188,11 +188,11 @@ export function BookAppointment({ open, onOpenChange }: Props) {
                   <div className="flex items-center gap-3">
                     <Avatar className="h-11 w-11 shrink-0">
                       <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs">
-                        {d.name.split(' ').slice(1, 3).map(p => p[0]).join('')}
+                        {(d.name || 'Verified Doctor').split(' ').slice(1, 3).map(p => p[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{d.name}</p>
+                      <p className="text-sm font-medium truncate">{d.name || 'Verified Doctor'}</p>
                       <p className="text-xs text-muted-foreground">{d.specialization}</p>
                       <div className="flex items-center gap-2 mt-1">
                         <span className="text-[11px] text-muted-foreground">{d.experience} yrs exp</span>
@@ -217,11 +217,11 @@ export function BookAppointment({ open, onOpenChange }: Props) {
               <div className="flex items-center gap-3 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
                 <Avatar className="h-10 w-10 shrink-0">
                   <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs">
-                    {selectedDoctor.name.split(' ').slice(1, 3).map(p => p[0]).join('')}
+                    {(selectedDoctor.name || 'Verified Doctor').split(' ').slice(1, 3).map(p => p[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">{selectedDoctor.name}</p>
+                  <p className="text-sm font-medium">{selectedDoctor.name || 'Verified Doctor'}</p>
                   <p className="text-xs text-muted-foreground">{selectedDoctor.specialization}</p>
                 </div>
                 <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
@@ -325,7 +325,7 @@ export function BookAppointment({ open, onOpenChange }: Props) {
               </div>
               <div>
                 <p className="text-sm font-medium">
-                  Your appointment with {selectedDoctor.name} has been booked.
+                  Your appointment with {selectedDoctor.name || 'Verified Doctor'} has been booked.
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {date} at {time} · Video consultation

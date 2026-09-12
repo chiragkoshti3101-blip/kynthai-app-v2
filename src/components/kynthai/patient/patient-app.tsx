@@ -1756,7 +1756,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
 
       {/* Floating SOS — emergency actions stay in thumb reach on every tab
           (founder P1). Hidden while the SOS view itself is open. */}
-      {tab !== 'sos' && (
+      {tab !== 'sos' && tab !== 'ai' && (
         <button
           type="button"
           onClick={() => setTab('sos')}
