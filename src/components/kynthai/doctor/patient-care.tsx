@@ -136,7 +136,7 @@ export function PatientCare({ onPatientClick, isDemo = false }: { onPatientClick
         // Wave-8 honesty: the demo patient is fictional — nobody was notified.
         toast({
           title: `${t('nudge_sent')} (demo)`,
-          description: `Simulated for ${p.name.split(' ')[0]} — demo patients are fictional and no notification is sent.`,
+          description: `Simulated for ${(p.name || 'Patient').split(' ')[0]} — demo patients are fictional and no notification is sent.`,
         })
         return
       }
@@ -146,7 +146,7 @@ export function PatientCare({ onPatientClick, isDemo = false }: { onPatientClick
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             patientId: p.id,
-            message: `Hi ${p.name.split(' ')[0]}, gentle reminder to take your medications on time. — Kynthai`,
+            message: `Hi ${(p.name || 'Patient').split(' ')[0]}, gentle reminder to take your medications on time. — Kynthai`,
             channel: 'in-app',
           }),
         })
@@ -156,7 +156,7 @@ export function PatientCare({ onPatientClick, isDemo = false }: { onPatientClick
         }
         toast({
           title: t('nudge_sent'),
-          description: `${p.name.split(' ')[0]} ${t('has_been_notified')}`,
+          description: `${(p.name || 'Patient').split(' ')[0]} ${t('has_been_notified')}`,
         })
       } catch (err) {
         toast({

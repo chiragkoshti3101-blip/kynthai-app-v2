@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     return jsonOk({
       id: profile.id,
       userId: profile.userId,
-      name: profile.user.name,
+      name: profile.user.name || 'Verified Doctor',
       specialization: profile.specialization,
       licenseNumber: profile.licenseNumber,
       experience: profile.experience,
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
     doctors.map((d: any) => ({
       id: d.id,
       userId: d.userId,
-      name: d.user.name,
+      name: d.user.name || 'Verified Doctor',
       specialization: d.specialization,
       consultationFee: d.consultationFee,
       city: d.city,

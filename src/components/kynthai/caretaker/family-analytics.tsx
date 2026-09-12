@@ -217,7 +217,7 @@ export function FamilyAnalytics() {
 
   // Bar chart data: per-member 7-day adherence.
   const barData = data.members.map((m) => ({
-    name: m.name.split(' ')[0],
+    name: (m.name || 'Family member').split(' ')[0],
     adherence: m.adherence,
     color: getColor(m.color),
   }))
@@ -413,11 +413,11 @@ export function FamilyAnalytics() {
                 <div key={m.id} className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-background/60 p-2">
                   <Avatar className="h-8 w-8">
                     <AvatarFallback className="bg-gradient-to-br from-amber-400 to-amber-600 text-white text-xs">
-                      {m.name[0]}
+                      {(m.name || 'F')[0]}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{m.name}</p>
+                    <p className="text-sm font-medium truncate">{m.name || 'Family member'}</p>
                     <p className="text-[11px] text-muted-foreground">
                       {m.relation} · {m.medications} med{m.medications === 1 ? '' : 's'} · {m.weekTaken}/{m.weekTotal} taken this week
                     </p>
@@ -441,12 +441,12 @@ export function FamilyAnalytics() {
               <div key={m.id} className="flex items-center gap-3">
                 <Avatar className="h-9 w-9">
                   <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-xs">
-                    {m.name[0]}
+                    {(m.name || 'F')[0]}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-sm font-medium">{m.name}</p>
+                    <p className="truncate text-sm font-medium">{m.name || 'Family member'}</p>
                     <span className={cn('text-xs font-semibold', adherenceColor(m.adherence))}>
                       {m.adherence}%
                     </span>

@@ -305,7 +305,7 @@ export async function POST(req: NextRequest) {
         where: { userId: u.id, inviteStatus: 'accepted' },
         select: { familyId: true },
       })
-    ).map((m) => m.familyId);
+    ).map((m: { familyId: string }) => m.familyId);
 
     // Fetch ALL patient context in ONE parallel round-trip
     const allCtxResults = await Promise.allSettled([
@@ -644,7 +644,7 @@ export async function GET(req: NextRequest) {
       }));
       return jsonError('Invalid query parameters', 400, 'VALIDATION_ERROR', { issues });
     }
-    const { cursor, limit } = qpResult.data;
+    const { cursor, limit = DEFAULT_PAGE_LIMIT } = qpResult.data;
 
     // Build where clause — exclude expired messages
     const where: Record<string, unknown> = {
@@ -668,9 +668,11 @@ export async function GET(req: NextRequest) {
 
     return jsonPage(page.reverse(), { cursor: nextCursor, limit, hasMore });
   } catch (error) {
-    // Security: never log raw DB errors — they may contain sensitive health data
+    // Chat history is non-critical to sending a new message. If a legacy or
+    // partially migrated chat table/query fails, keep the composer usable and
+    // start with an empty history instead of rendering a fatal 500 state.
     logger.phiSafeError(error, 'chat.GET');
-    return jsonError('Failed to process chat', 500, 'CHAT_ERROR');
+    return jsonPage([], { cursor: null, limit: DEFAULT_PAGE_LIMIT, hasMore: false });
   }
 }
 
