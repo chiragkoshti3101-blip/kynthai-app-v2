@@ -627,7 +627,7 @@ export function LoginPage({
                         onClick={() => setLoginPortal(p.id)}
                         aria-current={loginPortal === p.id ? 'page' : undefined}
                         className={cn(
-                          'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-all',
+                          'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-all',
                           loginPortal === p.id
                             ? 'border-emerald-500 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
                             : 'border-border text-muted-foreground hover:border-emerald-500/40'
@@ -959,7 +959,7 @@ export function LoginPage({
                       <button
                         type="button"
                         onClick={() => setShowPassword(s => !s)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:text-foreground"
+                        className="absolute right-2 top-1/2 h-11 w-11 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:text-foreground"
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                       >
                         {showPassword ? (
@@ -977,14 +977,14 @@ export function LoginPage({
                       <Checkbox
                         checked={termsConsent}
                         onCheckedChange={v => setTermsConsent(v === true)}
-                        className="mt-0.5"
+                        className="mt-0.5 h-6 w-6 shrink-0"
                       />
                       <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
                         I agree to the{' '}
                         <button
                           type="button"
                           onClick={() => router.push('/terms')}
-                          className="rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
+                          className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
                         >
                           Terms of Service
                         </button>{' '}
@@ -992,7 +992,7 @@ export function LoginPage({
                         <button
                           type="button"
                           onClick={() => router.push('/privacy')}
-                          className="rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
+                          className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
                         >
                           Privacy Policy
                         </button>
@@ -1003,7 +1003,7 @@ export function LoginPage({
                       <Checkbox
                         checked={dataConsent}
                         onCheckedChange={v => setDataConsent(v === true)}
-                        className="mt-0.5"
+                        className="mt-0.5 h-6 w-6 shrink-0"
                       />
                       <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
                         I consent to processing of my personal and health data under applicable
@@ -1015,7 +1015,7 @@ export function LoginPage({
                       <Checkbox
                         checked={aiTrainingConsent}
                         onCheckedChange={v => setAiTrainingConsent(v === true)}
-                        className="mt-0.5"
+                        className="mt-0.5 h-6 w-6 shrink-0"
                       />
                       <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
                         I consent to letting Kynthai use <em>de-identified</em> health data to
@@ -1024,7 +1024,7 @@ export function LoginPage({
                         <button
                           type="button"
                           onClick={() => router.push('/privacy')}
-                          className="rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
+                          className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
                         >
                           Privacy Policy
                         </button>{' '}
