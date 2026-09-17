@@ -145,7 +145,7 @@ export function ProfileHub({
     return () => { cancelled = true; };
   }, [isDemo]);
 
-  const initial = isDemo ? 'K' : (user.name?.[0] ?? 'U').toUpperCase();
+  const initial = (user.name?.trim()?.[0] ?? 'U').toUpperCase();
   const tier = user.subscriptionTier ?? 'free';
   const tierInfo: TierInfo = (TIER_INFO[tier] ?? TIER_INFO.free) as TierInfo;
   const TierIcon = tierInfo.icon;
