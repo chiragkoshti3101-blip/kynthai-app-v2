@@ -32,6 +32,8 @@ export interface AuthUser {
   name: string;
   role: 'patient' | 'doctor' | 'lab' | 'caretaker' | 'admin';
   phone?: string | null;
+  /** ISO-8601 date of birth, or null when unset. Returned by /api/auth/me. */
+  dateOfBirth?: string | null;
   subscriptionTier?: 'free' | 'plus' | 'family_pro';
   /** True for one-tap demo logins. Demo users skip backend verification
    *  (doctor/lab) and get seeded sample data so the dashboards render
