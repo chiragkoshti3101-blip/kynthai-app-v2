@@ -2,23 +2,129 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { useAppStore, selectors, type LoginPortal } from '@/lib/store';
-import { useToast } from '@/hooks/use-toast';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Loader2,
+  ShieldCheck,
+  Users,
+  HeartPulse,
+  Stethoscope,
+  Microscope,
+  Lock,
+  Sparkles,
+  UserCircle,
+  Download,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Eye, EyeOff, Sparkles, ArrowLeft, ShieldCheck, Stethoscope, FlaskConical, Users, UserRound, CheckCircle2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { apiFetch } from '@/lib/client-fetch';
-import { isNativeShell, isStandaloneDisplay } from '@/lib/native-shell';
-import { installGlobalCsrf } from '@/lib/providers';
+import { Separator } from '@/components/ui/separator';
+import { useAppStore, selectors, type AuthUser, type LoginPortal } from '@/lib/store';
 import { logger } from '@/lib/logger';
-import { isDemoLoginEnabled, isDemoUser } from '@/lib/demo-mode';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils'
+import { isNativeShell, isStandaloneDisplay } from '@/lib/native-shell';
+import { KynthaiBrand } from './logo';
+import { FadeIn } from './animations';
+import { TurnstileWidget, type TurnstileWidgetHandle } from './turnstile-widget';
 import { runDemoLogin, demoRolePath, type DemoRole, DEMO_ROLES } from '@/lib/demo-login';
+import { AppLoader } from '@/components/kynthai/app-loader';
+import { isDemoLoginEnabled, isDemoUser } from '@/lib/demo-mode'
+
+interface PortalConfig {
+  id: LoginPortal;
+  label: string;
+  tagline: string;
+  icon: React.ComponentType<{ className?: string }>;
+  gradient: string;
+}
+
+const PORTALS: PortalConfig[] = [
+  {
+    id: 'caretaker',
+    label: 'Family',
+    tagline: 'Manage up to 4 family members',
+    icon: Users,
+    gradient: 'from-emerald-500 to-teal-600',
+  },
+  {
+    id: 'patient',
+    label: 'Patient',
+    tagline: 'Your personal health companion',
+    icon: HeartPulse,
+    gradient: 'from-emerald-500 to-emerald-700',
+  },
+  {
+    id: 'doctor',
+    label: 'Doctor',
+    tagline: 'Verified practitioners',
+    icon: Stethoscope,
+    gradient: 'from-teal-500 to-emerald-600',
+  },
+  {
+    id: 'lab',
+    label: 'Lab',
+    tagline: 'Diagnostic partners',
+    icon: Microscope,
+    gradient: 'from-teal-500 to-teal-700',
+  },
+];
+
+function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|; )kynthai-csrf=([^;]*)/);
+  return match ? decodeURIComponent(match[1]!) : null;
+}
+
+async function apiCall(path: string, body: Record<string, unknown>, attempt = 1): Promise<unknown> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const url = `/api${path.startsWith('/auth') ? path : path}`;
+
+  let token = getCsrfToken();
+  if (!token) {
+    await fetch(`/api/auth/csrf`, { method: 'GET', credentials: 'include' });
+    token = getCsrfToken();
+  }
+  if (token) headers['X-CSRF-Token'] = token;
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      credentials: 'include',
+      body: JSON.stringify(body),
+    });
+    // Parse the body defensively: a 5xx may return empty or non-JSON, which
+    // would otherwise throw and surface a confusing "Unexpected end of JSON"
+    // error to the user instead of the real failure.
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const reason =
+        (data && typeof data === 'object' && (data as { error?: string }).error) ||
+        (res.status >= 500
+          ? 'Something went wrong on our side. Please try again in a moment.'
+          : 'Request failed. Please try again.');
+      throw new Error(reason);
+    }
+    return data;
+  } catch (err) {
+    const aborted =
+      (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError')) ||
+      (err instanceof Error && /aborted|AbortError|timed out/i.test(err.message));
+    // One automatic retry for auth on flaky mobile networks
+    if (aborted && attempt < 2 && path.includes('/auth/')) {
+      await new Promise((r) => setTimeout(r, 600));
+      return apiCall(path, body, attempt + 1);
+    }
+    throw err;
+  }
+}
 
 export function LoginPage({
   initialMode = 'signin',
@@ -84,7 +190,7 @@ export function LoginPage({
   const [emergencyContact1, setEmergencyContact1] = React.useState('');
   const [emergencyContact2, setEmergencyContact2] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
-  // ── SECURITY: Cloudflare Turnstile (active only when the site key is set) ───
+  // ── SECURITY: Cloudflare Turnstile (active only when the site key is set) ────
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
   const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
   const turnstileRef = React.useRef<TurnstileWidgetHandle>(null);
@@ -97,27 +203,77 @@ export function LoginPage({
   // form when mode is 'register'; dismissed by clicking "I am 18 or older".
   const [ageGateOpen, setAgeGateOpen] = React.useState(false);
   const [ageGateDismissed, setAgeGateDismissed] = React.useState(false);
-  const [showPrivacy, setShowPrivacy] = React.useState(false);
-  const [showTerms, setShowTerms] = React.useState(false);
+  // ────────────────────────────────────────────────────────────────────────────
 
-  const resetCaptcha = React.useCallback(() => {
+  // ── COMPLIANCE: auto-show age-gate when user switches to registration ─────
+  React.useEffect(() => {
+    if (mode === 'register' && !ageGateDismissed) {
+      setAgeGateOpen(true);
+    }
+    if (mode === 'signin') {
+      setAgeGateOpen(false);
+    }
+  }, [mode, ageGateDismissed]);
+
+  // Turnstile tokens are single-use — discard any minted token when the
+  // mode flips so a stale one can never be reused for the other flow.
+  React.useEffect(() => {
     setCaptchaToken(null);
-    turnstileRef.current?.reset();
-  }, []);
+  }, [mode]);
+  // ───────────────────────────────────────────────────────────────────────────
 
+  // Returning-user redirect: only navigate when the session is LIVE.
+  // A persisted store user can be stale (session cookie expired/rotated, or
+  // the store holds a different account than the current session). Blindly
+  // pushing to the store-role portal made the login page thrash form →
+  // portal → login on every load (mobile "form is blinking" report): this
+  // effect redirected on the stale user while AuthGuard skips /login, so
+  // nothing reconciled store vs. session until the portal bounced back.
+  // Verify /api/auth/me first; sync the store to the server truth, or clear
+  // the stale user and stay on the form (no redirect, no loop).
   React.useEffect(() => {
-    installGlobalCsrf();
-  }, []);
-
-  React.useEffect(() => {
-    if (user?.isDemo) return;
-    if (user) router.replace(demoRolePath(user.role));
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/me', { cache: 'no-store', credentials: 'include' });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (data?.authenticated && data?.user) {
+          if (data.user.id !== user.id) useAppStore.getState().login(data.user);
+          const targetScreen =
+            data.user.role === 'patient'
+              ? 'patient'
+              : data.user.role === 'doctor'
+                ? 'doctor'
+                : data.user.role === 'lab'
+                  ? 'lab'
+                  : data.user.role === 'admin'
+                    ? 'admin'
+                    : 'caretaker';
+          router.push(`/${targetScreen}`);
+        } else {
+          // Session is gone — the persisted user is stale. Clear it so the
+          // form stays put (no redirect) and the next login starts clean.
+          useAppStore.getState().logout();
+        }
+      } catch {
+        // Network error — do nothing; don't navigate, don't clear, don't loop.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [user, router]);
 
   // Demo login is EXPLICIT, never automatic. It only fires when the URL
   // explicitly requests it — `?demo=1` or a role hash like `#patient`
   // / `#doctor` / `#caretaker` / `#lab` / `#admin` — or when the user
   // clicks the "Try the demo" button (which navigates to ?demo=1).
+  // Previously this fired for EVERY unauthenticated visitor to /login,
+  // silently signing real users into the demo patient account and
+  // redirecting them to /patient — breaking the real sign-in journey
+  // (the middleware gate is NODE_ENV-aware, but this effect wasn't).
   React.useEffect(() => {
     if (!isDemoLoginEnabled()) return;
     if (loading || demoBusy) return;
@@ -172,201 +328,744 @@ export function LoginPage({
     caretaker: 'Keep the whole family on track with shared reminders.',
     patient: 'Your personal health companion, always on.',
     doctor: 'See patients faster with smarter scheduling.',
-    lab: 'Make every test result count for the people who need it.',
-    admin: 'Keep Kynthai safe, trusted, and running smoothly.',
+    lab: 'More bookings, less paperwork.',
+    admin: 'Monitor quality, safety, and growth.',
   };
-
-  const visiblePortals = (Object.keys(portalEmpathy) as LoginPortal[]).filter(role => {
-    if (role === 'admin') return process.env.NODE_ENV !== 'production';
-    return true;
-  });
+  const visiblePortals = PORTALS;
   const active: PortalConfig = visiblePortals.find(p => p.id === loginPortal) ?? PORTALS[0]!;
-  const redirectAfterLogin = React.useCallback((role: LoginPortal) => {
-    const portalPath = role === 'admin' ? '/admin' : demoRolePath(role);
-    router.replace(portalPath);
-  }, [router]);
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+
+  async function submit(e: React.FormEvent) {
     logger.debug('Login submit', { email, hasPassword: !!password?.length, mode, loginPortal });
-    setFormError(null);
-    if (!email.trim() || !password) {
-      setFormError('Please enter your email and password.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const payload: Record<string, unknown> = { email: email.trim(), password };
-      if (captchaToken) payload.captchaToken = captchaToken;
-      const response = await apiFetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || 'Unable to sign in.');
-      login({ ...data, isDemo: data.isDemo === true });
-      try { sessionStorage.setItem('kynthai.login.email', email.trim()); } catch { /* private mode */ }
-      redirectAfterLogin(data.role);
-    } catch (err) {
-      logger.error('Login error', err);
-      const msg = err instanceof Error ? err.message : 'Unable to sign in.';
-      setFormError(msg);
-      resetCaptcha();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast({
+        title: 'Missing details',
+        description: 'Email and password are required.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (
+      mode === 'register' &&
+      (!name ||
+        !phone ||
+        !dateOfBirth ||
+        !termsConsent ||
+        !dataConsent ||
+        !aiTrainingConsent ||
+        ((active.id === 'patient' || active.id === 'caretaker') && !emergencyContact1))
+    ) {
+      toast({
+        title: 'Almost there',
+        description: !aiTrainingConsent
+          ? 'Please accept the AI training consent, add your name, phone number, date of birth, accept the checkboxes, and provide an emergency contact.'
+          : 'Please add your name, phone number, date of birth, accept the consent checkboxes, and provide an emergency contact.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (turnstileSiteKey && !captchaToken) {
+      toast({
+        title: 'Security check required',
+        description: 'Please complete the human verification before continuing.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setFormError(null);
-    if (!name.trim() || !email.trim() || !password) {
-      setFormError('Please complete all required fields.');
-      return;
-    }
-    if (password.length < 8) {
-      setFormError('Password must be at least 8 characters.');
-      return;
-    }
-    if (!termsConsent || !dataConsent || !aiTrainingConsent) {
-      setFormError('Please accept all required consent options.');
-      return;
-    }
-    if (phone && !/^\+?[1-9]\d{6,14}$/.test(phone.replace(/[\s-]/g, ''))) {
-      setFormError('Please enter a valid international phone number.');
-      return;
-    }
-    if (!dateOfBirth) {
-      setFormError('Date of birth is required.');
-      return;
-    }
     setLoading(true);
     try {
-      const payload = { name: name.trim(), email: email.trim(), password, phone: phone || undefined, dateOfBirth, termsConsent, dataConsent, aiTrainingConsent, captchaToken: captchaToken || undefined };
-      const response = await apiFetch('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || 'Unable to create your account.');
-      login({ ...data, isDemo: false });
-      setFormError(null);
-      router.replace('/patient');
+      // Turnstile tokens are single-use: track the token sent with each
+      // request so a consumed one is never replayed.
+      let effectiveCaptcha: string | undefined = captchaToken || undefined;
+
+      if (mode === 'register') {
+        await apiCall('/auth/register', {
+          email,
+          password,
+          name,
+          role: active.id,
+          phone: `+${phone.replace(/\D/g, '')}`,
+          dateOfBirth: dateOfBirth || undefined,
+          consentAccepted: termsConsent,
+          dataProcessingConsent: dataConsent,
+          aiTrainingConsent,
+          captchaToken: effectiveCaptcha,
+        });
+        toast({ title: 'Account created', description: 'Welcome to Kynthai!' });
+
+        // The register request consumed the CAPTCHA token server-side.
+        // Mint a fresh one for the auto-login below — replaying the same
+        // token fails with `timeout-or-duplicate` (CAPTCHA_FAILED).
+        if (turnstileSiteKey && turnstileRef.current) {
+          const fresh = await turnstileRef.current.mint().catch(() => null);
+          if (fresh) {
+            effectiveCaptcha = fresh;
+            setCaptchaToken(fresh);
+          }
+        }
+      }
+
+      // Timezone rides with login so the reminder cron fires doses on the
+      // user's local wall clock — every login self-heals scheduling accuracy.
+      const data = (await apiCall('/auth/login', { email, password, captchaToken: effectiveCaptcha, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })) as AuthUser & { isUserMinor?: boolean; consentAccepted?: boolean; dataProcessingConsent?: boolean; aiTrainingConsent?: boolean };
+      const user: AuthUser = {
+        id: data.id,
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        phone: data.phone,
+        subscriptionTier: data.subscriptionTier,
+        isDemo: data.isDemo,
+        isUserMinor: Boolean((data as { isUserMinor?: boolean }).isUserMinor),
+        consentAccepted: Boolean((data as { consentAccepted?: boolean }).consentAccepted),
+        dataProcessingConsent: Boolean((data as { dataProcessingConsent?: boolean }).dataProcessingConsent),
+        aiTrainingConsent: Boolean((data as { aiTrainingConsent?: boolean }).aiTrainingConsent),
+      };
+      login(user);
+      try {
+        window.dispatchEvent(new CustomEvent('kynthai:auth-ready'))
+      } catch {
+        /* native push retry is best-effort */
+      }
+      // First-time only: Welcome tour. Returning users with consent go straight in.
+      if (user.consentAccepted) {
+        useAppStore.getState().completeOnboarding(user.role);
+      }
+
+      // Navigate as soon as the authenticated session is established. The
+      // invite lookup below is best-effort UI enrichment; it must never hold
+      // the user on /login or make a successful sign-in appear to time out.
+      const portalPath =
+        user.role === 'patient'
+          ? '/patient'
+          : user.role === 'doctor'
+            ? '/doctor'
+            : user.role === 'lab'
+              ? '/lab'
+              : user.role === 'admin'
+                ? '/admin'
+                : '/caretaker';
+      router.replace(portalPath);
+
+      // Wave-8: the pending family-invite check used to fire on EVERY form
+      // sign-in for all five portals. It is only meaningful for the roles with
+      // family UX (patient / caretaker) — doctor and lab logins no longer make
+      // this request. Invitees are matched by email and may hold either role.
+      if (mode === 'signin' && (user.role === 'patient' || user.role === 'caretaker')) {
+        setInvitesLoading(true);
+        try {
+          const invRes = await fetch('/api/family/invite', { credentials: 'include' });
+          if (invRes.ok) {
+            const invites = await invRes.json();
+            setPendingInvites(invites);
+            if (invites.length > 0) {
+              toast({
+                title: `You have ${invites.length} pending invite${invites.length > 1 ? 's' : ''}`,
+                description: invites
+                  .map(
+                    (i: { invitedBy: string; relation: string }) => `${i.invitedBy} (${i.relation})`
+                  )
+                  .join(', '),
+                duration: 6000,
+              });
+            }
+          }
+        } catch {
+          // Ignore
+        } finally {
+          setInvitesLoading(false);
+        }
+      }
+
+      toast({
+        title:
+          mode === 'signin'
+            ? `Welcome back, ${user.name}`
+            : `Account created — welcome, ${user.name}`,
+        description: `You're signed in to the ${active.label} portal.`,
+      });
     } catch (err) {
-      logger.error('Registration error', err);
-      setFormError(err instanceof Error ? err.message : 'Unable to create your account.');
-      resetCaptcha();
+      // A failed submit consumed the single-use CAPTCHA token — reset the
+      // widget so the next attempt mints a fresh one instead of replaying a
+      // stale token (which fails with CAPTCHA_FAILED).
+      // Keep email + password — never wipe the form on a failed attempt.
+      // Only refresh CAPTCHA (single-use tokens); do not remount the page.
+      turnstileRef.current?.reset();
+      setCaptchaToken(null);
+      let msg = err instanceof Error ? err.message : String(err);
+      // Global fetch timeout / navigation abort — never show raw AbortError text
+      if (
+        (err instanceof DOMException && (err.name === 'AbortError' || err.name === 'TimeoutError')) ||
+        /signal is aborted|aborted without reason|AbortError|The operation was aborted/i.test(msg)
+      ) {
+        msg =
+          'Sign-in took too long or the connection dropped. Check your network and try again.';
+      }
+      setFormError(msg);
+      toast({
+        title: mode === 'signin' ? 'Sign in failed' : 'Registration failed',
+        description: msg,
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
-  };
-
-  // ── Profile/account helpers ──────────────────────────────────────────────
-  const formatDate = (value: string | null | undefined) => {
-    if (!value) return '';
-    try {
-      const d = new Date(value);
-      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-    } catch { return ''; }
-  };
-
-  const fetchPendingInvites = React.useCallback(async () => {
-    try {
-      const res = await fetch('/api/family/invite', { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setPendingInvites(data.invites || []);
-      }
-    } catch { /* non-critical */ }
-  }, []);
-
-  React.useEffect(() => {
-    if (user?.role === 'caretaker') fetchPendingInvites();
-  }, [user, fetchPendingInvites]);
-
-  const handleInviteAccept = async (inviteId: string) => {
-    try {
-      const response = await apiFetch('/api/family/invite', {
-        method: 'POST',
-        body: JSON.stringify({ inviteId, action: 'accept' }),
-      });
-      if (!response.ok) throw new Error('Unable to accept invite');
-      await fetchPendingInvites();
-      toast({ title: 'Invite accepted' });
-    } catch {
-      toast({ title: 'Invite failed', description: 'Please try again.', variant: 'destructive' });
-    }
-  };
-
-  const handleInviteDecline = async (inviteId: string) => {
-    try {
-      const response = await apiFetch('/api/family/invite', {
-        method: 'POST',
-        body: JSON.stringify({ inviteId, action: 'decline' }),
-      });
-      if (!response.ok) throw new Error('Unable to decline invite');
-      await fetchPendingInvites();
-      toast({ title: 'Invite declined' });
-    } catch {
-      toast({ title: 'Invite failed', description: 'Please try again.', variant: 'destructive' });
-    }
-  };
-
-  // ── Render ────────────────────────────────────────────────────────────────
-  if (demoBooting) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-emerald-500/20 blur-xl" />
-            <Loader2 className="relative h-10 w-10 animate-spin text-emerald-600" />
-          </div>
-          <p className="text-sm text-muted-foreground">Opening your demo portal…</p>
-        </div>
-      </div>
-    );
   }
 
-  const portalConfig: Record<LoginPortal, PortalConfig> = {
-    caretaker: { id: 'caretaker', label: 'Family', icon: Users, description: 'Family care portal' },
-    patient: { id: 'patient', label: 'Patient', icon: UserRound, description: 'Personal health portal' },
-    doctor: { id: 'doctor', label: 'Doctor', icon: Stethoscope, description: 'Professional portal' },
-    lab: { id: 'lab', label: 'Lab', icon: FlaskConical, description: 'Laboratory portal' },
-    admin: { id: 'admin', label: 'Admin', icon: ShieldCheck, description: 'Admin portal' },
-  };
-  const PORTALS = Object.values(portalConfig);
+  // ponytail: removed demoBooting loading screen — the form stays visible
+  // with disabled buttons while the demo logs in, avoiding a double-loading
+  // spinner (login page → target page).
+
+  // When the user clicks "Try the demo" (or arrives at /login?demo=1) show a
+  // single branded AppLoader for the whole sign-in, so the login form never
+  // flickers/reloads before the portal loads its own AppLoader.
+  if (demoBooting) {
+    return <AppLoader label="Preparing your demo…" />;
+  }
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
-      <Card className="w-full max-w-md shadow-xl">
-        <CardHeader>
-          <CardTitle>Welcome back</CardTitle>
-          <CardDescription>Sign in to your Kynthai account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2 mb-6">
-            {visiblePortals.map((p) => (
-              <button key={p} type="button" onClick={() => setLoginPortal(p)} className={cn('flex-1 rounded-md px-2 py-2 text-sm', loginPortal === p ? 'bg-emerald-600 text-white' : 'bg-muted')}>
-                {portalConfig[p].label}
-              </button>
-            ))}
+    <div className="relative min-h-dvh overflow-hidden bg-background">
+      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
+        <div
+          className="absolute -top-40 left-1/2 h-[40rem] sm:w-[40rem] w-full -translate-x-1/2 rounded-full opacity-40 blur-3xl"
+          style={{
+            background: 'radial-gradient(closest-side, rgba(16,185,129,0.35), transparent 70%)',
+          }}
+        />
+      </div>
+
+      <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-4 py-6 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            onClick={() => router.push('/')}
+            className="inline-flex min-h-11 min-w-11 items-center gap-2 rounded-md py-2 -my-2 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </button>
+          <KynthaiBrand />
+          {!hideDownloadCta && (
+          <button
+            onClick={() => router.push('/download')}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Get app
+          </button>
+          )}
+        </div>
+
+        {/* Mobile: form first (order-1). Desktop: marketing left, form right. */}
+        <div className="grid flex-1 items-center gap-8 py-6 sm:gap-10 sm:py-8 lg:grid-cols-2 lg:gap-16">
+          <div className="order-2 lg:order-1">
+            <h1 className="hidden text-3xl font-bold tracking-tight sm:text-4xl lg:block">
+              {mode === 'signin' ? 'Sign in' : 'Create account'}
+            </h1>
+            <p className="hidden text-muted-foreground lg:mt-3 lg:block">
+              {portalEmpathy[loginPortal]}
+            </p>
+            <p className="hidden text-sm text-muted-foreground lg:mt-1 lg:block">
+              {active.label} portal — sign in or create an account to continue.
+            </p>
+            {!hideDownloadCta && (
+            <a
+              href="/download"
+              className="mt-4 hidden items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-3 py-2.5 text-sm font-medium text-emerald-800 hover:bg-emerald-500/10 dark:text-emerald-200 lg:inline-flex"
+            >
+              <Download className="h-4 w-4 shrink-0" />
+              Download Android app for reliable notifications
+            </a>
+            )}
+            {/* Desktop: full role cards. Mobile chips live above the form. */}
+            <div className="mt-8 hidden grid-cols-1 gap-3 sm:max-w-md sm:grid-cols-2 lg:grid">
+              {visiblePortals.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setLoginPortal(p.id)}
+                  aria-current={loginPortal === p.id ? 'page' : undefined}
+                  className={cn(
+                    'flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-2xl border p-4 text-center transition-all active:scale-[0.98]',
+                    loginPortal === p.id
+                      ? 'border-emerald-500 shadow-lg shadow-emerald-500/10'
+                      : 'border-border hover:border-emerald-500/50'
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow',
+                      p.gradient
+                    )}
+                  >
+                    <p.icon className="h-5 w-5" />
+                  </div>
+                  <h3 className="mt-3 text-sm font-semibold">{p.label}</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{p.tagline}</p>
+                </button>
+              ))}
+            </div>
           </div>
-          {formError && <div role="alert" className="mb-4 text-sm text-red-600">{formError}</div>}
-          <form onSubmit={mode === 'signin' ? handleLogin : handleRegister} className="space-y-4">
-            {mode === 'register' && <>
-              <div><Label htmlFor="name">Full name</Label><Input id="name" value={name} onChange={e => setName(e.target.value)} /></div>
-              <div><Label htmlFor="phone">Phone</Label><Input id="phone" value={phone} onChange={e => setPhone(e.target.value)} /></div>
-              <div><Label htmlFor="dob">Date of birth</Label><Input id="dob" type="date" value={dateOfBirth} onChange={e => setDateOfBirth(e.target.value)} /></div>
-              <div className="flex items-center gap-2"><Checkbox checked={termsConsent} onCheckedChange={v => setTermsConsent(!!v)} /><Label>I agree to the terms</Label></div>
-              <div className="flex items-center gap-2"><Checkbox checked={dataConsent} onCheckedChange={v => setDataConsent(!!v)} /><Label>I consent to data processing</Label></div>
-              <div className="flex items-center gap-2"><Checkbox checked={aiTrainingConsent} onCheckedChange={v => setAiTrainingConsent(!!v)} /><Label>I consent to AI training</Label></div>
-            </>}
-            <div><Label htmlFor="email">Email</Label><Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
-            <div><Label htmlFor="password">Password</Label><div className="flex gap-2"><Input id="password" type={showPassword ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} /><Button type="button" variant="ghost" onClick={() => setShowPassword(v => !v)}>{showPassword ? <EyeOff /> : <Eye />}</Button></div></div>
-            <Button type="submit" disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : 'Sign in'}</Button>
-          </form>
-          {isDemoLoginEnabled() && <Button type="button" disabled={demoBusy} onClick={async () => { setDemoBusy(true); const role = loginPortal as DemoRole; const ok = await runDemoLogin(role); if (ok) { router.push(demoRolePath(role)); return; } setDemoBusy(false); }}> <Sparkles /> Try the demo </Button>}
-        </CardContent>
-      </Card>
-    </main>
+
+          <FadeIn delay={0.1} className="order-1 lg:order-2">
+            <Card className="overflow-hidden border-emerald-500/20 shadow-xl shadow-emerald-900/5">
+              <CardContent className="p-5 sm:p-8">
+                {/* Mobile-only: clear sign-in title + compact role chips */}
+                <div className="mb-5 lg:hidden">
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    {mode === 'signin' ? 'Sign in' : 'Create account'}
+                  </h1>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {active.label} portal — {portalEmpathy[loginPortal]}
+                  </p>
+                  <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {visiblePortals.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setLoginPortal(p.id)}
+                        aria-current={loginPortal === p.id ? 'page' : undefined}
+                        className={cn(
+                          'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-all',
+                          loginPortal === p.id
+                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200'
+                            : 'border-border text-muted-foreground hover:border-emerald-500/40'
+                        )}
+                      >
+                        <p.icon className="h-3.5 w-3.5" />
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {pendingInvites.length > 0 && (
+                  <div className="mb-5 space-y-2">
+                    {pendingInvites.map(inv => (
+                      <div
+                        key={inv.id}
+                        className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3"
+                      >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                          <Users className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium">
+                            {inv.invitedBy} invited you as{' '}
+                            <span className="text-emerald-600">{inv.relation}</span>
+                          </p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const csrf = await fetch('/api/auth/csrf', { credentials: 'include' })
+                                .then(r => r.json())
+                                .then(d => d.token);
+                              const res = await fetch('/api/family/invite', {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'X-CSRF-Token': csrf,
+                                },
+                                credentials: 'include',
+                                body: JSON.stringify({ action: 'accept', inviteId: inv.id }),
+                              });
+                              if (res.ok) {
+                                setPendingInvites(p => p.filter(i => i.id !== inv.id));
+                                toast({
+                                  title: 'Invite accepted!',
+                                  description: `You're now part of ${inv.invitedBy}'s family.`,
+                                });
+                              } else {
+                                const d = await res.json().catch(() => ({}));
+                                toast({
+                                  title: 'Could not accept invite',
+                                  description: d.error || 'Please try again.',
+                                  variant: 'destructive',
+                                });
+                              }
+                            } catch {
+                              toast({
+                                title: 'Offline',
+                                description: 'Re-connected, try again.',
+                                variant: 'destructive',
+                              });
+                            }
+                          }}
+                          className="shrink-0 min-h-11 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white hover:bg-emerald-600"
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {invitesLoading && pendingInvites.length === 0 && (
+                  <div className="mb-5 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Checking for invites...
+                  </div>
+                )}
+
+                <div className="mb-6 inline-flex rounded-full border border-border bg-muted/40 p-1">
+                  <button
+                    onClick={() => setMode('signin')}
+                    className={cn(
+                      'min-h-11 rounded-full px-4 py-2 text-sm font-medium transition-all',
+                      mode === 'signin'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMode('register');
+                      setAgeGateDismissed(false);
+                      setAgeGateOpen(true);
+                    }}
+                    className={cn(
+                      'min-h-11 rounded-full px-4 py-2 text-sm font-medium transition-all',
+                      mode === 'register'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Create Account
+                  </button>
+                </div>
+
+                {isDemoLoginEnabled() && (
+                  <div className="mb-5">
+                    <button
+                      type="button"
+                      disabled={demoBusy}
+                      onClick={async () => {
+                        // Inline demo login for the SELECTED portal tab — no page
+                        // reload. Pick a portal above (Family/Patient/Doctor/Lab)
+                        // then one tap enters that demo.
+                        setDemoBusy(true);
+                        const role = loginPortal as DemoRole;
+                        const ok = await runDemoLogin(role);
+                        if (ok) {
+                          router.push(demoRolePath(role));
+                          return;
+                        }
+                        setDemoBusy(false);
+                      }}
+                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-500/15 dark:text-emerald-300 disabled:opacity-60 disabled:pointer-events-none"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      Try the {active.label} demo — explore instantly
+                    </button>
+                  </div>
+                )}
+
+                <div className="mb-5 flex items-center gap-3">
+                  <div
+                    className={cn(
+                      'flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br text-white',
+                      active.gradient
+                    )}
+                  >
+                    <active.icon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">{active.label} portal</p>
+                    <p className="text-xs text-muted-foreground">{active.tagline}</p>
+                  </div>
+                </div>
+
+                {/* ── COMPLIANCE: age-gate modal — prevents under-18 registration ─── */}
+                {ageGateOpen && !ageGateDismissed && (
+                  <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm sm:items-center">
+                    <Card className="my-auto w-full max-w-sm border-amber-500/30 shadow-xl">
+                      <CardContent className="p-6 text-center space-y-4">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                          <ShieldCheck className="h-6 w-6 text-amber-600" />
+                        </div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Age verification required
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Kynthai is designed for users{' '}
+                          <span className="font-semibold text-foreground">18 years or older</span>.
+                          By proceeding, you confirm that you meet this age requirement.
+                        </p>
+                        <p className="text-[0.6875rem] text-muted-foreground">
+                          If you are under 18, a parent or legal guardian must create and manage
+                          your account through the{' '}
+                          <span className="text-emerald-600">Family portal</span>.
+                        </p>
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            setAgeGateDismissed(true);
+                            setAgeGateOpen(false);
+                          }}
+                          variant="brand"
+                          size="cta"
+                          className="w-full"
+                        >
+                          I am 18 or older — proceed
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+                {/* ───────────────────────────────────────────────────────────────────── */}
+
+                <form id="login-form" onSubmit={submit} className="space-y-4" noValidate>
+                {formError && (
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2.5 text-sm text-rose-700 dark:text-rose-300"
+                  >
+                    <p className="font-semibold">Could not sign in</p>
+                    <p className="mt-0.5 text-xs opacity-90">{formError}</p>
+                    <p className="mt-1 text-[0.6875rem] opacity-80">Your email was kept — fix the password and try again.</p>
+                  </div>
+                )}
+                  {mode === 'register' && (
+                  <div className="space-y-3.5">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="name">
+                        Full name <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="name"
+                        placeholder="Sarah Johnson"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        autoComplete="name"
+                        required
+                        disabled={mode !== 'register'}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="phone">Phone number <span className="text-rose-500">*</span></Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="+91 98765 43210"
+                        value={phone}
+                        onChange={e => setPhone(e.target.value)}
+                        autoComplete="tel"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Required for account security and to set your local emergency number automatically.
+                        You cannot change the emergency country inside SOS.
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="dob">
+                        Date of birth <span className="text-rose-500">*</span>
+                      </Label>
+                      <Input
+                        id="dob"
+                        type="date"
+                        value={dateOfBirth}
+                        onChange={e => setDateOfBirth(e.target.value)}
+                        required
+                        disabled={mode !== 'register'}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="emergency1">
+                        Emergency contact 1{' '}
+                        {active.id === 'patient' || active.id === 'caretaker' ? (
+                          <span className="text-rose-500">*</span>
+                        ) : (
+                          <span className="text-muted-foreground">(optional for this portal)</span>
+                        )}
+                      </Label>
+                      <Input
+                        id="emergency1"
+                        type="tel"
+                        placeholder="+91 98765 43210"
+                        value={emergencyContact1}
+                        onChange={e => setEmergencyContact1(e.target.value)}
+                        autoComplete="tel"
+                        required={active.id === 'patient' || active.id === 'caretaker'}
+                        disabled={mode !== 'register'}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="emergency2">Emergency contact 2 (optional)</Label>
+                      <Input
+                        id="emergency2"
+                        type="tel"
+                        placeholder="+91 98765 43210"
+                        value={emergencyContact2}
+                        onChange={e => setEmergencyContact2(e.target.value)}
+                        autoComplete="tel"
+                      />
+                    </div>
+                  </div>
+                  )}
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email">
+                      Email <span className="text-rose-500">*</span>
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={e => {
+                        const v = e.target.value
+                        setEmail(v)
+                        setFormError(null)
+                        try { sessionStorage.setItem('kynthai.login.email', v) } catch { /* ignore */ }
+                      }}
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
+
+                  {/* Confirm password field - removed as per schema update */}
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="password">
+                        Password <span className="text-rose-500">*</span>
+                      </Label>
+                      {mode === 'signin' && (
+                        <button
+                          type="button"
+                          onClick={() => router.push('/forgot-password')}
+                          className="min-h-11 min-w-11 rounded-md px-1 -mx-1 py-2 -my-2 text-[0.8125rem] font-medium text-emerald-600 underline-offset-2 hover:text-emerald-700 hover:underline"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Enter your password"
+                        value={password}
+                        onChange={e => {
+                          setPassword(e.target.value)
+                          setFormError(null)
+                        }}
+                        autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+                        required
+                        minLength={mode === 'register' ? 8 : undefined}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(s => !s)}
+                        className="absolute right-2 top-1/2 h-11 w-11 -translate-y-1/2 rounded-md p-2 text-muted-foreground hover:text-foreground"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {mode === 'register' && (
+                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/30 p-3">
+                    <label className="flex items-start gap-2.5">
+                      <Checkbox
+                        checked={termsConsent}
+                        onCheckedChange={v => setTermsConsent(v === true)}
+                        className="mt-0.5 h-6 w-6 shrink-0"
+                      />
+                      <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
+                        I agree to the{' '}
+                        <button
+                          type="button"
+                          onClick={() => router.push('/terms')}
+                          className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
+                        >
+                          Terms of Service
+                        </button>{' '}
+                        and{' '}
+                        <button
+                          type="button"
+                          onClick={() => router.push('/privacy')}
+                          className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
+                        >
+                          Privacy Policy
+                        </button>
+                        .
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2.5">
+                      <Checkbox
+                        checked={dataConsent}
+                        onCheckedChange={v => setDataConsent(v === true)}
+                        className="mt-0.5 h-6 w-6 shrink-0"
+                      />
+                      <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
+                        I consent to processing of my personal and health data under applicable
+                        health-data and privacy laws.{' '}
+                        <span className="font-medium text-foreground">Privacy-first</span>.
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2.5">
+                      <Checkbox
+                        checked={aiTrainingConsent}
+                        onCheckedChange={v => setAiTrainingConsent(v === true)}
+                        className="mt-0.5 h-6 w-6 shrink-0"
+                      />
+                      <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
+                        I consent to letting Kynthai use <em>de-identified</em> health data to
+                        improve AI features. My personal data is never shared or identifiable. See
+                        the{' '}
+                        <button
+                          type="button"
+                          onClick={() => router.push('/privacy')}
+                          className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
+                        >
+                          Privacy Policy
+                        </button>{' '}
+                        for details.
+                      </span>
+                    </label>
+                  </div>
+                  )}
+
+                  {turnstileSiteKey && (
+                    <div className="flex justify-center">
+                      <TurnstileWidget
+                        ref={turnstileRef}
+                        siteKey={turnstileSiteKey}
+                        onToken={setCaptchaToken}
+                        onExpire={() => setCaptchaToken(null)}
+                      />
+                    </div>
+                  )}
+
+                  <Button
+                    id="login-submit-btn"
+                    type="submit"
+                    disabled={loading || demoBusy}
+                    className="min-h-11 w-full gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-600/25 hover:from-emerald-600 hover:to-teal-700"
+                  >
+                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {mode === 'signin' ? 'Sign In' : 'Create Account'}
+                    {!loading && <ArrowRight className="h-4 w-4" />}
+                  </Button>
+                </form>
+
+                <div className="mt-5 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                  <Lock className="h-3 w-3" />
+                  TLS in transit · document encryption at rest · Privacy-first
+                </div>
+              </CardContent>
+            </Card>
+          </FadeIn>
+        </div>
+      </div>
+    </div>
   );
 }
-
-type PortalConfig = { id: LoginPortal; label: string; icon: React.ComponentType<{ className?: string }>; description: string };
-interface TurnstileWidgetHandle { reset: () => void }
