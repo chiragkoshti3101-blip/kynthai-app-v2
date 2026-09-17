@@ -1641,7 +1641,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
   const isDemo = isDemoUser(user);
   // QA debug tools exist only for demo accounts in non-production builds.
   const showDebugAlarm = isDemo && isDemoEnabled();
-  const initial = isDemo ? 'K' : (user?.name?.[0] ?? 'U').toUpperCase();
+  const initial = (user?.name?.trim()?.[0] ?? 'U').toUpperCase();
 
   const handleLogout = React.useCallback(async () => {
     router.replace('/login');
