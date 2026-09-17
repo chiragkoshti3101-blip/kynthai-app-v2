@@ -58,7 +58,7 @@ export default function SettingsClient() {
   // Profile editing
   const [editName, setEditName] = React.useState(user?.name || '');
   const [editPhone, setEditPhone] = React.useState(user?.phone || '');
-  const [editDob, setEditDob] = React.useState('');
+  const [editDob, setEditDob] = React.useState((user?.dateOfBirth ?? '').slice(0, 10));
   const [saving, setSaving] = React.useState(false);
 
   // Password change
@@ -206,6 +206,7 @@ export default function SettingsClient() {
           name: editName.trim(),
           role: user.role,
           phone: editPhone.trim() || undefined,
+          dateOfBirth: editDob || null,
           subscriptionTier: user.subscriptionTier,
           isDemo: user.isDemo,
           consentAccepted: user.consentAccepted,
