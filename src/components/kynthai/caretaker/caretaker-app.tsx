@@ -472,7 +472,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
   );
 
   const accountName = user.name?.trim() || 'Family manager';
-  const initial = accountName[0].toUpperCase();
+  const initial = accountName.charAt(0).toUpperCase();
   const familyName = isDemo
     ? accountName
     : (accountName.split(' ').filter(Boolean).slice(-1)[0] ?? 'Family');
