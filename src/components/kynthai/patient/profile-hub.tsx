@@ -191,7 +191,7 @@ export function ProfileHub({
   const [profileSaving, setProfileSaving] = React.useState(false);
   const [editName, setEditName] = React.useState(user.name || '');
   const [editPhone, setEditPhone] = React.useState(user.phone || '');
-  const [editDob, setEditDob] = React.useState('');
+  const [editDob, setEditDob] = React.useState((user.dateOfBirth ?? '').slice(0, 10));
 
   const [professionalEditing, setProfessionalEditing] = React.useState(false);
   const [professionalSaving, setProfessionalSaving] = React.useState(false);
@@ -277,7 +277,7 @@ export function ProfileHub({
       }
       // Update local store
       const { login } = useAppStore.getState();
-      login({ ...user, name: editName.trim(), phone: editPhone.trim() || undefined });
+      login({ ...user, name: editName.trim(), phone: editPhone.trim() || undefined, dateOfBirth: editDob || null });
       setEditingProfile(false);
       toast({ title: 'Profile updated', description: 'Your changes have been saved.' });
     } catch (err) {
