@@ -471,7 +471,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
     [toast]
   );
 
-  const initial = isDemo ? 'K' : (user.name?.[0] ?? 'C').toUpperCase();
+  const initial = (user.name?.trim()?.[0] ?? 'C').toUpperCase();
   const familyName = isDemo ? 'Demo User' : (user.name?.split(' ').slice(-1)[0] ?? 'Family');
   const displayName = familyName === 'Family' ? 'My Family' : `The ${familyName} Family`;
 
