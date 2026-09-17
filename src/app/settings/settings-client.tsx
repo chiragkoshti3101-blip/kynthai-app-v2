@@ -124,7 +124,7 @@ export default function SettingsClient() {
   }
 
   const isDemo = !!user.isDemo;
-  const initial = isDemo ? 'K' : (user.name?.[0] ?? 'U').toUpperCase();
+  const initial = (user.name?.trim()?.[0] ?? 'U').toUpperCase();
   const isProfessional = user.role === 'doctor' || user.role === 'lab';
   const isFamilyManager = user.role === 'caretaker';
   const roleTitle = user.role === 'doctor'
