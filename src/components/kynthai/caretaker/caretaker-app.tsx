@@ -471,9 +471,16 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
     [toast]
   );
 
-  const initial = (user.name?.trim()?.[0] ?? 'C').toUpperCase();
-  const familyName = isDemo ? 'Demo User' : (user.name?.split(' ').slice(-1)[0] ?? 'Family');
-  const displayName = familyName === 'Family' ? 'My Family' : `The ${familyName} Family`;
+  const accountName = user.name?.trim() || 'Family manager';
+  const initial = accountName[0].toUpperCase();
+  const familyName = isDemo
+    ? accountName
+    : (accountName.split(' ').filter(Boolean).slice(-1)[0] ?? 'Family');
+  const displayName = isDemo
+    ? familyName
+    : familyName === 'Family'
+      ? 'My Family'
+      : `The ${familyName} Family`;
 
   const dismissAlert = (id: string) => setAlerts(p => p.filter(a => a.id !== id));
   const resolveAlert = (id: string) => {
@@ -510,31 +517,35 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
       <header className="sticky top-0 z-30 border-b border-border/50 bg-background pt-safe">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
           {/* Kynthai Brand - Prominent, Left Side */}
-          <div className="flex items-center">
-            <KynthaiBrand iconSize={32} />
+          <div className="min-w-0 shrink-0">
+            <KynthaiBrand iconSize={30} />
           </div>
 
-          {/* Caretaker Profile - Secondary, Right Side */}
-          <div className="flex items-center gap-1">
-            <button onClick={() => setProfileOpen(true)} className="flex items-center gap-3" aria-label="Profile">
-              <Avatar className="h-10 w-10 ring-2 ring-emerald-500/20">
+          {/* Keep the mobile header compact: the family context belongs in the
+              hero below, while the account identity stays available here on
+              larger screens without colliding with the Kynthai brand. */}
+          <div className="flex min-w-0 items-center gap-1">
+            <NotificationCenter role="caretaker"
+              userId={user.id}
+              isDemo={isDemo}
+              onNavigate={(t: string) => setTab(t as Tab)}
+            />
+            <OfflineIndicator className="hidden sm:flex" />
+            <button
+              onClick={() => setProfileOpen(true)}
+              className="flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-xl px-1 transition-colors hover:bg-accent"
+              aria-label={`Profile for ${accountName}`}
+            >
+              <Avatar className="h-10 w-10 shrink-0 ring-2 ring-emerald-500/20">
                 <AvatarFallback className="bg-gradient-to-br from-teal-500 to-emerald-600 text-white font-semibold">
                   {initial}
                 </AvatarFallback>
               </Avatar>
-              <div className="text-left">
-                <p className="text-sm text-muted-foreground leading-tight">{greeting}</p>
-                <p className="text-base font-semibold leading-tight">{displayName}</p>
+              <div className="hidden min-w-0 max-w-[10rem] text-left sm:block">
+                <p className="text-xs text-muted-foreground leading-tight">{greeting}</p>
+                <p className="truncate text-sm font-semibold leading-tight">{accountName}</p>
               </div>
             </button>
-            <div className="flex items-center gap-1">
-              <NotificationCenter role="caretaker"
-                userId={user.id}
-                isDemo={isDemo}
-                onNavigate={(t: string) => setTab(t as Tab)}
-              />
-              <OfflineIndicator />
-            </div>
           </div>
         </div>
       </header>
