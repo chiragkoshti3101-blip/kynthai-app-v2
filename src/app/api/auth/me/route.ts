@@ -37,7 +37,9 @@ export async function GET(req: NextRequest) {
           name: profile.name,
           role: profile.role,
           phone: profile.phone,
-          dateOfBirth: profile.dateOfBirth?.toISOString() ?? null,
+          // `profile` here is already an AuthUser (see getSupabaseProfile),
+          // whose dateOfBirth is an ISO string — not the raw Prisma row.
+          dateOfBirth: profile.dateOfBirth ?? null,
           subscriptionTier: profile.subscriptionTier,
           emailVerified: !!supabaseUser.email_confirmed_at,
           consentAccepted: profile.consentAccepted,
