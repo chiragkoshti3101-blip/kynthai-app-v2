@@ -339,6 +339,23 @@ function decryptResults(results: unknown[], model: string): void {
   for (const item of results) decryptResultGraph(item, model)
 }
 
+/**
+ * True for a value we may safely recurse into while rewriting a `where` clause.
+ *
+ * `Date`, Buffer and other typed arrays are objects too, but they are *scalar
+ * operands* (`createdAt: { gte: <Date> }`). Rebuilding one as a plain object
+ * destroyed the operand and produced a PrismaClientValidationError on any
+ * range filter — which is what took down /api/admin/overview and
+ * /api/admin/fraud. Mirrors the guard already used on the result side.
+ */
+function isPlainQueryObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value) && !isScalarObject(value)
+}
+
+function isScalarObject(value: unknown): boolean {
+  return value instanceof Date || ArrayBuffer.isView(value)
+}
+
 function rewriteWhereObject(where: Record<string, unknown>, model: string): Record<string, unknown> {
   const transformed: Record<string, unknown> = {}
 
@@ -346,12 +363,10 @@ function rewriteWhereObject(where: Record<string, unknown>, model: string): Reco
     if (key === 'AND' || key === 'OR' || key === 'NOT') {
       if (Array.isArray(value)) {
         transformed[key] = value.map((item) =>
-          item && typeof item === 'object' && !Array.isArray(item)
-            ? rewriteWhereObject(item as Record<string, unknown>, model)
-            : item,
+          isPlainQueryObject(item) ? rewriteWhereObject(item, model) : item,
         )
-      } else if (value && typeof value === 'object') {
-        transformed[key] = rewriteWhereObject(value as Record<string, unknown>, model)
+      } else if (isPlainQueryObject(value)) {
+        transformed[key] = rewriteWhereObject(value, model)
       } else {
         transformed[key] = value
       }
@@ -399,9 +414,10 @@ function rewriteWhereObject(where: Record<string, unknown>, model: string): Reco
       // than pretending they are supported by the extension.
     }
 
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      transformed[key] = rewriteWhereObject(value as Record<string, unknown>, model)
+    if (isPlainQueryObject(value)) {
+      transformed[key] = rewriteWhereObject(value, model)
     } else {
+      // Scalars (including Date/Buffer operands) pass through untouched.
       transformed[key] = value
     }
   }
