@@ -795,6 +795,13 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   const slotsLeft = FREE_PATIENT_CAP - slotsUsed;
   const nearCap = slotsUsed >= FREE_PATIENT_CAP - 2; // 3+/5 → prompt upgrade
 
+  // Identity comes from the account, never a hardcoded demo placeholder.
+  const accountName = (user.name?.trim() || 'Doctor').replace(/^Dr\.?\s+/i, '');
+  const initial = accountName.charAt(0).toUpperCase();
+  const doctorLabel = isDemo
+    ? accountName
+    : `Dr. ${accountName.split(' ').filter(Boolean).slice(-1)[0] ?? 'Doctor'}`;
+
   return (
     <div className="min-h-dvh flex flex-col bg-gradient-to-b from-emerald-50/40 via-background to-background dark:from-emerald-950/20">
       {/* Header */}
@@ -810,13 +817,13 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
             <button onClick={() => setProfileOpen(true)} className="flex items-center gap-3" aria-label="Profile">
               <Avatar className="h-10 w-10 ring-2 ring-emerald-500/20">
                 <AvatarFallback className="bg-gradient-to-br from-teal-500 to-emerald-600 text-white font-semibold">
-                  {(isDemo ? 'G' : (user.name?.[0] ?? 'D')).toUpperCase()}
+                  {initial}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden sm:block text-left">
                 <p className="text-xs text-muted-foreground leading-tight">{greeting}</p>
-                <p className="text-sm font-semibold leading-tight">
-                  Dr. {isDemo ? 'Demo User' : (user.name?.split(' ').slice(-1)[0] ?? 'Doctor')}
+                <p className="truncate text-sm font-semibold leading-tight">
+                  {doctorLabel}
                 </p>
               </div>
             </button>
