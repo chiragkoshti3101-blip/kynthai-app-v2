@@ -60,6 +60,7 @@ import { useOfflineQueue } from '@/hooks/use-offline-queue';
 import { AnimatePresence, motion } from 'framer-motion';
 import { FadeIn } from '@/components/kynthai/animations';
 import type { PulseMember } from '@/components/kynthai/family/family-circle';
+import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
 
 const MarketView = dynamic(
   () => import('@/components/kynthai/market/market-view')
@@ -471,7 +472,7 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
     [toast]
   );
 
-  const accountName = user.name?.trim() || 'Family manager';
+  const accountName = resolveDisplayName(user, 'Family manager');
   const initial = accountName.charAt(0).toUpperCase();
   const familyName = isDemo
     ? accountName
