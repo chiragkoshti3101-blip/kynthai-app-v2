@@ -79,6 +79,7 @@ import { LabResultsViewer } from '@/components/kynthai/patient/lab-results-viewe
 import { BookAppointment } from '@/components/kynthai/patient/book-appointment';
 import { formatAppointmentTime } from '@/lib/appointment-time';
 import dynamic from 'next/dynamic';
+import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
 
 // ── dynamic video-call load ───────────────────────────────────────────────
 const VideoCall = dynamic(
@@ -440,6 +441,7 @@ function HomeTab({
   appointmentsVersion?: number;
 }) {
   const greeting = useGreeting();
+  const displayName = resolveDisplayName(user);
   const [journalOpen, setJournalOpen] = React.useState(false);
   const [bookingOpen, setBookingOpen] = React.useState(false);
   const { toast } = useToast();
@@ -571,7 +573,7 @@ function HomeTab({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold">
-              {greeting}{user.name ? `, ${user.name.split(' ')[0]}` : ''}
+              {greeting}, {displayName.split(' ')[0]}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
               {appointments.length > 0
@@ -1641,7 +1643,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
   const isDemo = isDemoUser(user);
   // QA debug tools exist only for demo accounts in non-production builds.
   const showDebugAlarm = isDemo && isDemoEnabled();
-  const initial = (user?.name?.trim()?.[0] ?? 'U').toUpperCase();
+  const initial = resolveInitial(user);
 
   const handleLogout = React.useCallback(async () => {
     router.replace('/login');
@@ -1740,7 +1742,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
           )}
           {tab === 'tools' && (
             <FadeIn key="tools">
-              <CareHub memberName={user.name} />
+              <CareHub memberName={resolveDisplayName(user)} />
             </FadeIn>
           )}
           {tab === 'sos' && (
@@ -1774,7 +1776,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
         <FadeIn>
           <VideoCall
             roomName={joiningCallApptId}
-            displayName={user.name}
+            displayName={resolveDisplayName(user)}
             identity={user.id}
             role="patient"
             onEndCall={() => setJoiningCallApptId(null)}
@@ -1789,7 +1791,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
           open={shareOpen}
           onOpenChange={setShareOpen}
           title="Share Kynthai"
-          shareText={`${user.name ?? 'I'} use${user.name ? 's' : ''} Kynthai—your family's health, connected—with dose reminders, family updates and doctor consultations in one app.`}
+          shareText={`${resolveDisplayName(user, 'I')} uses Kynthai—your family's health, connected—with dose reminders, family updates and doctor consultations in one app.`}
         />
       )}
 
