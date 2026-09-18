@@ -16,7 +16,13 @@ import {
   openBrowserNotificationSettings,
 } from '@/lib/push'
 import { isNativeShell } from '@/lib/native-shell'
-import { openNativeNotificationSettings } from '@/lib/native-alarms'
+import {
+  openNativeNotificationSettings,
+  canScheduleExactAlarms,
+  openExactAlarmSettings,
+  canUseFullScreenIntent,
+  openFullScreenIntentSettings,
+} from '@/lib/native-alarms'
 import { nativePushPermission } from '@/lib/fcm'
 
 const DISMISS = 'kynthai.notif-banner.dismiss.v1'
@@ -26,6 +32,10 @@ export function NotificationPermissionBanner() {
   const [busy, setBusy] = React.useState(false)
   const [msg, setMsg] = React.useState<string | null>(null)
   const [alarmActive, setAlarmActive] = React.useState(false)
+  // Android special accesses that decide whether a dose alarm fires exactly
+  // and can take over the lock screen. They are granted outside the app, so
+  // the only useful action is to deep-link the user to the right screen.
+  const [capIssue, setCapIssue] = React.useState<'exact' | 'fullscreen' | null>(null)
 
   React.useEffect(() => {
     if (typeof window === 'undefined') return
@@ -59,14 +69,35 @@ export function NotificationPermissionBanner() {
       return
     }
     if (native) {
-      void nativePushPermission().then((perm) => {
-        if (perm === 'granted') return
-        setMsg(
-          perm === 'denied'
-            ? 'Notifications are blocked. Open phone settings for Kynthai and turn Notifications on.'
-            : 'Allow notifications so medication, doctor, and lab alerts reach this phone even when Kynthai is closed.',
-        )
-        setShow(true)
+      void nativePushPermission().then(async (perm) => {
+        if (perm !== 'granted') {
+          setMsg(
+            perm === 'denied'
+              ? 'Notifications are blocked. Open phone settings for Kynthai and turn Notifications on.'
+              : 'Allow notifications so medication, doctor, and lab alerts reach this phone even when Kynthai is closed.',
+          )
+          setShow(true)
+          return
+        }
+        // Permission is granted — but on Android a dose alarm can still be
+        // silently degraded. Android 12/12L needs "Alarms & reminders" for an
+        // exact alarm (otherwise Doze delays it); Android 14+ needs full-screen
+        // notifications for the alarm to take over a locked phone.
+        if (!(await canScheduleExactAlarms())) {
+          setCapIssue('exact')
+          setMsg(
+            'Turn on Alarms & reminders for Kynthai so dose reminders arrive on time instead of being delayed.',
+          )
+          setShow(true)
+          return
+        }
+        if (!(await canUseFullScreenIntent())) {
+          setCapIssue('fullscreen')
+          setMsg(
+            'Turn on full-screen notifications for Kynthai so a dose alarm can wake the screen when the phone is locked.',
+          )
+          setShow(true)
+        }
       })
       return
     }
@@ -88,6 +119,26 @@ export function NotificationPermissionBanner() {
   const onEnable = async () => {
     setBusy(true)
     try {
+      // A degraded Android capability is fixed in a system settings screen,
+      // not by re-requesting the notification permission.
+      if (capIssue === 'exact') {
+        const opened = await openExactAlarmSettings()
+        setMsg(
+          opened
+            ? 'Turn on Alarms & reminders for Kynthai, then return here.'
+            : 'Open Settings, choose Apps, Kynthai, Alarms & reminders, and allow it.',
+        )
+        return
+      }
+      if (capIssue === 'fullscreen') {
+        const opened = await openFullScreenIntentSettings()
+        setMsg(
+          opened
+            ? 'Turn on full-screen notifications for Kynthai, then return here.'
+            : 'Open Settings, choose Apps, Kynthai, Full-screen notifications, and allow it.',
+        )
+        return
+      }
       // A denied browser permission cannot be repaired by another prompt. Open
       // the browser settings surface instead of pretending the request worked.
       if (!isNativeShell() && permissionState() === 'denied') {
@@ -150,9 +201,11 @@ export function NotificationPermissionBanner() {
               <Bell className="h-3.5 w-3.5" />
               {busy
                 ? 'Requesting…'
-                : !isNativeShell() && permissionState() === 'denied'
-                  ? 'Open site settings'
-                  : 'Allow notifications'}
+                : capIssue
+                  ? 'Open settings'
+                  : !isNativeShell() && permissionState() === 'denied'
+                    ? 'Open site settings'
+                    : 'Allow notifications'}
             </Button>
             <Button size="sm" variant="ghost" className="min-h-11" onClick={dismiss}>
               Later
