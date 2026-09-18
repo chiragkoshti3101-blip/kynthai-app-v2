@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireSystemToken, jsonOk, jsonError } from '@/lib/api-helpers'
 import { hashPassword } from '@/lib/auth'
 import { logger } from '@/lib/logger'
+import { ensureDemoDoctorProfile, ensureDemoLabProfile } from '@/lib/demo-profiles'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,6 +69,15 @@ async function run(req: NextRequest) {
         })
         results.push({ email: d.email, action: 'created' })
       }
+    }
+
+    // Demo accounts are users only; provider portals need the matching profile row.
+    for (const d of DEMOS) {
+      if (d.role !== 'doctor' && d.role !== 'lab') continue
+      const u = await db.user.findUnique({ where: { email: d.email } })
+      if (!u) continue
+      if (d.role === 'doctor') await ensureDemoDoctorProfile(u.id)
+      else await ensureDemoLabProfile(u.id)
     }
 
     return jsonOk({ ok: true, count: results.length, results, password: 'Demo@2024' })
