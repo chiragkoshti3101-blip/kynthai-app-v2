@@ -59,7 +59,8 @@ public class DoseAlarmReceiver extends BroadcastReceiver {
     );
 
     NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-      .setSmallIcon(R.mipmap.ic_launcher)
+      .setSmallIcon(R.drawable.ic_stat_kynthai)
+      .setColor(context.getColor(R.color.notification_accent))
       .setContentTitle(title)
       .setContentText(body)
       .setStyle(new NotificationCompat.BigTextStyle().bigText(body))
