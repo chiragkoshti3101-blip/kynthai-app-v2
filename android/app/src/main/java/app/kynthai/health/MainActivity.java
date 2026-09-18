@@ -17,6 +17,8 @@ import androidx.core.splashscreen.SplashScreen;
 import com.getcapacitor.BridgeActivity;
 import com.google.firebase.messaging.FirebaseMessaging;
 import android.webkit.CookieManager;
+import android.content.Context;
+import android.content.SharedPreferences;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -102,6 +104,14 @@ public class MainActivity extends BridgeActivity {
         .addOnSuccessListener(token -> {
           if (token == null || token.isEmpty()) return;
           Log.d("MainActivity", "FCM token obtained: " + token.substring(0, Math.min(20, token.length())) + "...");
+          // Persist for DoseAlarmPlugin.getFcmToken(). Without this the token
+          // was only POSTed, never stored, so the unregister path could not
+          // name the device and disabling push left the server record live.
+          try {
+            SharedPreferences prefs =
+                getSharedPreferences("KynthaiFCM", Context.MODE_PRIVATE);
+            prefs.edit().putString("fcm_token", token).apply();
+          } catch (Exception ignored) {}
           // POST token to server in background thread
           new Thread(() -> {
             try {
