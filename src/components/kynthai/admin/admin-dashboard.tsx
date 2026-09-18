@@ -61,6 +61,7 @@ import {
   platformFee,
   PAYOUT_POLICY,
 } from '@/lib/commission';
+import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
 
 type AdminTab = 'overview' | 'doctors' | 'labs' | 'refunds' | 'revenue' | 'retention' | 'fraud';
 
@@ -252,7 +253,7 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
             >
               <Avatar className="h-9 w-9 ring-2 ring-emerald-500/20">
                 <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-sm font-semibold">
-                  {(user.name?.[0] ?? 'A').toUpperCase()}
+                  {resolveInitial(user, 'A')}
                 </AvatarFallback>
               </Avatar>
               <span className="hidden sm:inline text-xs font-medium text-muted-foreground">Profile</span>
@@ -339,7 +340,7 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
               data={overview}
               loading={!overview && !overviewError}
               error={overviewError}
-              userName={user.name ?? ''}
+              userName={resolveDisplayName(user)}
               onNavigate={tabId => setTab(tabId as AdminTab)}
             />
           </TabsContent>
@@ -505,7 +506,7 @@ function AdminProfileSheet({
   user: AuthUser;
   onLogout: () => void;
 }) {
-  const initial = (user.name?.[0] ?? 'A').toUpperCase();
+  const initial = resolveInitial(user, 'A');
 
   return (
     <ResponsiveSheet open={open} onOpenChange={onOpenChange}>
@@ -522,7 +523,7 @@ function AdminProfileSheet({
               <AvatarFallback className="bg-white/20 text-white text-xl font-bold">{initial}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-bold truncate">{user.name}</h2>
+              <h2 className="text-lg font-bold truncate">{resolveDisplayName(user)}</h2>
               <div className="mt-1 flex items-center gap-2">
                 <Badge className="bg-white/20 text-white border-0 capitalize">{user.role}</Badge>
                 <Badge className="bg-white/20 text-white border-0">Super admin</Badge>
