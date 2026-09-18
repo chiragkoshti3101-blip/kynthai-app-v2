@@ -47,6 +47,7 @@ import { PushNotificationToggle } from '@/components/kynthai/push-notification-t
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { isDemoUser } from '@/lib/demo-mode';
+import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
 
 interface ProfileHubProps {
   open: boolean;
@@ -145,7 +146,7 @@ export function ProfileHub({
     return () => { cancelled = true; };
   }, [isDemo]);
 
-  const initial = (user.name?.trim()?.[0] ?? 'U').toUpperCase();
+  const initial = resolveInitial(user);
   const tier = user.subscriptionTier ?? 'free';
   const tierInfo: TierInfo = (TIER_INFO[tier] ?? TIER_INFO.free) as TierInfo;
   const TierIcon = tierInfo.icon;
