@@ -34,6 +34,13 @@ import { KynthaiBrand } from './logo';
 import { FadeIn } from './animations';
 import { TurnstileWidget, type TurnstileWidgetHandle } from './turnstile-widget';
 import { runDemoLogin, demoRolePath, type DemoRole, DEMO_ROLES } from '@/lib/demo-login';
+
+// Hash-driven demo boot must not flash the sign-in form, so on the client the
+// marker is applied in a *layout* effect (before paint). On the server there is
+// no layout effect and no `window`, so it degrades to `useEffect` — which keeps
+// the hook order identical in both environments and avoids a hydration mismatch.
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect
 import { AppLoader } from '@/components/kynthai/app-loader';
 import { isDemoLoginEnabled, isDemoUser } from '@/lib/demo-mode'
 
@@ -150,15 +157,18 @@ export function LoginPage({
   // Keep the server-rendered loader and client auto-login on the same feature flag.
   // When demos are disabled in production, /login?demo=1 must fall back to the
   // normal sign-in form instead of rendering a loader whose effect will never run.
-  const hasDemoMarker =
-    typeof window !== 'undefined' &&
-    // URL marker survives only until the auto-login effect consumes it
-    (new URLSearchParams(window.location.search).get('demo') === '1' ||
-      ['patient', 'doctor', 'caretaker', 'lab', 'admin'].includes(
-        (window.location.hash || '').replace('#', '').toLowerCase()
-      ));
-  const bootRequestingDemo = isDemoLoginEnabled() && (initialDemo || hasDemoMarker);
-  const [demoBooting, setDemoBooting] = React.useState(bootRequestingDemo);
+  // Hydration safety: the URL *fragment* never reaches the server, so reading
+  // `window.location.hash` during render made the client render the demo loader
+  // while the server rendered the sign-in form — a React #418 hydration
+  // mismatch that fired on every `#role` demo link. `initialDemo` comes from the
+  // server component (searchParams.demo === '1'), so SSR and client agree on it;
+  // the hash role is applied in an effect below, after hydration.
+  const [demoBooting, setDemoBooting] = React.useState(isDemoLoginEnabled() && initialDemo);
+  useIsomorphicLayoutEffect(() => {
+    if (!isDemoLoginEnabled() || initialDemo) return;
+    const hashRole = (window.location.hash || '').replace('#', '').toLowerCase();
+    if ((DEMO_ROLES as string[]).includes(hashRole)) setDemoBooting(true);
+  }, [initialDemo]);
   const [hideDownloadCta, setHideDownloadCta] = React.useState(false);
   React.useEffect(() => {
     setHideDownloadCta(isNativeShell() || isStandaloneDisplay())
