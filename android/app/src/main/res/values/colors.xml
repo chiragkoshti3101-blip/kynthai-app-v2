@@ -5,4 +5,5 @@
     <color name="colorAccent">#10b981</color>
     <color name="splash_background">#10b981</color>
     <color name="app_background">#f9fdfb</color>
+    <color name="notification_accent">#10b981</color>
 </resources>
