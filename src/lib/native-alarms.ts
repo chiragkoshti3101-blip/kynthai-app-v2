@@ -296,6 +296,77 @@ export async function openNativeNotificationSettings(): Promise<boolean> {
 }
 
 /**
+ * Android 12/12L: exact alarms need SCHEDULE_EXACT_ALARM, a special access the
+ * user grants in system settings. Without it doses degrade to inexact alarms
+ * that Doze can delay. Android 13+ grants it at install for reminder apps.
+ * Returns true on non-Android platforms so callers can ignore it there.
+ */
+export async function canScheduleExactAlarms(): Promise<boolean> {
+  if (typeof window === 'undefined') return true
+  try {
+    const { Capacitor, registerPlugin } = await import('@capacitor/core')
+    if (Capacitor.getPlatform() !== 'android') return true
+    const DoseAlarm = registerPlugin<{ canScheduleExactAlarms: () => Promise<{ granted?: boolean }> }>(
+      'DoseAlarm',
+    )
+    const res = await DoseAlarm.canScheduleExactAlarms()
+    return res?.granted !== false
+  } catch {
+    return true
+  }
+}
+
+/** Open the system screen where exact-alarm access can be allowed. */
+export async function openExactAlarmSettings(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  try {
+    const { Capacitor, registerPlugin } = await import('@capacitor/core')
+    if (Capacitor.getPlatform() !== 'android') return false
+    const DoseAlarm = registerPlugin<{ openExactAlarmSettings: () => Promise<unknown> }>('DoseAlarm')
+    await DoseAlarm.openExactAlarmSettings()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Android 14+: full-screen intents can be denied, which downgrades the
+ * whole-phone alarm takeover to an ordinary notification. Returns true on
+ * platforms/builds where the capability is always available.
+ */
+export async function canUseFullScreenIntent(): Promise<boolean> {
+  if (typeof window === 'undefined') return true
+  try {
+    const { Capacitor, registerPlugin } = await import('@capacitor/core')
+    if (Capacitor.getPlatform() !== 'android') return true
+    const DoseAlarm = registerPlugin<{ canUseFullScreenIntent: () => Promise<{ granted?: boolean }> }>(
+      'DoseAlarm',
+    )
+    const res = await DoseAlarm.canUseFullScreenIntent()
+    return res?.granted !== false
+  } catch {
+    return true
+  }
+}
+
+/** Open the system screen where full-screen notifications can be allowed. */
+export async function openFullScreenIntentSettings(): Promise<boolean> {
+  if (typeof window === 'undefined') return false
+  try {
+    const { Capacitor, registerPlugin } = await import('@capacitor/core')
+    if (Capacitor.getPlatform() !== 'android') return false
+    const DoseAlarm = registerPlugin<{ openFullScreenIntentSettings: () => Promise<unknown> }>(
+      'DoseAlarm',
+    )
+    await DoseAlarm.openFullScreenIntentSettings()
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * Re-arm persisted dose alarms after the app was force-swiped from recents.
  * Android cancels AlarmManager alarms on force-stop; this re-schedules them
  * from the SharedPreferences-backed alarm list that survives the kill.
