@@ -3,6 +3,8 @@ import { db } from '@/lib/db'
 import { rateLimit } from '@/lib/security'
 import { requireAuth, jsonError, jsonOk, parseJsonCol } from '@/lib/api-helpers'
 import { logAudit } from '@/lib/auth'
+import { isDemoUser } from '@/lib/demo-mode'
+import { ensureDemoLabProfile } from '@/lib/demo-profiles'
 export const dynamic = 'force-dynamic'
 
 // SECURITY-CRITICAL: This endpoint returns lab-specific dashboard data (bookings, revenue, patient info).
@@ -23,7 +25,13 @@ export async function GET(req: NextRequest) {
     // Use session userId directly — no query param needed
     const userId = u.id
 
-    const profile = await db.labProfile.findUnique({ where: { userId: u.id }, include: { user: true } })
+    let profile = await db.labProfile.findUnique({ where: { userId: u.id }, include: { user: true } })
+    // Demo accounts are seeded without a provider profile; backfill it so the
+    // portal renders instead of dead-ending on a 404. Real accounts are untouched.
+    if (!profile && isDemoUser(u)) {
+      await ensureDemoLabProfile(u.id)
+      profile = await db.labProfile.findUnique({ where: { userId: u.id }, include: { user: true } })
+    }
     if (!profile) return jsonError('Lab profile not found', 404)
 
     const bookings = await db.labBooking.findMany({
