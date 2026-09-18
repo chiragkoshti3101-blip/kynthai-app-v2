@@ -142,6 +142,10 @@ function PendingState({
   onLogout: () => void;
 }) {
   const isDemo = isDemoUser(user);
+  const accountName = (user.name?.trim() || 'Doctor').replace(/^Dr\.?\s+/i, '');
+  const greetingName = isDemo
+    ? `Dr. ${accountName}`
+    : `Dr. ${accountName.split(' ').filter(Boolean).slice(-1)[0] ?? 'Doctor'}`;
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-amber-50/50 via-background to-background dark:from-amber-950/20">
       <div className="mx-auto max-w-md px-4 py-12">
@@ -156,7 +160,7 @@ function PendingState({
             Verification in progress
           </Badge>
           <h1 className="text-2xl font-bold tracking-tight">
-            Hi Dr. {isDemo ? 'Demo User' : (user.name?.split(' ').slice(-1)[0] ?? 'Doctor')}
+            Hi {greetingName}
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Thanks for submitting your details. Our admin team is reviewing your profile and
