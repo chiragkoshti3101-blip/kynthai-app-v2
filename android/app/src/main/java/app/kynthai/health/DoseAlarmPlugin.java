@@ -2,6 +2,7 @@ package app.kynthai.health;
 
 import android.Manifest;
 import android.app.AlarmManager;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -188,6 +189,97 @@ public class DoseAlarmPlugin extends Plugin {
       call.resolve();
     } catch (Exception e) {
       call.reject("openNotificationSettings failed: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Report whether this app may schedule *exact* alarms. On Android 12/12L
+   * SCHEDULE_EXACT_ALARM is a special access the user must enable; when it is
+   * off, canScheduleExactAlarms() is false and doses fall back to inexact
+   * alarms that Doze can delay. Android 13+ grants USE_EXACT_ALARM at install
+   * for alarm/reminder apps, so this reports true without a prompt there.
+   */
+  @PluginMethod
+  public void canScheduleExactAlarms(PluginCall call) {
+    boolean granted;
+    if (Build.VERSION.SDK_INT >= 31) {
+      AlarmManager am =
+          (AlarmManager) getContext().getSystemService(Context.ALARM_SERVICE);
+      granted = am != null && am.canScheduleExactAlarms();
+    } else {
+      granted = true; // exact alarms are a normal capability below API 31
+    }
+    JSObject ret = new JSObject();
+    ret.put("granted", granted);
+    ret.put("sdk", Build.VERSION.SDK_INT);
+    call.resolve(ret);
+  }
+
+  /** Open the system screen where the user can allow exact alarms. */
+  @PluginMethod
+  public void openExactAlarmSettings(PluginCall call) {
+    try {
+      Context ctx = getContext();
+      Intent intent;
+      if (Build.VERSION.SDK_INT >= 31) {
+        intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+        intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+      } else {
+        intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+        intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+      }
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      ctx.startActivity(intent);
+      JSObject ret = new JSObject();
+      ret.put("opened", true);
+      call.resolve(ret);
+    } catch (Exception e) {
+      call.reject("openExactAlarmSettings failed: " + e.getMessage());
+    }
+  }
+
+  /**
+   * Report whether full-screen intents are permitted. Android 14+ can deny
+   * USE_FULL_SCREEN_INTENT, which downgrades the alarm takeover to a plain
+   * notification with no lock-screen takeover.
+   */
+  @PluginMethod
+  public void canUseFullScreenIntent(PluginCall call) {
+    boolean granted;
+    if (Build.VERSION.SDK_INT >= 34) {
+      NotificationManager nm =
+          (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+      granted = nm != null && nm.canUseFullScreenIntent();
+    } else {
+      granted = true;
+    }
+    JSObject ret = new JSObject();
+    ret.put("granted", granted);
+    ret.put("sdk", Build.VERSION.SDK_INT);
+    call.resolve(ret);
+  }
+
+  /** Open the system screen where the user can allow full-screen notifications. */
+  @PluginMethod
+  public void openFullScreenIntentSettings(PluginCall call) {
+    try {
+      Context ctx = getContext();
+      Intent intent;
+      if (Build.VERSION.SDK_INT >= 34) {
+        intent = new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT);
+        // The settings screen needs the package to know which app to show.
+        intent.setData(Uri.parse("package:" + ctx.getPackageName()));
+      } else {
+        intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+        intent.putExtra(Settings.EXTRA_APP_PACKAGE, ctx.getPackageName());
+      }
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      ctx.startActivity(intent);
+      JSObject ret = new JSObject();
+      ret.put("opened", true);
+      call.resolve(ret);
+    } catch (Exception e) {
+      call.reject("openFullScreenIntentSettings failed: " + e.getMessage());
     }
   }
 
