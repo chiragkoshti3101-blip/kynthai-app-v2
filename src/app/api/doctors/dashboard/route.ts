@@ -5,6 +5,8 @@ import { rateLimit } from '@/lib/security'
 import { requireAuth, jsonError, jsonOk } from '@/lib/api-helpers'
 import { doctorLoyaltyTier, effectiveFeePct, DOCTOR_BASE_FEE_PCT } from '@/lib/commission'
 import { getDoctorTierConfig } from '@/lib/doctor-subscription'
+import { isDemoUser } from '@/lib/demo-mode'
+import { ensureDemoDoctorProfile } from '@/lib/demo-profiles'
 export const dynamic = 'force-dynamic'
 
 // GET /api/doctors/dashboard
@@ -20,7 +22,13 @@ export async function GET(req: NextRequest) {
 
   await logAudit(user.id, 'doctor.dashboard.read', { resourceType: 'DoctorProfile' })
 
-  const profile = await db.doctorProfile.findUnique({ where: { userId: u.id }, include: { user: true } })
+  let profile = await db.doctorProfile.findUnique({ where: { userId: u.id }, include: { user: true } })
+  // Demo accounts are seeded without a provider profile; backfill it so the
+  // portal renders instead of dead-ending on a 404. Real accounts are untouched.
+  if (!profile && isDemoUser(u)) {
+    await ensureDemoDoctorProfile(u.id)
+    profile = await db.doctorProfile.findUnique({ where: { userId: u.id }, include: { user: true } })
+  }
   if (!profile) return jsonError('Doctor profile not found. Submit verification first.', 404)
   if (!profile.verified) return jsonError('Your profile is pending verification. Please wait for admin approval.', 403)
 
