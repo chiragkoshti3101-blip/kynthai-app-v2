@@ -73,6 +73,7 @@ import {
   PAYOUT_POLICY,
 } from '@/lib/commission';
 import { isDemoEnabled } from '@/lib/demo-mode'
+import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
 interface DoctorProfile {
   id: string;
   specialization: string;
@@ -796,7 +797,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   const nearCap = slotsUsed >= FREE_PATIENT_CAP - 2; // 3+/5 → prompt upgrade
 
   // Identity comes from the account, never a hardcoded demo placeholder.
-  const accountName = (user.name?.trim() || 'Doctor').replace(/^Dr\.?\s+/i, '');
+  const accountName = resolveDisplayName(user, 'Doctor').replace(/^Dr\.?\s+/i, '');
   const initial = accountName.charAt(0).toUpperCase();
   const doctorLabel = isDemo
     ? accountName
@@ -932,7 +933,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                       {profile.specialization} · {profile.city}
                     </p>
                     <h1 className="mt-1 text-2xl font-bold tracking-tight">
-                      Dr. {user.name?.split(' ').slice(-1)[0] ?? 'Doctor'}
+                      Dr. {(isDemo ? accountName : accountName.split(' ').filter(Boolean).slice(-1)[0]) || 'Doctor'}
                     </h1>
                     <p className="mt-1 text-sm opacity-90">
                       {todayCount} upcoming today · {completed} completed recently
@@ -2380,7 +2381,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
       {joiningCallApptId && (
         <VideoCall
           roomName={joiningCallApptId}
-          displayName={user.name}
+          displayName={resolveDisplayName(user, 'Doctor')}
           identity={user.id}
           role="doctor"
           onEndCall={() => setJoiningCallApptId(null)}
