@@ -12,6 +12,7 @@ import { DoctorVerification } from './doctor-verification';
 import { DoctorDashboard } from './doctor-dashboard';
 import { AppLoader } from '@/components/kynthai/app-loader';
 import { isDemoUser } from '@/lib/demo-mode';
+import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
 
 type ProfileState = 'loading' | 'none' | 'pending' | 'verified' | 'rejected';
 
@@ -142,7 +143,7 @@ function PendingState({
   onLogout: () => void;
 }) {
   const isDemo = isDemoUser(user);
-  const accountName = (user.name?.trim() || 'Doctor').replace(/^Dr\.?\s+/i, '');
+  const accountName = resolveDisplayName(user, 'Doctor').replace(/^Dr\.?\s+/i, '');
   const greetingName = isDemo
     ? `Dr. ${accountName}`
     : `Dr. ${accountName.split(' ').filter(Boolean).slice(-1)[0] ?? 'Doctor'}`;
