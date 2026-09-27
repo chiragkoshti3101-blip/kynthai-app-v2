@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { rateLimit } from '@/lib/security';
+import { rateLimit, sanitizeText } from '@/lib/security';
 import { jsonError, jsonOk, parseJsonCol, readJson, requireAuthWithCsrf } from '@/lib/api-helpers';
 import { logger } from '@/lib/logger';
 import { logAudit } from '@/lib/auth';
@@ -74,8 +74,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!profile) return jsonError('Lab not found', 404)
   if (profile.userId !== user.id) return jsonError('You can only update your own lab pricing', 403)
 
-  const body = await readJson<{ longDistanceTravelFeeCents?: unknown }>(req)
+  const body = await readJson<{ longDistanceTravelFeeCents?: unknown; address?: unknown }>(req)
   if (!body) return jsonError('Invalid JSON', 400)
+
+  // A verified provider must be able to publish its own service address.
+  // The market derives serviceZip from it (extractZip), and with no ZIP every
+  // home-collection booking is impossible: the CTA can never enable.
+  if ('address' in body) {
+    const nextAddress = sanitizeText(String(body.address ?? ''), 500)
+    const updated = await db.labProfile.update({
+      where: { id },
+      data: { address: nextAddress || null },
+    })
+    await logAudit(user.id, 'lab.address.update', `profile=${id}`)
+    if (!('longDistanceTravelFeeCents' in body)) {
+      return jsonOk({
+        id: updated.id,
+        address: updated.address,
+        serviceZip: extractZip(updated.address || ''),
+      })
+    }
+  }
 
   const raw = body.longDistanceTravelFeeCents
   if (raw === null || raw === undefined || raw === '') {
