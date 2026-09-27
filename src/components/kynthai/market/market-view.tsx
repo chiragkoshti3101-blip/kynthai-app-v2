@@ -825,6 +825,11 @@ function LabBookingDialog({
                 className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               />
             </div>
+            {lab?.homeCollection && !lab?.zip && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                This provider has not published a service area yet, so online home collection is unavailable. Please contact the provider directly to arrange collection.
+              </p>
+            )}
             {deliveryResult && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs">
@@ -924,15 +929,17 @@ function LabBookingDialog({
               ? 'Select tests'
               : !lab?.homeCollection
                 ? `Pay $${total.toFixed(2)}`
-                : !deliveryResult
-                  ? 'Enter address'
-                  : deliveryResult.contactLab
-                    ? 'Contact provider'
-                    : !deliveryResult.quoteAvailable
-                      ? 'Provider quote unavailable'
-                      : deliveryResult.quoteRequired && !deliveryQuoteAccepted
-                        ? 'Accept travel quote'
-                        : `Pay $${total.toFixed(2)}`}
+                : !lab?.zip
+                  ? 'Service area unavailable'
+                  : !deliveryResult
+                    ? 'Enter address'
+                    : deliveryResult.contactLab
+                      ? 'Contact provider'
+                      : !deliveryResult.quoteAvailable
+                        ? 'Provider quote unavailable'
+                        : deliveryResult.quoteRequired && !deliveryQuoteAccepted
+                          ? 'Accept travel quote'
+                          : `Pay $${total.toFixed(2)}`}
           </Button>
         </DialogFooter>
       </DialogContent>
