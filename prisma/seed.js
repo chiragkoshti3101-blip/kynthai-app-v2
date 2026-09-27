@@ -135,6 +135,10 @@ async function main() {
       reviewCount: 89,
       homeCollection: true,
       city: 'Austin, TX',
+      // /api/labs derives serviceZip from this via extractZip(). Home
+      // collection travel pricing needs a provider ZIP; without one the
+      // market's booking button can never become enabled.
+      address: '1400 Health Ave, Austin, TX 78701',
       verificationStatus: 'approved',
     },
   });
