@@ -1,5 +1,13 @@
 'use client';
 
+// Money helper: consultation fees are stored in CENTS (DoctorProfile.consultationFee: Int,
+// seeded as 7500 = "$75"; Appointment.price copies the same value). Never render raw.
+export function formatFeeCents(cents: number | null | undefined): string {
+  const n = Number(cents) || 0
+  return `$${(n / 100).toFixed(n % 100 === 0 ? 0 : 2)}`
+}
+
+
 import * as React from 'react';
 import { Loader2, CheckCircle2, CalendarDays, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -202,7 +210,7 @@ export function BookAppointment({ open, onOpenChange }: Props) {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                        ${d.consultationFee}
+                        {formatFeeCents(d.consultationFee)}
                       </p>
                       <p className="text-[10px] text-muted-foreground">per session</p>
                     </div>
@@ -225,7 +233,7 @@ export function BookAppointment({ open, onOpenChange }: Props) {
                   <p className="text-xs text-muted-foreground">{selectedDoctor.specialization}</p>
                 </div>
                 <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                  ${selectedDoctor.consultationFee}
+                  {formatFeeCents(selectedDoctor.consultationFee)}
                 </p>
               </div>
 
