@@ -218,7 +218,7 @@ export function ProfileHub({
             city: professionalDraft.city || '',
             bio: professionalDraft.bio || '',
             experience: Number(professionalDraft.experience) || 0,
-            consultationFee: Number(professionalDraft.consultationFee) || 0,
+            consultationFee: Math.round((Number(professionalDraft.consultationFee) || 0) * 100), // dollars -> cents
           }
         : {
             labName: professionalDraft.labName || '',
@@ -482,7 +482,7 @@ export function ProfileHub({
                     <>
                       <div className="space-y-1"><Label htmlFor="pro-specialty">Specialty</Label><Input id="pro-specialty" value={professionalDraft.specialization || ''} onChange={e => setProfessionalDraft(p => ({ ...p, specialization: e.target.value }))} /></div>
                       <div className="space-y-1"><Label htmlFor="pro-city">City / region</Label><Input id="pro-city" value={professionalDraft.city || ''} onChange={e => setProfessionalDraft(p => ({ ...p, city: e.target.value }))} /></div>
-                      <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label htmlFor="pro-exp">Years experience</Label><Input id="pro-exp" type="number" min="0" value={professionalDraft.experience ?? 0} onChange={e => setProfessionalDraft(p => ({ ...p, experience: Number(e.target.value) }))} /></div><div className="space-y-1"><Label htmlFor="pro-fee">Consultation fee</Label><Input id="pro-fee" type="number" min="0" value={professionalDraft.consultationFee ?? 0} onChange={e => setProfessionalDraft(p => ({ ...p, consultationFee: Number(e.target.value) }))} /></div></div>
+                      <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label htmlFor="pro-exp">Years experience</Label><Input id="pro-exp" type="number" min="0" value={professionalDraft.experience ?? 0} onChange={e => setProfessionalDraft(p => ({ ...p, experience: Number(e.target.value) }))} /></div><div className="space-y-1"><Label htmlFor="pro-fee">Consultation fee</Label><Input id="pro-fee" type="number" min="0" value={(professionalDraft.consultationFee ?? 0) / 100} onChange={e => setProfessionalDraft(p => ({ ...p, consultationFee: Number(e.target.value) }))} /></div></div>
                       <div className="space-y-1"><Label htmlFor="pro-bio">Professional bio</Label><Input id="pro-bio" value={professionalDraft.bio || ''} onChange={e => setProfessionalDraft(p => ({ ...p, bio: e.target.value }))} /></div>
                     </>
                   ) : (
@@ -500,7 +500,7 @@ export function ProfileHub({
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    {userRole === 'doctor' ? (<><ContactRow icon={UserCircle} label="Specialty" value={professionalProfile.specialization || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Crown} label="Consultation fee" value={professionalProfile.consultationFee != null ? `$${professionalProfile.consultationFee}` : 'Not added'} /></>) : (<><ContactRow icon={UserCircle} label="Laboratory" value={professionalProfile.labName || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Heart} label="Collection" value={professionalProfile.homeCollection ? 'Home collection' : 'In-lab only'} /></>)}
+                    {userRole === 'doctor' ? (<><ContactRow icon={UserCircle} label="Specialty" value={professionalProfile.specialization || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Crown} label="Consultation fee" value={professionalProfile.consultationFee != null ? `$${professionalProfile.consultationFee / 100}` : 'Not added'} /></>) : (<><ContactRow icon={UserCircle} label="Laboratory" value={professionalProfile.labName || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Heart} label="Collection" value={professionalProfile.homeCollection ? 'Home collection' : 'In-lab only'} /></>)}
                   </div>
                   <Button variant="outline" className="w-full" onClick={() => { setProfessionalDraft(professionalProfile); setProfessionalEditing(true); }} disabled={isDemo}>{isDemo ? 'Demo profile (read-only)' : 'Edit professional profile'}</Button>
                 </>
