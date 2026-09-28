@@ -62,7 +62,7 @@
     --popover: #ffffff;
     --popover-foreground: #09140f;
     /* Emerald primary */
-  --primary: #089868;
+  --primary: #07805f;
     --primary-foreground: #f9fdfb;
     --secondary: #e9f5ef;
     --secondary-foreground: #13261e;
@@ -73,20 +73,20 @@
     --destructive: #e7000b;
     --border: #e2e5e8;
     --input: #dfe7e3;
-    --ring: #089868;
-    --chart-1: #089868;
+    --ring: #07805f;
+    --chart-1: #07805f;
     --chart-2: #24b6a1;
     --chart-3: #6bc670;
     --chart-4: #d8b501;
     --chart-5: #ee560c;
     --sidebar: #f7fbf9;
     --sidebar-foreground: #09140f;
-    --sidebar-primary: #089868;
+    --sidebar-primary: #07805f;
     --sidebar-primary-foreground: #f9fdfb;
     --sidebar-accent: #daf2e6;
     --sidebar-accent-foreground: #02291c;
     --sidebar-border: #d8e0dc;
-    --sidebar-ring: #089868;
+    --sidebar-ring: #07805f;
 }
 
 @supports (color: oklch(0% 0 0)) {
@@ -98,7 +98,7 @@
           --popover: oklch(1 0 0);
           --popover-foreground: oklch(0.18 0.02 165);
           /* Emerald primary */
-      --primary: oklch(0.6 0.13 162);
+      --primary: oklch(0.48 0.1 163);
           --primary-foreground: oklch(0.99 0.005 160);
           --secondary: oklch(0.96 0.015 165);
           --secondary-foreground: oklch(0.25 0.03 165);
@@ -109,20 +109,20 @@
           --destructive: oklch(0.577 0.245 27.325);
           --border: oklch(0.92 0.005 250);
           --input: oklch(0.92 0.01 165);
-          --ring: oklch(0.6 0.13 162);
-          --chart-1: oklch(0.6 0.13 162);
+          --ring: oklch(0.48 0.1 163);
+          --chart-1: oklch(0.48 0.1 163);
           --chart-2: oklch(0.7 0.12 180);
           --chart-3: oklch(0.75 0.15 145);
           --chart-4: oklch(0.78 0.16 95);
           --chart-5: oklch(0.65 0.2 40);
           --sidebar: oklch(0.985 0.005 160);
           --sidebar-foreground: oklch(0.18 0.02 165);
-          --sidebar-primary: oklch(0.6 0.13 162);
+          --sidebar-primary: oklch(0.48 0.1 163);
           --sidebar-primary-foreground: oklch(0.99 0.005 160);
           --sidebar-accent: oklch(0.94 0.03 165);
           --sidebar-accent-foreground: oklch(0.25 0.05 165);
           --sidebar-border: oklch(0.9 0.01 165);
-          --sidebar-ring: oklch(0.6 0.13 162);
+          --sidebar-ring: oklch(0.48 0.1 163);
     }
 }
 
@@ -589,4 +589,16 @@ html { --deploy-hash-ref: var(--deploy-hash); }
 /* Parent rows must not crush the switch */
 .kynthai-switch {
     margin-left: auto;
+}
+
+/* WCAG AA contrast (4.5:1): remap emerald-600 text/icon color.
+   Light: emerald-700 #047857 (5.48:1 on white). Dark: emerald-400 #34d399 (8.7:1 on #070f0c).
+   Fixes the 3.77:1 text links without editing 300+ call sites. */
+@layer utilities {
+  .text-emerald-600 {
+    color: #047857;
+  }
+  .dark .text-emerald-600 {
+    color: #34d399;
+  }
 }
