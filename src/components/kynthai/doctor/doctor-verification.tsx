@@ -180,7 +180,7 @@ export function DoctorVerification({ user, existing, onSubmitted, onLogout }: Do
           specialization,
           licenseNumber,
           experience: parseInt(experience, 10) || 0,
-          consultationFee: parseFloat(consultationFee) || 0,
+          consultationFee: Math.round((parseFloat(consultationFee) || 0) * 100), // form is dollars, DB is cents
           city,
           bio,
           videoCallEnabled: videoCall,
