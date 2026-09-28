@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     return Response.json({ ok: true, column: rows[0] ?? null })
   } catch (e) {
     return Response.json(
-      { ok: false, error: e instanceof Error ? e.message : 'bootstrap failed' },
+      { ok: false, error: process.env.NODE_ENV === 'production' ? 'bootstrap failed' : (e instanceof Error ? e.message : 'bootstrap failed') },
       { status: 500 }
     )
   }
