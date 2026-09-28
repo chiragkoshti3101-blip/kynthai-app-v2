@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { logAudit } from '@/lib/auth';
 import { sanitizeText, rateLimit } from '@/lib/security';
 import { encrypt, decryptValue } from '@/lib/encryption';
+import { resolveDisplayName } from '@/lib/display-name';
 import { checkCsrf } from '@/lib/csrf';
 import { jsonError, jsonOk, readJson, audit, parseJsonCol, requireAuth } from '@/lib/api-helpers';
 import { verifyNpi } from '@/lib/npi-verify';
@@ -35,7 +36,10 @@ export async function GET(req: NextRequest) {
     return jsonOk({
       id: profile.id,
       userId: profile.userId,
-      name: profile.user.name || 'Verified Doctor',
+      name: resolveDisplayName(
+        { name: profile.user.name, email: profile.user.email, role: 'doctor', isDemo: profile.user.isDemo },
+        'Verified Doctor',
+      ),
       specialization: profile.specialization,
       licenseNumber: profile.licenseNumber,
       experience: profile.experience,
@@ -91,7 +95,10 @@ export async function GET(req: NextRequest) {
     doctors.map((d: any) => ({
       id: d.id,
       userId: d.userId,
-      name: d.user.name || 'Verified Doctor',
+      name: resolveDisplayName(
+        { name: d.user?.name, email: d.user?.email, role: 'doctor', isDemo: d.user?.isDemo },
+        'Verified Doctor',
+      ),
       specialization: d.specialization,
       consultationFee: d.consultationFee,
       city: d.city,
