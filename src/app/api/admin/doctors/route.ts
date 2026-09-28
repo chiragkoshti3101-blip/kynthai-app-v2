@@ -109,6 +109,6 @@ export async function PUT(req: NextRequest) {
     }
   } catch (error: any) {
     logger.phiSafeError(error);
-    return jsonError(error?.message?.slice(0, 200) || 'Internal server error', 500);
+    return jsonError(process.env.NODE_ENV === 'production' ? 'Internal server error' : (error?.message?.slice(0, 200) || 'Internal server error'), 500);
   }
 }
