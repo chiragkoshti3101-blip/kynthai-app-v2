@@ -259,6 +259,6 @@ export async function POST(req: NextRequest) {
   })
   } catch (error: any) {
     logger.phiSafeError(error, 'doctors.prescribe');
-    return jsonError(error?.message?.slice(0, 300) || 'Failed to create prescription', 500);
+    return jsonError(process.env.NODE_ENV === 'production' ? 'Failed to create prescription' : (error?.message?.slice(0, 300) || 'Failed to create prescription'), 500);
   }
 }
