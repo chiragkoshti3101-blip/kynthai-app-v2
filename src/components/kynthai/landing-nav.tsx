@@ -62,13 +62,14 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
       )}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <button
-          onClick={() => goScreen('landing')}
+        <Link
+          href="/"
+          onClick={() => setOpen(false)}
           className="flex items-center py-2 -my-2"
           aria-label="Kynthai home"
         >
           <KynthaiBrand />
-        </button>
+        </Link>
 
         <nav className="hidden items-center gap-1 lg:flex" aria-label="Main">
           {links.map((l) => (
