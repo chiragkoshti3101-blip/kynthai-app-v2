@@ -414,7 +414,7 @@ export function PrivacyPolicy() {
       <p>Kynthai uses AI (large language models, vision models, speech recognition) for chat, symptom analysis, medicine identification, prescription scanning, drug-interaction checking, and insights. These features provide <strong>advisory information only</strong> and do not make automated decisions with legal or similarly significant effects about you. All AI outputs are clearly labelled as AI-generated, and a qualified healthcare professional should be consulted before making medical decisions. You may request human review of any AI-generated output by contacting your doctor or <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />.</p>
 
       <SectionTitle icon={FileText}>17. Changes to this policy</SectionTitle>
-      <p>We may update this policy from time to time. We will notify you of material changes via email and in-app at least 30 days before they take effect. Continued use after the effective date constitutes acceptance. A version history is available at <a href="https://kynthai.app/privacy/history" className="text-emerald-600 underline">kynthai.app/privacy/history</a>.</p>
+      <p>We may update this policy from time to time. We will notify you of material changes via email and in-app at least 30 days before they take effect. Continued use after the effective date constitutes acceptance. A version history is available at <a href="https://kynthai.app/legal" className="text-emerald-600 underline">kynthai.app/legal</a>.</p>
 
       <SectionTitle icon={Mail}>18. Contact & Privacy Officer</SectionTitle>
       <p>
