@@ -237,12 +237,13 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
 
   // ── Consultation fee edit ──────────────────────────────────────────────────
   const [editingFee, setEditingFee] = React.useState(false);
-  const [newFee, setNewFee] = React.useState(String(profile.consultationFee));
+  // The fee editor works in DOLLARS; the DB stores CENTS.
+  const [newFee, setNewFee] = React.useState(String(profile.consultationFee / 100));
   const [savingFee, setSavingFee] = React.useState(false);
-  const displayFee = editingFee ? Number(newFee) || 0 : profile.consultationFee;
+  const displayFee = editingFee ? (Number(newFee) || 0) * 100 : profile.consultationFee;
 
   const handleSaveFee = React.useCallback(async () => {
-    const fee = Number(newFee) || 0;
+    const fee = Math.round((Number(newFee) || 0) * 100); // dollars -> cents
     if (fee < 0) {
       toast({ title: 'Invalid fee', description: 'Fee must be a positive number.', variant: 'destructive' });
       return;
@@ -259,7 +260,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
       });
       if (!res.ok) throw new Error('Failed to update fee');
       setEditingFee(false);
-      toast({ title: 'Fee updated', description: `Consultation fee set to $${fee}` });
+      toast({ title: 'Fee updated', description: `Consultation fee set to $${fee / 100}` });
     } catch {
       toast({ title: 'Update failed', variant: 'destructive' });
     } finally {
@@ -1419,7 +1420,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                             className="flex items-center gap-1 justify-center mx-auto text-base sm:text-lg font-bold hover:opacity-70 transition-opacity"
                             title="Edit consultation fee"
                           >
-                            ${profile.consultationFee}
+                            ${profile.consultationFee / 100}
                             <Edit3 className="h-3 w-3 text-muted-foreground" />
                           </button>
                         )}
