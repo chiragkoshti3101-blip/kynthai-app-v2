@@ -71,7 +71,10 @@ export function PrivacyPolicy() {
           not claim HIPAA compliance. We follow applicable US federal and state
           consumer privacy laws, including the FTC Health Breach Notification
           Rule and state consumer health privacy laws, and we apply strong
-          safeguards to your sensitive health data.
+          safeguards to your sensitive health data. For users outside the
+          United States, we also follow applicable local data-protection laws,
+          including the EU General Data Protection Regulation (GDPR) and the
+          UK GDPR where they apply.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           <strong>Note:</strong> We regularly review this policy to keep it aligned with applicable rules.
@@ -352,6 +355,15 @@ export function PrivacyPolicy() {
       </p>
       <p><strong>We never sell your personal or health data.</strong> We never share health data for advertising purposes.</p>
 
+      <SectionTitle icon={Globe}>12A. International users (EU / UK GDPR & other jurisdictions)</SectionTitle>
+      <p>Kynthai operates worldwide. If you access the service from the European Economic Area, the United Kingdom, or another jurisdiction with its own data-protection law, the following also applies to you:</p>
+      <ul>
+        <li><strong>Legal bases:</strong> we process your data to perform our contract with you (the Terms), to comply with legal obligations, to protect vital interests (for example emergency SOS routing), and on the basis of our legitimate interests (service improvement, security, and fraud prevention) where those do not override your rights.</li>
+        <li><strong>Your rights:</strong> in addition to the rights above, you may request access to, rectification of, erasure of, restriction of processing of, or portability of your personal data, and you may object to processing based on legitimate interests or to automated decision-making. To exercise any of these rights, email <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" />.</li>
+        <li><strong>International transfers:</strong> where your data is transferred outside your jurisdiction (for example to the United States), we rely on appropriate safeguards, including standard contractual clauses where required, so your data continues to receive an equivalent level of protection.</li>
+        <li><strong>Complaints:</strong> you may lodge a complaint with your local supervisory authority (such as the Irish DPC for the EU or the ICO for the UK) at any time.</li>
+      </ul>
+
       <SectionTitle icon={FileText}>13. Cookies & local storage</SectionTitle>
       <p>Kynthai uses:</p>
       <ul>
@@ -414,7 +426,7 @@ export function PrivacyPolicy() {
       <p>Kynthai uses AI (large language models, vision models, speech recognition) for chat, symptom analysis, medicine identification, prescription scanning, drug-interaction checking, and insights. These features provide <strong>advisory information only</strong> and do not make automated decisions with legal or similarly significant effects about you. All AI outputs are clearly labelled as AI-generated, and a qualified healthcare professional should be consulted before making medical decisions. You may request human review of any AI-generated output by contacting your doctor or <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />.</p>
 
       <SectionTitle icon={FileText}>17. Changes to this policy</SectionTitle>
-      <p>We may update this policy from time to time. We will notify you of material changes via email and in-app at least 30 days before they take effect. Continued use after the effective date constitutes acceptance. A version history is available at <a href="https://kynthai.app/legal" className="text-emerald-600 underline">kynthai.app/legal</a>.</p>
+      <p>We may update this policy from time to time. We will notify you of material changes via email and in-app at least 30 days before they take effect. Continued use after the effective date constitutes acceptance. A version history is available at <a href="https://kynthai.app/privacy/history" className="text-emerald-600 underline">kynthai.app/privacy/history</a>.</p>
 
       <SectionTitle icon={Mail}>18. Contact & Privacy Officer</SectionTitle>
       <p>
