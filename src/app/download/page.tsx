@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: 'Download Kynthai for Android',
   description:
     'Current production Android APK — reliable medication reminders and notifications when the app is closed.',
+  alternates: { canonical: 'https://kynthai.app/download' },
 }
 
 const APK = '/downloads/kynthai-android.apk'
