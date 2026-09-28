@@ -5,6 +5,7 @@ import { ErrorBoundary } from '@/components/kynthai/error-boundary'
 export const metadata: Metadata = {
   title: 'Pricing',
   description: 'Kynthai pricing plans — Free, Individual, and Family health management plans for families everywhere. Secure card and ACH billing.',
+  alternates: { canonical: 'https://kynthai.app/pricing' },
   openGraph: {
     title: 'Kynthai Pricing — AI Health Plans for Families Everywhere',
     description: 'Free, Individual ($19.99/mo), Family ($39.99/mo) with secure card and ACH billing. AI health plans for families everywhere.',
