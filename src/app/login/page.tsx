@@ -5,6 +5,7 @@ import { ErrorBoundary } from '@/components/kynthai/error-boundary'
 export const metadata: Metadata = {
   title: 'Sign in',
   description: 'Sign in to Kynthai — family health, patient, doctor, or lab portal.',
+  alternates: { canonical: 'https://kynthai.app/login' },
 }
 
 export default async function LoginRoute({
