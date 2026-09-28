@@ -1,5 +1,13 @@
 'use client'
 
+// Money helper: consultation fees are stored in CENTS (DoctorProfile.consultationFee: Int,
+// seeded as 7500 = "$75"; Appointment.price copies the same value). Never render raw.
+export function formatFeeCents(cents: number | null | undefined): string {
+  const n = Number(cents) || 0
+  return `$${(n / 100).toFixed(n % 100 === 0 ? 0 : 2)}`
+}
+
+
 import * as React from 'react'
 import {
   Search,
@@ -245,7 +253,7 @@ function DoctorsTab() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">${d.consultationFee}</p>
+                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatFeeCents(d.consultationFee)}</p>
                     <p className="text-[10px] text-muted-foreground">per session</p>
                   </div>
                 </div>
@@ -368,7 +376,7 @@ function BookingDialog({
         <DialogHeader>
           <DialogTitle>Book video consultation</DialogTitle>
           <DialogDescription>
-            {doctor?.name} · ${doctor?.consultationFee}
+            {doctor?.name} · {formatFeeCents(doctor?.consultationFee)}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
