@@ -74,7 +74,7 @@ export function ConsultationConsent({
               <span className="text-muted-foreground">Consultation fee</span>
               <span className="font-medium">
                 {currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$'}
-                {consultationFee}
+                {(Number(consultationFee) || 0) / 100}
               </span>
             </div>
           </div>
