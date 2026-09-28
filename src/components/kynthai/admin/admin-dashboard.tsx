@@ -1526,7 +1526,7 @@ function toDoctorApp(x: any): DoctorApp {
     licenseNumber: x.licenseNumber ?? '',
     city: x.city ?? '',
     experience: x.experience ?? 0,
-    fee: x.consultationFee ?? 0,
+    fee: (x.consultationFee ?? 0) / 100, // stored in cents
     status,
     submittedAt: x.submittedAt ? timeAgo(x.submittedAt) : 'unknown',
     documents: x.documents ?? [],
