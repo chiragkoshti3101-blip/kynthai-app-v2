@@ -27,7 +27,15 @@ export async function GET(req: NextRequest) {
   const labId = sp.get('labId')?.trim()
 
   if (patientId && patientId !== u.id && u.role !== 'admin') {
-    return jsonError('Forbidden — patientId must match session', 403)
+    // caretakers may read bookings for family members they belong to
+    if (u.role === 'caretaker' && patientId) {
+      const famMember = await db.familyMember.findFirst({
+        where: { userId: patientId, family: { members: { some: { userId: u.id } } }, deletedAt: null },
+      })
+      if (!famMember) return jsonError('Forbidden — patientId must match session or be a family member', 403)
+    } else {
+      return jsonError('Forbidden — patientId must match session', 403)
+    }
   }
 
   const and: any[] = []
@@ -126,6 +134,15 @@ export async function POST(req: NextRequest) {
   const patientId = body.patientId || u.id
   if (u.role === 'patient' && patientId !== u.id) {
     return jsonError('You can only book for yourself', 403)
+  }
+  if (u.role === 'caretaker' && patientId !== u.id) {
+    const famMember = await db.familyMember.findFirst({
+      where: { userId: patientId, family: { members: { some: { userId: u.id } } }, deletedAt: null },
+    })
+    if (!famMember) return jsonError('You can only book for yourself or a family member', 403)
+  }
+  if (!['patient','caretaker','admin'].includes(u.role)) {
+    return jsonError('Only patients, caretakers, or admins can create bookings', 403)
   }
 
   const lab = await db.labProfile.findUnique({ where: { id: body.labId } })
