@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import Link from 'next/link'
 import { HOME_FAQS } from '@/components/kynthai/faq-data'
 import { HeroCarePreview } from '@/components/kynthai/hero-care-preview'
