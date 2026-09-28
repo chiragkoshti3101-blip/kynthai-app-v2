@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (e) {
     return Response.json(
-      { ok: false, error: e instanceof Error ? e.message : 'test-push failed' },
+      { ok: false, error: process.env.NODE_ENV === 'production' ? 'test-push failed' : (e instanceof Error ? e.message : 'test-push failed') },
       { status: 500 }
     )
   }
