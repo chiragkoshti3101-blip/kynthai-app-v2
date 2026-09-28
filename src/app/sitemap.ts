@@ -26,6 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/patient-rights`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${base}/ccpa`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: `${base}/grievance`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${base}/legal`, lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ]
 
   return pages
