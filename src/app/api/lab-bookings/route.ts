@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     // caretakers may read bookings for family members they belong to
     if (u.role === 'caretaker' && patientId) {
       const famMember = await db.familyMember.findFirst({
-        where: { userId: patientId, family: { members: { some: { userId: u.id } } }, deletedAt: null },
+        where: { userId: patientId, family: { members: { some: { userId: u.id } }  },
       })
       if (!famMember) return jsonError('Forbidden — patientId must match session or be a family member', 403)
     } else {
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
   }
   if (u.role === 'caretaker' && patientId !== u.id) {
     const famMember = await db.familyMember.findFirst({
-      where: { userId: patientId, family: { members: { some: { userId: u.id } } }, deletedAt: null },
+      where: { userId: patientId, family: { members: { some: { userId: u.id } }  },
     })
     if (!famMember) return jsonError('You can only book for yourself or a family member', 403)
   }
