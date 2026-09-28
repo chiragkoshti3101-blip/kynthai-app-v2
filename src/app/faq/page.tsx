@@ -6,7 +6,7 @@ import { StructuredData } from '@/components/structured-data'
 export const revalidate = 60
 
 export const metadata: Metadata = {
-  title: 'FAQ — Kynthai',
+  title: 'FAQ',
   description: 'Common questions about Kynthai medication reminders, notifications, Android app, and accounts.',
   alternates: { canonical: 'https://kynthai.app/faq' },
 }
