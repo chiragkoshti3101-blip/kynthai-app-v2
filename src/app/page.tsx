@@ -5,6 +5,10 @@ import { StructuredData } from '@/components/structured-data'
 
 // Keep the public landing route fresh without making every request dynamic.
 // Authenticated portals and all health-data APIs remain uncached elsewhere.
+export const metadata: Metadata = {
+  alternates: { canonical: 'https://kynthai.app' },
+}
+
 export const revalidate = 60
 
 /**
