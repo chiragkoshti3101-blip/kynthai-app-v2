@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'About Kynthai',
+  title: 'About',
   description:
     'Kynthai is a health companion for patients, families, doctors, and labs — medication reminders, care coordination, and clear clinical alerts.',
   alternates: { canonical: 'https://kynthai.app/about' },
