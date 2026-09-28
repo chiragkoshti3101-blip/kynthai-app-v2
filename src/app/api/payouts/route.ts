@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const serverAmount = grossAmount - commissionAmt;
     const payout = await db.payout.create({
       data: {
-        userId: booking.patientId,
+        userId: booking.lab.userId,
         doctorId: booking.labId,
         appointmentId: booking.id,
         amount: grossAmount,
@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
       where: { userId: user.id },
       select: { id: true },
     });
-    if (profile) where.labId = profile.id;
+    if (profile) where.doctorId = profile.id; // lab payouts are stored on doctorId (see POST); Payout has no labId column
   } else if (user.role === 'admin') {
     // Admin sees all
   } else {
