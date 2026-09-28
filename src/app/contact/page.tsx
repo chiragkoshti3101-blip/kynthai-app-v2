@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Contact — Kynthai',
+  title: 'Contact',
   description: 'Contact Kynthai support and privacy team.',
   alternates: { canonical: 'https://kynthai.app/contact' },
 }
