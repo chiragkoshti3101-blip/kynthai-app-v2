@@ -73,10 +73,8 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
-  alternates: {
-    canonical: 'https://kynthai.app',
-  },
 };
+
 
 export const viewport = {
   width: 'device-width',
