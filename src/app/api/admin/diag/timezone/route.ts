@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     })
   } catch (e) {
     return Response.json(
-      { ok: false, error: e instanceof Error ? e.message : 'backfill failed' },
+      { ok: false, error: process.env.NODE_ENV === 'production' ? 'backfill failed' : (e instanceof Error ? e.message : 'backfill failed') },
       { status: 500 }
     )
   }
