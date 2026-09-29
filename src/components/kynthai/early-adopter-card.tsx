@@ -59,7 +59,7 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
             </>
           </div>
           <div className="flex flex-col gap-1 text-sm text-muted-foreground mb-3">
-            <span>Then $19.99/month · or $199.99/year</span>
+            <span>Then $19.99/month · launch offer is monthly-only</span>
             <span className="text-xs">Renews automatically at $19.99/month. Taxes may apply.</span>
           </div>
           <Button onClick={() => handleSelect('individual')} className="min-h-11 w-full" variant="outline">
@@ -82,7 +82,7 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
             <span className="text-muted-foreground">/month for 3 months</span>
           </div>
           <div className="flex flex-col gap-1 text-sm text-muted-foreground mb-3">
-            <span>Then $39.99/month · or $399.99/year</span>
+            <span>Then $39.99/month · launch offer is monthly-only</span>
             <span className="text-xs">Renews automatically at $39.99/month. Taxes may apply.</span>
           </div>
           <Button onClick={() => handleSelect('family')} className="min-h-11 w-full" variant="outline">
@@ -94,15 +94,15 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-emerald-500" />
-            <span>Launch offer in USD — cancel anytime from your account</span>
+            <span>Launch offer is monthly in USD; taxes may apply at checkout</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-emerald-500" />
-            <span>Cancel anytime — contact support to manage your subscription</span>
+            <span>Manage or cancel from your account; access continues through the current paid period</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-emerald-500" />
-            <span>Switch between monthly and annual plans anytime</span>
+            <span>Launch pricing is monthly-only; standard annual plans are separate and shown above</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <Check className="h-4 w-4 text-emerald-500" />
