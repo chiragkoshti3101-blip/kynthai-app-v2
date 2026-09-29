@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: "Kynthai — Your family's health, connected.",
     description:
-      "Smart reminders, doctor consultations, and lab tests—all in one place. Privacy-first care for families everywhere.",
+      "Smart reminders, doctor consultations, and lab tests—all in one place. Privacy-first care for families managing care together.",
     images: ['/og-image.png'],
   },
   appleWebApp: {
@@ -73,8 +73,10 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
+  alternates: {
+    canonical: 'https://kynthai.app',
+  },
 };
-
 
 export const viewport = {
   width: 'device-width',
