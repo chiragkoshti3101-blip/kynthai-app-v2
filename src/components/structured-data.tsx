@@ -72,12 +72,11 @@ const ORG_SCHEMA = {
   '@id': `${BASE_URL}/#organization`,
   name: 'Kynthai',
   description:
-    'Kynthai connects patients, families, doctors, and labs in one privacy-first care experience worldwide.',
+    'Kynthai connects patients, families, doctors, and labs in one privacy-first care experience across supported markets.',
   url: BASE_URL,
   ...KYNTHAI_CONTACT,
   foundingDate: '2025',
   ...(SOCIAL_PROFILES.length ? { sameAs: [...SOCIAL_PROFILES] } : {}),
-  areaServed: { '@type': 'Place', name: 'Worldwide' },
   knowsAbout: [
     'Medication Adherence',
     'Family Health Management',
