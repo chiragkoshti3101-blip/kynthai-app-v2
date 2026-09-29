@@ -71,10 +71,7 @@ export function PrivacyPolicy() {
           not claim HIPAA compliance. We follow applicable US federal and state
           consumer privacy laws, including the FTC Health Breach Notification
           Rule and state consumer health privacy laws, and we apply strong
-          safeguards to your sensitive health data. For users outside the
-          United States, we also follow applicable local data-protection laws,
-          including the EU General Data Protection Regulation (GDPR) and the
-          UK GDPR where they apply.
+          safeguards to your sensitive health data.
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           <strong>Note:</strong> We regularly review this policy to keep it aligned with applicable rules.
@@ -354,15 +351,6 @@ export function PrivacyPolicy() {
         protect the rights, property, or safety of Kynthai, our users, or others.
       </p>
       <p><strong>We never sell your personal or health data.</strong> We never share health data for advertising purposes.</p>
-
-      <SectionTitle icon={Globe}>12A. International users (EU / UK GDPR & other jurisdictions)</SectionTitle>
-      <p>Kynthai operates worldwide. If you access the service from the European Economic Area, the United Kingdom, or another jurisdiction with its own data-protection law, the following also applies to you:</p>
-      <ul>
-        <li><strong>Legal bases:</strong> we process your data to perform our contract with you (the Terms), to comply with legal obligations, to protect vital interests (for example emergency SOS routing), and on the basis of our legitimate interests (service improvement, security, and fraud prevention) where those do not override your rights.</li>
-        <li><strong>Your rights:</strong> in addition to the rights above, you may request access to, rectification of, erasure of, restriction of processing of, or portability of your personal data, and you may object to processing based on legitimate interests or to automated decision-making. To exercise any of these rights, email <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" />.</li>
-        <li><strong>International transfers:</strong> where your data is transferred outside your jurisdiction (for example to the United States), we rely on appropriate safeguards, including standard contractual clauses where required, so your data continues to receive an equivalent level of protection.</li>
-        <li><strong>Complaints:</strong> you may lodge a complaint with your local supervisory authority (such as the Irish DPC for the EU or the ICO for the UK) at any time.</li>
-      </ul>
 
       <SectionTitle icon={FileText}>13. Cookies & local storage</SectionTitle>
       <p>Kynthai uses:</p>
@@ -790,7 +778,7 @@ export function TermsOfService() {
         payout. Loyalty tiers (Bronze → Platinum) reduce the fee by up to 3%.
       </p>
       <p>
-        Payouts are made on a Net-15 schedule (15 days after month-end) subject
+        Payouts are made weekly, every Friday, for cleared earnings subject
         to a minimum payout threshold of $50 USD. Payouts are made via ACH, Wire, or direct deposit to your registered account. Withholding tax is
         deducted per applicable country tax law. Tax invoices are provided for reporting purposes. You are
         responsible for reporting and paying your own taxes on earnings.
@@ -822,7 +810,7 @@ export function TermsOfService() {
       <p>
         <strong>Cancellation for professional accounts.</strong> Doctors and
         labs may deactivate their professional account at any time. Outstanding
-        payouts prior to deactivation will be settled per the Net-15 schedule.
+        payouts prior to deactivation will be settled on the weekly, every-Friday schedule.
         No cancellation fee applies.
       </p>
 
@@ -1231,10 +1219,10 @@ export function MedicalDisclaimer() {
         In a medical emergency, contact your local emergency services immediately.
         Do not rely on Kynthai for emergency response.
       </p>
-      <ul>
-        <li><strong>US:</strong> 911 (emergency)</li>
-        <li><strong>EU/UK:</strong> 112</li>
-      </ul>
+      <p>
+        Emergency numbers vary by country and region. Use the emergency number
+        for your current location; Kynthai does not dispatch emergency services.
+      </p>
       <p>
         Kynthai&apos;s Emergency SOS feature notifies your contacts and doctors,
         but it is <strong>not</strong> a substitute for calling emergency
