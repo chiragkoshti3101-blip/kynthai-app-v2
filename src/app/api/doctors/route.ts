@@ -4,13 +4,18 @@ import { db } from '@/lib/db';
 import { logAudit } from '@/lib/auth';
 import { sanitizeText, rateLimit } from '@/lib/security';
 import { encrypt, decryptValue } from '@/lib/encryption';
-import { resolveDisplayName } from '@/lib/display-name';
 import { checkCsrf } from '@/lib/csrf';
 import { jsonError, jsonOk, readJson, audit, parseJsonCol, requireAuth } from '@/lib/api-helpers';
 import { verifyNpi } from '@/lib/npi-verify';
 import { validateProviderDocuments } from '@/lib/provider-documents';
 
 export const dynamic = 'force-dynamic';
+
+// Doctor consultation fees are stored in cents for appointment/payment records.
+// Public profile responses expose dollars so the marketplace never renders $7500 for a $75 visit.
+function displayFee(cents: number): number {
+  return cents >= 1000 ? Math.round((cents / 100) * 100) / 100 : cents;
+}
 
 // GET /api/doctors
 // Public listing of verified doctors. Supports ?specialization=&city=&search=&userId=
@@ -36,14 +41,11 @@ export async function GET(req: NextRequest) {
     return jsonOk({
       id: profile.id,
       userId: profile.userId,
-      name: resolveDisplayName(
-        { name: profile.user.name, email: profile.user.email, role: 'doctor', isDemo: profile.user.isDemo },
-        'Verified Doctor',
-      ),
+      name: profile.user.name || 'Provider',
       specialization: profile.specialization,
       licenseNumber: profile.licenseNumber,
       experience: profile.experience,
-      consultationFee: profile.consultationFee,
+      consultationFee: displayFee(profile.consultationFee),
       city: profile.city,
       bio: profile.bio,
       videoCallEnabled: profile.videoCallEnabled,
@@ -95,12 +97,9 @@ export async function GET(req: NextRequest) {
     doctors.map((d: any) => ({
       id: d.id,
       userId: d.userId,
-      name: resolveDisplayName(
-        { name: d.user?.name, email: d.user?.email, role: 'doctor', isDemo: d.user?.isDemo },
-        'Verified Doctor',
-      ),
+      name: d.user.name || 'Provider',
       specialization: d.specialization,
-      consultationFee: d.consultationFee,
+      consultationFee: displayFee(d.consultationFee),
       city: d.city,
       bio: d.bio,
       experience: d.experience,
@@ -237,7 +236,7 @@ export async function POST(req: NextRequest) {
     specialization: profile.specialization,
     licenseNumber: profile.licenseNumber,
     experience: profile.experience,
-    consultationFee: profile.consultationFee,
+    consultationFee: displayFee(profile.consultationFee),
     city: profile.city,
     bio: profile.bio,
     videoCallEnabled: profile.videoCallEnabled,
