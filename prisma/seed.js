@@ -86,7 +86,7 @@ async function main() {
       specialization: 'Family Medicine',
       licenseNumber: 'USMD-12345',
       experience: 12,
-      consultationFee: 7500, // $75 in cents
+      consultationFee: 7500, // $75 displayed by the public doctor API; stored in cents
       videoCallEnabled: true,
       verified: true,
       bio: 'Board-certified Family Medicine physician with 12+ years of experience in preventive care and chronic disease management.',
@@ -135,10 +135,6 @@ async function main() {
       reviewCount: 89,
       homeCollection: true,
       city: 'Austin, TX',
-      // /api/labs derives serviceZip from this via extractZip(). Home
-      // collection travel pricing needs a provider ZIP; without one the
-      // market's booking button can never become enabled.
-      address: '1400 Health Ave, Austin, TX 78701',
       verificationStatus: 'approved',
     },
   });
