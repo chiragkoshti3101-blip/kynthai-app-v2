@@ -864,8 +864,8 @@ export function LoginPage({
                         autoComplete="tel"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Required for account security and to set your local emergency number automatically.
-                        You cannot change the emergency country inside SOS.
+                        Used for account security and to suggest an emergency number from your phone country code.
+                        Verify the number shown in SOS and use your current local emergency number; SOS does not contact emergency dispatch.
                       </p>
                     </div>
                     <div className="space-y-1.5">
