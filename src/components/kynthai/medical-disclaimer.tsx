@@ -39,7 +39,7 @@ export function MedicalDisclaimer({
       <p className="flex items-start gap-2 text-xs text-muted-foreground">
         <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
         <span>
-          <strong className="text-foreground">Medical disclaimer:</strong> This AI-generated information is for general guidance only and is not a substitute for professional medical advice, diagnosis, or treatment under applicable federal and state laws. Always consult a qualified healthcare professional licensed in your jurisdiction before making decisions about your health or medications. In a medical emergency, call 911 or your local emergency number immediately. Kynthai SOS is a separate in-app alert tool and does not connect to emergency dispatch services; do not rely on it for emergency response.
+          <strong className="text-foreground">Medical disclaimer:</strong> This AI-generated information is for general guidance only and is not a substitute for professional medical advice, diagnosis, or treatment under applicable federal and state laws. Always consult a qualified healthcare professional licensed in your jurisdiction before making decisions about your health or medications. In a medical emergency, call the emergency number for your current location immediately. Kynthai SOS is a separate in-app alert tool and does not connect to emergency dispatch services; do not rely on it for emergency response.
         </span>
       </p>
     </div>
