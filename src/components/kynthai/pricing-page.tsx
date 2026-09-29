@@ -364,7 +364,7 @@ export function PricingPage() {
                           {formatPrice(tierPrice(tier.id) ?? 0, currency)}
                         </span>
                         <span className="text-sm text-muted-foreground">
-                          {cycle === 'monthly' ? '/mo' : '/yr'}
+                          {tier.id === 'free' ? '/mo' : cycle === 'monthly' ? '/mo' : '/yr'}
                         </span>
                       </>
                     )}
@@ -374,8 +374,10 @@ export function PricingPage() {
                       ? `Starting at $9/employee/mo · min 50 employees`
                       : tier.commissionOnly
                         ? `Platform fee · doctor / lab · no monthly fee`
-                        : cycle === 'yearly' && tier.id !== 'free'
-                          ? `Billed ${formatPrice(tierPrice(tier.id) ?? 0, currency)} once a year · cancel anytime`
+                        : tier.id === 'free'
+                        ? 'No payment required'
+                        : cycle === 'yearly'
+                          ? `Charged ${formatPrice(tierPrice(tier.id) ?? 0, currency)} today · renews annually · cancel anytime`
                           : `Billed monthly · cancel anytime`}
                   </p>
 
@@ -640,7 +642,7 @@ export function PricingPage() {
                     <div>
                       <p className="text-muted-foreground">Schedule</p>
                       <p className="font-semibold mt-0.5">
-                        {PAYOUT_POLICY.cadence} (15 days after month-end)
+                        {PAYOUT_POLICY.cadence}
                       </p>
                     </div>
                     <div>
@@ -671,153 +673,13 @@ export function PricingPage() {
               <ShieldCheck className="h-4 w-4 text-emerald-600" /> Privacy-first
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Built for families everywhere
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Zap className="h-4 w-4 text-emerald-600" /> Cancel anytime
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Heart className="h-4 w-4 text-emerald-600" /> 30-day money-back
+              <ShieldCheck className="h-4 w-4 text-emerald-600" /> Built for connected family care
             </span>
           </div>
         </Reveal>
-      </section>
-    </div>
-  );
-}
 
-/* ----------------------------- Earnings calculator ----------------------------- */
-
-function EarningsCalculator() {
-  const { currency } = useAppStore();
-  const [role, setRole] = React.useState<'doctor' | 'lab'>('doctor');
-  const [tier, setTierName] = React.useState<LoyaltyTier>('Bronze');
-  const [amount, setAmount] = React.useState<string>('10000');
-  const [orders, setOrders] = React.useState<string>('20');
-
-  const baseFee = role === 'doctor' ? DOCTOR_BASE_FEE_PCT : LAB_BASE_FEE_PCT;
-  const feePct = effectiveFeePct(baseFee, tier);
-  const gross = Math.max(0, parseFloat(amount) || 0) * Math.max(0, parseInt(orders) || 0);
-  const fee = platformFee(gross, feePct);
-  const keeps = partnerKeeps(gross, feePct);
-  const savingVsBronze = platformFee(gross, baseFee) - fee;
-
-  const currencySymbol = CURRENCIES[currency]?.symbol ?? '$';
-
-  return (
-    <>
-      <Card className="mt-6 border-emerald-500/20">
-        <CardContent className="p-5 sm:p-6">
-          <div className="flex items-start gap-3 mb-4">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <Calculator className="h-4 w-4" />
-            </span>
-            <div>
-              <h3 className="text-sm font-semibold">Partner earnings calculator</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                See exactly what you take home. Numbers update live.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="calc-role" className="text-xs">
-                I am a
-              </Label>
-              <Select value={role} onValueChange={v => setRole(v as 'doctor' | 'lab')}>
-                <SelectTrigger id="calc-role" className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="doctor">Doctor</SelectItem>
-                  <SelectItem value="lab">Lab</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="calc-tier" className="text-xs">
-                Loyalty tier
-              </Label>
-              <Select value={tier} onValueChange={v => setTierName(v as LoyaltyTier)}>
-                <SelectTrigger id="calc-tier" className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(LOYALTY_TIERS) as LoyaltyTier[]).map(t => (
-                    <SelectItem key={t} value={t}>
-                      {LOYALTY_TIERS[t].icon} {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="calc-amount" className="text-xs">
-                Avg. order value ({currencySymbol})
-              </Label>
-              <Input
-                id="calc-amount"
-                type="number"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                className="h-9"
-                min={0}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="calc-orders" className="text-xs">
-                Orders per month
-              </Label>
-              <Input
-                id="calc-orders"
-                type="number"
-                value={orders}
-                onChange={e => setOrders(e.target.value)}
-                className="h-9"
-                min={0}
-              />
-            </div>
-          </div>
-
-          {/* Result */}
-          <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-xl border border-border/60 p-3">
-              <p className="text-[11px] text-muted-foreground">Gross volume</p>
-              <p className="text-lg font-bold mt-0.5">{formatPrice(gross, currency)}</p>
-            </div>
-            <div className="rounded-xl border border-border/60 p-3">
-              <p className="text-[11px] text-muted-foreground">Platform fee ({feePct}%)</p>
-              <p className="text-lg font-bold mt-0.5 text-rose-600 dark:text-rose-400">
-                −{formatPrice(fee, currency)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/5 p-3">
-              <p className="text-[11px] text-muted-foreground">You receive</p>
-              <p className="text-lg font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">
-                {formatPrice(keeps, currency)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3">
-              <p className="text-[11px] text-muted-foreground">Loyalty saving / mo</p>
-              <p className="text-lg font-bold mt-0.5 text-emerald-600 dark:text-emerald-400">
-                +{formatPrice(savingVsBronze, currency)}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-start gap-2 text-[11px] text-muted-foreground">
-            <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-            <p>
-              Projection only. Actual earnings depend on case mix and cancellations. Payouts are{' '}
-              {PAYOUT_POLICY.cadence}; minimum {formatPrice(PAYOUT_POLICY.minPayoutUsd, currency)}.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Refund & Cancellation policy link */}
-      <div className="mt-8 border-t border-border/60 pt-5">              <p className="text-center text-[13px] text-muted-foreground">
+        {/* Refund & Cancellation policy link */}
+        <div className="mt-8 border-t border-border/60 pt-5">              <p className="text-center text-[13px] text-muted-foreground">
           Questions about billing or cancellations? See our{' '}
           <a
             href="/refund-cancellation"
@@ -825,17 +687,121 @@ function EarningsCalculator() {
           >
             Refund &amp; Cancellation Policy
           </a>{' '}
-          or email{' '}
-          <ContactEmail
-            address="privacy@kynthai.app"
-            className="inline-block rounded-md px-1 -mx-1 py-2 -my-2 text-emerald-600 underline hover:text-emerald-700"
-          />
-          .
-          <br />
-          Registered Office: 16192 Coastal Highway, Lewes, DE 19958, United
-          States.
+          for details.
         </p>
-      </div>
-    </>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * Earnings Calculator — provider-facing transparent math
+ * ──────────────────────────────────────────────────────────────────────────── */
+function EarningsCalculator() {
+  const { currency } = useAppStore();
+  const [orders, setOrders] = React.useState(30);
+  const [avgPrice, setAvgPrice] = React.useState(50);
+  const [tier, setTier] = React.useState<LoyaltyTier>('Bronze');
+  const [kind, setKind] = React.useState<'doctor' | 'lab'>('doctor');
+
+  const feePct = kind === 'doctor'
+    ? effectiveFeePct(DOCTOR_BASE_FEE_PCT, tier)
+    : effectiveFeePct(LAB_BASE_FEE_PCT, tier);
+  const gross = orders * avgPrice;
+  const fee = platformFee(gross, feePct);
+  const takeHome = partnerKeeps(gross, feePct);
+
+  return (
+    <Card className="mt-6 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <Calculator className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold">Earnings calculator</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              See what you could keep at each loyalty tier.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <Label className="text-xs">Partner type</Label>
+            <Select value={kind} onValueChange={(v: 'doctor' | 'lab') => setKind(v)}>
+              <SelectTrigger className="mt-1.5 min-h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="doctor">Doctor</SelectItem>
+                <SelectItem value="lab">Lab</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Loyalty tier</Label>
+            <Select value={tier} onValueChange={(v: LoyaltyTier) => setTier(v)}>
+              <SelectTrigger className="mt-1.5 min-h-11">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(LOYALTY_TIERS) as LoyaltyTier[]).map(t => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="orders" className="text-xs">Orders / month</Label>
+            <Input
+              id="orders"
+              type="number"
+              min={1}
+              max={1000}
+              value={orders}
+              onChange={e => setOrders(Math.max(1, Math.min(1000, Number(e.target.value) || 1)))}
+              className="mt-1.5 min-h-11"
+            />
+          </div>
+          <div>
+            <Label htmlFor="avg-price" className="text-xs">Average order value</Label>
+            <Input
+              id="avg-price"
+              type="number"
+              min={1}
+              max={100000}
+              value={avgPrice}
+              onChange={e => setAvgPrice(Math.max(1, Math.min(100000, Number(e.target.value) || 1)))}
+              className="mt-1.5 min-h-11"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 grid grid-cols-3 gap-3 rounded-xl border bg-background/80 p-4 text-center">
+          <div>
+            <p className="text-xs text-muted-foreground">Gross</p>
+            <p className="mt-1 text-lg font-bold">{formatPrice(gross, currency)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Platform fee ({feePct}%)</p>
+            <p className="mt-1 text-lg font-bold text-rose-600">-{formatPrice(fee, currency)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">You keep</p>
+            <p className="mt-1 text-lg font-bold text-emerald-600">{formatPrice(takeHome, currency)}</p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex items-start gap-2 text-[11px] text-muted-foreground">
+          <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+          <p>
+            Projection only. Actual earnings depend on case mix and cancellations. Payouts are{' '}
+            {PAYOUT_POLICY.cadence}; minimum {formatPrice(PAYOUT_POLICY.minPayoutUsd, currency)}.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
