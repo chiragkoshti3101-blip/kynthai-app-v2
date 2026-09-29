@@ -1,13 +1,5 @@
 'use client'
 
-// Money helper: consultation fees are stored in CENTS (DoctorProfile.consultationFee: Int,
-// seeded as 7500 = "$75"; Appointment.price copies the same value). Never render raw.
-export function formatFeeCents(cents: number | null | undefined): string {
-  const n = Number(cents) || 0
-  return `$${(n / 100).toFixed(n % 100 === 0 ? 0 : 2)}`
-}
-
-
 import * as React from 'react'
 import {
   Search,
@@ -220,12 +212,12 @@ function DoctorsTab() {
                 <div className="flex items-start gap-3">
                   <Avatar className="h-12 w-12">
                     <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                      {(d.name || 'Verified Doctor').split(' ').slice(1, 3).map((p) => p[0]).join('')}
+                      {(d.name || 'Provider').split(' ').slice(1, 3).map((p) => p[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-sm">{d.name || 'Verified Doctor'}</h3>
+                      <h3 className="font-semibold text-sm">{d.name || 'Provider'}</h3>
                       {d.available !== false ? (
                         <Badge variant="secondary" className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                           Available
@@ -240,7 +232,7 @@ function DoctorsTab() {
                     <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                        {d.rating} ({d.reviewCount ?? 0})
+                        {d.reviewCount > 0 ? `${d.rating} (${d.reviewCount} reviews)` : 'New provider — no reviews yet'}
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
@@ -253,7 +245,7 @@ function DoctorsTab() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{formatFeeCents(d.consultationFee)}</p>
+                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">${d.consultationFee}</p>
                     <p className="text-[10px] text-muted-foreground">per session</p>
                   </div>
                 </div>
@@ -376,7 +368,7 @@ function BookingDialog({
         <DialogHeader>
           <DialogTitle>Book video consultation</DialogTitle>
           <DialogDescription>
-            {doctor?.name} · {formatFeeCents(doctor?.consultationFee)}
+            {doctor?.name} · ${doctor?.consultationFee}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3 py-2">
@@ -833,11 +825,6 @@ function LabBookingDialog({
                 className="rounded-lg border border-border bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
               />
             </div>
-            {lab?.homeCollection && !lab?.zip && (
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                This provider has not published a service area yet, so online home collection is unavailable. Please contact the provider directly to arrange collection.
-              </p>
-            )}
             {deliveryResult && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-xs">
@@ -937,17 +924,15 @@ function LabBookingDialog({
               ? 'Select tests'
               : !lab?.homeCollection
                 ? `Pay $${total.toFixed(2)}`
-                : !lab?.zip
-                  ? 'Service area unavailable'
-                  : !deliveryResult
-                    ? 'Enter address'
-                    : deliveryResult.contactLab
-                      ? 'Contact provider'
-                      : !deliveryResult.quoteAvailable
-                        ? 'Provider quote unavailable'
-                        : deliveryResult.quoteRequired && !deliveryQuoteAccepted
-                          ? 'Accept travel quote'
-                          : `Pay $${total.toFixed(2)}`}
+                : !deliveryResult
+                  ? 'Enter address'
+                  : deliveryResult.contactLab
+                    ? 'Contact provider'
+                    : !deliveryResult.quoteAvailable
+                      ? 'Provider quote unavailable'
+                      : deliveryResult.quoteRequired && !deliveryQuoteAccepted
+                        ? 'Accept travel quote'
+                        : `Pay $${total.toFixed(2)}`}
           </Button>
         </DialogFooter>
       </DialogContent>
