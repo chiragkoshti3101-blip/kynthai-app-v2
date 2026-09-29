@@ -23,8 +23,8 @@ export function WhyAmericaSection() {
   const reasons: Reason[] = [
     {
       icon: Users,
-      title: 'Built for families everywhere',
-      body: 'Manage up to 4 family members from one dashboard. Smart reminders, family alerts, and weekly AI insights — all in-app. Designed for busy households everywhere.',
+      title: 'Built for connected family care',
+      body: 'Manage up to 4 family members from one dashboard. Smart reminders, family alerts, and weekly AI insights — all in-app. Designed for busy households in supported markets.',
       accent: 'from-emerald-500 to-teal-600',
     },
     {
@@ -42,7 +42,7 @@ export function WhyAmericaSection() {
     {
       icon: Accessibility,
       title: 'Senior-friendly design',
-      body: 'Extra-large text, simple navigation, and SOS alerts ensure accessibility for elderly users everywhere.',
+      body: 'Extra-large text, simple navigation, and SOS alerts ensure accessibility for elderly users across supported markets.',
       accent: 'from-teal-500 to-teal-700',
     },
     {
@@ -57,10 +57,10 @@ export function WhyAmericaSection() {
     <section id="why-america" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-16">
       <div className="mx-auto max-w-2xl text-center">
         <h2 className="text-2xl font-bold tracking-tight sm:text-4xl">
-          Built <span className="text-emerald-600">for families everywhere</span>
+          Built <span className="text-emerald-600">for families managing care together</span>
         </h2>
         <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
-          Built for households everywhere with data privacy, transparent pricing, and family-first healthcare.
+          Built for households in supported markets with data privacy, transparent pricing, and family-first healthcare.
         </p>
       </div>
 
