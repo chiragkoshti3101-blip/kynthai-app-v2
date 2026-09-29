@@ -11,7 +11,7 @@ import {
   audit,
 } from '@/lib/api-helpers';
 import { logger } from '@/lib/logger';
-import { PRICING, tierFromClaim, Currency } from '@/lib/currency';
+import { PRICING, LEGACY_PRICING, tierFromClaim, Currency } from '@/lib/currency';
 export const dynamic = 'force-dynamic';
 
 // POST /api/payments
@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       currency?: string;
       description?: string;
       provider?: string;
+      checkoutFounder?: boolean;
     }>(req);
     if (!body) return jsonError('Invalid JSON', 400);
     if (!body.amount || Number(body.amount) <= 0) return jsonError('Valid amount is required', 400);
@@ -44,11 +45,14 @@ export async function POST(req: NextRequest) {
     const currency = (body.currency || 'USD') as Currency;
     const pricing = PRICING[currency] ?? PRICING.USD;
     const prices = pricing[tierKey];
-    if (
-      !prices ||
-      (Math.abs(Number(body.amount) - prices.monthly) > 0.01 &&
-        Math.abs(Number(body.amount) - prices.yearly) > 0.01)
-    ) {
+    const launchPrices = currency === 'USD' ? LEGACY_PRICING.USD[tierKey] : null;
+    const matchesStandard = !!prices && (
+      Math.abs(Number(body.amount) - prices.monthly) <= 0.01 ||
+      Math.abs(Number(body.amount) - prices.yearly) <= 0.01
+    );
+    const matchesLaunch = body.checkoutFounder === true && !!launchPrices &&
+      Math.abs(Number(body.amount) - launchPrices.monthly) <= 0.01;
+    if (!matchesStandard && !matchesLaunch) {
       return jsonError('Amount does not match the selected subscription tier', 400);
     }
 
