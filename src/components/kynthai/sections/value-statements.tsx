@@ -73,7 +73,7 @@ export function ValueStatements() {
         </div>
 
         <p className="mx-auto mt-8 max-w-xl text-center text-xs text-muted-foreground">
-          Join families everywhere managing medications smarter with AI-powered health tools.
+          Join families managing care together managing medications smarter with AI-powered health tools.
         </p>
       </div>
     </section>
