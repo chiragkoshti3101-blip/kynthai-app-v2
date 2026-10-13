@@ -2,7 +2,7 @@
 
 // B04 — Privacy Officer email
 const PRIVACY_OFFICER_EMAIL = 'privacy@kynthai.app'
-const SUPPORT_EMAIL = 'hello@kynthai.app'
+const SUPPORT_EMAIL = 'support@kynthai.app'
 
 import * as React from 'react'
 import { ArrowLeft, ShieldCheck, Lock, FileText, Mail, Database, Clock, AlertTriangle, Ban, Globe, Scale, Users, Bell, Stethoscope, UserX, ShieldAlert, Siren, Crown, UserCheck, } from 'lucide-react'
@@ -411,7 +411,7 @@ export function PrivacyPolicy() {
         and use findings to improve AI accuracy. All reports are logged and reviewed
         within 72 hours.
       </p>
-      <p>Kynthai uses AI (large language models, vision models, speech recognition) for chat, symptom analysis, medicine identification, prescription scanning, drug-interaction checking, and insights. These features provide <strong>advisory information only</strong> and do not make automated decisions with legal or similarly significant effects about you. All AI outputs are clearly labelled as AI-generated, and a qualified healthcare professional should be consulted before making medical decisions. You may request human review of any AI-generated output by contacting your doctor or <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />.</p>
+      <p>Kynthai uses AI (large language models, vision models, speech recognition) for chat, symptom analysis, medicine identification, prescription scanning, drug-interaction checking, and insights. These features provide <strong>advisory information only</strong> and do not make automated decisions with legal or similarly significant effects about you. All AI outputs are clearly labelled as AI-generated, and a qualified healthcare professional should be consulted before making medical decisions. You may request human review of any AI-generated output by contacting your doctor or <ContactEmail address="support@kynthai.app" className="text-emerald-600 underline" />.</p>
 
       <SectionTitle icon={FileText}>17. Changes to this policy</SectionTitle>
       <p>We may update this policy from time to time. We will notify you of material changes via email and in-app at least 30 days before they take effect. Continued use after the effective date constitutes acceptance. A version history is available at <a href="https://kynthai.app/privacy/history" className="text-emerald-600 underline">kynthai.app/privacy/history</a>.</p>
@@ -422,10 +422,10 @@ export function PrivacyPolicy() {
         <strong>Address (United States):</strong> Correspondence details are available from Kynthai support; registered office to be published upon entity formation<br />
 
         Email:{' '}
-        <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />
+        <ContactEmail address="support@kynthai.app" className="text-emerald-600 underline" />
         <br />
         Support:{' '}
-        <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />
+        <ContactEmail address="support@kynthai.app" className="text-emerald-600 underline" />
         <br />
       </p>
       <p>
@@ -624,60 +624,43 @@ export function TermsOfService() {
       <p>All prices shown are the full charge — no hidden fees or surprise charges.
         State sales tax, if applicable, will be itemized at checkout per your state.
         All payments are processed securely by Stripe. Cancel anytime from your account settings
-        or by contacting <ContactEmailText address="hello@kynthai.app" />. Your subscription remains active until the end of your
+        or by contacting <ContactEmailText address="support@kynthai.app" />. Your subscription remains active until the end of your
         billing period; no further charges apply after cancellation.</p>
 
       <SectionTitle icon={Stethoscope}>5. Platform role & independent doctors</SectionTitle>
       <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
         <p className="text-sm">
-          <strong>Important:</strong> Kynthai is a <strong>technology connector
-          only</strong> — it is not a healthcare provider, medical group, or
-          practice. Doctors and labs on Kynthai are <strong>independent
-          professionals</strong> who are solely responsible for their own
-          medical practice, professional judgement, and compliance with all
-          applicable laws and regulations. Kynthai does not employ, supervise,
-          or control doctors or labs, and does not direct their medical
-          decision-making. Kynthai does not provide medical advice, diagnosis,
-          or treatment, and is not a party to the doctor-patient relationship.
-          Kynthai is not liable for the quality, accuracy, or safety of any
-          medical services provided by doctors or labs on the platform.
+          <strong>Important:</strong> Kynthai is a technology platform only. It is not a
+          healthcare provider, medical group, or employer of doctors. Doctors and labs on
+          Kynthai are independent healthcare professionals who are solely responsible for
+          their medical practice, including the quality and safety of care, compliance with
+          applicable laws, and their own professional liability. Kynthai does not direct or
+          control the clinical judgment of any doctor or lab.
         </p>
       </div>
-      <p>
-        Kynthai provides technology services only: scheduling, messaging,
-        video connectivity, payment processing, and record-keeping tools.
-        Doctors and labs set their own fees, hours, and clinical practices.
-        Kynthai does not influence, direct, or steer patients to any particular
-        doctor or lab, and does not pay or receive referral fees. Kynthai is
-        not a healthcare provider and does not provide medical advice,
-        diagnosis, or treatment. Kynthai is not liable for the quality,
-        accuracy, or safety of any medical services provided by doctors or
-        labs on the platform.
-      </p>
 
-      <SectionTitle icon={ShieldAlert}>6. Doctor liability & indemnity insurance</SectionTitle>
+      <SectionTitle icon={Stethoscope}>6. Doctor consultations & consent</SectionTitle>
       <p>
-        <strong>Doctors are solely responsible</strong> for their medical
-        practice on Kynthai, including diagnosis, treatment, prescribing, and
-        all professional obligations. Kynthai does not assume any vicarious
-        liability for the acts or omissions of doctors or labs.
-      </p>
-      <ul>
-        <li>Doctors must maintain valid professional liability (malpractice) insurance and provide proof on request.</li>
-        <li>Doctors must hold and maintain all required licences, certifications, and registrations.</li>
-        <li>Doctors must comply with all applicable laws, including telemedicine and prescribing laws.</li>
-        <li>Doctors must provide care consistent with the applicable standard of care.</li>
-        <li>Doctors must maintain accurate and complete medical records.</li>
-        <li>Doctors must cooperate with any patient-safety or regulatory investigation.</li>
-      </ul>
-      <p>
-        <strong>Patient acknowledgment.</strong> Before booking a consultation,
-        patients acknowledge that the doctor is an independent professional and
-        that Kynthai is not responsible for the medical care provided. Patients
-        retain all rights to pursue claims directly against the treating doctor
-        for medical negligence, misdiagnosis, or
-        incorrect treatment by the doctor. No booking is processed without this
-        explicit patient consent.
+        When you book a consultation with a doctor through Kynthai, you enter into a
+        direct relationship with that doctor. Kynthai facilitates the connection,
+        scheduling, and payment but is not a party to the doctor-patient relationship.
+        By booking, you consent to the doctor providing services to you and to the
+        doctor receiving the information necessary for the consultation. You
+        acknowledge that the doctor is an independent professional and that Kynthai
+        is not liable for the quality, accuracy, or outcome of any medical advice,
+        diagnosis, or treatment provided by the doctor. You also acknowledge that
+        telemedicine consultations may be subject to state-specific requirements,
+        including the doctor being licensed in your state, and that Kynthai may
+        decline to route a consultation where the doctor is not licensed in your
+        state. You consent to the doctor using Kynthai&apos;s platform to provide
+        services, including video, audio, and messaging, and to the recording of
+        consultations where required or permitted by law. You understand that
+        Kynthai does not guarantee the availability of any particular doctor and
+        that you are responsible for verifying the doctor&apos;s credentials before
+        relying on their advice. You agree to hold Kynthai harmless from any claim
+        arising out of the doctor-patient relationship, including claims for
+        negligence, misdiagnosis, or incorrect treatment by the doctor. No booking
+        is processed without this explicit patient consent.
       </p>
 
       <SectionTitle icon={UserX}>7. Doctor removal on complaint</SectionTitle>
@@ -791,7 +774,7 @@ export function TermsOfService() {
       <p>
         <strong>Subscriptions.</strong> You may cancel your subscription at any
         time from your account settings or by contacting
-        <ContactEmailText address="hello@kynthai.app" />. Cancellation takes effect at the end of the current
+        <ContactEmailText address="support@kynthai.app" />. Cancellation takes effect at the end of the current
         billing period; you will retain access until that date. Unused subscription time is not automatically prorated after cancellation; access continues
         through the end of the current billing period.
       </p>
@@ -799,7 +782,7 @@ export function TermsOfService() {
         <strong>Refund eligibility.</strong> A full refund may be requested
         within 14 calendar days of an accidental double-charge or an unauthorised
         transaction. To request a refund, email
-        <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />{' '}
+        <ContactEmail address="support@kynthai.app" className="text-emerald-600 underline" />{' '}
         with your receipt number, the charged amount, and a brief description of
         the issue. Eligible refund requests are reviewed and processed within 10 business days
         to the original payment method.
@@ -885,7 +868,7 @@ export function TermsOfService() {
       <SectionTitle icon={FileText}>15. Infringement notices</SectionTitle>
       <p>
         If you believe content on Kynthai infringes your copyright, send a
-        takedown notice to <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />{' '}
+        takedown notice to <ContactEmail address="support@kynthai.app" className="text-emerald-600 underline" />{' '}
         with the item URL, your original work URL, and contact information. We
         will respond to valid takedown requests within 72 hours, in accordance
         with the Digital Millennium Copyright Act (DMCA), 17 U.S.C. §512.
@@ -991,10 +974,10 @@ export function TermsOfService() {
         <strong>Kynthai Health Technologies</strong><br />
         Email only (no public street address yet). Write to <ContactEmailText address="privacy@kynthai.app" /> for legal/privacy correspondence.<br />
         Email:{' '}
-        <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />
+        <ContactEmail address="support@kynthai.app" className="text-emerald-600 underline" />
         <br />
         Support:{' '}
-        <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />
+        <ContactEmail address="support@kynthai.app" className="text-emerald-600 underline" />
         <br />
         Grievance Officer: [Name to be published upon appointment] —{' '}
         <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" />
@@ -1164,7 +1147,7 @@ export function AccessibilityStatement() {
       <SectionTitle icon={Bell}>7. Feedback &amp; contact</SectionTitle>
       <p>
         We welcome your feedback on the accessibility of Kynthai. Please contact
-        us at <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />.
+        us at <ContactEmail address="support@kynthai.app" className="text-emerald-600 underline" />.
         We aim to respond to accessibility feedback within 5 business days and
         remediate critical issues within 30 days.
       </p>
@@ -1268,7 +1251,7 @@ export function MedicalDisclaimer() {
       <SectionTitle icon={AlertTriangle}>9. Contact</SectionTitle>
       <p>
         If you have questions about this disclaimer, contact us at{' '}
-        <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />.
+        <ContactEmail address="support@kynthai.app" className="text-emerald-600 underline" />.
       </p>
     </LegalLayout>
   )
