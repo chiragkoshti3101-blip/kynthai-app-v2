@@ -165,6 +165,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Family-removal gate: a member removed from a Family Pro plan is signed
+    // out server-side. For the first 24h after removal their next login shows
+    // the "removed from Family Pro" screen instead of creating a session;
+    // after that they can sign in normally with their own (now free) account.
+    // The revoked_sessions row (7-day TTL) keeps stale sessions dead.
+    try {
+      const familyRemoved = await db.revokedSession.findFirst({
+        where: {
+          userId: user.id,
+          reason: 'family_removed',
+          expiresAt: { gt: new Date() },
+          revokedAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+        orderBy: { revokedAt: 'desc' },
+        take: 1,
+      });
+      if (familyRemoved) {
+        await logAudit(user.id, 'auth.login.family_removed', 'removed member attempted login', 'security');
+        return jsonOk({ removedFromFamily: true });
+      }
+    } catch (familyErr) {
+      logger.phiSafeError(familyErr, 'login.family-removed-check');
+    }
+
     // Reset lockout on successful login
     await resetLockout(email);
 
