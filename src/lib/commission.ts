@@ -30,7 +30,7 @@ export interface TierConfig {
 }
 
 export const DOCTOR_BASE_FEE_PCT = 15 // platform fee on consults + medicine orders
-export const DOCTOR_MIN_CONSULTATION_FEE_USD = 25 // Minimum consultation fee $25
+export const DOCTOR_MIN_CONSULTATION_FEE_USD = 40 // Minimum consultation fee $40
 export const LAB_BASE_FEE_PCT = 18 // platform fee on test bookings
 
 export const LOYALTY_TIERS: Record<LoyaltyTier, TierConfig> = {
