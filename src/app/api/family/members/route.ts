@@ -78,6 +78,14 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Family Pro cap: a family holds at most 4 members (matches the invite
+  // route and the caretaker UI). Enforce here too so the direct-add path
+  // can't bypass the limit.
+  const memberCount = await db.familyMember.count({ where: { familyId: family.id } });
+  if (memberCount >= 4) {
+    return jsonError('Maximum 4 family members', 400);
+  }
+
   const member = await db.familyMember.create({
     data: {
       familyId: family.id,
