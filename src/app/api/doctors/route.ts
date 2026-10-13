@@ -144,6 +144,7 @@ export async function POST(req: NextRequest) {
     degreeType?: string;
     medicalCouncil?: string;
     npiNumber?: string;
+    state?: string;
   }>(req);
   if (!body) return jsonError('Invalid JSON', 400);
 
@@ -160,10 +161,12 @@ export async function POST(req: NextRequest) {
   const consultationFee = Number(body.consultationFee) || 0;
   const degreeType = sanitizeText(body.degreeType, 40);
   const medicalCouncil = sanitizeText(body.medicalCouncil, 80);
+  const state = sanitizeText(body.state, 2).toUpperCase();
 
   if (!specialization) return jsonError('Specialization is required', 400);
   if (!licenseNumber) return jsonError('License number is required', 400);
   if (!city) return jsonError('City is required', 400);
+  if (!state) return jsonError('State is required (2-letter US state where you are licensed)', 400);
 
   // Verify NPI against the free CMS NPPES registry (when provided)
   const npiNumber = sanitizeText(body.npiNumber, 20);
@@ -219,7 +222,16 @@ export async function POST(req: NextRequest) {
     degreeType,
     medicalCouncil,
     npiNumber: npiNumber || undefined,
+    state,
   };
+
+  // Self-heal: ensure the state column exists (raw SQL, idempotent) so the
+  // typed write below works even before migrations run in production.
+  try {
+    await db.$executeRawUnsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "state" TEXT`)
+  } catch {
+    return jsonError('Could not save profile right now', 500)
+  }
 
   let profile;
   if (existing) {
@@ -246,5 +258,6 @@ export async function POST(req: NextRequest) {
     documents: parseJsonCol(profile.documents, []),
     degreeType: profile.degreeType,
     medicalCouncil: profile.medicalCouncil,
+    state: profile.state,
   });
 }
