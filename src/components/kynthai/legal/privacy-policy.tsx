@@ -631,92 +631,51 @@ export function TermsOfService() {
       <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
         <p className="text-sm">
           <strong>Important:</strong> Kynthai is a <strong>technology connector
-          only</strong>. It is <strong>not</strong> a healthcare provider, medical
-          practice, hospital, clinic, or any form of healthcare organisation.
-          Kynthai does not employ, supervise, or control the medical
-          decision-making of any doctor or healthcare professional using the
-          platform. Kynthai&apos;s role is limited to providing technology
-          infrastructure (scheduling, messaging, payment processing, video
-          connectivity) that facilitates your connection with independent
-          doctors. Under the <strong>Federal Trade Commission Act</strong> and
-          applicable US consumer protection laws, Kynthai
-          provides only technology/connectivity services — not healthcare services.
-          Any claim that Kynthai owes a duty of care in the nature of a healthcare
-          provider is expressly denied.
+          only</strong> — it is not a healthcare provider, medical group, or
+          practice. Doctors and labs on Kynthai are <strong>independent
+          professionals</strong> who are solely responsible for their own
+          medical practice, professional judgement, and compliance with all
+          applicable laws and regulations. Kynthai does not employ, supervise,
+          or control doctors or labs, and does not direct their medical
+          decision-making. Kynthai does not provide medical advice, diagnosis,
+          or treatment, and is not a party to the doctor-patient relationship.
+          Kynthai is not liable for the quality, accuracy, or safety of any
+          medical services provided by doctors or labs on the platform.
         </p>
       </div>
       <p>
-        All doctors, healthcare professionals, and labs available through Kynthai
-        are <strong>independent practitioners</strong>. When you consult a doctor
-        through Kynthai, you are entering into a direct doctor-patient
-        relationship with that independent professional — <strong>not</strong>
-        with Kynthai Health Technologies. By using Kynthai, you acknowledge and
-        agree that:
+        Kynthai provides technology services only: scheduling, messaging,
+        video connectivity, payment processing, and record-keeping tools.
+        Doctors and labs set their own fees, hours, and clinical practices.
+        Kynthai does not influence, direct, or steer patients to any particular
+        doctor or lab, and does not pay or receive referral fees. Kynthai is
+        not a healthcare provider and does not provide medical advice,
+        diagnosis, or treatment. Kynthai is not liable for the quality,
+        accuracy, or safety of any medical services provided by doctors or
+        labs on the platform.
       </p>
-      <ul>
-        <li>Any consultation, diagnosis, treatment plan, prescription, or medical
-        advice you receive comes solely from the independent doctor, not from
-        Kynthai.</li>
-        <li>Kynthai does not verify, endorse, or guarantee the quality, accuracy,
-        or appropriateness of any medical services provided by doctors on the
-        platform.</li>
-        <li>You are responsible for independently verifying the qualifications,
-        licensing, and credentials of any doctor you consult through Kynthai.</li>
-        <li>Kynthai&apos;s role is limited to providing the technology
-        infrastructure that facilitates your connection with independent doctors.</li>
-        <li><strong>Under no circumstances is Kynthai liable</strong> for any
-        medical negligence, misdiagnosis, incorrect treatment, false
-        consultation, malpractice, or any act or omission by a doctor or
-        healthcare professional using the platform.</li>
-      </ul>
 
       <SectionTitle icon={ShieldAlert}>6. Doctor liability & indemnity insurance</SectionTitle>
       <p>
-        <strong>Sole responsibility of doctors.</strong> Kynthai is{' '}
-        <strong>not liable</strong> for any medical negligence, misdiagnosis,
-        incorrect treatment, false consultation, malpractice, or any act or
-        omission by a doctor or healthcare professional using the platform. Each
-        doctor is <strong>solely and independently responsible</strong> for the
-        medical services they provide, including:
+        <strong>Doctors are solely responsible</strong> for their medical
+        practice on Kynthai, including diagnosis, treatment, prescribing, and
+        all professional obligations. Kynthai does not assume any vicarious
+        liability for the acts or omissions of doctors or labs.
       </p>
       <ul>
-        <li>The accuracy of diagnoses and treatment plans.</li>
-        <li>The appropriateness and safety of prescriptions issued.</li>
-        <li>The quality and standard of care provided during consultations.</li>
-        <li>Compliance with all applicable medical laws, regulations, and
-        professional standards in their jurisdiction.</li>
-        <li>Any harm, injury, or damage resulting from false, negligent, or
-        incompetent medical advice or treatment.</li>
+        <li>Doctors must maintain valid professional liability (malpractice) insurance and provide proof on request.</li>
+        <li>Doctors must hold and maintain all required licences, certifications, and registrations.</li>
+        <li>Doctors must comply with all applicable laws, including telemedicine and prescribing laws.</li>
+        <li>Doctors must provide care consistent with the applicable standard of care.</li>
+        <li>Doctors must maintain accurate and complete medical records.</li>
+        <li>Doctors must cooperate with any patient-safety or regulatory investigation.</li>
       </ul>
       <p>
-        <strong>Professional indemnity insurance required.</strong> All doctors
-        and healthcare professionals using Kynthai <strong>must</strong> maintain
-        their own professional indemnity (malpractice) insurance covering the
-        full scope of services they provide through the platform. By registering
-        as a doctor on Kynthai, you represent and warrant that you hold valid
-        professional indemnity insurance and will maintain it throughout your use
-        of the platform. Kynthai reserves the right to request proof of insurance
-        at any time and to suspend or remove any doctor who fails to provide
-        evidence of valid coverage.
-      </p>
-      <p>
-        <strong>No vicarious liability.</strong> To the maximum extent permitted
-        by applicable law, Kynthai shall not be held vicariously liable for the
-        acts, omissions, negligence, or malpractice of any doctor, healthcare
-        professional, or lab using the platform. Any claim arising from medical
-        services must be directed to the treating doctor or their insurer.
-        Kynthai shall not be named as a party to any dispute between a patient
-        and a doctor, and Kynthai will not indemnify or compensate any party for
-        damages arising from a doctor&apos;s medical practice.
-      </p>
-      <p>
-        <strong>Mandatory patient acknowledgment required.</strong> Before any
-        consultation booking is confirmed, every patient must explicitly
-        acknowledge and agree through Kynthai&apos;s mandatory liability
-        acknowledgment screen that (a) Kynthai is a technology platform only and
-        not a healthcare provider, (b) the doctor is an independent practitioner
-        solely responsible for their own medical advice and treatment, and
-        (c) Kynthai is not liable for any medical negligence, misdiagnosis, or
+        <strong>Patient acknowledgment.</strong> Before booking a consultation,
+        patients acknowledge that the doctor is an independent professional and
+        that Kynthai is not responsible for the medical care provided. Patients
+        retain all rights to pursue claims directly against the treating doctor
+        for medical negligence, misdiagnosis, or
         incorrect treatment by the doctor. No booking is processed without this
         explicit patient consent.
       </p>
@@ -745,6 +704,43 @@ export function TermsOfService() {
         treating doctor.
       </p>
 
+      <SectionTitle icon={Stethoscope}>7a. Telemedicine &amp; prescribing</SectionTitle>
+      <p>
+        <strong>Telemedicine services.</strong> Where a doctor provides
+        consultation or prescribing services through Kynthai, the following
+        requirements apply:
+      </p>
+      <ul>
+        <li><strong>State licensing.</strong> Each doctor must be licensed to
+        practise medicine in the state where the patient is located at the time
+        of the consultation, and must only provide services within the scope of
+        that licence. Doctors must keep their licence information current on
+        their profile. Kynthai may verify licence status and may decline to
+        route a consultation where the doctor is not licensed in the
+        patient&apos;s state.</li>
+        <li><strong>Real-time visit required.</strong> A prescription may only
+        be issued following a real-time, synchronous consultation (audio-video
+        or, where permitted by applicable law, audio) between the doctor and
+        the patient. Kynthai does not support, and doctors may not use,
+        questionnaire-only or asynchronous prescribing.</li>
+        <li><strong>Controlled substances.</strong> Doctors may not prescribe
+        controlled substances through Kynthai unless they fully comply with the
+        Ryan Haight Online Pharmacy Consumer Protection Act (21 U.S.C. § 829(e)),
+        the DEA&apos;s telemedicine rules, and all applicable state requirements,
+        including any in-person examination requirement.</li>
+        <li><strong>Standard of care.</strong> Doctors must provide services in
+        accordance with the applicable standard of care and all applicable
+        telemedicine laws, including any requirement for a documented medical
+        history, an appropriate examination, and follow-up care.</li>
+        <li><strong>Records.</strong> Doctors are responsible for maintaining
+        complete and accurate medical records of each telemedicine encounter in
+        accordance with applicable law.</li>
+        <li><strong>Patient location.</strong> Patients must provide accurate
+        information about their state of residence and current location.
+        Kynthai may use this information to confirm that the doctor is
+        authorised to provide services in the patient&apos;s state.</li>
+      </ul>
+
       <SectionTitle icon={FileText}>8. Acceptable use</SectionTitle>
       <p>You agree not to:</p>
       <ul>
@@ -762,12 +758,19 @@ export function TermsOfService() {
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
         <p className="text-sm">
           <strong>Fee-splitting disclosure:</strong> The platform fee charged
-          to doctors (15%) and labs (18%) is a service charge for technology
-          infrastructure, scheduling, payment processing, and platform operations.
-          It does not constitute a referral fee, commission, or division of
-          professional fees between you and Kynthai. It does not constitute
-          fee-sharing under applicable professional medical board regulations
-          governing practitioners in their jurisdiction.
+          to doctors (15%) and labs (18%) is a flat technology and services fee
+          for the use of Kynthai's platform — including scheduling, messaging,
+          payment processing, video connectivity, and patient-acquisition
+          infrastructure. It is not a referral fee, commission, or division of
+          professional fees, and it is not contingent on the number, value, or
+          outcome of any referral. Doctors and labs set their own fees
+          independently, and Kynthai does not influence, direct, or steer
+          patients to any particular doctor or lab, and does not pay or receive
+          referral fees. Each doctor and lab is solely responsible for ensuring
+          that its arrangement with Kynthai complies with the fee-splitting,
+          corporate-practice-of-medicine, and other professional regulations
+          applicable in its jurisdiction, and by using the platform represents
+          and warrants that it does so.
         </p>
       </div>
       <p>
