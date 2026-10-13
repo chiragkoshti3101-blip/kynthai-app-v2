@@ -179,7 +179,7 @@ const TIERS: Tier[] = [
 export function PricingPage() {
   const { setScreen, setCheckoutTier, currency } = useAppStore();
   const router = useRouter();
-  const [cycle, setCycle] = React.useState<BillingCycle>('monthly');
+  const [cycle, setCycle] = React.useState<BillingCycle>('yearly');
 
   // Global launch — pricing supports the selected currency.
 
