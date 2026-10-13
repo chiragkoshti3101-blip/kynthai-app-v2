@@ -68,6 +68,7 @@ type ProfessionalProfile = {
   experience?: number;
   consultationFee?: number;
   city?: string;
+  state?: string;
   bio?: string;
   labName?: string;
   address?: string;
@@ -193,6 +194,7 @@ export function ProfileHub({
   const [editName, setEditName] = React.useState(user.name || '');
   const [editPhone, setEditPhone] = React.useState(user.phone || '');
   const [editDob, setEditDob] = React.useState((user.dateOfBirth ?? '').slice(0, 10));
+  const [editState, setEditState] = React.useState((user as any).state || '');
 
   const [professionalEditing, setProfessionalEditing] = React.useState(false);
   const [professionalSaving, setProfessionalSaving] = React.useState(false);
@@ -219,6 +221,7 @@ export function ProfileHub({
             bio: professionalDraft.bio || '',
             experience: Number(professionalDraft.experience) || 0,
             consultationFee: Math.round((Number(professionalDraft.consultationFee) || 0) * 100), // dollars -> cents
+            state: (professionalDraft.state || '').trim().toUpperCase(),
           }
         : {
             labName: professionalDraft.labName || '',
@@ -270,6 +273,7 @@ export function ProfileHub({
           name: editName.trim(),
           phone: `+${editPhone.replace(/\D/g, '')}`,
           dateOfBirth: editDob || null,
+          state: editState.trim().toUpperCase() || null,
         }),
       });
       if (!res.ok) {
@@ -278,7 +282,7 @@ export function ProfileHub({
       }
       // Update local store
       const { login } = useAppStore.getState();
-      login({ ...user, name: editName.trim(), phone: editPhone.trim() || undefined, dateOfBirth: editDob || null });
+      login({ ...user, name: editName.trim(), phone: editPhone.trim() || undefined, dateOfBirth: editDob || null, state: editState.trim().toUpperCase() || undefined });
       setEditingProfile(false);
       toast({ title: 'Profile updated', description: 'Your changes have been saved.' });
     } catch (err) {
@@ -442,7 +446,7 @@ export function ProfileHub({
                   id="edit-phone"
                   value={editPhone}
                   onChange={e => setEditPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
+                  placeholder="+1 555 123 4567"
                   className="h-9 text-sm"
                 />
               </div>
@@ -455,6 +459,18 @@ export function ProfileHub({
                   onChange={e => setEditDob(e.target.value)}
                   className="h-9 text-sm"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-state" className="text-xs font-medium">State of residence (2-letter US state)</Label>
+                <Input
+                  id="edit-state"
+                  value={editState}
+                  onChange={e => setEditState(e.target.value.toUpperCase())}
+                  placeholder="CA"
+                  maxLength={2}
+                  className="h-9 text-sm"
+                />
+                <p className="text-[11px] text-muted-foreground">Required for telemedicine consultations and prescriptions.</p>
               </div>
               <Button
                 onClick={handleSaveProfile}
@@ -482,6 +498,7 @@ export function ProfileHub({
                     <>
                       <div className="space-y-1"><Label htmlFor="pro-specialty">Specialty</Label><Input id="pro-specialty" value={professionalDraft.specialization || ''} onChange={e => setProfessionalDraft(p => ({ ...p, specialization: e.target.value }))} /></div>
                       <div className="space-y-1"><Label htmlFor="pro-city">City / region</Label><Input id="pro-city" value={professionalDraft.city || ''} onChange={e => setProfessionalDraft(p => ({ ...p, city: e.target.value }))} /></div>
+                      <div className="space-y-1"><Label htmlFor="pro-state">Licensed state (2-letter US state)</Label><Input id="pro-state" value={professionalDraft.state || ''} onChange={e => setProfessionalDraft(p => ({ ...p, state: e.target.value.toUpperCase() }))} placeholder="CA" maxLength={2} /></div>
                       <div className="grid grid-cols-2 gap-3"><div className="space-y-1"><Label htmlFor="pro-exp">Years experience</Label><Input id="pro-exp" type="number" min="0" value={professionalDraft.experience ?? 0} onChange={e => setProfessionalDraft(p => ({ ...p, experience: Number(e.target.value) }))} /></div><div className="space-y-1"><Label htmlFor="pro-fee">Consultation fee</Label><Input id="pro-fee" type="number" min="0" value={(professionalDraft.consultationFee ?? 0) / 100} onChange={e => setProfessionalDraft(p => ({ ...p, consultationFee: Number(e.target.value) }))} /></div></div>
                       <div className="space-y-1"><Label htmlFor="pro-bio">Professional bio</Label><Input id="pro-bio" value={professionalDraft.bio || ''} onChange={e => setProfessionalDraft(p => ({ ...p, bio: e.target.value }))} /></div>
                     </>
@@ -500,7 +517,7 @@ export function ProfileHub({
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-3 text-sm">
-                    {userRole === 'doctor' ? (<><ContactRow icon={UserCircle} label="Specialty" value={professionalProfile.specialization || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Crown} label="Consultation fee" value={professionalProfile.consultationFee != null ? `$${professionalProfile.consultationFee / 100}` : 'Not added'} /></>) : (<><ContactRow icon={UserCircle} label="Laboratory" value={professionalProfile.labName || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Heart} label="Collection" value={professionalProfile.homeCollection ? 'Home collection' : 'In-lab only'} /></>)}
+                    {userRole === 'doctor' ? (<><ContactRow icon={UserCircle} label="Specialty" value={professionalProfile.specialization || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Shield} label="Licensed state" value={professionalProfile.state || 'Not added'} /><ContactRow icon={Crown} label="Consultation fee" value={professionalProfile.consultationFee != null ? `$${professionalProfile.consultationFee / 100}` : 'Not added'} /></>) : (<><ContactRow icon={UserCircle} label="Laboratory" value={professionalProfile.labName || 'Not added'} /><ContactRow icon={Shield} label="Verification" value={professionalProfile.verified ? 'Verified' : 'Pending'} /><ContactRow icon={Globe} label="Location" value={professionalProfile.city || 'Not added'} /><ContactRow icon={Heart} label="Collection" value={professionalProfile.homeCollection ? 'Home collection' : 'In-lab only'} /></>)}
                   </div>
                   <Button variant="outline" className="w-full" onClick={() => { setProfessionalDraft(professionalProfile); setProfessionalEditing(true); }} disabled={isDemo}>{isDemo ? 'Demo profile (read-only)' : 'Edit professional profile'}</Button>
                 </>
