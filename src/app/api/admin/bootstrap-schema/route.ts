@@ -35,6 +35,13 @@ export async function GET(req: NextRequest) {
     await db.$executeRawUnsafe(
       `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "timezone" TEXT`
     )
+    // Telemedicine state-licensing enforcement columns (idempotent).
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "state" TEXT`
+    )
+    await db.$executeRawUnsafe(
+      `ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "state" TEXT`
+    )
     const rows = await db.$queryRawUnsafe<Array<{ column_name: string; data_type: string }>>(
       `SELECT column_name, data_type FROM information_schema.columns
        WHERE table_name = 'users' AND column_name = 'timezone'`
