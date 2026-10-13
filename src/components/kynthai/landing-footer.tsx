@@ -32,7 +32,7 @@ export function LandingFooter() {
             </div>
             <p className="mt-2 max-w-xs text-[11px] leading-relaxed text-muted-foreground">
               Early-stage product. Not a licensed medical provider. Email{' '}
-              <ContactEmailText address="hello@kynthai.app" /> for support.
+              <ContactEmailText address="support@kynthai.app" /> for support.
             </p>
             <span className="mt-3 inline-flex min-h-11 min-w-11 items-center gap-1.5 py-2 -my-2 text-xs font-medium text-emerald-600 transition-colors hover:text-emerald-700">
               <Mail className="h-3.5 w-3.5" />
