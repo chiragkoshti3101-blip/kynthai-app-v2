@@ -45,13 +45,13 @@ We use data for security, fraud prevention, and product improvement, balanced ag
 ## C. Your Rights Regarding Your Health Data
 
 ### 1. Right to Access and Copy
-You have the right to inspect and obtain a copy of your data via Profile → Export Data (GET /api/user/data-export) or by emailing privacy@kynthai.app. Requests are fulfilled within 30 days.
+You have the right to inspect and obtain a copy of your data via Profile → Export Data or by emailing privacy@kynthai.app. Requests are fulfilled within 30 days.
 
 ### 2. Right to Correct
 You have the right to request correction of inaccurate or incomplete health data via your profile settings or by emailing privacy@kynthai.app.
 
 ### 3. Right to Delete
-You may delete your account and all associated data at any time via Profile → Delete Account (DELETE /api/user/account). A 7-day cooldown applies before permanent deletion.
+You may delete your account and all associated data at any time via Profile → Delete Account. A 7-day cooldown applies before permanent deletion.
 
 ### 4. Right to Request Restrictions
 You have the right to request restrictions on how your health data is used and shared. Requests must be submitted in writing to privacy@kynthai.app.
