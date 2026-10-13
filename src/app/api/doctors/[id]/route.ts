@@ -95,6 +95,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     rejectionReason?: string
     avatarColor?: string
     subscriptionTier?: string
+    state?: string
   }>(req)
   if (!body) return jsonError('Invalid JSON', 400)
 
@@ -103,6 +104,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.consultationFee !== undefined) data.consultationFee = Number(body.consultationFee) || 0
   if (body.videoCallEnabled !== undefined) data.videoCallEnabled = !!body.videoCallEnabled
   if (body.city !== undefined) data.city = sanitizeText(body.city, 60)
+  if (body.state !== undefined) data.state = sanitizeText(body.state, 2).toUpperCase()
   if (body.bio !== undefined) data.bio = sanitizeText(body.bio, 2000)
   if (body.experience !== undefined) data.experience = Number(body.experience) || 0
   if (body.avatarColor !== undefined) data.avatarColor = sanitizeText(body.avatarColor, 30)
@@ -116,6 +118,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.verificationStatus !== undefined) data.verificationStatus = sanitizeText(body.verificationStatus, 30)
     if (body.rejectionReason !== undefined) data.rejectionReason = sanitizeText(body.rejectionReason, 500)
     if (body.subscriptionTier !== undefined) data.subscriptionTier = sanitizeText(body.subscriptionTier, 30)
+  }
+
+  // Self-heal: ensure the state column exists (raw SQL, idempotent).
+  if (data.state !== undefined) {
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "state" TEXT`)
+    } catch {
+      return jsonError('Could not update profile right now', 500)
+    }
   }
 
   const updated = await db.doctorProfile.update({ where: { id }, data })
