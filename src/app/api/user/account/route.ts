@@ -11,6 +11,7 @@ const UpdateProfileSchema = z.object({
   name: z.string().min(1).max(120).optional(),
   phone: z.string().max(30).optional().nullable(),
   dateOfBirth: z.string().optional().nullable(),
+  state: z.string().length(2).optional().nullable(),
 })
 
 // PATCH /api/user/account — update profile info
@@ -35,6 +36,16 @@ export async function PATCH(req: NextRequest) {
     }
     updates.phone = parsed.data.phone || null
   }
+  if (parsed.data.state !== undefined) {
+    if (parsed.data.state) {
+      const st = parsed.data.state.toUpperCase()
+      if (!/^[A-Z]{2}$/.test(st)) return jsonError('State must be a 2-letter US state code', 400)
+      updates.state = st
+    } else {
+      updates.state = null
+    }
+  }
+
   if (parsed.data.dateOfBirth !== undefined) {
     if (parsed.data.dateOfBirth) {
       const dob = new Date(parsed.data.dateOfBirth)
@@ -47,6 +58,16 @@ export async function PATCH(req: NextRequest) {
 
   if (Object.keys(updates).length === 0) {
     return jsonError('No valid fields to update', 400)
+  }
+
+  // Self-heal: ensure the state column exists (raw SQL, idempotent) so this
+  // typed write works even before migrations run in production.
+  if (updates.state !== undefined) {
+    try {
+      await db.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "state" TEXT`)
+    } catch {
+      return jsonError('Could not update profile right now', 500)
+    }
   }
 
   try {
@@ -63,6 +84,7 @@ export async function PATCH(req: NextRequest) {
       email: updated.email,
       phone: updated.phone,
       dateOfBirth: updated.dateOfBirth?.toISOString() ?? null,
+      state: updated.state,
     })
   } catch (error) {
     logger.phiSafeError(error, 'user.account.PATCH')
