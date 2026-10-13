@@ -488,6 +488,7 @@ export async function requireSystemToken(req: NextRequest) {
       dateOfBirth_enc: null,
       allergies: null,
       allergies_enc: null,
+      state: null,
       isDemo: false,
       emailOptOut: false,
       notificationPrefs: null,
