@@ -200,6 +200,7 @@ export function LoginPage({
   const [emergencyContact1, setEmergencyContact1] = React.useState('');
   const [emergencyContact2, setEmergencyContact2] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
+  const [removedFromFamily, setRemovedFromFamily] = React.useState(false);
   // ── SECURITY: Cloudflare Turnstile (active only when the site key is set) ────
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || '';
   const [captchaToken, setCaptchaToken] = React.useState<string | null>(null);
@@ -420,7 +421,14 @@ export function LoginPage({
 
       // Timezone rides with login so the reminder cron fires doses on the
       // user's local wall clock — every login self-heals scheduling accuracy.
-      const data = (await apiCall('/auth/login', { email, password, captchaToken: effectiveCaptcha, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })) as AuthUser & { isUserMinor?: boolean; consentAccepted?: boolean; dataProcessingConsent?: boolean; aiTrainingConsent?: boolean };
+      const data = (await apiCall('/auth/login', { email, password, captchaToken: effectiveCaptcha, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone })) as AuthUser & { isUserMinor?: boolean; consentAccepted?: boolean; dataProcessingConsent?: boolean; aiTrainingConsent?: boolean; removedFromFamily?: boolean };
+      // Family-removal gate: a member removed from Family Pro is signed out
+      // server-side. Their next login (within 24h) returns removedFromFamily
+      // instead of a session — show the removed screen, don't log them in.
+      if ((data as { removedFromFamily?: boolean }).removedFromFamily) {
+        setRemovedFromFamily(true);
+        return;
+      }
       const user: AuthUser = {
         id: data.id,
         email: data.email,
@@ -534,6 +542,70 @@ export function LoginPage({
   // flickers/reloads before the portal loads its own AppLoader.
   if (demoBooting) {
     return <AppLoader label="Preparing your demo…" />;
+  }
+
+  // ── FAMILY REMOVAL: a member removed from Family Pro sees this screen on
+  // their next login instead of the form. The server returns removedFromFamily
+  // (no session) for 24h after removal; after that they can sign in normally
+  // with their own (now free) account.
+  if (removedFromFamily) {
+    return (
+      <div className="relative min-h-dvh overflow-hidden bg-background">
+        <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
+          <div
+            className="absolute -top-40 left-1/2 h-[40rem] w-full -translate-x-1/2 rounded-full opacity-40 blur-3xl sm:w-[40rem]"
+            style={{
+              background: 'radial-gradient(closest-side, rgba(16,185,129,0.35), transparent 70%)',
+            }}
+          />
+        </div>
+        <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-4 py-6">
+          <div className="w-full">
+            <div className="mb-6 flex justify-center">
+              <KynthaiBrand />
+            </div>
+            <Card className="overflow-hidden border-emerald-500/20 shadow-xl shadow-emerald-900/5">
+              <CardContent className="p-6 text-center sm:p-8">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-600/25">
+                  <Users className="h-7 w-7" />
+                </div>
+                <h1 className="mt-5 text-xl font-bold tracking-tight sm:text-2xl">
+                  You&apos;ve been removed from Family Pro
+                </h1>
+                <p className="mt-3 text-sm text-muted-foreground leading-relaxed">
+                  The family owner removed you from their Family Pro plan. Your
+                  subscription has been downgraded to{' '}
+                  <span className="font-semibold text-foreground">Free</span>, and
+                  you&apos;ve been signed out of all devices.
+                </p>
+                <p className="mt-3 text-xs text-muted-foreground leading-relaxed">
+                  You can sign in again with your own account in 24 hours. Your
+                  personal data stays with you.
+                </p>
+                <Button
+                  type="button"
+                  onClick={() => setRemovedFromFamily(false)}
+                  variant="brand"
+                  size="cta"
+                  className="mt-6 w-full"
+                >
+                  Back to sign in
+                </Button>
+                <p className="mt-4 text-xs text-muted-foreground">
+                  Questions? Contact{' '}
+                  <a
+                    href="mailto:support@kynthai.app"
+                    className="font-medium text-emerald-600 underline underline-offset-2 hover:text-emerald-700"
+                  >
+                    support@kynthai.app
+                  </a>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
