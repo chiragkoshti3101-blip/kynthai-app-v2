@@ -142,7 +142,7 @@ function FooterColumn({ title, links }: { title: string; links: FooterLink[] }) 
             {l.href ? (
               <Link
                 href={l.href}
-                className="inline-flex min-h-11 items-center py-1.5 -my-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="inline-flex min-h-11 min-w-11 items-center py-1.5 -my-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
               >
                 {l.label}
               </Link>
