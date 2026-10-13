@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/auth'
 import { sanitizeText, rateLimit } from '@/lib/security'
 import { requireAuth, requireAuthWithCsrf, jsonError, jsonOk, readJson, audit } from '@/lib/api-helpers'
 import { AppointmentStatus } from '@prisma/client'
+import { US_STATES } from '@/lib/patient-verify'
 import { sendInvite, sendFollowUp } from '@/lib/notifications'
 import { logger } from '@/lib/logger'
 export const dynamic = 'force-dynamic'
@@ -99,9 +100,31 @@ export async function POST(req: NextRequest) {
     return jsonError('At least one medication is required', 400)
   }
 
+  // Self-heal: ensure the state columns exist (raw SQL, idempotent) so the
+  // typed reads below work even before migrations run in production.
+  try {
+    await db.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "state" TEXT`)
+    await db.$executeRawUnsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "state" TEXT`)
+  } catch {
+    return jsonError('Could not verify licensing right now', 500)
+  }
+
   const profile = await db.doctorProfile.findUnique({ where: { userId: u.id } })
   if (!profile) return jsonError('Doctor profile not found', 404)
   if (!profile.verified) return jsonError('Only verified doctors may prescribe', 403)
+
+  // Telemedicine state-licensing enforcement (US): a doctor may only prescribe
+  // to a patient located in a state where the doctor holds a license. The
+  // doctor's licensed state is captured at registration; the patient's
+  // location state is captured on their profile. If either is missing, the
+  // prescription is refused rather than silently proceeding.
+  const doctorState = (profile as any).state ? String((profile as any).state).toUpperCase() : null
+  if (!doctorState) {
+    return jsonError('Your doctor profile is missing your licensed state. Add it in your professional profile before prescribing.', 403, 'DOCTOR_STATE_REQUIRED')
+  }
+  if (!US_STATES.includes(doctorState as any)) {
+    return jsonError('Your licensed state is invalid. Update it in your professional profile.', 400, 'DOCTOR_STATE_INVALID')
+  }
 
   let patient = body.patientId ? await db.user.findUnique({ where: { id: body.patientId } }) : null
   if (!patient && body.patientEmail) {
@@ -110,6 +133,23 @@ export async function POST(req: NextRequest) {
     })
   }
   if (!patient) return jsonError('Patient not found. Add the patient first by email.', 404)
+
+  // Patient must have a location state on file before a prescription can be
+  // issued, and the doctor must be licensed in that state.
+  const patientState = (patient as any).state ? String((patient as any).state).toUpperCase() : null
+  if (!patientState) {
+    return jsonError('This patient has not set their state of residence. Ask them to add it in their profile before prescribing.', 403, 'PATIENT_STATE_REQUIRED')
+  }
+  if (!US_STATES.includes(patientState as any)) {
+    return jsonError('This patient has an invalid state of residence. Ask them to update it in their profile.', 400, 'PATIENT_STATE_INVALID')
+  }
+  if (doctorState !== patientState) {
+    return jsonError(
+      `You are licensed in ${doctorState} but this patient is located in ${patientState}. You may not prescribe to a patient outside your licensed state.`,
+      403,
+      'STATE_LICENSE_MISMATCH',
+    )
+  }
 
   // Check patient allergies before prescribing. Handle both current JSON rows
   // and legacy comma-separated rows so a format mismatch cannot skip the alert.
