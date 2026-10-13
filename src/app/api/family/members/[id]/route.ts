@@ -144,7 +144,48 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { error, member } = await assertMemberOwned(id, u.id)
   if (error || !member) return jsonError(error, error === 'Forbidden' ? 403 : 404)
 
+  // Only the family owner may remove a member — the owner purchases and
+  // manages the Family Pro plan.
+  if (member.family.ownerId !== u.id) {
+    return jsonError('Only the family owner can remove a member', 403)
+  }
+
+  // Removal is a hard revoke for the removed member's linked account:
+  //  1) sign out all Supabase sessions (kills every device immediately),
+  //  2) insert a revoked_sessions row (7-day TTL) so the local
+  //     kynthai-session cookie is invalidated too and their next login
+  //     shows the "removed from Family Pro" screen,
+  //  3) drop their subscriptionTier to free if it was family_pro.
+  if (member.userId) {
+    try {
+      const { getSupabaseAdmin } = await import('@/lib/storage')
+      await getSupabaseAdmin().auth.admin.signOut(member.userId)
+    } catch (e) {
+      console.error('[family] admin signOut failed for removed member:', e)
+    }
+    try {
+      await db.revokedSession.create({
+        data: {
+          userId: member.userId,
+          sessionJti: `family-removed-${member.id}-${Date.now()}`,
+          reason: 'family_removed',
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      })
+    } catch (e) {
+      console.error('[family] revokedSession insert failed for removed member:', e)
+    }
+    try {
+      await db.$executeRawUnsafe(
+        `UPDATE "users" SET "subscriptionTier" = 'free' WHERE id = $1 AND "subscriptionTier" = 'family_pro'`,
+        member.userId
+      )
+    } catch (e) {
+      console.error('[family] subscription downgrade failed for removed member:', e)
+    }
+  }
+
   await db.familyMember.delete({ where: { id } })
-  await logAudit(u.id, 'family.member.delete', `member=${id}`)
+  await logAudit(u.id, 'family.member.delete', `member=${id} removedUserId=${member.userId ?? 'none'}`)
   return jsonOk({ success: true })
 }
