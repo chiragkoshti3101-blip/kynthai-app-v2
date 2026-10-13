@@ -45,6 +45,8 @@ export interface AuthUser {
   aiTrainingConsent?: boolean;
   /** True if the logged-in user is below the age threshold (minor). */
   isUserMinor?: boolean;
+  /** US state (2-letter) where the patient is located; used for telemedicine state-licensing enforcement. */
+  state?: string | null;
 }
 
 interface AppState {
