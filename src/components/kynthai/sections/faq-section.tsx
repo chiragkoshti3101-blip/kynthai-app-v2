@@ -23,7 +23,7 @@ function FAQ() {
           <p className="mt-3 text-muted-foreground">
             Still curious? Email us at{' '}
             <ContactEmail
-              address="hello@kynthai.app"
+              address="support@kynthai.app"
               className="rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 hover:underline"
             />
             .
