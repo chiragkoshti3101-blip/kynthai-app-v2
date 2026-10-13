@@ -271,7 +271,7 @@ export async function sendPushToUser(
 
   try {
     if (webPushConfigured) {
-      webpush.setVapidDetails('mailto:hello@kynthai.app', publicKey!, privateKey!)
+      webpush.setVapidDetails('mailto:support@kynthai.app', publicKey!, privateKey!)
     }
 
     const subs = await db.pushSubscription.findMany({
