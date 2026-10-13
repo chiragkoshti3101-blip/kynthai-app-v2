@@ -85,6 +85,7 @@ model User {
   aiTrainingConsent          Boolean          @default(false) // explicit opt-in for AI model training
   notificationPrefs          String?
   timezone                   String?          // IANA zone for reminder delivery (e.g. America/New_York); null = America/New_York. Column is also bootstrapped idempotently by /api/reminders/send.
+  state                      String?          // US state (2-letter) where the patient is located; used for telemedicine state-licensing enforcement.
   emailOptOut                Boolean          @default(false) // CAN-SPAM: user unsubscribed from marketing emails
   isDemo                     Boolean          @default(false) // demo/seed account flag
   failedLoginAttempts        Int              @default(0)
@@ -197,6 +198,7 @@ model DoctorProfile {
   documents           String                   @default("[]")
   avatarColor         String                   @default("emerald")
   city                String                   @default("")
+  state               String?                  // US state (2-letter) where the doctor is licensed; required for telemedicine prescribing.
   subscriptionTier    String                   @default("free")
   subscriptionRenews  DateTime?
   patientSlotCap      Int                      @default(5)
