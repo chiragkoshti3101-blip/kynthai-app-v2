@@ -67,7 +67,7 @@ export function PrivacyPolicy() {
       <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
         <p className="text-sm">
           Kynthai is a health-management platform operated by{' '}
-          <strong>Kynthai Health Technologies</strong>.          Kynthai is not a HIPAA-covered entity or business associate and does
+          <strong>Kynthai Health Technologies</strong> (a company currently being formed; its legal-entity details will be published here upon incorporation). Kynthai is not a HIPAA-covered entity or business associate and does
           not claim HIPAA compliance. We follow applicable US federal and state
           consumer privacy laws, including the FTC Health Breach Notification
           Rule and state consumer health privacy laws, and we apply strong
@@ -125,10 +125,10 @@ export function PrivacyPolicy() {
         Under applicable US federal and state privacy laws — including the FTC Health Breach Notification Rule, state consumer health privacy laws (e.g., Washington&apos;s My Health My Data Act), and — for California residents — the CCPA/CPRA, you have the following rights:
       </p>
       <ul>
-        <li><strong>Right of access:</strong> — Export all your data via Profile → Export Data (GET /api/user/data-export). You will receive a JSON file within 30 days.</li>
+        <li><strong>Right of access:</strong> — Export all your data via Profile → Export Data. You will receive a JSON file within 30 days.</li>
         <li><strong>Right to correction:</strong> — Request correction of inaccurate or incomplete sensitive health data via your profile settings or by emailing <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" />.</li>
         <li><strong>Right to request restrictions:</strong> — Request restrictions on how your sensitive health data is used and shared, subject to applicable limitations.</li>
-        <li><strong>Right to delete account:</strong> — You may delete your account and all associated sensitive health data at any time via Profile → Delete Account (DELETE /api/user/account). A 7-day cooldown applies.</li>
+        <li><strong>Right to delete account:</strong> — You may delete your account and all associated sensitive health data at any time via Profile → Delete Account. A 7-day cooldown applies.</li>
         <li><strong>Privacy complaints:</strong> — File a complaint with our Privacy Officer at <strong><ContactEmailText address="privacy@kynthai.app" /></strong>. We acknowledge within 5 business days and resolve within 30 days. You may also file a complaint with the Federal Trade Commission at <strong>ftc.gov/complaint</strong> or with your state attorney general.</li>
         <li><strong>Escalation:</strong> — Unresolved complaints may be escalated to the FTC or your state attorney general.</li>
         <li><strong>Right to designate an authorized representative:</strong> — Designate an authorized individual to act on your behalf in the event of death or incapacity. Email <strong><ContactEmailText address="privacy@kynthai.app" /></strong> to set up.</li>
@@ -137,9 +137,8 @@ export function PrivacyPolicy() {
         If you are a California resident, you have additional rights under the CCPA/CPRA, including the right to know, delete, and opt out of the sale of personal information. We do not sell your personal information. We will respond to valid requests within 30 days (extendable by 30 days for complex requests, with notice).
       </p>
 
-      <SectionTitle icon={Ban}>6. Your rights regarding health data</SectionTitle>
       <p>
-        Kynthai treats health data as <strong>sensitive consumer health data</strong> protected under
+        <strong>Health data safeguards.</strong> Kynthai treats health data as <strong>sensitive consumer health data</strong> protected under
         applicable US federal and state privacy law. The following safeguards apply:
       </p>
       <ul>
@@ -155,7 +154,7 @@ export function PrivacyPolicy() {
       </p>
 
       {/* State privacy law section */}
-      <SectionTitle icon={Scale}>6A. Other US state consumer privacy laws</SectionTitle>
+      <SectionTitle icon={Scale}>6. Other US state consumer privacy laws</SectionTitle>
       <p>
         In addition to US privacy and CCPA/CPRA, Kynthai complies with the following state-level privacy statutes that grant consumers rights over their personal information:
       </p>
@@ -214,7 +213,9 @@ export function PrivacyPolicy() {
       <p>
         Because our AI features are not intended to diagnose, cure, mitigate, treat,
         or prevent disease, they are <strong>not</strong> regulated as Software as a
-        Medical Device (SaMD) under 21 CFR Part 870, nor do they require FDA 510(k)
+        Medical Device (SaMD) under the Federal Food, Drug, and Cosmetic Act
+        (21 U.S.C. § 321(h)) and applicable FDA digital-health guidance, nor do
+        they require FDA 510(k)
         clearance, De Novo classification, or PMA approval. Kynthai makes no claims
         of FDA clearance or approval for diagnostic, therapeutic, or monitoring
         functions. The FDA may regulate health software in the future; Kynthai will
@@ -250,10 +251,10 @@ export function PrivacyPolicy() {
         As a user whose sensitive health data is held by Kynthai, you have the following rights under applicable US federal and state law:
       </p>
       <ul>
-        <li><strong>Right of access:</strong> Request a copy of your sensitive health data. Use Profile → Export Data (GET /api/user/data-export). Delivery within 30 days.</li>
+        <li><strong>Right of access:</strong> Request a copy of your sensitive health data. Use Profile → Export Data. Delivery within 30 days.</li>
         <li><strong>Right to correction:</strong> Request correction of inaccurate or incomplete sensitive health data via your profile settings or email to <ContactEmailText address="privacy@kynthai.app" />.</li>
         <li><strong>Right to request restrictions:</strong> Request restrictions on how your sensitive health data is used and shared.</li>
-        <li><strong>Right to delete account:</strong> You may delete your account and all associated sensitive health data at any time via Profile → Delete Account (DELETE /api/user/account). A 7-day cooldown applies before permanent deletion.</li>
+        <li><strong>Right to delete account:</strong> You may delete your account and all associated sensitive health data at any time via Profile → Delete Account. A 7-day cooldown applies before permanent deletion.</li>
         <li><strong>Privacy complaints:</strong> File a complaint with our Privacy Officer at <ContactEmailText address="privacy@kynthai.app" />. We acknowledge within 5 business days and resolve within 30 days. You may also file a complaint with the Federal Trade Commission (ftc.gov/complaint) or your state attorney general.</li>
         <li><strong>Escalation:</strong> Unresolved complaints may be escalated to the FTC or your state attorney general.</li>
       </ul>
@@ -263,9 +264,8 @@ export function PrivacyPolicy() {
         notice).
       </p>
 
-      <SectionTitle icon={Ban}>11. Your rights regarding health data</SectionTitle>
       <p>
-        Kynthai treats health data as <strong>sensitive consumer health data</strong> protected under
+        <strong>Health data safeguards.</strong> Kynthai treats health data as <strong>sensitive consumer health data</strong> protected under
         applicable US federal and state privacy law. We apply heightened safeguards:
       </p>
       <ul>
@@ -281,7 +281,7 @@ export function PrivacyPolicy() {
       </p>
 
 
-      <SectionTitle icon={AlertTriangle}>12. Data sharing & subprocessors</SectionTitle>
+      <SectionTitle icon={AlertTriangle}>11. Data sharing & subprocessors</SectionTitle>
       <p>
         Kynthai shares personal data only with the minimum number of processors
         necessary to deliver the service. Each sub-processor listed below has
@@ -320,9 +320,9 @@ export function PrivacyPolicy() {
               <td className="py-2">US</td>
             </tr>
             <tr className="border-b border-border/60">
-              <td className="py-2 pr-4"><strong>Twilio, Inc.</strong> / <strong>SendGrid</strong> (Twilio) / WhatsApp (Meta)</td>
-              <td className="py-2 pr-4">Communication delivery (SMS, email, WhatsApp messages)</td>
-              <td className="py-2 pr-4">Message content (dose reminders, lab-result notifications, SOS alerts) and recipient mobile number / email address. Health summaries are minimised to what is necessary for the reminder.</td>
+              <td className="py-2 pr-4"><strong>Twilio, Inc.</strong> / <strong>SendGrid</strong> (Twilio)</td>
+              <td className="py-2 pr-4">Communication delivery (email)</td>
+              <td className="py-2 pr-4">Message content (dose reminders, lab-result notifications, SOS alerts) and recipient email address. Health summaries are minimised to what is necessary for the reminder.</td>
               <td className="py-2">US</td>
             </tr>
             <tr>
@@ -352,7 +352,7 @@ export function PrivacyPolicy() {
       </p>
       <p><strong>We never sell your personal or health data.</strong> We never share health data for advertising purposes.</p>
 
-      <SectionTitle icon={FileText}>13. Cookies & local storage</SectionTitle>
+      <SectionTitle icon={FileText}>12. Cookies & local storage</SectionTitle>
       <p>Kynthai uses:</p>
       <ul>
         <li>
@@ -369,10 +369,10 @@ export function PrivacyPolicy() {
       </ul>
       <p>We do <strong>not</strong> use third-party advertising cookies, tracking pixels, or cross-site advertising networks. You can clear all cookies and local storage via your browser settings at any time.</p>
 
-      <SectionTitle icon={Users}>14. Children&apos;s privacy</SectionTitle>
+      <SectionTitle icon={Users}>13. Children&apos;s privacy</SectionTitle>
       <p>Kynthai is not directed at children under 16. Family profiles for minors may be created and managed by a parent or legal guardian who consents to the processing on the child&apos;s behalf. The parent may request deletion of a minor&apos;s profile at any time. We do not knowingly collect data from children under 16 without verified parental consent, consistent with the Children&apos;s Online Privacy Protection Act (COPPA, 15 U.S.C. §§ 6501–6506) and applicable US child-protection framework. If you believe we have collected data from a child without consent, contact <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" /> for immediate deletion.</p>
 
-      <SectionTitle icon={Bell}>14A. Marketing communications</SectionTitle>
+      <SectionTitle icon={Bell}>14. Marketing communications</SectionTitle>
       <p>
         We will not send you marketing emails or SMS without your explicit consent.
         You can opt in or out at any time via your account settings or by clicking
@@ -418,8 +418,8 @@ export function PrivacyPolicy() {
 
       <SectionTitle icon={Mail}>18. Contact & Privacy Officer</SectionTitle>
       <p>
-        <strong>Kynthai Health Technologies</strong><br />
-        <strong>Address (United States):</strong> Registered office and correspondence details are available from Kynthai support<br />
+        <strong>Kynthai Health Technologies</strong> (legal entity being formed; details to be published upon incorporation)<br />
+        <strong>Address (United States):</strong> Correspondence details are available from Kynthai support; registered office to be published upon entity formation<br />
 
         Email:{' '}
         <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />
@@ -430,13 +430,13 @@ export function PrivacyPolicy() {
       </p>
       <p>
         <strong>Privacy Officer:</strong><br />
-        Name: Privacy Officer<br />
+        Name: [To be published upon appointment]<br />
         Email: <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" /><br />
         Address: Contact Kynthai support for current correspondence details
       </p>
       <p>
         <strong>Privacy Officer / Privacy Contact:</strong><br />
-        Name: Privacy Officer<br />
+        Name: [To be published upon appointment]<br />
         Email: <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" /><br />
         Address: Contact Kynthai support for current correspondence details<br />
         Acknowledgment: all complaints are acknowledged within 5 business days.
@@ -885,8 +885,7 @@ export function TermsOfService() {
         takedown notice to <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />{' '}
         with the item URL, your original work URL, and contact information. We
         will respond to valid takedown requests within 72 hours, in accordance
-        with the Digital Millennium Copyright Act (DMCA) 17 U.S.C. §512 and the
-        Copyright Act, 1957.
+        with the Digital Millennium Copyright Act (DMCA), 17 U.S.C. §512.
       </p>
 
       <SectionTitle icon={Globe}>16. Dispute resolution & arbitration (US)</SectionTitle>
@@ -894,6 +893,9 @@ export function TermsOfService() {
         <strong>Governing law:</strong> These Terms are governed by and construed
         in accordance with the laws of the State of Wyoming, United States. The courts of competent jurisdiction in Wyoming, US,
         have exclusive jurisdiction over any dispute not subject to arbitration.
+      </p>
+      <p className="text-xs text-muted-foreground">
+        <strong>Note:</strong> Governing law and arbitration seat will be confirmed and updated upon entity formation and review by qualified legal counsel.
       </p>
       <p>
         <strong>Arbitration.</strong> If the dispute is not resolved informally,
@@ -991,7 +993,7 @@ export function TermsOfService() {
         Support:{' '}
         <ContactEmail address="hello@kynthai.app" className="text-emerald-600 underline" />
         <br />
-        Grievance Officer:{' '}
+        Grievance Officer: [Name to be published upon appointment] —{' '}
         <ContactEmail address="privacy@kynthai.app" className="text-emerald-600 underline" />
         <br />
         <br />
@@ -1140,7 +1142,7 @@ export function AccessibilityStatement() {
       <SectionTitle icon={FileText}>5. Legal framework</SectionTitle>
       <ul>
         <li><strong>United States:</strong> Americans with Disabilities Act (ADA) Title III, Section 508 of the Rehabilitation Act</li>
-        <li><strong>EU:</strong> RPwD Act 2016 (Directive 2019/882) — effective June 2025</li>
+        <li><strong>EU:</strong> European Accessibility Act (Directive (EU) 2019/882) — effective June 2025</li>
         <li><strong>UK:</strong> Equality Act 2010</li>
         <li><strong>Reference:</strong> WCAG 2.1 (W3C) — ongoing effort, not a certified audit claim</li>
       </ul>
