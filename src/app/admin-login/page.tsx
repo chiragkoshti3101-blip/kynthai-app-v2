@@ -1,5 +1,7 @@
 // Server wrapper — renders the Client Component.
-// The component reads the secret `?key=` URL parameter client-side via useSearchParams.
+// Admin sign-in accepts only a real admin credential pair (email + password);
+// there is no magic-link / `?key=` URL parameter. Secrets in URLs would leak
+// into server logs, browser history, and referrers, so none are used.
 import type { Metadata } from 'next'
 import AdminLoginClient from './admin-login-client';
 import { ErrorBoundary } from '@/components/kynthai/error-boundary';
