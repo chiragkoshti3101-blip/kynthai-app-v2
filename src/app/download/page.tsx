@@ -11,7 +11,11 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://kynthai.app/download' },
 }
 
-const APK = '/downloads/kynthai-android.apk'
+// Prefer an externally-hosted binary (GitHub Release, R2/S3) via
+// NEXT_PUBLIC_APK_URL so the ~5 MB APK/AAB no longer needs to live in the
+// public git repo. Falls back to the committed /downloads/ path so the page
+// keeps working until the external host + env var are in place.
+const APK = process.env.NEXT_PUBLIC_APK_URL || '/downloads/kynthai-android.apk'
 
 export default function DownloadPage() {
   return (

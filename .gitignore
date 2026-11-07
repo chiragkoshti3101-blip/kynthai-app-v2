@@ -135,4 +135,10 @@ scripts/.vercel-env-local.json
 
 # Reticle runtime session/ambient artifacts
 .reticle/ambient.json
+
+# ── Mobile build binaries: do not add these back to git ────────────────────
+# The current committed copies keep /download working; once NEXT_PUBLIC_APK_URL
+# (or GitHub Releases / R2) is wired up, `git rm` these and purge history.
+public/downloads/*.apk
+public/downloads/*.aab
 .reticle/sessions/

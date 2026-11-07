@@ -411,7 +411,10 @@ function applyHeaders(res: NextResponse, pathname: string, requestId: string) {
       ].join('; ')
     : [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://challenges.cloudflare.com https://static.cloudflareinsights.com https://www.googletagmanager.com https://cdn.mxpnl.com",
+        // 'unsafe-eval' dropped: no client code in this app uses eval()/new Function()
+        // (Next hydration only needs 'unsafe-inline'). Keeping it out of the
+        // fallback CSP narrows the XSS blast radius when served over plain HTTP.
+        "script-src 'self' 'unsafe-inline' https://js.stripe.com https://challenges.cloudflare.com https://static.cloudflareinsights.com https://www.googletagmanager.com https://cdn.mxpnl.com",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob: http: https:",
         "font-src 'self' data:",
