@@ -20,14 +20,17 @@ Payment/Stripe items are intentionally **out of scope** here (no Stripe key avai
 ## Manual actions still required (cannot be done from the repo)
 
 1. **Rotate the exposed Firebase API key.** The public repo's history contains
-   `android/app/google-services.json` with key `AIzaSyCWkOc1yACJ8IybfYrJk1R3DNAxpOf9Uck`
-   (project `kynthai-prod`).
-   - GCP Console → APIs & Services → Credentials: **restrict the key** to your Android app
-     (package name `app.kynthai.health` + app cert SHA-1/SHA-256) and to the FCM/Maps APIs only.
-   - **Disable/rotate** that key and regenerate `google-services.json`, then re-commit the new file.
+   `android/app/google-services.json` with a Google/Firebase API key
+   (project `kynthai-prod`; the literal key value is intentionally NOT written
+   here so this doc does not re-expose it — see the file in git for it).
+   - GCP Console → APIs & Services → Credentials: **restrict the key** to your
+     Android app (package name `app.kynthai.health` + app cert SHA-1/SHA-256)
+     and to the FCM/Maps APIs only.
+   - **Disable/rotate** that key and regenerate `google-services.json`, then
+     re-commit the new file.
    - The Android build tolerates a missing/changed `google-services.json`
-     (`android/app/build.gradle` logs "not found" and skips native FCM), so a stale copy
-     won't break the build — but the old key must be revoked.
+     (`android/app/build.gradle` logs "not found" and skips native FCM), so a
+     stale copy won't break the build — but the old key must be revoked.
 
 2. **Run a live `npm audit`** in a normal terminal (the sandbox here can't spawn node):
    `npm audit --omit=dev`. CI already enforces a HIGH/CRITICAL gate

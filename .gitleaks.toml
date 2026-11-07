@@ -1,0 +1,48 @@
+# gitleaks config — secret scanner for CI.
+#
+# Catches accidentally committed real secrets. The repo's *deliberate*
+# placeholder / test / dev-only secrets are allowlisted below so they don't
+# produce false positives, while anything that looks like a real credential
+# (a populated .env value, an AWS key, a Stripe live key, a pushed JWT)
+# still fails the build.
+
+title = "Kynthai gitleaks config"
+
+[schema]
+version = 2
+
+# ── Global allowlist (benign, intentionally-committed strings) ─────────────
+# These are documented placeholders or dev-only fallbacks, not real secrets.
+# `paths`/`regexes` use gitleaks v8.24+ array-of-string syntax.
+[allowlist]
+description = "Documented placeholders, dev-only fallbacks, and the one known-exposed Firebase key"
+
+# Files that intentionally contain template placeholders / dev fallbacks.
+paths = [
+  '\.env\.example$',
+  'SECRETS\.md$',
+  'env-template\.txt$',
+  '^docs/',
+  '^SECURITY-FIXES-APPLIED\.md$',
+  'src/lib/session-signing\.ts',
+  'src/lib/__tests__/',
+  'src/lib/.+\.test\.ts$',
+  'vitest\.config\.ts$',
+  # The one exposed GCP API key lives in the Android FCM config. It must be
+  # rotated in GCP; until then, allowlist the exact file so the scanner can
+  # still catch any *other* secret. (TODO: rotate the key, then drop this line.)
+  'android/app/google-services\.json$',
+]
+
+# Specific benign literal values that must not fail the scan.
+regexes = [
+  'kynthai-dev-fallback-secret',
+  'YOUR_PASSWORD',
+  'YOUR_PROJECT',
+  'your-sentry-dsn-here',
+  'sk_test_\.\.\.',
+  'sk_live_\.\.\.',
+  'test-encryption-key',
+  'test-supabase-jwt-secret',
+  'test-service-key',
+]

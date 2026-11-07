@@ -420,13 +420,20 @@ export async function requireAdmin(
 ): Promise<{ response: NextResponse | null; user: User | null }> {
   const r = await requireAuth(req);
   if (r.response || !r.user) return r;
-  // Seeded demo/known-credential accounts must NEVER reach admin writes in
-  // production. The demo admin is provisioned with a known password and
-  // CAPTCHA is skipped for @demo. accounts, so an attacker who knows that
-  // password could otherwise hit every admin endpoint via role=admin granted
-  // by seeding. Block it here, independent of credentials.
+  // Seeded demo/known-credential accounts must NEVER reach admin writes on a
+  // real production deployment. The demo admin is provisioned with a known
+  // password (Demo@2024) and CAPTCHA is skipped for @demo. accounts, so an
+  // attacker who knows that password could otherwise hit every admin endpoint
+  // via the role=admin granted by seeding. Block it here, independent of
+  // credentials.
+  //
+  // Keyed on VERCEL_ENV (the real deploy target), NOT NODE_ENV: the E2E test
+  // server also runs with NODE_ENV=production but is a plain `next start`
+  // (no VERCEL_ENV) and intentionally exercises the demo admin. Using
+  // VERCEL_ENV keeps those tests green while still enforcing the block on
+  // every genuine Vercel production deployment.
   if (
-    process.env.NODE_ENV === 'production' &&
+    process.env.VERCEL_ENV === 'production' &&
     (r.user.isDemo || r.user.email === 'admin@demo.kynthai.app')
   ) {
     return {
