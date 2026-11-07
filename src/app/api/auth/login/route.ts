@@ -49,15 +49,11 @@ export async function POST(req: NextRequest) {
     if (!isValidEmail(email)) return jsonError('Valid email is required', 400);
 
 
-    // Known demo accounts — skip CAPTCHA so QA can sign in without Turnstile friction
-    const DEMO_EMAILS = new Set([
-      'patient@kynthai.app', 'patient@demo.kynthai.app',
-      'caretaker@kynthai.app', 'caretaker@demo.kynthai.app',
-      'doctor@kynthai.app', 'priya@demo.kynthai.app',
-      'lab@kynthai.app', 'pathlabs@demo.kynthai.app',
-      'admin@kynthai.app', 'admin@demo.kynthai.app',
-    ]);
-    const isDemoEmail = DEMO_EMAILS.has(email.toLowerCase());
+    // Skip CAPTCHA only for the seeded, read-only demo accounts so QA can sign
+    // in without Turnstile friction. The prod-domain addresses (e.g.
+    // admin@kynthai.app) are real staff accounts and must KEEP CAPTCHA —
+    // exempting them enabled unthrottled credential-stuffing against admin.
+    const isDemoEmail = email.toLowerCase().endsWith('@demo.kynthai.app');
 
     // ── CAPTCHA verification ──────────────────────────────────────────
     if (isCaptchaConfigured() && !isDemoEmail) {

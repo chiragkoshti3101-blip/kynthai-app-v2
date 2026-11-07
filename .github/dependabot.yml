@@ -1,0 +1,42 @@
+# Dependabot — automated security + version updates.
+# Addresses the "no dependency scanning / no automatic vulnerability patching"
+# gap: every new HIGH/CRITICAL advisory in the lockfile now gets a PR, and
+# GitHub Actions itself is kept current.
+version: 2
+updates:
+  # Node / npm dependencies (package.json + package-lock.json)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      # Tuesday 06:00 UTC to avoid colliding with the deploy window
+      time: "06:00"
+      # Security updates always, version bumps on a lighter cadence
+      open-on-zero-issues: false
+    commit-message:
+      prefix: "deps:"
+    groups:
+      # Fold transitive minor/patch churn into a single weekly PR
+      "prod-minor-patch":
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      "prod-major":
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+
+  # GitHub Actions (all workflows across .github/workflows/)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Android Gradle plugins (android/ build)
+  - package-ecosystem: "gradle"
+    directory: "/android"
+    schedule:
+      interval: "weekly"

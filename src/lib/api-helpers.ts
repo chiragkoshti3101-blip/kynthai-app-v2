@@ -420,6 +420,20 @@ export async function requireAdmin(
 ): Promise<{ response: NextResponse | null; user: User | null }> {
   const r = await requireAuth(req);
   if (r.response || !r.user) return r;
+  // Seeded demo/known-credential accounts must NEVER reach admin writes in
+  // production. The demo admin is provisioned with a known password and
+  // CAPTCHA is skipped for @demo. accounts, so an attacker who knows that
+  // password could otherwise hit every admin endpoint via role=admin granted
+  // by seeding. Block it here, independent of credentials.
+  if (
+    process.env.NODE_ENV === 'production' &&
+    (r.user.isDemo || r.user.email === 'admin@demo.kynthai.app')
+  ) {
+    return {
+      response: jsonError('Forbidden — demo accounts have no admin access in production', 403),
+      user: null,
+    };
+  }
   const isRoleAdmin = r.user.role === 'admin';
   const isEmailAdmin = ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(r.user.email);
   if (!isRoleAdmin && !isEmailAdmin) {

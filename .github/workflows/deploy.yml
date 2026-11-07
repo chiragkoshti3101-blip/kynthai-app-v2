@@ -166,15 +166,21 @@ jobs:
 
       - run: npx prisma generate
 
-      - name: Run DB push
+      - name: Apply database migrations
+        # Use `prisma migrate deploy` (non-destructive: applies the recorded
+        # prisma/migrations/ and updates _prisma_migrations history). The
+        # previous `db push --accept-data-loss` silently dropped columns/tables
+        # on any schema/DB drift — catastrophic if this pattern is ever run
+        # against a persistent database. migrate deploy is safe on the fresh
+        # ephemeral CI DB and is the correct primitive for a real one.
         # Retry: postgres can still be crash-recovering or restarting right
         # after the readiness loop (P1001 seen ~40s after a green check).
         run: |
           for attempt in 1 2 3; do
-            if npx prisma db push --accept-data-loss; then
+            if npx prisma migrate deploy; then
               exit 0
             fi
-            echo "db push attempt $attempt failed, retrying in 5s..." >&2
+            echo "migrate deploy attempt $attempt failed, retrying in 5s..." >&2
             sleep 5
           done
           exit 1
