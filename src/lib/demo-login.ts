@@ -13,12 +13,16 @@ import { useAppStore } from '@/lib/store'
  */
 export type DemoRole = 'patient' | 'doctor' | 'caretaker' | 'lab' | 'admin'
 
+// Demo auto-login must ONLY target the seeded, read-only @demo. identities
+// (created by ensureDemoUsers / prisma/seed.js). The prod-domain addresses
+// (e.g. admin@kynthai.app) are real staff accounts and must never be the
+// target of a known-password demo login.
 const DEMO_ACCOUNTS: Record<DemoRole, string> = {
-  patient: 'patient@kynthai.app',
-  doctor: 'doctor@kynthai.app',
-  caretaker: 'caretaker@kynthai.app',
-  lab: 'lab@kynthai.app',
-  admin: 'admin@kynthai.app',
+  patient: 'patient@demo.kynthai.app',
+  doctor: 'priya@demo.kynthai.app',
+  caretaker: 'caretaker@demo.kynthai.app',
+  lab: 'pathlabs@demo.kynthai.app',
+  admin: 'admin@demo.kynthai.app',
 }
 
 export const DEMO_ROLES: DemoRole[] = ['patient', 'doctor', 'caretaker', 'lab', 'admin']

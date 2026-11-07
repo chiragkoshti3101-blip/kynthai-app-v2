@@ -16,7 +16,17 @@ export function isDemoEnabled(): boolean {
  * unauthenticated portal bypass used by local previews and middleware.
  */
 export function isDemoLoginEnabled(): boolean {
-  return true
+  // The auto "Try the demo" sign-in logs into a seeded account with a known
+  // password. On a real production deployment this is an unnecessary
+  // known-credential entry, so it is OFF by default in production and can be
+  // re-enabled only with an explicit opt-in.
+  const explicit = process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN
+  if (explicit === 'true') return true
+  if (explicit === 'false') return false
+  // VERCEL_ENV==='production' only on the production deployment; undefined or
+  // 'preview'/'development' locally, in CI, and on Vercel previews.
+  const isProd = process.env.VERCEL_ENV === 'production'
+  return !isProd
 }
 
 /**
