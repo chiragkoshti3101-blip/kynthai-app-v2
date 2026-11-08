@@ -16,14 +16,23 @@ import {
 } from '@/lib/push'
 import { isNativeShell } from '@/lib/native-shell'
 import { registerFcmDevice } from '@/lib/fcm'
+import { useAppStore, selectors } from '@/lib/store'
 
 const KEY = 'kynthai.push.auto-asked.v4'
 
 export function AutoEnableNotifications() {
+  // Web push subscriptions are stored per user on auth-gated endpoints. Only
+  // run the browser (non-native) flow for signed-in visitors: an anonymous
+  // landing-page visitor would otherwise fire POSTs that 401, polluting the
+  // console on every visit.
+  const user = useAppStore(selectors.user)
+  const hydrated = useAppStore(selectors._hydrated)
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return
     const native = isNativeShell()
     if (!native && !pushSupported()) return
+    if (!native && (!hydrated || !user)) return
 
     let disposed = false
     const onAuthReady = () => {
@@ -86,7 +95,7 @@ export function AutoEnableNotifications() {
       disposed = true
       if (native) window.removeEventListener('kynthai:auth-ready', onAuthReady)
     }
-  }, [])
+  }, [user, hydrated])
 
   return null
 }

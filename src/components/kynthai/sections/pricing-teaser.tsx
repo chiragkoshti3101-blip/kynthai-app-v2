@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PRICING, formatPrice, yearlySavingsPct } from '@/lib/currency';
 import { cn } from '@/lib/utils';
+import { ScrollReveal, StaggerGroup, StaggerItem } from '@/components/kynthai/animations';
 
 function PricingTeaser({
   onGetStarted,
@@ -101,8 +102,9 @@ function PricingTeaser({
         }}
       />
 
-      <div className="mx-auto max-w-2xl text-center">
-        <Badge
+      <ScrollReveal>
+        <div className="mx-auto max-w-2xl text-center">
+          <Badge
           variant="secondary"
           className="mb-4 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium"
         >
@@ -125,8 +127,9 @@ function PricingTeaser({
           ))}
         </div>
       </div>
+      </ScrollReveal>
 
-      <div className="mx-auto mt-8 grid max-w-5xl gap-4 sm:gap-5 md:grid-cols-3 items-stretch">
+      <StaggerGroup className="mx-auto mt-8 grid max-w-5xl gap-4 sm:gap-5 md:grid-cols-3 items-stretch">
         {tiers.map(t => (
           <div
             key={t.name}
@@ -138,7 +141,8 @@ function PricingTeaser({
             <meta itemProp="price" content={String(t.amount)} />
             <meta itemProp="priceCurrency" content={currency} />
             <meta itemProp="url" content="https://kynthai.app/pricing" />
-            <Card
+            <StaggerItem className="flex h-full">
+              <Card
               className={cn(
                 'relative flex w-full flex-col p-6 sm:p-7 transition-all duration-200',
                 'hover:-translate-y-1.5 hover:shadow-xl hover:shadow-emerald-900/5',
@@ -210,10 +214,11 @@ function PricingTeaser({
               >
                 {t.cta}
               </Button>
-            </Card>
+              </Card>
+            </StaggerItem>
           </div>
         ))}
-      </div>
+      </StaggerGroup>
 
       <p className="mx-auto mt-6 max-w-md text-center text-xs text-muted-foreground">
         Save up to {yearlySavingsPct(currency, 'family_pro')}% with annual billing — always in USD.

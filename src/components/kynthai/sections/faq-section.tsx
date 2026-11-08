@@ -1,8 +1,11 @@
+'use client';
+
 import { ChevronDown } from 'lucide-react';
 import { ContactEmail } from '@/components/kynthai/contact-email';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { HOME_FAQS } from '@/components/kynthai/faq-data';
+import { ScrollReveal } from '@/components/kynthai/animations';
 
 function FAQ() {
   const faqs = HOME_FAQS;
@@ -10,27 +13,30 @@ function FAQ() {
   return (
     <section className="border-y border-border/60 bg-muted/30 py-10 lg:py-16">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-2xl text-center">
-          <Badge
-            variant="secondary"
-            className="mb-3 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-          >
-            Frequently asked questions
-          </Badge>
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Everything you need to know
-          </h2>
-          <p className="mt-3 text-muted-foreground">
-            Still curious? Email us at{' '}
-            <ContactEmail
-              address="support@kynthai.app"
-              className="rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 hover:underline"
-            />
-            .
-          </p>
-        </div>
+        <ScrollReveal>
+          <div className="mx-auto max-w-2xl text-center">
+            <Badge
+              variant="secondary"
+              className="mb-3 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+            >
+              Frequently asked questions
+            </Badge>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Everything you need to know
+            </h2>
+            <p className="mt-3 text-muted-foreground">
+              Still curious? Email us at{' '}
+              <ContactEmail
+                address="support@kynthai.app"
+                className="rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 hover:underline"
+              />
+              .
+            </p>
+          </div>
+        </ScrollReveal>
 
-        <Card className="mt-4 p-2 sm:p-4">
+        <ScrollReveal delay={0.08} y={16}>
+          <Card className="mt-4 p-2 sm:p-4">
           <div className="w-full">
             {faqs.map((f) => (
               <details key={f.q} className="group border-b last:border-b-0">
@@ -47,7 +53,8 @@ function FAQ() {
               </details>
             ))}
           </div>
-        </Card>
+          </Card>
+        </ScrollReveal>
       </div>
     </section>
   );

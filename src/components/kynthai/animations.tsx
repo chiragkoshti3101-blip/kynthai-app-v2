@@ -73,15 +73,6 @@ const groupVariants: Variants = {
   },
 }
 
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  show: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] },
-  },
-}
-
 export function StaggerGroup({
   children,
   className,
@@ -118,8 +109,51 @@ export function StaggerItem({
   children: React.ReactNode
   className?: string
 }) {
+  const reduced = useReducedMotion()
+  const item = React.useMemo<Variants>(
+    () => ({
+      hidden: { opacity: 0, y: reduced ? 0 : 20 },
+      show: {
+        opacity: 1,
+        y: 0,
+        transition: { duration: reduced ? 0.35 : 0.65, ease: [0.16, 1, 0.3, 1] },
+      },
+    }),
+    [reduced],
+  )
   return (
-    <motion.div variants={itemVariants} className={className} suppressHydrationWarning>
+    <motion.div variants={item} className={className} suppressHydrationWarning>
+      {children}
+    </motion.div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/* ScrollReveal — fade + rise for a single block when scrolled into view */
+/* ------------------------------------------------------------------ */
+export function ScrollReveal({
+  children,
+  delay = 0,
+  y = 22,
+  className,
+}: {
+  children: React.ReactNode
+  delay?: number
+  y?: number
+  className?: string
+}) {
+  const ref = React.useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { once: true, margin: '-48px 0px -48px 0px' })
+  const reduced = useReducedMotion()
+  return (
+    <motion.div
+      ref={ref}
+      initial={reduced ? { opacity: 0.001 } : { opacity: 0, y }}
+      animate={inView ? { opacity: 1, y: 0 } : undefined}
+      transition={{ duration: reduced ? 0.35 : 0.7, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+      suppressHydrationWarning
+    >
       {children}
     </motion.div>
   )

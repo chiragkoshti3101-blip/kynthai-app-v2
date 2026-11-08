@@ -5,6 +5,8 @@ import { UserPlus, Pill, Bell, Stethoscope } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
+import { ScrollReveal, StaggerGroup, StaggerItem } from '@/components/kynthai/animations';
+
 export function HowItWorks() {
   const steps: Array<{
     icon: React.ComponentType<{ className?: string }>;
@@ -35,21 +37,23 @@ export function HowItWorks() {
 
   return (
     <section id="how-it-works" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-20">
-      <div className="mx-auto max-w-2xl text-center">
-        <Badge
-          variant="secondary"
-          className="mb-4 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-        >
-          How it works
-        </Badge>
-        <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-          Live in <span className="text-emerald-600">four steps</span>, not four apps.
-        </h2>
-        <p className="mt-3 text-muted-foreground">
-          Sign up in under two minutes. No technical setup, no complicated settings — just open the
-          app and start.
-        </p>
-      </div>
+      <ScrollReveal>
+        <div className="mx-auto max-w-2xl text-center">
+          <Badge
+            variant="secondary"
+            className="mb-4 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+          >
+            How it works
+          </Badge>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            Live in <span className="text-emerald-600">four steps</span>, not four apps.
+          </h2>
+          <p className="mt-3 text-muted-foreground">
+            Sign up in under two minutes. No technical setup, no complicated settings — just open the
+            app and start.
+          </p>
+        </div>
+      </ScrollReveal>
 
       {/* Step connector line (desktop only) */}
       <div className="pointer-events-none relative mt-6 hidden lg:block" aria-hidden="true">
@@ -61,9 +65,9 @@ export function HowItWorks() {
         </div>
       </div>
 
-      <div className="mt-8 grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
+      <StaggerGroup className="mt-8 grid gap-4 sm:gap-5 sm:grid-cols-2 lg:grid-cols-4 items-stretch">
         {steps.map((s, i) => (
-          <div key={s.title} className="group flex h-full">
+          <StaggerItem key={s.title} className="group flex h-full">
             <Card className="relative flex w-full flex-col overflow-hidden border-border/60 bg-card transition-all duration-200 hover:-translate-y-1.5 hover:border-emerald-500/30 hover:shadow-xl hover:shadow-emerald-900/5">
               {/* Large ghost step number */}
               <div
@@ -84,9 +88,9 @@ export function HowItWorks() {
                 <p className="mt-2 text-sm leading-relaxed text-foreground/85">{s.body}</p>
               </CardContent>
             </Card>
-          </div>
+          </StaggerItem>
         ))}
-      </div>
+      </StaggerGroup>
     </section>
   );
 }
