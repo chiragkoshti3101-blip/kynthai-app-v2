@@ -77,6 +77,17 @@ jobs:
               "${auth[@]}" "${APP_URL}/api/reminders/send?mode=tick" || echo "000")
             echo "[anchor] tick HTTP ${code}"
             head -c 300 /tmp/tick.json || true; echo
+            # CATCHUP: fire EVERY dose due earlier today that the (possibly
+            # dead) chain never delivered. Idempotent — the unique
+            # notification_logs(user,channel,dedupeKey) index + atomic claim
+            # means a dose already sent by a tick is never re-sent. This makes
+            # the 4-hourly anchors a hard delivery floor even when the
+            # minute-level chain stops re-arming (which it has, historically:
+            # dispatch re-arms stopped landing, leaving anchor-only coverage).
+            ccode=$(curl -sS -o /tmp/catch.json -w "%{http_code}" --max-time 60 \
+              "${auth[@]}" "${APP_URL}/api/reminders/send?mode=catchup" || echo "000")
+            echo "[anchor] catchup HTTP ${ccode}"
+            head -c 300 /tmp/catch.json || true; echo
           }
 
           chain() {
