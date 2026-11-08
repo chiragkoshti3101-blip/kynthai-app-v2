@@ -54,6 +54,13 @@ test('S2 new user: register then authenticate and see an empty (not other-user) 
       // register requires a valid E.164 phone (400 otherwise); 555 range is
       // fiction-reserved and the disposable DB is recreated each run.
       phone: '+15550001234',
+      // dateOfBirth is a required (non-optional) string on registerSchema;
+      // 36y passes the age-verification gate.
+      dateOfBirth: '1990-05-15',
+      // checkConsent requires these for a first-time profile (US privacy).
+      consentAccepted: true,
+      dataProcessingConsent: true,
+      aiTrainingConsent: true,
     },
     headers: { 'content-type': 'application/json', 'x-csrf-token': csrf || '' },
   });
@@ -69,7 +76,11 @@ test('S2 new user: register then authenticate and see an empty (not other-user) 
 test('S3 normal user: demo patient signs in, reaches their portal, and reads their own meds', async ({ context }) => {
   test.skip(IS_PROD, 'demo logins exist only on the seeded disposable-DB runner');
   const page = await context.newPage();
-  await loginAs(page, 'patient');
+  const patientAuthed = await loginAs(page, 'patient');
+  expect(patientAuthed, 'patient login confirmed via /api/auth/me').toBeTruthy();
+  await page.waitForURL(/\/patient|\/caretaker/, { timeout: 8000 }).catch(() => {
+    void page.goto(`${BASE}/patient`, { waitUntil: 'domcontentloaded' });
+  });
   await expect(page).toHaveURL(/\/patient|\/caretaker/, 'patient lands on a portal');
   const api = await apiGet(page, '/api/medications');
   expect(api.status, 'own medications endpoint is 200 for an authenticated user').toBe(200);
@@ -83,13 +94,15 @@ test('S4 cross-user: a second demo user cannot read the first user\'s records vi
   const a = await ctxA.newPage();
   const b = await ctxB.newPage();
   // Separate contexts = separate cookie jars = two genuinely distinct sessions.
-  await loginAs(a, 'patient'); // patient@demo (user A)
+  const aAuthed = await loginAs(a, 'patient'); // patient@demo (user A)
+  expect(aAuthed, 'user A login confirmed via /api/auth/me').toBeTruthy();
   const aMe = await ctxA.request.get(`${BASE}/api/auth/me`);
   const aMeBody = (await aMe.json().catch(() => ({}))) as { user?: { id?: string } };
   const aId = aMeBody.user?.id;
   expect(aId, 'user A has a session id').toBeTruthy();
 
-  await loginAs(b, 'doctor'); // priya@demo (a different user id)
+  const bAuthed = await loginAs(b, 'doctor'); // priya@demo (a different user id)
+  expect(bAuthed, 'user B login confirmed via /api/auth/me').toBeTruthy();
   // B tries to read A's medications by passing A's userId explicitly.
   const cross = await ctxB.request.get(`${BASE}/api/medications?userId=${encodeURIComponent(aId)}`);
   expect(cross.status(), 'cross-user read via foreign userId is rejected (403)').toBe(403);
@@ -101,7 +114,13 @@ test('S4 cross-user: a second demo user cannot read the first user\'s records vi
 test('S5 admin: demo admin can reach the admin dashboard AND the admin-write API', async ({ context }) => {
   test.skip(IS_PROD, 'the demo admin is blocked in production by design; verify admin rights on the CI runner');
   const page = await context.newPage();
-  await loginAs(page, 'admin');
+  const adminAuthed = await loginAs(page, 'admin');
+  expect(adminAuthed, 'admin login confirmed via /api/auth/me').toBeTruthy();
+  // After a confirmed session the SPA routes /login → /admin client-side;
+  // give it time, and fall back to a hard navigation to the portal anchor.
+  await page.waitForURL(/\/admin/, { timeout: 8000 }).catch(() => {
+    void page.goto(`${BASE}/admin`, { waitUntil: 'domcontentloaded' });
+  });
   await expect(page).toHaveURL(/\/admin/, 'admin reaches the dashboard');
   // /api/admin/blocked is a requireAdmin write endpoint — 200/400 for a real admin.
   const adminApi = await apiGet(page, '/api/admin/blocked');

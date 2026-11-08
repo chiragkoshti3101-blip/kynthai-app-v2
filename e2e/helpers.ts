@@ -46,8 +46,8 @@ export async function assertNoConsoleErrors(errors: string[]) {
 
 // ── Auth helpers ──────────────────────────────────────────────────────
 
-/** Log in with a demo account — returns the page after login redirect */
-export async function loginAs(page: Page, role: DemoRole, expectRedirect?: string) {
+/** Log in with a demo account — returns true once the session cookie is confirmed. */
+export async function loginAs(page: Page, role: DemoRole, expectRedirect?: string): Promise<boolean> {
   const account = DEMO_ACCOUNTS[role];
   await goto(page, '/login');
   await page.waitForLoadState('networkidle');
@@ -59,13 +59,28 @@ export async function loginAs(page: Page, role: DemoRole, expectRedirect?: strin
   // Click submit
   await page.click('button[type="submit"]');
 
+  // Authoritatively confirm the session cookie is set rather than racing a fixed
+  // sleep (the SPA login flow + store rehydration is async; a 3s sleep flaked
+  // S4/S5). page.request shares the context cookie jar, so /api/auth/me reflects
+  // exactly what the caller will read next.
+  const origin = new URL(page.url()).origin;
+  const deadline = Date.now() + 15000;
+  let authed = false;
+  while (Date.now() < deadline) {
+    const me = await page.request.get(`${origin}/api/auth/me`);
+    const body = (await me.json().catch(() => ({}))) as { authenticated?: boolean };
+    if (body.authenticated) {
+      authed = true;
+      break;
+    }
+    await page.waitForTimeout(500);
+  }
+
   // Wait for redirect after login
   if (expectRedirect) {
     await page.waitForURL(`**${expectRedirect}`, { timeout: 15000 });
-  } else {
-    // Wait for navigation to complete
-    await page.waitForTimeout(3000);
   }
+  return authed;
 }
 
 // ── Response helpers ──────────────────────────────────────────────────
