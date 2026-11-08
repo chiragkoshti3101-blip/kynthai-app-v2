@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, DollarSign, ShieldCheck, Bell, Lock } from 'lucide-react';
+import { ScrollReveal } from '@/components/kynthai/animations';
 
 /* ------------------------------------------------------------------ */
 /* LandingFinalCTA — final call-to-action section (client island)     */
@@ -13,6 +14,7 @@ export function LandingFinalCTA({ onGetStarted }: { onGetStarted: () => void }) 
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-16">
+      <ScrollReveal y={28}>
       <div
         className="relative overflow-hidden rounded-2xl px-5 py-8 text-center sm:rounded-3xl sm:px-10 sm:py-14"
         style={{
@@ -75,6 +77,7 @@ export function LandingFinalCTA({ onGetStarted }: { onGetStarted: () => void }) 
           </div>
         </div>
       </div>
+      </ScrollReveal>
     </section>
   );
 }

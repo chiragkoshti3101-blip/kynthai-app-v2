@@ -5,6 +5,7 @@ import { ContactEmail, ContactEmailText } from '@/components/kynthai/contact-ema
 import { Scale, ShieldPlus, Server, Globe } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { StaggerGroup, StaggerItem } from '@/components/kynthai/animations';
 
 function USTrust() {
   const badges = [
@@ -56,9 +57,9 @@ function USTrust() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StaggerGroup className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {badges.map(b => (
-            <div key={b.label}>
+            <StaggerItem key={b.label}>
               <div
                 className={cn(
                   'flex flex-col items-center gap-3 rounded-2xl border p-5 text-center transition-all',
@@ -83,9 +84,9 @@ function USTrust() {
                   <p className="text-[11px] text-muted-foreground">{b.sub}</p>
                 </div>
               </div>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerGroup>
 
         {/* Legal footnote */}
         <p className="mx-auto mt-6 max-w-2xl text-center text-[10px] leading-relaxed text-muted-foreground">
