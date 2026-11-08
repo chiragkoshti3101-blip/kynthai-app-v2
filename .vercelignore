@@ -1,14 +1,17 @@
 # ===== Vercel Deployment Optimizations =====
 # Files excluded from serverless function bundles to reduce Functions Storage
 
+
 # Mobile Native Builds (huge, not needed for web deployments)
 android/
 ios/
 capacitor.config.ts
 
+
 # Video / Remotion (massive dependencies, not used in production functions)
 remotion/
 video-studio/
+
 
 # Load Testing & Diagnostic Scripts
 load-test/
@@ -23,9 +26,11 @@ qa-*.mjs
 kynthai-qa.mjs
 kynthai-init-db.mjs
 
+
 # End-to-End Tests
 e2e/
 playwright.config.ts
+
 
 # Documentation (not needed at runtime)
 docs/
@@ -47,9 +52,7 @@ TERMINAL-FIX-GUIDE.md
 PERMANENT-TERMINAL-FIX.sh
 SECURITY-FIXES-APPLIED.md
 SUPABASE_SETUP.md
-MASTER-LEGAL-AGENT-AUDIT.md
-NATIVE-ALARM-BUILD.md
-SEQUEL_STORY.md
+
 
 # Build Infrastructure
 .dockerignore
@@ -61,6 +64,7 @@ docker-compose.ci.yml
 docker-compose.god-level.yml
 docker-compose.prod.yml
 
+
 # Dev/Utility Scripts
 generate_production_secrets.js
 run-sql.mjs
@@ -71,18 +75,20 @@ deploy.sh
 dev-mode.sh
 env-template.txt
 
+
 # Legal
 legal/
 LICENSE
 LICENSE_THIRD_PARTY.md
+
 
 # Build Output (belt-and-suspenders)
 out/
 dist/
 build/
 .next/
-node_modules/
 sbom/
+
 
 # Test Artifacts
 .nyc_output/
