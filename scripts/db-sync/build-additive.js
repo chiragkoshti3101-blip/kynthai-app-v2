@@ -19,14 +19,19 @@ if (!inPath) {
 const src = fs.readFileSync(inPath, 'utf8');
 
 // ── Split Prisma's SQL script into statements ─────────────────────────────
-// Accumulate until a ';' that is outside single/double/dollar-quoted
-// contexts and not part of a `$$`-style quoting terminator.
-function splitStatements(text) {
+// Comment-aware + quote-aware:
+//  * `--` line comments are stripped (apostrophes inside comments like
+//    "patient's" must NOT toggle the single-quote state).
+//  * `/* */` block comments are stripped.
+//  * ';' only terminates a statement outside single/double/dollar-quoted
+//    strings.
+function stripCommentsAndSplit(text) {
   const stmts = [];
   let cur = '';
   let inS = false, inD = false, inQ = false;
   for (let i = 0; i < text.length; i++) {
     const c = text[i];
+    const next = text[i + 1];
     if (inS) {
       cur += c;
       if (c === "'") inS = false;
@@ -38,17 +43,30 @@ function splitStatements(text) {
       continue;
     }
     if (inQ) {
-      cur += c;
-      if (c === '$' && text[i + 1] === '$') {
-        cur += '$';
+      if (c === '$' && next === '$') {
+        cur += '$$';
         i++;
         inQ = false;
+      } else {
+        cur += c;
       }
+      continue;
+    }
+    // not inside any quoted context:
+    if (c === '-' && next === '-') {
+      while (i < text.length && text[i] !== '\n') i++;
+      cur += '\n';
+      continue;
+    }
+    if (c === '/' && next === '*') {
+      i += 2;
+      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++;
+      i++;
       continue;
     }
     if (c === "'") inS = true;
     else if (c === '"') inD = true;
-    else if (c === '$' && text[i + 1] === '$') {
+    else if (c === '$' && next === '$') {
       inQ = true;
       cur += '$$';
       i++;
@@ -83,7 +101,7 @@ function guard(body, whenClauses) {
 const apply = [];
 const skipped = [];
 
-for (const raw of splitStatements(src)) {
+for (const raw of stripCommentsAndSplit(src)) {
   const norm = raw.replace(/^--[^\n]*\n/g, '').replace(/--[^\n]*/g, '').replace(/\s+/g, ' ').trim();
   if (!norm) continue;
   const u = norm.toUpperCase();
@@ -92,7 +110,7 @@ for (const raw of splitStatements(src)) {
   else if (/^CREATE TABLE\b/.test(u)) apply.push(raw.replace(/^CREATE TABLE/i, 'CREATE TABLE IF NOT EXISTS'));
   else if (/^CREATE SCHEMA IF NOT EXISTS/.test(u)) apply.push(raw);
   else if (/^CREATE SCHEMA\b/.test(u)) apply.push(raw.replace(/^CREATE SCHEMA/i, 'CREATE SCHEMA IF NOT EXISTS'));
-  else if (/^CREATE (UNIQUE )?INDEX/.test(u)) apply.push(raw.replace(/^CREATE (UNIQUE )?INDEX/i, (m, uniq) => `CREATE ${uniq || ''}INDEX IF NOT EXISTS`));
+  else if (/^CREATE (UNIQUE )?INDEX\b/.test(u)) apply.push(u.includes('IF NOT EXISTS') ? raw : raw.replace(/^CREATE (UNIQUE )?INDEX/i, (m, uniq) => `CREATE ${uniq || ''}INDEX IF NOT EXISTS`));
   else if (/^CREATE TYPE\b/.test(u)) apply.push(guard(raw, ['duplicate_object', 'undefined_table']));
   else if (/^ALTER TYPE\b/.test(u)) apply.push(guard(raw, ['duplicate_object', 'undefined_table']));
   else if (/^ALTER TABLE\b.*ADD (COLUMN |CONSTRAINT |PRIMARY KEY|UNIQUE|FOREIGN KEY)/.test(u))
