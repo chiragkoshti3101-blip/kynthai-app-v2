@@ -167,20 +167,31 @@ jobs:
       - run: npx prisma generate
 
       - name: Apply database migrations
-        # Use `prisma migrate deploy` (non-destructive: applies the recorded
-        # prisma/migrations/ and updates _prisma_migrations history). The
-        # previous `db push --accept-data-loss` silently dropped columns/tables
-        # on any schema/DB drift — catastrophic if this pattern is ever run
-        # against a persistent database. migrate deploy is safe on the fresh
-        # ephemeral CI DB and is the correct primitive for a real one.
+        # DISPOSITION/CI DB → `prisma db push`.
+        #
+        # The E2E job seeds a throwaway Postgres (zero rows, discarded after
+        # the run). `db push` materializes the FULL schema straight from the
+        # Prisma client, which is exactly what a blank database needs.
+        #
+        # `prisma migrate deploy` is deliberately NOT used here: the committed
+        # prisma/migrations/ history is INCREMENTAL ONLY — it holds no baseline
+        # CREATE TABLE for the core schema (that schema was first created
+        # out-of-band on the live Supabase DB). So on a blank database
+        # `migrate deploy` aborts at the first `ALTER TABLE "users"` with
+        # "relation users does not exist". `db push` sidesteps that.
+        #
+        # For a PERSISTENT production database the correct primitive is
+        # `prisma migrate deploy` (non-destructive, applies recorded migrations
+        # to _prisma_migrations); that database is managed by Vercel/Supabase,
+        # not by this throwaway-DB CI job.
         # Retry: postgres can still be crash-recovering or restarting right
         # after the readiness loop (P1001 seen ~40s after a green check).
         run: |
           for attempt in 1 2 3; do
-            if npx prisma migrate deploy; then
+            if npx prisma db push --accept-data-loss; then
               exit 0
             fi
-            echo "migrate deploy attempt $attempt failed, retrying in 5s..." >&2
+            echo "db push attempt $attempt failed, retrying in 5s..." >&2
             sleep 5
           done
           exit 1
