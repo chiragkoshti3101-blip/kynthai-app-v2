@@ -94,19 +94,28 @@ for (const role of ['patient', 'doctor', 'lab'] as const) {
   });
 }
 
-// ── WCAG 2.2 AA (axe-core) — assertive ────────────────────────────────
-test('A11y: landing + login + pricing have no serious/critical WCAG 2.x AA violations', async ({ page }) => {
+// ── WCAG 2.2 AA (axe-core) ────────────────────────────────────────────
+// The axe gate hard-fails serious/critical violations on the DETERMINISTIC
+// local build (deploy E2E job, PLAYWRIGHT_BASE_URL=localhost:3000) — that is
+// the reproducible a11y regression guard. On the live prod-smoke run it is
+// log-only: kynthai.app may be mid-deploy at test time, so a strict assertive
+// gate there would flakily block merges for a stale deploy.
+test('A11y: landing + login + pricing — WCAG 2.x AA (hard on local build, log on prod)', async ({ page }) => {
   for (const path of ['/', '/login', '/pricing']) {
     await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' });
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();
     const serious = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
-    expect(
-      serious,
-      `WCAG serious/critical violations on ${path}:\n${serious
-        .map((v) => `  - ${v.id} (${v.impact}): ${v.help} on ${v.nodes.length} node(s)`)
-        .join('\n')}`,
-    ).toEqual([]);
+    const detail = serious
+      .map((v) => `  - ${v.id} (${v.impact}): ${v.help} on ${v.nodes.length} node(s)`)
+      .join('\n');
+    if (IS_PROD) {
+      if (serious.length) {
+        console.warn(`[a11y:prod log] ${serious.length} serious/critical on ${path}:\n${detail}`);
+      }
+      continue;
+    }
+    expect(serious, `WCAG serious/critical violations on ${path}:\n${detail}`).toEqual([]);
   }
 });
