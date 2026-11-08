@@ -47,7 +47,14 @@ test('S2 new user: register then authenticate and see an empty (not other-user) 
   const csrfRes = await context.request.get(`${BASE}/api/auth/csrf`);
   const { token: csrf } = (await csrfRes.json().catch(() => ({}))) as { token?: string };
   const res = await context.request.post(`${BASE}/api/auth/register`, {
-    data: { email, password: 'Qa-Passw0rd!', name: 'QA Reg' },
+    data: {
+      email,
+      password: 'Qa-Passw0rd!',
+      name: 'QA Reg',
+      // register requires a valid E.164 phone (400 otherwise); 555 range is
+      // fiction-reserved and the disposable DB is recreated each run.
+      phone: '+15550001234',
+    },
     headers: { 'content-type': 'application/json', 'x-csrf-token': csrf || '' },
   });
   expect([200, 201], `registration accepted (got ${res.status()})`).toContain(res.status());
