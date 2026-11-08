@@ -23,6 +23,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ScrollReveal } from '@/components/kynthai/animations';
 
 const AI_FEATURE_COUNT = 10;
 
@@ -82,8 +83,9 @@ export function BentoFeatures() {
         }}
       />
 
-      <div className="mx-auto max-w-2xl text-center">
-        <Badge
+      <ScrollReveal>
+        <div className="mx-auto max-w-2xl text-center">
+          <Badge
           variant="secondary"
           className="mb-4 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium"
         >
@@ -96,8 +98,10 @@ export function BentoFeatures() {
           Ask, snap, type — Kynthai turns everyday moments into safer, better-coordinated care for
           the people you love.
         </p>
-      </div>
+        </div>
+      </ScrollReveal>
 
+      <ScrollReveal delay={0.1}>
       <div className="mt-6 grid gap-2 sm:gap-4 md:grid-cols-6 lg:grid-cols-12 lg:gap-5">
         {/* Big AI chat card */}
         <div className="md:col-span-6 lg:col-span-7">
@@ -277,6 +281,7 @@ export function BentoFeatures() {
           </Card>
         </div>
       </div>
+      </ScrollReveal>
 
       <div className="mt-6 flex justify-center">
         <Button

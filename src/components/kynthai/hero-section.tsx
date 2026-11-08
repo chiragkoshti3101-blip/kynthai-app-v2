@@ -5,6 +5,63 @@ import { Button } from '@/components/ui/button';
 import { HeroCarePreview } from './hero-care-preview';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+
+/**
+ * Above-the-fold hero entrance: elements start hidden and cascade in on first
+ * paint with a GPU-friendly fade+rise. Respects prefers-reduced-motion (no
+ * slide, faster fade). SSR/hydration-safe: framer-motion runs its entrance
+ * after hydration, and `suppressHydrationWarning` absorbs the transient
+ * mid-flight transform diff (React #418) that used to blank the page.
+ */
+function HeroReveal({
+  children,
+  delay = 0,
+  y = 20,
+  className,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  y?: number;
+  className?: string;
+}) {
+  const reduced = useReducedMotion();
+  const [started, setStarted] = React.useState(false);
+  React.useEffect(() => {
+    const raf = requestAnimationFrame(() => setStarted(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return (
+    <motion.div
+      initial={reduced ? { opacity: 0.001 } : { opacity: 0, y }}
+      animate={started ? { opacity: 1, y: 0 } : undefined}
+      transition={{ duration: reduced ? 0.3 : 0.75, delay, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
+      suppressHydrationWarning
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** Gentle floating loop for the hero care preview card (desktop-only, reduced-motion-safe). */
+function FloatingCard({ children, className }: { children: React.ReactNode; className?: string }) {
+  const reduced = useReducedMotion();
+  return (
+    <motion.div
+      className={className}
+      animate={reduced ? undefined : { y: [0, -10, 0] }}
+      transition={
+        reduced
+          ? undefined
+          : { duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }
+      }
+      suppressHydrationWarning
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 interface HeroSectionProps {
   onGetStarted: (portal?: string) => void;
@@ -52,7 +109,7 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
         {/* Left: copy column */}
         <div>
           {/* Trust badge */}
-          <div>
+          <HeroReveal delay={0.05}>
             <Badge
               variant="secondary"
               className="mb-3 sm:mb-4 gap-1.5 border-emerald-500/35 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200 font-medium text-[11px] sm:text-sm"
@@ -60,74 +117,88 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
               <ShieldCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               Privacy-first · Secure billing
             </Badge>
-          </div>
+          </HeroReveal>
 
           {/* H1 — keep “connected.” attached so the line never orphans after the comma */}
-          <h1 className="text-balance text-[2rem] leading-[1.12] font-bold tracking-tight sm:text-5xl lg:text-[3.7rem]">
-            Your family&apos;s health,{' '}
-            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 bg-clip-text text-transparent whitespace-nowrap">
-              connected.
-            </span>
-          </h1>
+          <HeroReveal delay={0.12}>
+            <h1 className="text-balance text-[2rem] leading-[1.12] font-bold tracking-tight sm:text-5xl lg:text-[3.7rem]">
+              Your family&apos;s health,{' '}
+              <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 bg-clip-text text-transparent whitespace-nowrap">
+                connected.
+              </span>
+            </h1>
+          </HeroReveal>
 
           {/* Gradient subline — higher visual rank than plain text */}
-          <p className="mt-3 text-base font-semibold sm:mt-4 sm:text-xl lg:text-2xl">
-            <span className="bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">
-              Smart reminders, doctor consultations, and lab tests
-            </span>
-            <span className="text-foreground"> — all in one place.</span>
-          </p>
+          <HeroReveal delay={0.2}>
+            <p className="mt-3 text-base font-semibold sm:mt-4 sm:text-xl lg:text-2xl">
+              <span className="bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">
+                Smart reminders, doctor consultations, and lab tests
+              </span>
+              <span className="text-foreground"> — all in one place.</span>
+            </p>
+          </HeroReveal>
 
           {/* Body copy — relaxed leading, muted opacity */}
-          <p className="mt-2 max-w-xl text-pretty text-sm leading-relaxed text-foreground/75 sm:mt-3 sm:text-base lg:text-lg">
-            Missed doses, confusing labels, scheduling headaches — Kynthai brings smart reminders,
-            AI-guided medication information, doctor consultations, and lab tests together in one calm,
-            connected experience. Built for families everywhere, with privacy-first safeguards.
-          </p>
-          <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
-            Kynthai is a health management tool — not a doctor, hospital, or emergency service.
-            It does not provide medical advice or diagnosis.{' '}
-            <a href="/medical-disclaimer" className="underline underline-offset-2 hover:text-foreground">
-              Medical disclaimer
-            </a>
-            .
-          </p>
+          <HeroReveal delay={0.28}>
+            <p className="mt-2 max-w-xl text-pretty text-sm leading-relaxed text-foreground/75 sm:mt-3 sm:text-base lg:text-lg">
+              Missed doses, confusing labels, scheduling headaches — Kynthai brings smart reminders,
+              AI-guided medication information, doctor consultations, and lab tests together in one calm,
+              connected experience. Built for families everywhere, with privacy-first safeguards.
+            </p>
+            <p className="mt-2 max-w-xl text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
+              Kynthai is a health management tool — not a doctor, hospital, or emergency service.
+              It does not provide medical advice or diagnosis.{' '}
+              <a href="/medical-disclaimer" className="underline underline-offset-2 hover:text-foreground">
+                Medical disclaimer
+              </a>
+              .
+            </p>
+          </HeroReveal>
 
           {/* CTA buttons — primary 48px, secondary 44px, full-width on mobile */}
-          <div className="mt-6 flex w-full max-w-md flex-col gap-3 sm:mt-8 sm:max-w-none sm:flex-row sm:items-center">
-            <GetStartedButton onGetStarted={onGetStarted} />
-            <Button
-              size="ctaSecondary"
-              variant="outline"
-              onClick={() => {
-                const el = document.getElementById('how-it-works');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-              className="w-full border-border/80 sm:w-auto"
-            >
-              See How It Works
-            </Button>
-          </div>
+          <HeroReveal delay={0.36}>
+            <div className="mt-6 flex w-full max-w-md flex-col gap-3 sm:mt-8 sm:max-w-none sm:flex-row sm:items-center">
+              <GetStartedButton onGetStarted={onGetStarted} />
+              <Button
+                size="ctaSecondary"
+                variant="outline"
+                onClick={() => {
+                  const el = document.getElementById('how-it-works');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="w-full border-border/80 sm:w-auto"
+              >
+                See How It Works
+              </Button>
+            </div>
+          </HeroReveal>
 
           {/* Trust pill-row */}
-          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] font-medium text-muted-foreground sm:mt-6 sm:gap-x-5 sm:text-sm">
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Privacy-first
-            </span>
-            <span className="h-1 w-1 rounded-full bg-border" aria-hidden />
-            <span className="inline-flex items-center gap-1.5">
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> AI for health info only
-            </span>
-            <span className="h-1 w-1 rounded-full bg-border" aria-hidden />
-            <span className="font-semibold text-foreground">Free to start</span>
-            <span className="h-1 w-1 rounded-full bg-border" aria-hidden />
-            <span>No credit card required</span>
-          </div>
+          <HeroReveal delay={0.44}>
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] font-medium text-muted-foreground sm:mt-6 sm:gap-x-5 sm:text-sm">
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Privacy-first
+              </span>
+              <span className="h-1 w-1 rounded-full bg-border" aria-hidden />
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> AI for health info only
+              </span>
+              <span className="h-1 w-1 rounded-full bg-border" aria-hidden />
+              <span className="font-semibold text-foreground">Free to start</span>
+              <span className="h-1 w-1 rounded-full bg-border" aria-hidden />
+              <span>No credit card required</span>
+            </div>
+          </HeroReveal>
         </div>
 
         {/* Right: care overview — content-first and device-free. */}
         <div className="mt-4 flex w-full min-w-0 items-center justify-center lg:mt-0">
-          <HeroCarePreview />
+          <HeroReveal delay={0.3} className="w-full min-w-0" y={28}>
+            <FloatingCard className="flex w-full min-w-0 items-center justify-center">
+              <HeroCarePreview />
+            </FloatingCard>
+          </HeroReveal>
         </div>
       </div>
     </section>
