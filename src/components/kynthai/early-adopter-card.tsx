@@ -33,13 +33,13 @@ export function EarlyAdopterCard({ onSelect }: EarlyAdopterCardProps) {
               <Gift className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-bold text-lg">Launch Offer</h3>
+              <h2 className="font-bold text-lg">Launch Offer</h2>
               <p className="text-sm text-muted-foreground">
                 Reduced pricing for your first 3 months
               </p>
             </div>
           </div>
-          <Badge className="bg-emerald-500">SAVE MORE</Badge>
+          <Badge className="bg-emerald-700 text-white">SAVE MORE</Badge>
         </div>
 
         <div className="rounded-lg border bg-white p-4 mb-4 dark:bg-background">

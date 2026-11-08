@@ -213,7 +213,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run prod smoke tests
-        run: npx playwright test e2e/ci-smoke.spec.ts --project=chromium-desktop
+        # ci-smoke + the QA sweep (public UI/UX, a11y, perf, 10-scenario
+        # matrix). Matrix scenarios that need the DB demo seed self-skip on
+        # production (IS_PROD gate) and run fully in the deploy job instead.
+        run: npx playwright test e2e/ci-smoke.spec.ts e2e/ui-ux-sweep.spec.ts e2e/performance.spec.ts e2e/scenarios-matrix.spec.ts --project=chromium-desktop
         env:
           PLAYWRIGHT_BASE_URL: https://kynthai.app
 
