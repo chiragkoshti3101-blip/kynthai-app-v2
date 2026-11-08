@@ -55,6 +55,7 @@ concurrency:
 jobs:
   sync:
     name: Sync production schema (additive only)
+    if: ${{ secrets.DATABASE_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -76,6 +77,10 @@ jobs:
       - name: Normalize production DSN (Supabase pooler → direct)
         id: dsn
         run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::warning::DATABASE_URL secret is not set. Skipping schema sync."
+            exit 0
+          fi
           DIRECT_URL="$(node scripts/db-sync/normalize-url.js "$DATABASE_URL")"
           echo "DIRECT_URL=${DIRECT_URL}" >> "$GITHUB_ENV"
 
