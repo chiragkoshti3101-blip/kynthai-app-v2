@@ -186,11 +186,24 @@ export async function POST(req: NextRequest) {
         verificationEmailSent: true,
       });
     } else if (authError) {
-      return jsonError(authError.message || 'Registration failed', 400);
+      // Provider-side failure (unreachable, misconfigured keys, rate-limited, etc.)
+      // → explicit 503 with a GENERIC message. Never leak the provider's error
+      // text (enumeration / internal-detail vector), and distinguish "provider
+      // problem" from "client problem" for callers + the CI disposable-DB gate.
+      await logAudit('system', 'auth.register.provider_error', `email=${email} provider=${authError.message?.slice(0, 120)}`, 'security');
+      return jsonError(
+        'The account service is temporarily unavailable. Please try again later.',
+        503,
+        'PROVIDER_UNAVAILABLE'
+      );
     }
 
     if (!authData?.user) {
-      return jsonError('Registration failed', 500);
+      return jsonError(
+        'The account service is temporarily unavailable. Please try again later.',
+        503,
+        'PROVIDER_UNAVAILABLE'
+      );
     }
 
     // ── Create Prisma profile ───────────────────────────────────────────

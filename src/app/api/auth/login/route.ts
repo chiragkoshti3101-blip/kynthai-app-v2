@@ -344,8 +344,15 @@ export async function POST(req: NextRequest) {
     // expiry is renewed here on each new login.
     const signedValue = await signSessionToken(user.id);
     if (!signedValue) {
-      // Signing failed in production — abort rather than set an unsigned cookie
-      return jsonError('Server configuration error', 500, 'INTERNAL_ERROR');
+      // Signing failed: no SESSION_SIGNING_SECRET / SUPABASE_SERVICE_ROLE_KEY
+      // in a production build. Fail with a meaningful 503 (auth unavailable)
+      // instead of a generic 500 so callers — and the CI gate — can tell
+      // "config missing" from "bug".
+      return jsonError(
+        'Session signing is not configured on this deployment. Please contact support.',
+        503,
+        'AUTH_CONFIG_MISSING'
+      );
     }
     res.cookies.set('kynthai-session', signedValue, {
       httpOnly: true,
