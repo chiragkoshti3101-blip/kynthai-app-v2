@@ -4,6 +4,7 @@ import { applyStandardHeaders, jsonOk, jsonError } from '@/lib/api-helpers';
 import { getSupabaseProfile } from '@/lib/supabase/sync';
 import { verifySessionToken } from '@/lib/session-signing';
 import { createSafeServerClient } from '@/lib/supabase/get-server-client';
+import { withTimeout } from '@/lib/with-timeout';
 import { db } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +17,15 @@ export async function GET(req: NextRequest) {
   // Missing Supabase env (e.g. local dev without keys) is NOT fatal: fall
   // straight through to the local HMAC session path below instead of throwing
   // an uncaught 500.
+  // Bound the provider call: a slow/unreachable Supabase must not stall the
+  // whole request; on timeout (or missing config) fall through to the local
+  // HMAC session path below.
   const supabaseUser = supabase
-    ? (await supabase.auth.getUser()).data.user
+    ? ((await withTimeout(
+        supabase.auth.getUser(),
+        8000,
+        'supabase.auth.getUser (/api/auth/me)',
+      ).catch(() => ({ data: { user: null } }))).data.user as any)
     : null;
 
   if (supabaseUser) {

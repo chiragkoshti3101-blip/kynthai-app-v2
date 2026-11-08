@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { verifySessionToken } from './session-signing';
 import { logAudit, getSessionUser } from './auth';
+import { withTimeout } from './with-timeout';
 import { recordAudit, recordAuditSync, AuditContext, AuditCategory } from './audit-logger';
 import { rateLimit, rateLimitProduction, getIp } from './security';
 import { checkCsrf } from './csrf';
@@ -245,7 +246,11 @@ export async function requireAuth(
         },
       }
     );
-    const result = await supabase.auth.getUser();
+    const result = await withTimeout(
+      supabase.auth.getUser(),
+      8000,
+      'supabase.auth.getUser (requireAuth)',
+    ).catch(() => ({ data: { user: null }, error: { message: 'provider timeout — falling back to local session' } }));
     supabaseUser = result.data.user;
     supabaseAuthFailed = Boolean(result.error);
   } catch (error) {

@@ -23,6 +23,7 @@ import { syncSupabaseUser } from '@/lib/supabase/sync';
 import { verifyTurnstileToken, isCaptchaConfigured } from '@/lib/captcha';
 import { checkEnrollmentGate } from '@/lib/fraud-guard';
 import { createSafeServerClient } from '@/lib/supabase/get-server-client';
+import { withTimeout } from '@/lib/with-timeout';
 export const dynamic = 'force-dynamic';
 
 const WEAK_PASSWORDS = new Set([
@@ -141,17 +142,41 @@ export async function POST(req: NextRequest) {
     }
 
     const role = body.role || 'patient';
-    let { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name,
-          role,
-        },
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
-      },
-    });
+    // Bound the provider call: a slow/unreachable Supabase must not stall
+    // registration. On timeout, degrade to an explicit 503 (provider
+    // unavailable) instead of a generic 500 so callers — including the CI
+    // disposable-DB runner — can distinguish "provider down" from "bug".
+    let signUpResult: {
+      data: { user?: { id?: string; email?: string; email_confirmed_at?: string | null } | null };
+      error: { message?: string } | null;
+    } | null = null;
+    let providerUnavailable = false;
+    try {
+      signUpResult = await withTimeout(
+        supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { name, role },
+            emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
+          },
+        }),
+        8000,
+        'supabase.auth.signUp',
+      );
+    } catch {
+      providerUnavailable = true;
+    }
+    const authData = signUpResult?.data;
+    const authError = signUpResult?.error ?? null;
+    if (providerUnavailable) {
+      await logAudit('system', 'auth.register.provider_unavailable', `email=${email}`, 'security');
+      return jsonError(
+        'The account provider is temporarily unavailable. Please try again later.',
+        503,
+        'PROVIDER_UNAVAILABLE'
+      );
+    }
 
     // If email already exists in Supabase, return generic message to prevent email enumeration
     if (authError && authError.message?.includes('already registered')) {

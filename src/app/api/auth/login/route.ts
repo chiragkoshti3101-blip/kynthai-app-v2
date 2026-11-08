@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { withTimeout } from '@/lib/with-timeout';
 import { logAudit } from '@/lib/auth';
 import { isValidEmail, rateLimit, getIp } from '@/lib/security';
 import { checkCsrf, isSecureRequest } from '@/lib/csrf';
@@ -94,10 +95,14 @@ export async function POST(req: NextRequest) {
         }
       );
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Bound the provider call so a slow/unreachable Supabase can't stall
+      // the whole login; the surrounding catch already falls back to the
+      // local HMAC/bcrypt credential path.
+      const { data: authData, error: authError } = await withTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        8000,
+        'supabase.auth.signInWithPassword',
+      );
 
       
       if (authError || !authData.user) {
