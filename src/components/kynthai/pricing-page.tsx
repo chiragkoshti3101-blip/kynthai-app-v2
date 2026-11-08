@@ -221,6 +221,7 @@ export function PricingPage() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <button
             onClick={() => router.push('/')}
+            aria-label="Back to home"
             className="inline-flex min-h-11 min-w-11 items-center gap-2 rounded-md p-2 -m-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -239,6 +240,7 @@ export function PricingPage() {
         </div>
       </header>
 
+      <main id="main-content">
       {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
@@ -691,6 +693,7 @@ export function PricingPage() {
         </p>
         </div>
       </section>
+      </main>
     </div>
   );
 }
@@ -731,7 +734,7 @@ function EarningsCalculator() {
           <div>
             <Label className="text-xs">Partner type</Label>
             <Select value={kind} onValueChange={(v: 'doctor' | 'lab') => setKind(v)}>
-              <SelectTrigger className="mt-1.5 min-h-11">
+              <SelectTrigger aria-label="Partner type" className="mt-1.5 min-h-11">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -743,7 +746,7 @@ function EarningsCalculator() {
           <div>
             <Label className="text-xs">Loyalty tier</Label>
             <Select value={tier} onValueChange={(v: LoyaltyTier) => setTier(v)}>
-              <SelectTrigger className="mt-1.5 min-h-11">
+              <SelectTrigger aria-label="Loyalty tier" className="mt-1.5 min-h-11">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
