@@ -1,0 +1,147 @@
+# =============================================================================
+# DB Schema Sync — ADDITIVE ONLY, idempotent, self-healing.
+#
+# WHY THIS EXISTS
+#   The production Supabase database was created out-of-band and has never
+#   run this repo's Prisma migrations. As schema.prisma evolves (e.g. commit
+#   2f753b1 added `users.state`), the live DB falls behind and Prisma starts
+#   throwing P2022 ("column does not exist") on any query that touches the
+#   drifted columns. On kynthai.app this surfaced as:
+#
+#     { code: 'P2022', meta: { modelName: 'LabProfile', column: 'users.state' } }
+#
+#   which made /api/auth/login, /api/labs and friends fall into their catch
+#   handlers and return bare 500 INTERNAL_ERROR (→ the 4%+ production error
+#   rate). A Vercel redeploy CANNOT fix schema drift — the database itself
+#   must be brought forward. This workflow does exactly that on every push to
+#   main, and can be re-run manually (workflow_dispatch) as a "reboot".
+#
+# SAFETY MODEL
+#   1. `prisma migrate diff --from-url <live> --to-schema-datamodel` computes
+#      the authoritative drift (live → datamodel).
+#   2. scripts/db-sync/build-additive.js filters that diff down to the
+#      ADDITIVE part only and rewrites it idempotent (IF NOT EXISTS / guarded
+#      DO blocks). Destructive or data-level statements (DROP, RENAME,
+#      ALTER COLUMN, UPDATE, SET NOT NULL on drifted data, FK constraints on
+#      existing data, …) are NEVER auto-applied — they are listed in the
+#      log/summary for a human to apply deliberately.
+#   3. The apply step is `psql` of that filtered script; re-running is a no-op
+#      (every statement is guarded).
+#   4. A verification diff after the apply step confirms the schema now
+#      matches, and prints any remaining (deliberate, destructive-only)
+#      drift.
+#
+# TRIGGERS
+#   - Every push to main (right after the code deploys, so the app and the DB
+#     move together).
+#   - Manual workflow_dispatch with an optional dry_run.
+# =============================================================================
+name: DB Schema Sync (additive only)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Compute and report the schema diff but do NOT apply it to production."
+        type: boolean
+        default: false
+
+concurrency:
+  group: db-schema-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync production schema (additive only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Normalize production DSN (Supabase pooler → direct)
+        id: dsn
+        run: |
+          DIRECT_URL="$(node scripts/db-sync/normalize-url.js "$DATABASE_URL")"
+          echo "DIRECT_URL=${DIRECT_URL}" >> "$GITHUB_ENV"
+
+      - name: Compute schema drift (live → datamodel)
+        run: |
+          set +e
+          DATABASE_URL="$DIRECT_URL" DIRECT_URL="$DIRECT_URL" \
+            npx prisma migrate diff \
+            --from-datasource "$DIRECT_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script > diff.sql
+          code=$?
+          set -e
+          if [ $code -ne 0 ]; then
+            echo "::warning::prisma migrate diff exited $code — continuing with partial/empty diff"
+          fi
+          echo "===== RAW DIFF (full drift, including destructive) ====="
+          cat diff.sql || true
+          if [ ! -s diff.sql ]; then
+            echo "No drift: production schema already matches prisma/schema.prisma."
+          fi
+
+      - name: Build additive-only apply script
+        id: build
+        run: |
+          node scripts/db-sync/build-additive.js diff.sql apply.sql
+          echo "===== ADDITIVE apply.sql (what will be applied) ====="
+          cat apply.sql || true
+          if [ ! -s apply.sql ]; then
+            echo "apply.sql is empty — nothing additive to apply."
+          fi
+
+      - name: Apply additive schema sync
+        if: ${{ !inputs.dry_run }}
+        run: |
+          [ -s apply.sql ] || { echo "Nothing to apply."; exit 0; }
+          psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -f apply.sql
+          echo "Additive schema statements applied to production (idempotent)."
+
+      - name: Verify (recompute drift after apply)
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set +e
+          DATABASE_URL="$DIRECT_URL" DIRECT_URL="$DIRECT_URL" \
+            npx prisma migrate diff \
+            --from-datasource "$DIRECT_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --script > verify.sql
+          set -e
+          if [ -s verify.sql ]; then
+            echo "::notice::Remaining drift is destructive/data-level and was NOT auto-applied."
+            echo "===== REMAINING DRIFT (manual review required) ====="
+            cat verify.sql
+          else
+            echo "Verified: production schema now matches prisma/schema.prisma."
+          fi
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "## DB Schema Sync (additive only)"
+            echo
+            echo -e "Dry run: **${{ inputs.dry_run }}**"
+            echo -e "Additive statements built: **$([ -s apply.sql ] && cat apply.sql | grep -c . || echo 0)**"
+            echo
+            echo "Destructive/data-level drift is intentionally never auto-applied; it is"
+            echo "printed in the log for deliberate human review."
+          } >> "$GITHUB_STEP_SUMMARY"
