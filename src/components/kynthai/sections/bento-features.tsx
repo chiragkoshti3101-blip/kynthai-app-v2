@@ -289,7 +289,7 @@ export function BentoFeatures() {
           size="ctaSecondary"
           className="group border-border/60 hover:border-emerald-500/40 hover:text-emerald-600 dark:hover:text-emerald-400 hover:shadow-md"
           onClick={() =>
-            document.getElementById('features-anchor')?.scrollIntoView({ behavior: 'smooth' })
+            document.getElementById('bento-features')?.scrollIntoView({ behavior: 'smooth' })
           }
         >
           See all features
