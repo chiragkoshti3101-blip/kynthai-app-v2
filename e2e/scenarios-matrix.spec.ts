@@ -41,10 +41,16 @@ test('S1 unauthenticated: protected portal redirects to /login and protected API
 test('S2 new user: register then authenticate and see an empty (not other-user) record', async ({ context }) => {
   test.skip(IS_PROD, 'registration writes to the DB — disposable-DB runner only');
   const email = `qa-${Date.now()}@demo.kynthai.app`;
+  // State-changing endpoints gate on CSRF: prime the kynthai-csrf cookie +
+  // token pair (GET sets the cookie; the matching header must accompany the
+  // POST) — exactly like the app's register form does.
+  const csrfRes = await context.request.get(`${BASE}/api/auth/csrf`);
+  const { token: csrf } = (await csrfRes.json().catch(() => ({}))) as { token?: string };
   const res = await context.request.post(`${BASE}/api/auth/register`, {
     data: { email, password: 'Qa-Passw0rd!', name: 'QA Reg' },
+    headers: { 'content-type': 'application/json', 'x-csrf-token': csrf || '' },
   });
-  expect([200, 201], 'registration accepted').toContain(res.status());
+  expect([200, 201], `registration accepted (got ${res.status()})`).toContain(res.status());
   const me = await context.request.get(`${BASE}/api/auth/me`);
   // After a fresh registration the user has no medications yet.
   const list = await context.request.get(`${BASE}/api/medications`);
@@ -72,7 +78,8 @@ test('S4 cross-user: a second demo user cannot read the first user\'s records vi
   // Separate contexts = separate cookie jars = two genuinely distinct sessions.
   await loginAs(a, 'patient'); // patient@demo (user A)
   const aMe = await ctxA.request.get(`${BASE}/api/auth/me`);
-  const aId = aMe.json()?.user?.id;
+  const aMeBody = (await aMe.json().catch(() => ({}))) as { user?: { id?: string } };
+  const aId = aMeBody.user?.id;
   expect(aId, 'user A has a session id').toBeTruthy();
 
   await loginAs(b, 'doctor'); // priya@demo (a different user id)
