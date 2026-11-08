@@ -55,7 +55,6 @@ concurrency:
 jobs:
   sync:
     name: Sync production schema (additive only)
-    if: ${{ secrets.DATABASE_URL != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -78,13 +77,16 @@ jobs:
         id: dsn
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "::warning::DATABASE_URL secret is not set. Skipping schema sync."
+            echo "::notice::DATABASE_URL secret is not configured in GitHub Secrets. Skipping schema sync."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           DIRECT_URL="$(node scripts/db-sync/normalize-url.js "$DATABASE_URL")"
           echo "DIRECT_URL=${DIRECT_URL}" >> "$GITHUB_ENV"
+          echo "configured=true" >> "$GITHUB_OUTPUT"
 
       - name: Compute schema drift (live → datamodel)
+        if: steps.dsn.outputs.configured == 'true'
         run: |
           set +e
           DATABASE_URL="$DIRECT_URL" DIRECT_URL="$DIRECT_URL" \
@@ -104,6 +106,7 @@ jobs:
           fi
 
       - name: Build additive-only apply script
+        if: steps.dsn.outputs.configured == 'true'
         id: build
         run: |
           node scripts/db-sync/build-additive.js diff.sql apply.sql
@@ -114,14 +117,14 @@ jobs:
           fi
 
       - name: Apply additive schema sync
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && steps.dsn.outputs.configured == 'true' }}
         run: |
           [ -s apply.sql ] || { echo "Nothing to apply."; exit 0; }
           psql "$DIRECT_URL" -v ON_ERROR_STOP=1 -f apply.sql
           echo "Additive schema statements applied to production (idempotent)."
 
       - name: Verify (recompute drift after apply)
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && steps.dsn.outputs.configured == 'true' }}
         run: |
           set +e
           DATABASE_URL="$DIRECT_URL" DIRECT_URL="$DIRECT_URL" \
