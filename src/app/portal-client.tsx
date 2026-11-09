@@ -16,6 +16,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore, selectors, type AuthUser } from '@/lib/store';
 import { Suspense, useEffect } from 'react';
 import { loadPortal } from './portal-loaders';
+import { PreLaunchPage } from '@/components/kynthai/prelaunch-page';
 import { LandingPage } from '@/components/kynthai/landing-page';
 import { LoginPage } from '@/components/kynthai/login-page';
 import { PricingPage } from '@/components/kynthai/pricing-page';
@@ -535,21 +536,12 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   // ── Landing (default) ────────────────────────────────────────────────────
   return (
     <ErrorBoundary>
-      <LandingPage
-        onGetStarted={(portal?: string) => {
-          const safePortal = (portal ?? 'caretaker') as LoginPortal;
-          // Do NOT pre-complete onboarding here — the Welcome flow must show
-          // after the user registers and signs in for the first time.
-          setLoginPortal(safePortal);
-          // ROUTE: Direct to registration for new users, not login
-          router.push('/register/');
-        }}
+      <PreLaunchPage
         onPickPortal={(role?: string) => {
           const safePortal = (role ?? 'caretaker') as LoginPortal;
           setLoginPortal(safePortal);
           router.push('/login/');
         }}
-        currency={currency}
       />
     </ErrorBoundary>
   );
