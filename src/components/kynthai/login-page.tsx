@@ -1269,6 +1269,107 @@ export function LoginPage({
                   </div>
                   )}
 
+                  {mode === 'register' && (
+                  <div className="space-y-3.5 rounded-xl border border-border/60 bg-muted/30 p-4">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">
+                      Preferences
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      How would you like Kynthai to help your family?
+                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="reminderTime">
+                        Reminder Preferences
+                      </Label>
+                      <div className="flex gap-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="reminderTime"
+                            value="morning"
+                            checked={reminderTime === 'morning'}
+                            onChange={(e) => setReminderTime(e.target.value)}
+                            className="h-4 w-4 text-emerald-600"
+                          />
+                          Morning reminders
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="reminderTime"
+                            value="evening"
+                            checked={reminderTime === 'evening'}
+                            onChange={(e) => setReminderTime(e.target.value)}
+                            className="h-4 w-4 text-emerald-600"
+                          />
+                          Evening reminders
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="reminderTime"
+                            value="both"
+                            checked={reminderTime === 'both'}
+                            onChange={(e) => setReminderTime(e.target.value)}
+                            className="h-4 w-4 text-emerald-600"
+                          />
+                          Both
+                        </label>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="alertDelegation">
+                        Alert Delegation
+                      </Label>
+                      <div className="flex gap-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="alertDelegation"
+                            value="self"
+                            checked={alertDelegation === 'self'}
+                            onChange={(e) => setAlertDelegation(e.target.value)}
+                            className="h-4 w-4 text-emerald-600"
+                          />
+                          Notify me only
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="alertDelegation"
+                            value="family"
+                            checked={alertDelegation === 'family'}
+                            onChange={(e) => setAlertDelegation(e.target.value)}
+                            className="h-4 w-4 text-emerald-600"
+                          />
+                          Notify whole family
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="alertDelegation"
+                            value="both"
+                            checked={alertDelegation === 'both'}
+                            onChange={(e) => setAlertDelegation(e.target.value)}
+                            className="h-4 w-4 text-emerald-600"
+                          />
+                          Both
+                        </label>
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={dataSharing}
+                        onCheckedChange={(v) => setDataSharing(v === true)}
+                        className="h-4 w-4 shrink-0"
+                      />
+                      <span className="text-[0.8125rem] text-muted-foreground">
+                        Allow anonymized health data to improve AI features for your family
+                      </span>
+                    </label>
+                  </div>
+                  )}
+
                   {turnstileSiteKey && (
                     <div className="flex justify-center">
                       <TurnstileWidget
