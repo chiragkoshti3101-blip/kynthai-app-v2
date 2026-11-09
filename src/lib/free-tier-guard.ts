@@ -6,9 +6,10 @@
  * Free tier rules:
  *   - 5 medicine adds per day (UTC)
  *   - 5 AI chat messages per day (UTC)
+ *   - 1 prescription scan per week (rolling 7-day window)
  *   - Blocked features: Care, Bookings, Lab tests, Prescriptions, Video calls
  *   - Allowed: Home dashboard, Account settings
- *   - Daily reset at 00:00 UTC
+ *   - Daily reset at 00:00 UTC (meds + AI); 7-day rolling window (prescription scan)
  */
 
 import { db } from './db';
@@ -21,6 +22,8 @@ export const TIERS_UNLOCKED = new Set(['plus', 'pro', 'family_pro']);
 /** Daily usage limits for free-tier users. */
 export const FREE_TIER_MEDICINE_LIMIT = 5;
 export const FREE_TIER_AI_LIMIT = 5;
+/** Weekly (rolling 7-day) prescription scan limit for free-tier users. */
+export const FREE_TIER_PRESCRIPTION_SCAN_WEEKLY_LIMIT = 1;
 
 /** Feature names that are fully blocked for free-tier users. */
 export const BLOCKED_FEATURES = {
@@ -46,10 +49,19 @@ export function todayUtcEnd(): Date {
   return d;
 }
 
+/** Rolling 7-day window start (UTC). */
+export function weekUtcStart(): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() - 6);
+  return d;
+}
+
 // ── Feature-key mapping ──────────────────────────────────────────────────────
 
 const FEATURE_MEDICINE = 'add_medication';
 const FEATURE_AI_CHAT = 'ai_chat';
+const FEATURE_PRESCRIPTION_SCAN = 'prescription_scan';
 
 // ── DB-backed usage helpers ──────────────────────────────────────────────────
 
@@ -81,6 +93,61 @@ export async function getFreeTierUsage(userId: string): Promise<{
     medicinesAdded: medRow?.count ?? 0,
     aiChatsUsed: aiRow?.count ?? 0,
   };
+}
+
+/**
+ * Count prescription scans in the last 7 days for a user.
+ */
+export async function getWeeklyPrescriptionScans(userId: string): Promise<number> {
+  const weekStart = weekUtcStart();
+  const rows = await db.freeTierUsage.findMany({
+    where: {
+      userId,
+      feature: FEATURE_PRESCRIPTION_SCAN,
+      date: { gte: weekStart },
+    },
+  });
+  return rows.reduce((sum, r) => sum + r.count, 0);
+}
+
+/**
+ * Can a free-tier user do a prescription scan this week?
+ */
+export async function canUsePrescriptionScan(userId: string): Promise<boolean> {
+  const used = await getWeeklyPrescriptionScans(userId);
+  return used < FREE_TIER_PRESCRIPTION_SCAN_WEEKLY_LIMIT;
+}
+
+/**
+ * Get remaining prescription scans this week.
+ */
+export async function getRemainingPrescriptionScans(userId: string): Promise<number> {
+  const used = await getWeeklyPrescriptionScans(userId);
+  return Math.max(0, FREE_TIER_PRESCRIPTION_SCAN_WEEKLY_LIMIT - used);
+}
+
+/**
+ * Record a prescription scan usage (call after a successful scan).
+ */
+export async function recordPrescriptionScanUsage(userId: string): Promise<void> {
+  const todayStart = todayUtcStart();
+  const feature = FEATURE_PRESCRIPTION_SCAN;
+
+  // Audit trail
+  await db.freeTierUsageAudit.create({
+    data: { userId, feature, action: 'prescription_scan', count: 1 },
+  });
+
+  // Upsert today's counter
+  const existing = await db.freeTierUsage.findFirst({
+    where: { userId, feature, date: todayStart },
+    select: { id: true },
+  });
+  await db.freeTierUsage.upsert({
+    where: { id: existing?.id ?? '' },
+    create: { userId, feature, date: todayStart, count: 1 },
+    update: { count: { increment: 1 } },
+  });
 }
 
 /**
