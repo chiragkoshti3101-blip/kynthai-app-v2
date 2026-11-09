@@ -41,6 +41,15 @@ import { runDemoLogin, demoRolePath, type DemoRole, DEMO_ROLES } from '@/lib/dem
 // the hook order identical in both environments and avoids a hydration mismatch.
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect
+
+function calculateAge(dobString: string): number {
+  const dob = new Date(dobString);
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) age--;
+  return age;
+}
 import { AppLoader } from '@/components/kynthai/app-loader';
 import { isDemoLoginEnabled, isDemoUser } from '@/lib/demo-mode'
 
@@ -180,6 +189,7 @@ export function LoginPage({
   // a render-phase browser read is a server/client branch and caused an
   // intermittent React #418 hydration mismatch (full-page boot-splash lockup).
   const [email, setEmail] = React.useState('');
+  const [familyMembers, setFamilyMembers] = React.useState<Array<{name: string; relation: string; dob: string}>>([{name: '', relation: '', dob: ''}]);
   React.useEffect(() => {
     try {
       const saved = sessionStorage.getItem('kynthai.login.email')
@@ -871,18 +881,45 @@ export function LoginPage({
                           Age verification required
                         </p>
                         <p className="text-xs text-muted-foreground leading-relaxed">
-                          Kynthai is designed for users{' '}
-                          <span className="font-semibold text-foreground">18 years or older</span>.
-                          By proceeding, you confirm that you meet this age requirement.
+                          Kynthai is designed for users <span className="font-semibold text-foreground">18 years or older</span>.
+                          Enter your date of birth to verify eligibility.
                         </p>
-                        <p className="text-[0.6875rem] text-muted-foreground">
-                          If you are under 18, a parent or legal guardian must create and manage
-                          your account through the{' '}
-                          <span className="text-emerald-600">Family portal</span>.
-                        </p>
+                        <div className="space-y-1.5 mt-4">
+                          <Label htmlFor="ageGateDob">Date of birth</Label>
+                          <Input
+                            id="ageGateDob"
+                            type="date"
+                            value={dateOfBirth}
+                            onChange={e => setDateOfBirth(e.target.value)}
+                            required
+                            max={new Date().toISOString().split('T')[0]}
+                          />
+                          {dateOfBirth && (
+                            <p className="text-xs text-muted-foreground">
+                              You are {calculateAge(dateOfBirth)} years old.
+                            </p>
+                          )}
+                        </div>
                         <Button
                           type="button"
                           onClick={() => {
+                            if (!dateOfBirth) {
+                              toast({
+                                title: 'Date of birth required',
+                                description: 'Please enter your date of birth to verify you are 18 or older.',
+                                variant: 'destructive',
+                              });
+                              return;
+                            }
+                            const age = calculateAge(dateOfBirth);
+                            if (age < 18) {
+                              toast({
+                                title: 'Under 18',
+                                description: 'Kynthai is designed for users 18 years or older. A parent or guardian can create and manage the account through the Family portal.',
+                                variant: 'destructive',
+                              });
+                              return;
+                            }
                             setAgeGateDismissed(true);
                             setAgeGateOpen(false);
                           }}
@@ -890,7 +927,7 @@ export function LoginPage({
                           size="cta"
                           className="w-full"
                         >
-                          I am 18 or older — proceed
+                          Verify Age & Continue
                         </Button>
                       </CardContent>
                     </Card>
@@ -930,14 +967,13 @@ export function LoginPage({
                       <Input
                         id="phone"
                         type="tel"
-                        placeholder="+91 98765 43210"
+                        placeholder="+1 555-123-4567"
                         value={phone}
                         onChange={e => setPhone(e.target.value)}
                         autoComplete="tel"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Used for account security and to suggest an emergency number from your phone country code.
-                        Verify the number shown in SOS and use your current local emergency number; SOS does not contact emergency dispatch.
+                        Used for account security and SOS emergency contact purposes.
                       </p>
                     </div>
                     <div className="space-y-1.5">
@@ -955,21 +991,16 @@ export function LoginPage({
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="emergency1">
-                        Emergency contact 1{' '}
-                        {active.id === 'patient' || active.id === 'caretaker' ? (
-                          <span className="text-rose-500">*</span>
-                        ) : (
-                          <span className="text-muted-foreground">(optional for this portal)</span>
-                        )}
+                        Emergency contact 1<span className="text-muted-foreground">(optional)</span>
                       </Label>
                       <Input
                         id="emergency1"
                         type="tel"
-                        placeholder="+91 98765 43210"
+                        placeholder="+1 555-123-4567"
                         value={emergencyContact1}
                         onChange={e => setEmergencyContact1(e.target.value)}
                         autoComplete="tel"
-                        required={active.id === 'patient' || active.id === 'caretaker'}
+                        required={false}
                         disabled={mode !== 'register'}
                       />
                     </div>
@@ -978,7 +1009,7 @@ export function LoginPage({
                       <Input
                         id="emergency2"
                         type="tel"
-                        placeholder="+91 98765 43210"
+                        placeholder="+1 555-123-4567"
                         value={emergencyContact2}
                         onChange={e => setEmergencyContact2(e.target.value)}
                         autoComplete="tel"
