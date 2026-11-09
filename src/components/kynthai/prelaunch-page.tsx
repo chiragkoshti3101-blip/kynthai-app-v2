@@ -30,9 +30,8 @@ function LivingRing() {
       if (path && path.getTotalLength) {
         const len = path.getTotalLength();
         const progress = (t * 320) % (len + 260);
-        const style = path.style;
-        style.strokeDasharray = `${len} 260`;
-        style.strokeDashoffset = `${-progress + 130}`;
+        (path as unknown as { style: CSSStyleDeclaration & { strokeDasharray?: string; strokeDashoffset?: string } }).style.strokeDasharray = `${len} 260`;
+        (path as unknown as { style: CSSStyleDeclaration & { strokeDasharray?: string; strokeDashoffset?: string } }).style.strokeDashoffset = `${-progress + 130}`;
       }
 
       // Breathing rings: gentle, staggered scale pulse
@@ -46,8 +45,9 @@ function LivingRing() {
       for (let i = 0; i < nodeRefs.current.length; i++) {
         const g = nodeRefs.current[i];
         const dot = dotRefs.current[i];
-        if (!g) continue;
-        const angle = t * orbitSpeed[i] + (i * Math.PI) / 2;
+        const speed = orbitSpeed[i];
+        if (!g || speed === undefined) continue;
+        const angle = t * speed + (i * Math.PI) / 2;
         const r = 96 + i * 34;
         const x = Math.cos(angle) * r;
         const y = Math.sin(angle) * r * 0.62;
