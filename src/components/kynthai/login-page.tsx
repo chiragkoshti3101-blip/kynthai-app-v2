@@ -1060,7 +1060,7 @@ export function LoginPage({
                             value={familyMembers[i]?.relation || ''}
                             onChange={e => {
                               const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i].name || '', relation: e.target.value };
+                              updated[i] = { ...updated[i], name: updated[i]!.name || '', relation: e.target.value };
                               setFamilyMembers(updated);
                             }}
                             required
@@ -1075,7 +1075,7 @@ export function LoginPage({
                             value={familyMembers[i]?.dob || ''}
                             onChange={e => {
                               const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i].name || '', dob: e.target.value };
+                              updated[i] = { ...updated[i], name: updated[i]!.name || '', dob: e.target.value };
                               setFamilyMembers(updated);
                             }}
                             required
@@ -1090,7 +1090,7 @@ export function LoginPage({
                             value={familyMembers[i]?.conditions?.join(', ') || ''}
                             onChange={e => {
                               const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i].name || '', conditions: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
+                              updated[i] = { ...updated[i], name: updated[i]!.name || '', conditions: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
                               setFamilyMembers(updated);
                             }}
                             disabled={mode !== 'register'}
@@ -1103,7 +1103,7 @@ export function LoginPage({
                             value={familyMembers[i]?.medications?.join(', ') || ''}
                             onChange={e => {
                               const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i].name || '', medications: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
+                              updated[i] = { ...updated[i], name: updated[i]!.name || '', medications: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
                               setFamilyMembers(updated);
                             }}
                             disabled={mode !== 'register'}
@@ -1116,7 +1116,7 @@ export function LoginPage({
                             value={familyMembers[i]?.allergies?.join(', ') || ''}
                             onChange={e => {
                               const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i].name || '', allergies: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
+                              updated[i] = { ...updated[i], name: updated[i]!.name || '', allergies: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
                               setFamilyMembers(updated);
                             }}
                             disabled={mode !== 'register'}
@@ -1129,7 +1129,7 @@ export function LoginPage({
                             value={familyMembers[i]?.pharmacy || ''}
                             onChange={e => {
                               const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i].name || '', pharmacy: e.target.value };
+                              updated[i] = { ...updated[i], name: updated[i]!.name || '', pharmacy: e.target.value };
                               setFamilyMembers(updated);
                             }}
                             disabled={mode !== 'register'}
@@ -1291,7 +1291,7 @@ export function LoginPage({
                             name="reminderTime"
                             value="morning"
                             checked={reminderTime === 'morning'}
-                            onChange={(e) => setReminderTime(e.target.value)}
+                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Morning reminders
@@ -1302,7 +1302,7 @@ export function LoginPage({
                             name="reminderTime"
                             value="evening"
                             checked={reminderTime === 'evening'}
-                            onChange={(e) => setReminderTime(e.target.value)}
+                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Evening reminders
@@ -1313,7 +1313,7 @@ export function LoginPage({
                             name="reminderTime"
                             value="both"
                             checked={reminderTime === 'both'}
-                            onChange={(e) => setReminderTime(e.target.value)}
+                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Both
@@ -1331,7 +1331,7 @@ export function LoginPage({
                             name="alertDelegation"
                             value="self"
                             checked={alertDelegation === 'self'}
-                            onChange={(e) => setAlertDelegation(e.target.value)}
+                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Notify me only
@@ -1342,7 +1342,7 @@ export function LoginPage({
                             name="alertDelegation"
                             value="family"
                             checked={alertDelegation === 'family'}
-                            onChange={(e) => setAlertDelegation(e.target.value)}
+                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Notify whole family
@@ -1353,7 +1353,7 @@ export function LoginPage({
                             name="alertDelegation"
                             value="both"
                             checked={alertDelegation === 'both'}
-                            onChange={(e) => setAlertDelegation(e.target.value)}
+                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Both
@@ -1392,7 +1392,7 @@ export function LoginPage({
                             name="reminderTime"
                             value="morning"
                             checked={reminderTime === 'morning'}
-                            onChange={(e) => setReminderTime(e.target.value)}
+                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Morning reminders
@@ -1403,7 +1403,7 @@ export function LoginPage({
                             name="reminderTime"
                             value="evening"
                             checked={reminderTime === 'evening'}
-                            onChange={(e) => setReminderTime(e.target.value)}
+                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Evening reminders
@@ -1414,7 +1414,7 @@ export function LoginPage({
                             name="reminderTime"
                             value="both"
                             checked={reminderTime === 'both'}
-                            onChange={(e) => setReminderTime(e.target.value)}
+                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Both
@@ -1432,7 +1432,7 @@ export function LoginPage({
                             name="alertDelegation"
                             value="self"
                             checked={alertDelegation === 'self'}
-                            onChange={(e) => setAlertDelegation(e.target.value)}
+                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Notify me only
@@ -1443,7 +1443,7 @@ export function LoginPage({
                             name="alertDelegation"
                             value="family"
                             checked={alertDelegation === 'family'}
-                            onChange={(e) => setAlertDelegation(e.target.value)}
+                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Notify whole family
@@ -1454,7 +1454,7 @@ export function LoginPage({
                             name="alertDelegation"
                             value="both"
                             checked={alertDelegation === 'both'}
-                            onChange={(e) => setAlertDelegation(e.target.value)}
+                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
                             className="h-4 w-4 text-emerald-600"
                           />
                           Both
