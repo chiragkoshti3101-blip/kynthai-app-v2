@@ -160,6 +160,9 @@ const SYSTEM_API_PATHS = new Set([
   '/api/system/seed-demo',
   '/api/system/test-dose',
   '/api/notifications/fcm-register',
+  // Public pre-registration / newsletter — unauthenticated form, rate-limited,
+  // double-submit CSRF not possible without a session.
+  '/api/newsletter',
 ]);
 
 function isSystemApi(pathname: string): boolean {
