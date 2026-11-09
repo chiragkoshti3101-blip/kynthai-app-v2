@@ -193,9 +193,6 @@ export function LoginPage({
   const [reminderTime, setReminderTime] = React.useState<'morning' | 'evening' | 'both'>('both');
   const [alertDelegation, setAlertDelegation] = React.useState<'self' | 'family' | 'both'>('both');
   const [dataSharing, setDataSharing] = React.useState<boolean>(true);
-  const [reminderTime, setReminderTime] = React.useState<'morning' | 'evening' | 'both'>('both');
-  const [alertDelegation, setAlertDelegation] = React.useState<'self' | 'family' | 'both'>('both');
-  const [dataSharing, setDataSharing] = React.useState<boolean>(true);
   React.useEffect(() => {
     try {
       const saved = sessionStorage.getItem('kynthai.login.email')
