@@ -189,7 +189,7 @@ export function LoginPage({
   // a render-phase browser read is a server/client branch and caused an
   // intermittent React #418 hydration mismatch (full-page boot-splash lockup).
   const [email, setEmail] = React.useState('');
-  const [familyMembers, setFamilyMembers] = React.useState<Array<{name: string; relation: string; dob: string; conditions: string[]; medications: string[]; allergies: string[]; pharmacy: string}>>([{name: '', relation: '', dob: '', conditions: [], medications: [], allergies: [], pharmacy: ''}]);
+  const [familyMembers, setFamilyMembers] = React.useState<Array<{name: string; relation?: string; dob?: string; conditions?: string[]; medications?: string[]; allergies?: string[]; pharmacy?: string}>>([{name: '', relation: '', dob: '', conditions: [], medications: [], allergies: [], pharmacy: ''}]);
   const [reminderTime, setReminderTime] = React.useState<'morning' | 'evening' | 'both'>('both');
   const [alertDelegation, setAlertDelegation] = React.useState<'self' | 'family' | 'both'>('both');
   const [dataSharing, setDataSharing] = React.useState<boolean>(true);
