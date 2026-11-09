@@ -79,7 +79,7 @@ const TIERS: Tier[] = [
       'AI Health Chat (3 / day)',
       'Smart reminders & streaks',
       'Medicine identification (2 / day)',
-      'Prescription scanning (1 / day)',
+      'Prescription scanning (1 / week)',
       'Book doctor consults',
       'Order medicines & lab tests',
       'CCPA/CPRA-oriented privacy controls',
