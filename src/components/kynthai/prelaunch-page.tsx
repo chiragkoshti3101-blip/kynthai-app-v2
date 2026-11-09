@@ -7,55 +7,54 @@ type PreLaunchPageProps = {
 };
 
 /* ────────────────────────────────────────────────────────────────────
-   Custom animated centerpiece: a "living health ring" — concentric
-   rings that breathe, a sweeping ECG trace, and four family nodes
-   orbiting on different radii. Pure SVG + rAF, no dependencies.
-   This is the visual signature that says a human designer made it.
+   "Living health ring" — a custom, dependency-free SVG centerpiece:
+   breathing concentric rings, a sweeping ECG trace, and four family
+   nodes orbiting on elliptical paths. Rendered with requestAnimationFrame.
+   This is the hand-made visual that separates this from an AI template.
    ──────────────────────────────────────────────────────────────────── */
 function LivingRing() {
   const pathRef = useRef<SVGPathElement | null>(null);
-  const nodeRefs = useRef<(SVGGElement | null)[]>([]);
-  const dotsRef = useRef<(SVGCircleElement | null)[]>([]);
+  const nodeRefs = useRef<SVGElement[]>([]);
+  const dotRefs = useRef<SVGCircleElement[]>([]);
 
   useEffect(() => {
     let raf = 0;
     const start = performance.now();
-    const period = 4200; // ms per ECG loop
-    const orbitSpeed = [0.55, 0.38, 0.27, 0.18]; // rad/s per node (different = alive)
+    const orbitSpeed = [0.55, 0.38, 0.27, 0.18]; // rad/s, staggered for life
 
     function frame(now: number) {
       const t = (now - start) / 1000;
 
-      // ECG dash offset (a 24px gap that travels; path length ~ set by pathLen)
+      // ECG trace: a single 260px gap that travels the full path
       const path = pathRef.current;
-      if (path) {
-        const len = path.getTotalLength ? path.getTotalLength() : 1200;
+      if (path && path.getTotalLength) {
+        const len = path.getTotalLength();
         const progress = (t * 320) % (len + 260);
-        path.style.strokeDasharray = `${len} ${260}`;
-        path.style.strokeDashoffset = String(-progress + 130);
+        const style = path.style;
+        style.strokeDasharray = `${len} 260`;
+        style.strokeDashoffset = `${-progress + 130}`;
       }
 
-      // Breathing rings (scale each ring by a slow sine, staggered)
+      // Breathing rings: gentle, staggered scale pulse
       const rings = document.querySelectorAll<SVGGElement>('[data-breath]');
-      rings.forEach((g, i) => {
+      rings.forEach((ring, i) => {
         const s = 1 + 0.045 * Math.sin(t * 0.9 + i * 0.7);
-        g.style.transform = `scale(${s})`;
+        ring.style.transform = `scale(${s})`;
       });
 
-      // Orbiting family nodes
+      // Orbiting family nodes on elliptical paths
       for (let i = 0; i < nodeRefs.current.length; i++) {
         const g = nodeRefs.current[i];
-        const dot = dotsRef.current[i];
+        const dot = dotRefs.current[i];
         if (!g) continue;
         const angle = t * orbitSpeed[i] + (i * Math.PI) / 2;
-        const r = 96 + i * 34; // radii
+        const r = 96 + i * 34;
         const x = Math.cos(angle) * r;
-        const y = Math.sin(angle) * r * 0.62; // elliptical (perspective)
+        const y = Math.sin(angle) * r * 0.62;
         const behind = Math.sin(angle) < 0;
         g.style.transform = `translate(${x}px, ${y}px)`;
+        g.style.opacity = behind ? '0.55' : '1';
         if (dot) dot.style.opacity = behind ? '0.55' : '1';
-        g.style.opacity = behind ? '0.7' : '1';
-        g.style.zIndex = behind ? '1' : '2';
       }
 
       raf = requestAnimationFrame(frame);
@@ -88,7 +87,7 @@ function LivingRing() {
         </linearGradient>
       </defs>
 
-      {/* Breathing rings */}
+      {/* Breathing concentric rings */}
       {[0, 1, 2, 3].map((i) => (
         <g key={i} data-breath style={{ transformOrigin: `${cx}px ${cy}px` }}>
           <circle
@@ -118,18 +117,18 @@ function LivingRing() {
       <circle cx={cx} cy={cy} r={40} fill="url(#lr-core)" />
       <circle cx={cx} cy={cy} r={4} fill="#b6ffd9" />
 
-      {/* Orbiting family nodes (4) */}
+      {/* Orbiting family nodes */}
       {[0, 1, 2, 3].map((i) => (
         <g
           key={i}
           ref={(el) => {
-            nodeRefs.current[i] = el;
+            if (el) nodeRefs.current[i] = el;
           }}
           style={{ transformOrigin: `${cx}px ${cy}px` }}
         >
           <circle
             ref={(el) => {
-              dotsRef.current[i] = el;
+              if (el) dotRefs.current[i] = el;
             }}
             cx={cx}
             cy={cy}
@@ -144,7 +143,7 @@ function LivingRing() {
   );
 }
 
-/* Scroll-reveal wrapper — tasteful fade + rise */
+/* Scroll-reveal wrapper — tasteful fade + rise on first intersection */
 function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [shown, setShown] = useState(false);
@@ -186,6 +185,7 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
   const [error, setError] = useState('');
   const [prelaunch, setPrelaunch] = useState<number | null>(null);
 
+  // Live waitlist count — the single "living" element that makes the list feel real
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -226,10 +226,11 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#05100c] text-emerald-50 antialiased selection:bg-emerald-300/25 selection:text-emerald-50">
-      {/* Ambient background: radial depth + faint grid, all very restrained */}
+      {/* Ambient background: restrained radial glow + faint masked grid */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute left-1/2 top-[-8%] h-[620px] w-[940px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(45,212,160,0.14),transparent_64%)]" />
-        <div className="absolute inset-0 opacity-[0.5]"
+        <div
+          className="absolute inset-0 opacity-[0.5]"
           style={{
             backgroundImage:
               'linear-gradient(rgba(16,185,129,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,0.05) 1px,transparent 1px)',
@@ -257,7 +258,7 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
         </button>
       </nav>
 
-      {/* HERO — one screen: the living ring + one statement + one field */}
+      {/* HERO — one screen: living ring + one statement + one field */}
       <main className="relative mx-auto flex max-w-4xl flex-col items-center px-6 pt-6 pb-24 text-center sm:pt-10">
         <Reveal>
           <LivingRing />
@@ -270,10 +271,7 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
         </Reveal>
 
         <Reveal delay={200}>
-          <h1
-            className="mt-5 text-balance text-[clamp(2.75rem,8.5vw,5.5rem)] font-semibold leading-[1.02] tracking-[-0.035em] text-white"
-            style={{ fontFamily: "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif" }}
-          >
+          <h1 className="mt-5 text-balance text-[clamp(2.75rem,8.5vw,5.5rem)] font-semibold leading-[1.02] tracking-[-0.035em] text-white">
             Your family&rsquo;s health,
             <br />
             <span className="bg-gradient-to-r from-emerald-200 to-emerald-400 bg-clip-text text-transparent">
