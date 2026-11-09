@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createChatCompletion, isAiAvailable, choicesOf } from '@/lib/nvidia'
-import { requireAuth, requireAuthWithCsrf, jsonError, readJson, checkAiTier } from '@/lib/api-helpers'
+import { requireAuth, requireAuthWithCsrf, jsonError, readJson } from '@/lib/api-helpers'
+import { canUsePrescriptionScan, recordPrescriptionScanUsage } from '@/lib/free-tier-guard'
 import { logAudit } from '@/lib/auth'
 import { getIp, rateLimit } from '@/lib/security'
 import { withAiTimeout, AiTimeoutError, AI_TIMEOUTS } from '@/lib/ai-timeout'
@@ -60,8 +61,20 @@ export async function POST(req: NextRequest) {
     ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown' },
   )
 
-  const tierErr = await checkAiTier(user, 'prescription scan')
-  if (tierErr) return tierErr
+  // Weekly prescription scan limit for free tier (1/week rolling)
+  if (!['plus','family_pro','pro'].includes(user.subscriptionTier)) {
+    const allowed = await canUsePrescriptionScan(user.id)
+    if (!allowed) {
+      return NextResponse.json(
+        {
+          error: 'Free tier allows 1 prescription scan per week. Upgrade to Plus for unlimited access.',
+          limitReached: true,
+          weeklyLimit: 1,
+        },
+        { status: 403 }
+      )
+    }
+  }
 
   try {
     const body = await readJson<{ image?: unknown }>(req)
@@ -147,7 +160,12 @@ export async function POST(req: NextRequest) {
       instructions: typeof m.instructions === 'string' ? m.instructions : null,
     }))
 
-    return NextResponse.json({ result: parsed })
+    // Record usage for free-tier users
+  if (!['plus','family_pro','pro'].includes(user.subscriptionTier)) {
+    await recordPrescriptionScanUsage(user.id)
+  }
+
+  return NextResponse.json({ result: parsed })
   } catch (error) {
     logger.phiSafeError(error)
     if (error instanceof AiTimeoutError) {
