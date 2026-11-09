@@ -68,7 +68,7 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
       const res = await fetch('/api/newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), source: 'prelaunch' }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), source: 'other' }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
