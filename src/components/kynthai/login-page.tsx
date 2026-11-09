@@ -1027,53 +1027,111 @@ export function LoginPage({
                       Add up to 4 family members you&rsquo;ll manage in Kynthai.
                     </p>
                     {[0, 1, 2, 3].map(i => (
-                      <div key={i} className="space-y-2 border-b border-border/40 pb-2 last:border-0">
-                        <Label htmlFor={`familyName${i}`}>
-                          Family Member {i + 1} Name <span className="text-rose-500">*</span>
-                        </Label>
-                        <Input
-                          id={`familyName${i}`}
-                          placeholder="e.g., Sarah Johnson"
-                          value={familyMembers[i]?.name || ''}
-                          onChange={e => {
-                            const updated = [...familyMembers];
-                            updated[i] = { ...updated[i], name: e.target.value };
-                            setFamilyMembers(updated);
-                          }}
-                          required
-                          disabled={mode !== 'register'}
-                        />
-                        <Label htmlFor={`familyRelation${i}`}>
-                          Relationship <span className="text-rose-500">*</span>
-                        </Label>
-                        <Input
-                          id={`familyRelation${i}`}
-                          placeholder="e.g., Child, Parent, Spouse"
-                          value={familyMembers[i]?.relation || ''}
-                          onChange={e => {
-                            const updated = [...familyMembers];
-                            updated[i] = { ...updated[i], relation: e.target.value };
-                            setFamilyMembers(updated);
-                          }}
-                          required
-                          disabled={mode !== 'register'}
-                        />
-                        <Label htmlFor={`familyDob${i}`}>
-                          Date of Birth <span className="text-rose-500">*</span>
-                        </Label>
-                        <Input
-                          id={`familyDob${i}`}
-                          type="date"
-                          value={familyMembers[i]?.dob || ''}
-                          onChange={e => {
-                            const updated = [...familyMembers];
-                            updated[i] = { ...updated[i], dob: e.target.value };
-                            setFamilyMembers(updated);
-                          }}
-                          required
-                          disabled={mode !== 'register'}
-                          max={new Date().toISOString().split('T')[0]}
-                        />
+                      <div key={i} className="space-y-3 border-b border-border/40 pb-3 last:border-0">
+                        <div className="flex items-start gap-2 mb-1">
+                          <span className="text-sm font-semibold text-foreground">Family Member {i + 1}</span>
+                          <span className="ml-auto text-xs text-muted-foreground">{i + 1} of 4</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`familyName${i}`}>
+                            Name <span className="text-rose-500">*</span>
+                          </Label>
+                          <Input
+                            id={`familyName${i}`}
+                            placeholder="e.g., Sarah Johnson"
+                            value={familyMembers[i]?.name || ''}
+                            onChange={e => {
+                              const updated = [...familyMembers];
+                              updated[i] = { ...updated[i], name: e.target.value };
+                              setFamilyMembers(updated);
+                            }}
+                            required
+                            disabled={mode !== 'register'}
+                          />
+                          <Label htmlFor={`familyRelation${i}`}>
+                            Relationship <span className="text-rose-500">*</span>
+                          </Label>
+                          <Input
+                            id={`familyRelation${i}`}
+                            placeholder="e.g., Child, Parent, Spouse"
+                            value={familyMembers[i]?.relation || ''}
+                            onChange={e => {
+                              const updated = [...familyMembers];
+                              updated[i] = { ...updated[i], relation: e.target.value };
+                              setFamilyMembers(updated);
+                            }}
+                            required
+                            disabled={mode !== 'register'}
+                          />
+                          <Label htmlFor={`familyDob${i}`}>
+                            Date of Birth <span className="text-rose-500">*</span>
+                          </Label>
+                          <Input
+                            id={`familyDob${i}`}
+                            type="date"
+                            value={familyMembers[i]?.dob || ''}
+                            onChange={e => {
+                              const updated = [...familyMembers];
+                              updated[i] = { ...updated[i], dob: e.target.value };
+                              setFamilyMembers(updated);
+                            }}
+                            required
+                            disabled={mode !== 'register'}
+                            max={new Date().toISOString().split('T')[0]}
+                          />
+                          <Label htmlFor={`familyConditions${i}`}>
+                            Conditions</Label>
+                          <Input
+                            id={`familyConditions${i}`}
+                            placeholder="e.g., Diabetes, Hypertension"
+                            value={familyMembers[i]?.conditions?.join(', ') || ''}
+                            onChange={e => {
+                              const updated = [...familyMembers];
+                              updated[i] = { ...updated[i], conditions: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
+                              setFamilyMembers(updated);
+                            }}
+                            disabled={mode !== 'register'}
+                          />
+                          <Label htmlFor={`familyMedications${i}`}>
+                            Current Medications</Label>
+                          <Input
+                            id={`familyMedications${i}`}
+                            placeholder="e.g., Lisinopril 10mg daily"
+                            value={familyMembers[i]?.medications?.join(', ') || ''}
+                            onChange={e => {
+                              const updated = [...familyMembers];
+                              updated[i] = { ...updated[i], medications: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
+                              setFamilyMembers(updated);
+                            }}
+                            disabled={mode !== 'register'}
+                          />
+                          <Label htmlFor={`familyAllergies${i}`}>
+                            Allergies</Label>
+                          <Input
+                            id={`familyAllergies${i}`}
+                            placeholder="e.g., Penicillin, Shellfish"
+                            value={familyMembers[i]?.allergies?.join(', ') || ''}
+                            onChange={e => {
+                              const updated = [...familyMembers];
+                              updated[i] = { ...updated[i], allergies: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
+                              setFamilyMembers(updated);
+                            }}
+                            disabled={mode !== 'register'}
+                          />
+                          <Label htmlFor={`familyPharmacy${i}`}>
+                            Preferred Pharmacy</Label>
+                          <Input
+                            id={`familyPharmacy${i}`}
+                            placeholder="e.g., CVS Main Street"
+                            value={familyMembers[i]?.pharmacy || ''}
+                            onChange={e => {
+                              const updated = [...familyMembers];
+                              updated[i] = { ...updated[i], pharmacy: e.target.value };
+                              setFamilyMembers(updated);
+                            }}
+                            disabled={mode !== 'register'}
+                          />
+                        </div>
                       </div>
                     ))}
                     <p className="text-[0.6875rem] text-muted-foreground mt-2">
