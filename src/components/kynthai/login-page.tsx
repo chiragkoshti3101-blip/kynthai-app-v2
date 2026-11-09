@@ -1018,6 +1018,70 @@ export function LoginPage({
                   </div>
                   )}
 
+                  {mode === 'register' && active.id === 'caretaker' && (
+                  <div className="space-y-3.5 rounded-xl border border-border/60 bg-muted/30 p-4">
+                    <h3 className="text-sm font-semibold text-foreground mb-3">
+                      Family Members
+                    </h3>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Add up to 4 family members you&rsquo;ll manage in Kynthai.
+                    </p>
+                    {[0, 1, 2, 3].map(i => (
+                      <div key={i} className="space-y-2 border-b border-border/40 pb-2 last:border-0">
+                        <Label htmlFor={`familyName${i}`}>
+                          Family Member {i + 1} Name <span className="text-rose-500">*</span>
+                        </Label>
+                        <Input
+                          id={`familyName${i}`}
+                          placeholder="e.g., Sarah Johnson"
+                          value={familyMembers[i]?.name || ''}
+                          onChange={e => {
+                            const updated = [...familyMembers];
+                            updated[i] = { ...updated[i], name: e.target.value };
+                            setFamilyMembers(updated);
+                          }}
+                          required
+                          disabled={mode !== 'register'}
+                        />
+                        <Label htmlFor={`familyRelation${i}`}>
+                          Relationship <span className="text-rose-500">*</span>
+                        </Label>
+                        <Input
+                          id={`familyRelation${i}`}
+                          placeholder="e.g., Child, Parent, Spouse"
+                          value={familyMembers[i]?.relation || ''}
+                          onChange={e => {
+                            const updated = [...familyMembers];
+                            updated[i] = { ...updated[i], relation: e.target.value };
+                            setFamilyMembers(updated);
+                          }}
+                          required
+                          disabled={mode !== 'register'}
+                        />
+                        <Label htmlFor={`familyDob${i}`}>
+                          Date of Birth <span className="text-rose-500">*</span>
+                        </Label>
+                        <Input
+                          id={`familyDob${i}`}
+                          type="date"
+                          value={familyMembers[i]?.dob || ''}
+                          onChange={e => {
+                            const updated = [...familyMembers];
+                            updated[i] = { ...updated[i], dob: e.target.value };
+                            setFamilyMembers(updated);
+                          }}
+                          required
+                          disabled={mode !== 'register'}
+                          max={new Date().toISOString().split('T')[0]}
+                        />
+                      </div>
+                    ))}
+                    <p className="text-[0.6875rem] text-muted-foreground mt-2">
+                      Family members can be added or edited later in Settings.
+                    </p>
+                  </div>
+                  )}
+
                   <div className="space-y-1.5">
                     <Label htmlFor="email">
                       Email <span className="text-rose-500">*</span>
