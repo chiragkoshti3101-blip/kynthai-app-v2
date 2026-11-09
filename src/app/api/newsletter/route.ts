@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 const newsletterSchema = z.object({
   email: z.string().email('Valid email is required').max(200),
-  source: z.enum(['landing', 'pricing', 'footer', 'other']).optional(),
+  source: z.enum(['landing', 'pricing', 'footer', 'prelaunch', 'other']).optional(),
 });
 
 /**
