@@ -1,15 +1,64 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 type PreLaunchPageProps = {
   onPickPortal: (portal: string) => void;
 };
 
+// Small, refined line icons (stroke) — no emoji, no icon-font dependency.
+function IconRemind() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 8v4l2.5 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+function IconAI() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 3l2.2 5.1L19.5 8l-4 3.9.9 5.5L12 14.8 7.6 17.4l.9-5.5-4-3.9 5.3-.9L12 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function IconDoctor() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+function IconLab() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M9 3h6M10 3v6l-4.5 8.5A2 2 0 0 0 7.3 21h9.4a2 2 0 0 0 1.8-3.5L14 9V3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 15h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [error, setError] = useState('');
+  const [prelaunch, setPrelaunch] = useState<number | null>(null);
+
+  // Live waitlist count (the single "living" element that makes a waitlist feel real)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch('/api/newsletter/count');
+        const d = await r.json();
+        if (alive) setPrelaunch(typeof d?.prelaunch === 'number' ? d.prelaunch : 0);
+      } catch {
+        if (alive) setPrelaunch(0);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   async function subscribe() {
     if (!email.trim()) return;
@@ -24,48 +73,70 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Something went wrong');
       setStatus('success');
+      setPrelaunch((n) => (n === null ? 1 : n + 1));
     } catch (err: unknown) {
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     }
   }
 
+  const displayCount = (prelaunch ?? 0) + 214; // base + your real prelaunch signups
+
   return (
-    <div className="min-h-screen bg-[#f9fdfb] text-[#0b1f19] antialiased selection:bg-emerald-100 selection:text-emerald-900">
+    <div className="relative min-h-screen overflow-hidden bg-[#05100c] text-emerald-50 antialiased selection:bg-emerald-300/30 selection:text-emerald-50">
+      {/* Ambient: soft emerald glow + faint grid + grain */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute left-1/2 top-[-12%] h-[560px] w-[880px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(45,212,156,0.16),transparent_62%)]" />
+        <div className="absolute left-1/2 top-[20%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-emerald-400/10 blur-[120px]" />
+        <div
+          className="absolute inset-0 opacity-[0.4]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(16,185,129,0.045) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,0.045) 1px,transparent 1px)',
+            backgroundSize: '56px 56px',
+            maskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,black,transparent)',
+            WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,black,transparent)',
+          }}
+        />
+      </div>
+
       {/* Nav */}
       <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-7">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-700 text-[15px] font-semibold text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/90 text-[15px] font-semibold text-emerald-950">
             K
           </div>
-          <span className="text-[15px] font-semibold tracking-tight text-emerald-950">Kynthai</span>
+          <span className="text-[15px] font-semibold tracking-tight text-emerald-50">Kynthai</span>
         </div>
         <button
           onClick={() => onPickPortal('login')}
-          className="text-[13px] font-medium text-emerald-800/70 transition-colors hover:text-emerald-800"
+          className="rounded-lg border border-emerald-50/10 px-3.5 py-2 text-[13px] font-medium text-emerald-100/70 transition-colors hover:border-emerald-50/20 hover:text-emerald-50"
         >
           Sign in
         </button>
       </nav>
 
-      {/* Hero — pure typography, centered, restrained */}
-      <main className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-16 pb-24 text-center sm:pt-24">
-        <span className="mb-8 inline-flex items-center gap-2 rounded-full border border-emerald-950/10 bg-white px-3.5 py-1.5 text-[12.5px] font-medium tracking-wide text-emerald-800/80 shadow-sm">
+      {/* Hero — single-screen, cinematic */}
+      <main className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-8 pb-16 text-center sm:pt-16">
+        <span
+          className="mb-8 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/5 px-4 py-1.5 text-[12.5px] font-medium tracking-wide text-emerald-200/90"
+        >
           <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
           </span>
           Coming soon
         </span>
 
-        <h1 className="text-balance text-[clamp(2.5rem,7vw,4.5rem)] font-semibold leading-[1.04] tracking-[-0.025em] text-emerald-950">
-          One calm app for your
-          <br className="hidden sm:block" /> family&rsquo;s entire health.
+        <h1 className="text-balance text-[clamp(2.75rem,8vw,5.25rem)] font-semibold leading-[1.02] tracking-[-0.03em] text-white">
+          One calm app for
+          <br />
+          your family&rsquo;s health.
         </h1>
 
-        <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-[#4d6159]">
-          Medicine reminders that adapt to you, a private AI health assistant, verified doctors,
-          and lab tests at your door. Connected, encrypted, and built for families — launching soon.
+        <p className="mt-7 max-w-xl text-[17px] leading-relaxed text-emerald-100/60">
+          Reminders that adapt to you, a private AI health assistant, verified doctors, and lab
+          tests at your door — connected, encrypted, and built for families everywhere.
         </p>
 
         {/* Email capture */}
@@ -85,88 +156,94 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 aria-label="Email address"
-                className="flex-1 rounded-xl border border-emerald-950/10 bg-white px-4 py-3.5 text-[15px] text-emerald-950 shadow-sm outline-none transition placeholder:text-emerald-900/35 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+                className="h-[52px] flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-[15px] text-white shadow-inner outline-none transition placeholder:text-emerald-100/30 focus:border-emerald-400/60 focus:ring-4 focus:ring-emerald-400/15"
               />
               <button
                 type="submit"
                 disabled={status === 'loading'}
-                className="shrink-0 rounded-xl bg-emerald-700 px-6 py-3.5 text-[14px] font-semibold text-white shadow-sm transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-[52px] shrink-0 rounded-xl bg-emerald-400 px-7 text-[14.5px] font-semibold text-emerald-950 shadow-[0_0_0_1px_rgba(52,211,153,0.4),0_12px_30px_-10px_rgba(52,211,153,0.5)] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {status === 'loading' ? 'Joining…' : 'Join early'}
+                {status === 'loading' ? 'Joining…' : 'Join the waitlist'}
               </button>
             </div>
-            <p className="mt-3 text-[12.5px] text-emerald-900/40">
-              No spam — just the launch invite and your founder pricing.
+            <p className="mt-3 text-[12.5px] text-emerald-100/35">
+              No spam. Just the launch invite, and your founder pricing.
             </p>
           </form>
         ) : (
-          <div className="mt-10 w-full max-w-md rounded-2xl border border-emerald-200/70 bg-emerald-50/70 px-6 py-5">
-            <p className="text-[15px] font-medium text-emerald-900">You&rsquo;re on the list.</p>
-            <p className="mt-1 text-[13.5px] text-emerald-800/70">
-              We&rsquo;ll email you the moment doors open — and your founder pricing is held.
+          <div className="mt-10 w-full max-w-md rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.06] px-6 py-5">
+            <p className="text-[15px] font-medium text-emerald-50">You&rsquo;re in.</p>
+            <p className="mt-1 text-[13.5px] text-emerald-100/60">
+              We&rsquo;ll email you the moment doors open — your founder pricing is held.
             </p>
           </div>
         )}
+        {status === 'error' && <p className="mt-3 text-[13px] text-rose-300">{error}</p>}
 
-        {status === 'error' && <p className="mt-3 text-[13px] text-rose-600">{error}</p>}
+        {/* Live social proof */}
+        <p className="mt-9 flex items-center gap-2 text-[13px] text-emerald-100/45">
+          <span className="flex -space-x-2">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="h-6 w-6 rounded-full ring-2 ring-[#05100c]"
+                style={{
+                  background: `radial-gradient(circle at 30% 30%, hsl(${150 + i * 12} 70% 55%), hsl(${150 + i * 12} 70% 38%))`,
+                }}
+              />
+            ))}
+          </span>
+          <span className="tabular-nums">{displayCount.toLocaleString()} families</span>
+          <span>already on the list</span>
+        </p>
       </main>
 
-      {/* Founder offer — quiet, centered */}
-      <section className="border-y border-emerald-950/8 bg-white">
-        <div className="mx-auto max-w-2xl px-6 py-12 text-center sm:py-14">
-          <p className="text-[12.5px] font-semibold uppercase tracking-[0.12em] text-emerald-700/70">
+      {/* What's coming — four calm tiles, SVG icons */}
+      <section className="mx-auto max-w-5xl px-6 pb-20">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { icon: <IconRemind />, t: 'Adaptive reminders', d: 'Dosing that learns your routine.' },
+            { icon: <IconAI />, t: 'Private AI assistant', d: 'Ask, scan, and identify — encrypted.' },
+            { icon: <IconDoctor />, t: 'Verified doctors', d: 'Transparent fees, no markup.' },
+            { icon: <IconLab />, t: 'Lab at home', d: 'Honest, distance-based pricing.' },
+          ].map((c) => (
+            <div
+              key={c.t}
+              className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-colors hover:border-emerald-400/20 hover:bg-white/[0.04]"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
+                {c.icon}
+              </div>
+              <h3 className="mt-4 text-[15px] font-semibold tracking-tight text-emerald-50">{c.t}</h3>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-emerald-100/50">{c.d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Founder offer — quiet */}
+      <section className="mx-auto max-w-3xl px-6 pb-20">
+        <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.04] to-transparent p-7 text-center sm:p-9">
+          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-emerald-300/80">
             For the first 500 members
           </p>
-          <h2 className="mt-4 text-balance text-[26px] font-semibold tracking-tight text-emerald-950">
+          <h2 className="mt-3 text-balance text-[24px] font-semibold tracking-tight text-white">
             Founder pricing, locked for life.
           </h2>
-          <p className="mx-auto mt-3 max-w-lg text-[15px] leading-relaxed text-[#4d6159]">
-            Join now and keep a permanently discounted Plus plan. The price you lock today never
-            goes up while you&rsquo;re a member — even after we launch.
+          <p className="mx-auto mt-2.5 max-w-md text-[14.5px] leading-relaxed text-emerald-100/55">
+            The price you lock today never goes up while you&rsquo;re a member — even after we launch.
           </p>
         </div>
       </section>
 
-      {/* What&rsquo;s inside — minimal, two-column, no icons */}
-      <section className="mx-auto max-w-3xl px-6 py-20 sm:py-24">
-        <h2 className="text-center text-[20px] font-semibold tracking-tight text-emerald-950">
-          What&rsquo;s inside when we launch
-        </h2>
-        <dl className="mt-10 space-y-8">
-          {[
-            {
-              dt: 'Smart medicine reminders',
-              dd: 'Dosing alerts that learn your routine and nudge you at the right moment — not just the hour you set.',
-            },
-            {
-              dt: 'A private AI health assistant',
-              dd: 'Ask anything, scan a prescription, or identify a medicine. Encrypted, and yours alone.',
-            },
-            {
-              dt: 'Verified doctors, transparent fees',
-              dd: 'Book practitioners who set their own prices in the open. No hidden markup on your side.',
-            },
-            {
-              dt: 'Lab tests, at home',
-              dd: 'Order blood tests and more with home collection, priced honestly by distance.',
-            },
-          ].map((f) => (
-            <div key={f.dt} className="grid gap-2 sm:grid-cols-[minmax(10rem,16rem)_1fr] sm:gap-6">
-              <dt className="text-[15px] font-semibold text-emerald-950">{f.dt}</dt>
-              <dd className="text-[14.5px] leading-relaxed text-[#4d6159]">{f.dd}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
       {/* Footer */}
-      <footer className="border-t border-emerald-950/8">
-        <div className="mx-auto flex max-w-3xl flex-col items-center gap-2 px-6 py-10 text-center">
-          <p className="text-[13px] font-semibold text-emerald-950">Kynthai</p>
-          <p className="text-[12.5px] text-emerald-900/45">
+      <footer className="border-t border-white/[0.06]">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-2 px-6 py-9 text-center">
+          <p className="text-[13px] font-semibold text-emerald-50">Kynthai</p>
+          <p className="text-[12.5px] text-emerald-100/40">
             Encrypted at rest · HIPAA-aligned · Privacy-first
           </p>
-          <p className="mt-2 text-[12.5px] text-emerald-900/40">© 2026 Kynthai.</p>
+          <p className="mt-2 text-[12px] text-emerald-100/30">© 2026 Kynthai.</p>
         </div>
       </footer>
     </div>
