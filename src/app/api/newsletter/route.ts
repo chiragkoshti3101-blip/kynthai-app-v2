@@ -108,3 +108,19 @@ export async function POST(req: NextRequest) {
     return jsonError('Internal server error', 500, 'INTERNAL_ERROR');
   }
 }
+
+
+// Public, read-only prelaunch waitlist count - drives the live social-proof
+// counter on the coming-soon page. No auth, no rate-limit (trivial read).
+export async function GET() {
+  try {
+    const total = await db.newsletterSubscriber.count();
+    const prelaunch = await db.newsletterSubscriber.count({
+      where: { source: 'prelaunch' },
+    });
+    return jsonOk({ total, prelaunch });
+  } catch {
+    // Table may not exist yet on a fresh DB - return zeros, not an error.
+    return jsonOk({ total: 0, prelaunch: 0 });
+  }
+}
