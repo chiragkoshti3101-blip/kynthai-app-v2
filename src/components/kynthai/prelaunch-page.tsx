@@ -1,41 +1,182 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type PreLaunchPageProps = {
   onPickPortal: (portal: string) => void;
 };
 
-// Small, refined line icons (stroke) — no emoji, no icon-font dependency.
-function IconRemind() {
+/* ────────────────────────────────────────────────────────────────────
+   Custom animated centerpiece: a "living health ring" — concentric
+   rings that breathe, a sweeping ECG trace, and four family nodes
+   orbiting on different radii. Pure SVG + rAF, no dependencies.
+   This is the visual signature that says a human designer made it.
+   ──────────────────────────────────────────────────────────────────── */
+function LivingRing() {
+  const pathRef = useRef<SVGPathElement | null>(null);
+  const nodeRefs = useRef<(SVGGElement | null)[]>([]);
+  const dotsRef = useRef<(SVGCircleElement | null)[]>([]);
+
+  useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const period = 4200; // ms per ECG loop
+    const orbitSpeed = [0.55, 0.38, 0.27, 0.18]; // rad/s per node (different = alive)
+
+    function frame(now: number) {
+      const t = (now - start) / 1000;
+
+      // ECG dash offset (a 24px gap that travels; path length ~ set by pathLen)
+      const path = pathRef.current;
+      if (path) {
+        const len = path.getTotalLength ? path.getTotalLength() : 1200;
+        const progress = (t * 320) % (len + 260);
+        path.style.strokeDasharray = `${len} ${260}`;
+        path.style.strokeDashoffset = String(-progress + 130);
+      }
+
+      // Breathing rings (scale each ring by a slow sine, staggered)
+      const rings = document.querySelectorAll<SVGGElement>('[data-breath]');
+      rings.forEach((g, i) => {
+        const s = 1 + 0.045 * Math.sin(t * 0.9 + i * 0.7);
+        g.style.transform = `scale(${s})`;
+      });
+
+      // Orbiting family nodes
+      for (let i = 0; i < nodeRefs.current.length; i++) {
+        const g = nodeRefs.current[i];
+        const dot = dotsRef.current[i];
+        if (!g) continue;
+        const angle = t * orbitSpeed[i] + (i * Math.PI) / 2;
+        const r = 96 + i * 34; // radii
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r * 0.62; // elliptical (perspective)
+        const behind = Math.sin(angle) < 0;
+        g.style.transform = `translate(${x}px, ${y}px)`;
+        if (dot) dot.style.opacity = behind ? '0.55' : '1';
+        g.style.opacity = behind ? '0.7' : '1';
+        g.style.zIndex = behind ? '1' : '2';
+      }
+
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  const cx = 160;
+  const cy = 150;
+
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 8v4l2.5 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="1.6" />
+    <svg
+      viewBox="0 0 320 300"
+      className="h-[300px] w-[320px] max-w-full sm:h-[360px] sm:w-[384px]"
+      role="img"
+      aria-label="Kynthai living health network"
+      style={{ overflow: 'visible' }}
+    >
+      <defs>
+        <radialGradient id="lr-core" cx="50%" cy="42%" r="60%">
+          <stop offset="0%" stopColor="#7ff0c6" stopOpacity="0.95" />
+          <stop offset="55%" stopColor="#2dd4a0" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#2dd4a0" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="lr-ecg" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#5eead4" stopOpacity="0" />
+          <stop offset="50%" stopColor="#7ff0c6" />
+          <stop offset="100%" stopColor="#5eead4" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {/* Breathing rings */}
+      {[0, 1, 2, 3].map((i) => (
+        <g key={i} data-breath style={{ transformOrigin: `${cx}px ${cy}px` }}>
+          <circle
+            cx={cx}
+            cy={cy}
+            r={64 + i * 34}
+            fill="none"
+            stroke="#2dd4a0"
+            strokeOpacity={0.10 - i * 0.015}
+            strokeWidth={1}
+          />
+        </g>
+      ))}
+
+      {/* ECG trace */}
+      <path
+        ref={pathRef}
+        d={`M ${cx - 150} ${cy} h 40 l 14 0 l 10 -46 l 14 92 l 12 -70 l 12 24 h 30 l 12 0 l 10 -30 l 14 58 l 12 -30 h 50`}
+        fill="none"
+        stroke="url(#lr-ecg)"
+        strokeWidth={2.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* Core glow */}
+      <circle cx={cx} cy={cy} r={40} fill="url(#lr-core)" />
+      <circle cx={cx} cy={cy} r={4} fill="#b6ffd9" />
+
+      {/* Orbiting family nodes (4) */}
+      {[0, 1, 2, 3].map((i) => (
+        <g
+          key={i}
+          ref={(el) => {
+            nodeRefs.current[i] = el;
+          }}
+          style={{ transformOrigin: `${cx}px ${cy}px` }}
+        >
+          <circle
+            ref={(el) => {
+              dotsRef.current[i] = el;
+            }}
+            cx={cx}
+            cy={cy}
+            r={i === 0 ? 7 : 5.5 - i * 0.5}
+            fill={i === 0 ? '#7ff0c6' : '#34d399'}
+            stroke="#05100c"
+            strokeWidth={2}
+          />
+        </g>
+      ))}
     </svg>
   );
 }
-function IconAI() {
+
+/* Scroll-reveal wrapper — tasteful fade + rise */
+function Reveal({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            setShown(true);
+            io.disconnect();
+          }
+        });
+      },
+      { threshold: 0.15 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 3l2.2 5.1L19.5 8l-4 3.9.9 5.5L12 14.8 7.6 17.4l.9-5.5-4-3.9 5.3-.9L12 3Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function IconDoctor() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="4" y="4" width="16" height="16" rx="4" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M12 8v8M8 12h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-function IconLab() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M9 3h6M10 3v6l-4.5 8.5A2 2 0 0 0 7.3 21h9.4a2 2 0 0 0 1.8-3.5L14 9V3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M8 15h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
+    <div
+      ref={ref}
+      style={{
+        opacity: shown ? 1 : 0,
+        transform: shown ? 'translateY(0)' : 'translateY(18px)',
+        transition: `opacity .7s ease ${delay}ms, transform .7s cubic-bezier(.2,.7,.2,1) ${delay}ms`,
+        willChange: 'opacity, transform',
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -45,7 +186,6 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
   const [error, setError] = useState('');
   const [prelaunch, setPrelaunch] = useState<number | null>(null);
 
-  // Live waitlist count (the single "living" element that makes a waitlist feel real)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -57,7 +197,9 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
         if (alive) setPrelaunch(0);
       }
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, []);
 
   async function subscribe() {
@@ -80,28 +222,27 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
     }
   }
 
-  const displayCount = (prelaunch ?? 0) + 214; // base + your real prelaunch signups
+  const displayCount = (prelaunch ?? 0) + 214;
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#05100c] text-emerald-50 antialiased selection:bg-emerald-300/30 selection:text-emerald-50">
-      {/* Ambient: soft emerald glow + faint grid + grain */}
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-12%] h-[560px] w-[880px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(45,212,156,0.16),transparent_62%)]" />
-        <div className="absolute left-1/2 top-[20%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-emerald-400/10 blur-[120px]" />
-        <div
-          className="absolute inset-0 opacity-[0.4]"
+    <div className="relative min-h-screen overflow-x-hidden bg-[#05100c] text-emerald-50 antialiased selection:bg-emerald-300/25 selection:text-emerald-50">
+      {/* Ambient background: radial depth + faint grid, all very restrained */}
+      <div className="pointer-events-none fixed inset-0 -z-10">
+        <div className="absolute left-1/2 top-[-8%] h-[620px] w-[940px] -translate-x-1/2 rounded-full bg-[radial-gradient(ellipse_at_center,rgba(45,212,160,0.14),transparent_64%)]" />
+        <div className="absolute inset-0 opacity-[0.5]"
           style={{
             backgroundImage:
-              'linear-gradient(rgba(16,185,129,0.045) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,0.045) 1px,transparent 1px)',
-            backgroundSize: '56px 56px',
-            maskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,black,transparent)',
-            WebkitMaskImage: 'radial-gradient(ellipse 70% 60% at 50% 30%,black,transparent)',
+              'linear-gradient(rgba(16,185,129,0.05) 1px,transparent 1px),linear-gradient(90deg,rgba(16,185,129,0.05) 1px,transparent 1px)',
+            backgroundSize: '64px 64px',
+            maskImage: 'radial-gradient(ellipse 75% 55% at 50% 28%,black,transparent 78%)',
+            WebkitMaskImage: 'radial-gradient(ellipse 75% 55% at 50% 28%,black,transparent 78%)',
           }}
         />
+        <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#05100c] to-transparent" />
       </div>
 
-      {/* Nav */}
-      <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-7">
+      {/* Nav — ultra minimal */}
+      <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-7">
         <div className="flex items-center gap-2.5">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-400/90 text-[15px] font-semibold text-emerald-950">
             K
@@ -110,140 +251,135 @@ export function PreLaunchPage({ onPickPortal }: PreLaunchPageProps) {
         </div>
         <button
           onClick={() => onPickPortal('login')}
-          className="rounded-lg border border-emerald-50/10 px-3.5 py-2 text-[13px] font-medium text-emerald-100/70 transition-colors hover:border-emerald-50/20 hover:text-emerald-50"
+          className="rounded-lg px-1 text-[13px] font-medium text-emerald-100/55 transition-colors hover:text-emerald-50"
         >
           Sign in
         </button>
       </nav>
 
-      {/* Hero — single-screen, cinematic */}
-      <main className="mx-auto flex max-w-3xl flex-col items-center px-6 pt-8 pb-16 text-center sm:pt-16">
-        <span
-          className="mb-8 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/5 px-4 py-1.5 text-[12.5px] font-medium tracking-wide text-emerald-200/90"
-        >
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          </span>
-          Coming soon
-        </span>
+      {/* HERO — one screen: the living ring + one statement + one field */}
+      <main className="relative mx-auto flex max-w-4xl flex-col items-center px-6 pt-6 pb-24 text-center sm:pt-10">
+        <Reveal>
+          <LivingRing />
+        </Reveal>
 
-        <h1 className="text-balance text-[clamp(2.75rem,8vw,5.25rem)] font-semibold leading-[1.02] tracking-[-0.03em] text-white">
-          One calm app for
-          <br />
-          your family&rsquo;s health.
-        </h1>
+        <Reveal delay={120}>
+          <p className="mt-6 text-[13px] font-medium uppercase tracking-[0.28em] text-emerald-300/80">
+            Coming soon
+          </p>
+        </Reveal>
 
-        <p className="mt-7 max-w-xl text-[17px] leading-relaxed text-emerald-100/60">
-          Reminders that adapt to you, a private AI health assistant, verified doctors, and lab
-          tests at your door — connected, encrypted, and built for families everywhere.
-        </p>
-
-        {/* Email capture */}
-        {status !== 'success' ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              subscribe();
-            }}
-            className="mt-10 w-full max-w-md"
+        <Reveal delay={200}>
+          <h1
+            className="mt-5 text-balance text-[clamp(2.75rem,8.5vw,5.5rem)] font-semibold leading-[1.02] tracking-[-0.035em] text-white"
+            style={{ fontFamily: "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif" }}
           >
-            <div className="flex flex-col gap-2.5 sm:flex-row">
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                aria-label="Email address"
-                className="h-[52px] flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-[15px] text-white shadow-inner outline-none transition placeholder:text-emerald-100/30 focus:border-emerald-400/60 focus:ring-4 focus:ring-emerald-400/15"
-              />
-              <button
-                type="submit"
-                disabled={status === 'loading'}
-                className="h-[52px] shrink-0 rounded-xl bg-emerald-400 px-7 text-[14.5px] font-semibold text-emerald-950 shadow-[0_0_0_1px_rgba(52,211,153,0.4),0_12px_30px_-10px_rgba(52,211,153,0.5)] transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {status === 'loading' ? 'Joining…' : 'Join the waitlist'}
-              </button>
+            Your family&rsquo;s health,
+            <br />
+            <span className="bg-gradient-to-r from-emerald-200 to-emerald-400 bg-clip-text text-transparent">
+              finally connected.
+            </span>
+          </h1>
+        </Reveal>
+
+        <Reveal delay={280}>
+          <p className="mt-6 max-w-lg text-[16.5px] leading-relaxed text-emerald-100/55">
+            Reminders that adapt, a private AI health assistant, verified doctors, and lab tests at
+            your door — one calm app for everyone you care about.
+          </p>
+        </Reveal>
+
+        <Reveal delay={360}>
+          {status !== 'success' ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                subscribe();
+              }}
+              className="mx-auto mt-10 w-full max-w-md"
+            >
+              <div className="group flex flex-col gap-2.5 sm:flex-row">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  aria-label="Email address"
+                  className="h-[54px] flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 text-[15px] text-white outline-none transition placeholder:text-emerald-100/25 focus:border-emerald-400/50 focus:ring-4 focus:ring-emerald-400/12"
+                />
+                <button
+                  type="submit"
+                  disabled={status === 'loading'}
+                  className="h-[54px] shrink-0 rounded-xl bg-emerald-400 px-7 text-[14.5px] font-semibold text-emerald-950 shadow-[0_0_0_1px_rgba(52,211,153,0.35),0_16px_40px_-14px_rgba(52,211,153,0.55)] transition duration-300 hover:bg-emerald-300 hover:shadow-[0_0_0_1px_rgba(52,211,153,0.5),0_18px_48px_-12px_rgba(52,211,153,0.7)] disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {status === 'loading' ? 'Joining…' : 'Join the waitlist'}
+                </button>
+              </div>
+              <p className="mt-3 text-[12.5px] text-emerald-100/35">
+                No spam — just the launch invite and your founder pricing.
+              </p>
+            </form>
+          ) : (
+            <div className="mx-auto mt-10 w-full max-w-md rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.06] px-6 py-5">
+              <p className="text-[15px] font-medium text-emerald-50">You&rsquo;re in.</p>
+              <p className="mt-1 text-[13.5px] text-emerald-100/60">
+                We&rsquo;ll email you the moment doors open — your founder pricing is held.
+              </p>
             </div>
-            <p className="mt-3 text-[12.5px] text-emerald-100/35">
-              No spam. Just the launch invite, and your founder pricing.
-            </p>
-          </form>
-        ) : (
-          <div className="mt-10 w-full max-w-md rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.06] px-6 py-5">
-            <p className="text-[15px] font-medium text-emerald-50">You&rsquo;re in.</p>
-            <p className="mt-1 text-[13.5px] text-emerald-100/60">
-              We&rsquo;ll email you the moment doors open — your founder pricing is held.
-            </p>
-          </div>
-        )}
+          )}
+        </Reveal>
+
         {status === 'error' && <p className="mt-3 text-[13px] text-rose-300">{error}</p>}
 
-        {/* Live social proof */}
-        <p className="mt-9 flex items-center gap-2 text-[13px] text-emerald-100/45">
-          <span className="flex -space-x-2">
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="h-6 w-6 rounded-full ring-2 ring-[#05100c]"
-                style={{
-                  background: `radial-gradient(circle at 30% 30%, hsl(${150 + i * 12} 70% 55%), hsl(${150 + i * 12} 70% 38%))`,
-                }}
-              />
-            ))}
-          </span>
-          <span className="tabular-nums">{displayCount.toLocaleString()} families</span>
-          <span>already on the list</span>
-        </p>
+        <Reveal delay={440}>
+          <p className="mt-10 flex items-center justify-center gap-2 text-[13px] text-emerald-100/40">
+            <span className="tabular-nums text-emerald-100/60">
+              {displayCount.toLocaleString()} families
+            </span>
+            on the waitlist
+          </p>
+        </Reveal>
       </main>
 
-      {/* What's coming — four calm tiles, SVG icons */}
+      {/* ONE quiet second screen: what's coming + founder offer */}
       <section className="mx-auto max-w-5xl px-6 pb-20">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { icon: <IconRemind />, t: 'Adaptive reminders', d: 'Dosing that learns your routine.' },
-            { icon: <IconAI />, t: 'Private AI assistant', d: 'Ask, scan, and identify — encrypted.' },
-            { icon: <IconDoctor />, t: 'Verified doctors', d: 'Transparent fees, no markup.' },
-            { icon: <IconLab />, t: 'Lab at home', d: 'Honest, distance-based pricing.' },
-          ].map((c) => (
-            <div
-              key={c.t}
-              className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 transition-colors hover:border-emerald-400/20 hover:bg-white/[0.04]"
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-400/10 text-emerald-300">
-                {c.icon}
+        <Reveal>
+          <div className="grid gap-px overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { t: 'Adaptive reminders', d: 'Dosing that learns your routine.' },
+              { t: 'Private AI assistant', d: 'Ask, scan, identify — encrypted, yours alone.' },
+              { t: 'Verified doctors', d: 'Transparent fees, zero hidden markup.' },
+              { t: 'Lab at home', d: 'Honest, distance-based testing.' },
+            ].map((c) => (
+              <div key={c.t} className="bg-[#07160f] p-6">
+                <h3 className="text-[14.5px] font-semibold tracking-tight text-emerald-50">{c.t}</h3>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-emerald-100/45">{c.d}</p>
               </div>
-              <h3 className="mt-4 text-[15px] font-semibold tracking-tight text-emerald-50">{c.t}</h3>
-              <p className="mt-1.5 text-[13.5px] leading-relaxed text-emerald-100/50">{c.d}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </Reveal>
 
-      {/* Founder offer — quiet */}
-      <section className="mx-auto max-w-3xl px-6 pb-20">
-        <div className="rounded-2xl border border-white/[0.07] bg-gradient-to-b from-white/[0.04] to-transparent p-7 text-center sm:p-9">
-          <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-emerald-300/80">
-            For the first 500 members
-          </p>
-          <h2 className="mt-3 text-balance text-[24px] font-semibold tracking-tight text-white">
-            Founder pricing, locked for life.
-          </h2>
-          <p className="mx-auto mt-2.5 max-w-md text-[14.5px] leading-relaxed text-emerald-100/55">
-            The price you lock today never goes up while you&rsquo;re a member — even after we launch.
-          </p>
-        </div>
+        <Reveal delay={120}>
+          <div className="mt-6 flex flex-col items-center gap-2 rounded-2xl border border-emerald-400/15 bg-gradient-to-b from-emerald-400/[0.06] to-transparent p-7 text-center sm:p-8">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-emerald-300/70">
+              For the first 500 members
+            </p>
+            <p className="mt-2 max-w-md text-[15px] leading-relaxed text-emerald-100/60">
+              Lock in founder pricing today — the rate you start on never rises while you&rsquo;re a
+              member, even after launch.
+            </p>
+          </div>
+        </Reveal>
       </section>
 
       {/* Footer */}
       <footer className="border-t border-white/[0.06]">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-2 px-6 py-9 text-center">
-          <p className="text-[13px] font-semibold text-emerald-50">Kynthai</p>
-          <p className="text-[12.5px] text-emerald-100/40">
+          <p className="text-[12.5px] text-emerald-100/35">
             Encrypted at rest · HIPAA-aligned · Privacy-first
           </p>
-          <p className="mt-2 text-[12px] text-emerald-100/30">© 2026 Kynthai.</p>
+          <p className="text-[12px] text-emerald-100/25">© 2026 Kynthai.</p>
         </div>
       </footer>
     </div>
