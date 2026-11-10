@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Geist, Geist_Mono, Playfair_Display } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { PortalShell } from './portal-shell';
@@ -142,7 +142,7 @@ export default function RootLayout({
         )}
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased text-foreground`}
+        className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} antialiased text-foreground`}
       >
         {/* Deferred script for iOS Safari tab-restore recovery & chunk-load error retry */}
         <script defer src="/sw-recovery.js" />
