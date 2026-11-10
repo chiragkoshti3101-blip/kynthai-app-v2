@@ -536,13 +536,7 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   // ── Landing (default) ────────────────────────────────────────────────────
   return (
     <ErrorBoundary>
-      <PreLaunchPage
-        onPickPortal={(role?: string) => {
-          const safePortal = (role ?? 'caretaker') as LoginPortal;
-          setLoginPortal(safePortal);
-          router.push('/login/');
-        }}
-      />
+      <LandingPage />
     </ErrorBoundary>
   );
 }
