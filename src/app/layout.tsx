@@ -18,6 +18,12 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
   display: 'swap',
 });
+const playfair = Playfair_Display({
+  weight: ['600','700','800'],
+  variable: '--font-playfair-display',
+  subsets: ['latin'],
+  display: 'swap',
+});
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app';
 
