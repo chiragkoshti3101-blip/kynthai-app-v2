@@ -536,7 +536,18 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   // ── Landing (default) ────────────────────────────────────────────────────
   return (
     <ErrorBoundary>
-      <LandingPage />
+      <LandingPage
+        onGetStarted={(type?: string) => {
+          const safePortal = (type ?? 'caretaker') as LoginPortal;
+          setLoginPortal(safePortal);
+          router.push('/login/');
+        }}
+        onPickPortal={(portal: LoginPortal) => {
+          setLoginPortal(portal);
+          router.push('/login/');
+        }}
+        currency={currency}
+      />
     </ErrorBoundary>
   );
 }
