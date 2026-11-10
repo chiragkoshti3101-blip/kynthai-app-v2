@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type PreLaunchPageProps = {
   onPickPortal: (portal: string) => void;
