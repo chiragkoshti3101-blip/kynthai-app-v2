@@ -1,8 +1,13 @@
+/**
+ * src/lib/security-audit.ts — HARDENED
+ *
+ * Fix: isIpBlocked() now fails CLOSED instead of OPEN.
+ * If the audit log is unavailable, we block the IP rather than
+ * potentially allowing a brute-force attack during a DB outage.
+ */
+
 import { db } from './db'
 
-/**
- * Security audit events that should be tracked.
- */
 export type SecurityEvent =
   | 'auth.login.failed'
   | 'auth.login.success'
@@ -19,10 +24,6 @@ export type SecurityEvent =
   | 'sos.triggered'
   | 'prescription.uploaded'
 
-/**
- * Log a security event for audit trail.
- * Non-blocking — failures are silently ignored to not break the main flow.
- */
 export async function logSecurityEvent(
   userId: string,
   event: SecurityEvent,
@@ -44,8 +45,8 @@ export async function logSecurityEvent(
 }
 
 /**
- * Check if an IP has too many failed attempts (simple IP-based rate limiting).
- * Returns true if the IP should be blocked.
+ * Check if an IP has too many failed attempts.
+ * FAILS CLOSED: if we can't check the DB, we block the IP.
  */
 export async function isIpBlocked(ip: string): Promise<boolean> {
   try {
@@ -58,6 +59,7 @@ export async function isIpBlocked(ip: string): Promise<boolean> {
     })
     return recentFailures >= 10 // Block after 10 failed attempts from same IP
   } catch {
-    return false // Fail open — don't block if we can't check
+    // FAIL CLOSED: if we can't verify, block the IP
+    return true
   }
 }
