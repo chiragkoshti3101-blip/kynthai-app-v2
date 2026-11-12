@@ -129,7 +129,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@next/bundle-analyzer": "^16.2.10",
     "@playwright/test": "^1.61.1",
-    "@reticlehq/next": "^2.4.0",
+    "@reticlehq/next": "^3.8.1",
     "@reticlehq/react": "^3.8.1",
     "@reticlehq/server": "^3.8.1",
     "@tailwindcss/postcss": "^4",
@@ -146,7 +146,8 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.9",
+    "@reticlehq/babel-plugin": "^3.8.1"
   },
   "overrides": {
     "hyperid": {
