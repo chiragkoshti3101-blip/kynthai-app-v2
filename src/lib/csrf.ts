@@ -1,12 +1,12 @@
 /**
- * CSRF Protection — Double-Submit Cookie Pattern
+ * CSRF Protection — Double-Submit Cookie Pattern (Hardened)
  *
  * For state-changing requests (POST, PUT, PATCH, DELETE), the client must
  * send an `X-CSRF-Token` header that matches the `kynthai-csrf` cookie value.
  *
  * The token is generated on first GET request (via /api/auth/csrf) and stored
- * as an HttpOnly cookie. The frontend reads it and includes it in all
- * mutating requests.
+ * as an HttpOnly cookie. The frontend reads the token from the JSON response
+ * body (not document.cookie) and includes it in all mutating requests.
  *
  * This protects against Cross-Site Request Forgery (CSRF) attacks where a
  * malicious site tricks the browser into sending authenticated requests.
@@ -49,6 +49,10 @@ export async function generateCsrfToken(): Promise<string> {
 
 /**
  * Set the CSRF cookie on the response. Called by the /api/auth/csrf endpoint.
+ *
+ * SECURITY: Cookie is HttpOnly (not readable via document.cookie), Secure over
+ * HTTPS, and SameSite=strict. The frontend reads the token from the JSON
+ * response body of /api/auth/csrf, not from document.cookie.
  */
 export async function setCsrfCookie(req: { headers: { get(h: string): string | null } }): Promise<{ token: string }> {
   // During Next.js build (page data collection), cookies() throws
@@ -62,9 +66,9 @@ export async function setCsrfCookie(req: { headers: { get(h: string): string | n
 
   const token = await generateCsrfToken()
   store?.set(CSRF_COOKIE, token, {
-      httpOnly: false,
+      httpOnly: true,
       secure: isSecureRequest(req),
-      sameSite: 'lax',
+      sameSite: 'strict',
     path: '/',
     maxAge: 60 * 60 * 24 * 30, // 30 days
   })
@@ -76,14 +80,10 @@ export async function setCsrfCookie(req: { headers: { get(h: string): string | n
  * Returns null if valid, or a 403 NextResponse if invalid/missing.
  *
  * Only call this on POST/PUT/PATCH/DELETE routes — not on GET.
+ *
+ * SECURITY: No build-phase bypass. CSRF is always enforced at runtime.
  */
 export async function checkCsrf(req: NextRequest): Promise<NextResponse | null> {
-  // During Next.js build (page data collection), cookies() throws —
-  // skip CSRF validation to prevent build failures.
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return null
-  }
-
   // Read CSRF cookie from the raw Cookie header (works in both Node.js and Edge runtime).
   // Using cookies() from next/headers fails in Edge middleware (proxy.ts).
   const cookieHeader = req.headers.get('cookie') ?? ''
