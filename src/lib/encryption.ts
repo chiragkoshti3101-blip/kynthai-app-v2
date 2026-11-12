@@ -270,6 +270,98 @@ export function hashValue(value: string): string {
   return createHmac('sha256', getKey()).update(value).digest('hex');
 }
 
+/**
+ * Legacy encrypt function - encrypts a string using master key
+ * @deprecated Use encryptString instead
+ */
+export function encrypt(text: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', getKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return Buffer.concat([iv, authTag, encrypted]).toString('base64');
+}
+
+/**
+ * Legacy decryptValue function - decrypts a string using master key
+ * @deprecated Use decryptString instead
+ */
+export function decryptValue(encryptedBase64: string): string {
+  const data = Buffer.from(encryptedBase64, 'base64');
+  const iv = data.subarray(0, 12);
+  const authTag = data.subarray(12, 28);
+  const ciphertext = data.subarray(28);
+
+  const decipher = createDecipheriv('aes-256-gcm', getKey(), iv);
+  decipher.setAuthTag(authTag);
+
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+}
+
+/**
+ * Legacy decryptFile function - decrypts a file buffer from stored envelope
+ * @deprecated Use decryptHealthFile instead
+ */
+export function decryptFileLegacy(stored: Buffer): Buffer {
+  if (stored.length <= 1 + 12 + 16 + 16) {
+    throw new Error('Stored file is truncated or corrupt.');
+  }
+
+  const version = stored[0];
+  const iv = stored.subarray(1, 13);
+  const salt = stored.subarray(13, 29);
+  const authTag = stored.subarray(29, 45);
+  const ciphertext = stored.subarray(45);
+
+  const fileKey = deriveFileKey(salt);
+  const decipher = createDecipheriv('aes-256-gcm', fileKey, iv);
+  decipher.setAuthTag(authTag);
+
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+}
+
+/**
+ * Legacy generateFileId function - generates a random file ID
+ * @deprecated Use crypto.randomUUID() or similar
+ */
+export function generateFileId(): string {
+  return randomBytes(16).toString('hex');
+}
+
+/**
+ * Legacy sanitizeFilename function - sanitizes a filename
+ * @deprecated Use a proper filename sanitization library
+ */
+export function sanitizeFilename(filename: string): string {
+  return filename
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .substring(0, 255);
+}
+
+/**
+ * Legacy encryptValue function - encrypts a value (alias for encrypt)
+ * @deprecated Use encryptString instead
+ */
+export function encryptValue(text: string): string {
+  return encrypt(text);
+}
+
+/**
+ * Legacy decryptValue function - decrypts a value (alias for decryptValue)
+ * @deprecated Use decryptString instead
+ */
+export function decryptValueAlias(encryptedBase64: string): string {
+  return decryptValue(encryptedBase64);
+}
+
+/**
+ * Legacy hashValue function - creates a hash of a value
+ * @deprecated Use crypto.createHash('sha256') instead
+ */
+export function hashValue(value: string): string {
+  return createHmac('sha256', getKey()).update(value).digest('hex');
+}
+
 // Re-export the new secure functions with their original names for clarity
 export {
   getKeyVersion,
