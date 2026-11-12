@@ -1,14 +1,9 @@
 /**
- * CAPTCHA Verification — Cloudflare Turnstile
+ * src/lib/captcha.ts — HARDENED
  *
- * Uses Cloudflare Turnstile (free, privacy-first) to verify human users
- * during login and registration.
- *
- * ENV VARS:
- *   NEXT_PUBLIC_TURNSTILE_SITE_KEY — site key (public)
- *   TURNSTILE_SECRET_KEY — secret key for server-side verification
- *
- * If neither key is set, verification is skipped (dev mode).
+ * Fix: CAPTCHA verification is now REQUIRED in production.
+ * If Turnstile keys are not configured, verification fails closed
+ * (blocks login/registration) rather than skipping verification.
  */
 
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
@@ -22,22 +17,26 @@ export interface TurnstileVerifyResult {
   cdata?: string;
 }
 
-/**
- * Verify a Turnstile token server-side.
- *
- * @param token - The token from the client-side Turnstile widget
- * @param ip - Optional visitor IP for extra fraud analysis
- * @returns Whether the token is valid
- */
 export async function verifyTurnstileToken(
   token: string,
   ip?: string
 ): Promise<{ valid: boolean; error?: string }> {
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
 
-  // If no secret key configured, skip verification (dev mode)
+  // FAIL CLOSED: if no secret key configured in production, block verification
   if (!secretKey) {
+    if (process.env.NODE_ENV === 'production') {
+      return {
+        valid: false,
+        error: 'CAPTCHA not configured on server. Please contact support.',
+      };
+    }
+    // Dev mode: skip verification
     return { valid: true };
+  }
+
+  if (!token) {
+    return { valid: false, error: 'CAPTCHA token is required.' };
   }
 
   try {
@@ -78,12 +77,17 @@ export async function verifyTurnstileToken(
   }
 }
 
-/**
- * Check if CAPTCHA is configured (i.e., site key + secret key set).
- */
 export function isCaptchaConfigured(): boolean {
   return !!(
     process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY &&
     process.env.TURNSTILE_SECRET_KEY
   );
+}
+
+/**
+ * Returns true if CAPTCHA is required for this request.
+ * In production, CAPTCHA is always required.
+ */
+export function isCaptchaRequired(): boolean {
+  return process.env.NODE_ENV === 'production';
 }
