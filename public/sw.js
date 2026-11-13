@@ -8,7 +8,7 @@
  */
 
 // BUILD: cache-bust rewrites this constant on every deploy
-const DEPLOY_ID = '9ca868f-mwew0vcg'
+const DEPLOY_ID = '2ddc135-mtg5orms'
 
 const VERSION = `kynthai-${DEPLOY_ID}`
 const STATIC_CACHE = `${VERSION}-static`
