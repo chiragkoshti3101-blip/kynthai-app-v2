@@ -2,7 +2,7 @@
 // Supabase Storage client for medical documents
 
 import { createClient } from '@supabase/supabase-js';
-import { encryptFile, decryptFile, generateFileId, sanitizeFilename } from './encryption';
+import { encryptFileLegacy as encryptFile, decryptFileLegacy as decryptFile, generateFileId, sanitizeFilename } from './encryption';
 
 // Lazy-initialized Supabase admin client to avoid build-time errors
 let _supabaseAdmin: ReturnType<typeof createClient> | null = null;
@@ -200,7 +200,7 @@ export async function uploadAndStoreDocument(
   const fileExt = originalFilename.split('.').pop()?.toLowerCase() || 'bin';
   const safeFilename = sanitizeFilename(originalFilename);
 
-  // Encrypt file
+  // Encrypt file using legacy API (returns { encryptedData, iv, salt, authTag })
   const { encryptedData, iv, salt, authTag } = encryptFile(file);
 
   // Upload to storage
@@ -299,7 +299,7 @@ export async function getDocumentForDownload(
 }
 
 /**
- * Decrypt downloaded file
+ * Decrypt downloaded file using legacy API (takes 4 separate args)
  */
 export function decryptDocument(
   encryptedData: Buffer,
