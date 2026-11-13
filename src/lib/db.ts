@@ -9,28 +9,45 @@ const globalForPrisma = globalThis as unknown as {
   prismaInitError: Error | undefined
 }
 
+/** Thrown when DATABASE_URL is missing or invalid — callers may map to HTTP 503. */
+export class DatabaseNotConfiguredError extends Error {
+  readonly code = 'DATABASE_NOT_CONFIGURED' as const
+
+  constructor(message?: string) {
+    super(
+      message ??
+        'DATABASE_URL is not set. Configure DATABASE_URL in .env.local (see .env.example).',
+    )
+    this.name = 'DatabaseNotConfiguredError'
+  }
+}
+
+export function isDatabaseConfigured(): boolean {
+  const url = process.env.DATABASE_URL
+  if (!url || typeof url !== 'string' || url.trim() === '') return false
+  return url.startsWith('file:') || url.startsWith('postgresql://')
+}
+
 // Resolve Prisma datasource URL — handle relative `file:` paths against project root
 function resolveDatabaseUrl(url: string): string {
   if (!url.startsWith('file:')) return url
   const filePath = url.slice(5) // strip 'file:'
   if (path.isAbsolute(filePath)) return url
-  // Resolve relative path against project root (where this file's parent is)
   const absolutePath = path.resolve(process.cwd(), filePath)
   return `file:${absolutePath}`
 }
 
-// Lazy Prisma client initialization to handle dev server hot reload edge cases
-function createPrismaClient(): PrismaClient {
+function requireDatabaseUrl(): string {
   const rawUrl = process.env.DATABASE_URL
-  if (!rawUrl || (!rawUrl.startsWith('file:') && !rawUrl.startsWith('postgresql://'))) {
-    throw new Error(`Invalid DATABASE_URL: must start with 'file:' or 'postgresql://' (got: ${rawUrl})`)
+  if (!rawUrl || typeof rawUrl !== 'string' || rawUrl.trim() === '') {
+    throw new DatabaseNotConfiguredError()
   }
-  const url = resolveDatabaseUrl(rawUrl)
-  return new PrismaClient({
-    datasources: { db: { url } },
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-    errorFormat: 'pretty',
-  })
+  if (!rawUrl.startsWith('file:') && !rawUrl.startsWith('postgresql://')) {
+    throw new DatabaseNotConfiguredError(
+      `Invalid DATABASE_URL: must start with 'file:' or 'postgresql://'`,
+    )
+  }
+  return resolveDatabaseUrl(rawUrl)
 }
 
 let _db: PrismaClient | undefined
@@ -46,11 +63,14 @@ function getDb(): PrismaClient {
       _db = existing
       return _db
     }
-    const client = installEncryptionMiddleware(new PrismaClient({
-      datasources: { db: { url: resolveDatabaseUrl(process.env.DATABASE_URL!) } },
-      log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-      errorFormat: 'pretty',
-    }))
+    const url = requireDatabaseUrl()
+    const client = installEncryptionMiddleware(
+      new PrismaClient({
+        datasources: { db: { url } },
+        log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+        errorFormat: 'pretty',
+      }),
+    )
     _db = client
     globalForPrisma.prisma = _db
     return _db
@@ -61,10 +81,6 @@ function getDb(): PrismaClient {
 }
 
 // Lazy Prisma accessor — do NOT construct/validate Prisma at import time.
-// Importing this module happens during `next build` page-data collection and
-// inside docker image builds where DATABASE_URL is absent; eager
-// `getDb()` there crashed with "Cannot read properties of undefined
-// (reading 'startsWith')". Proxy defers getDb() to first actual use.
 export const db: PrismaClient = new Proxy({} as PrismaClient, {
   get(_target, prop: string | symbol) {
     return typeof prop === 'string' ? Reflect.get(getDb(), prop) : undefined
@@ -81,7 +97,6 @@ export async function disconnectDb(): Promise<void> {
   try {
     await db.$disconnect()
   } catch (err) {
-    // Security: never log raw DB connection errors
     logger.phiSafeError(err, 'db.disconnect')
   }
 }
@@ -101,10 +116,8 @@ export async function disconnectDb(): Promise<void> {
       process.exit(0)
     })
 
-    // SECURITY: Catch unhandled exceptions to prevent silent crashes
     process.on('uncaughtException', (error: Error) => {
       logger.phiSafeError(error, 'uncaughtException')
-      // Exit with error code for container restart
       process.exit(1)
     })
   }
@@ -131,18 +144,14 @@ export function logQueryStats(): void {
   }
 }
 
-// ══ Health Data Protection: Global sensitive health data Console Override ═══════════════════════════════════════
-// Safety net: in production, all console.* output is masked via maskArgs to
-// prevent accidental sensitive health data leakage from any unmasked call site.
 if (process.env.NODE_ENV === 'production') {
   const _maskArgs = maskArgs
   const _origError = console.error.bind(console)
-  const _origWarn  = console.warn.bind(console)
-  const _origInfo  = console.info.bind(console)
+  const _origWarn = console.warn.bind(console)
+  const _origInfo = console.info.bind(console)
 
-  // Mask all console output in production
-  console.log   = (...a: any[]) => { /* disabled — use logger */ }
+  console.log = (...a: any[]) => { /* disabled — use logger */ }
   console.error = (...a: any[]) => _origError(..._maskArgs(a))
-  console.warn  = (...a: any[]) => _origWarn(..._maskArgs(a))
-  console.info  = (...a: any[]) => _origInfo(..._maskArgs(a))
+  console.warn = (...a: any[]) => _origWarn(..._maskArgs(a))
+  console.info = (...a: any[]) => _origInfo(..._maskArgs(a))
 }
