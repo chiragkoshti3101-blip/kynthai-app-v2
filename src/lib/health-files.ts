@@ -23,6 +23,9 @@ import { createHash, randomBytes } from 'crypto';
 import { getSupabaseAdmin, initializeMedicalDocumentsBucket } from './storage';
 import { encryptHealthFile, decryptHealthFile } from './encryption';
 
+// Re-export encryption functions for callers that import from health-files
+export { encryptHealthFile, decryptHealthFile } from './encryption';
+
 export const HEALTH_FILE_BUCKET = 'medical-documents';
 // Top-level folder for these files inside HEALTH_FILE_BUCKET.
 const ROOT = 'private-uploads';
