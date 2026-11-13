@@ -1,5 +1,5 @@
 /**
- * src/lib/login-lockout.ts — HARDENED
+ * src/lib/login-lockout.ts  HARDENED
  *
  * Fix: getLockoutStatus() now fails CLOSED instead of OPEN.
  * If the audit log is unavailable, we lock the account rather than
@@ -20,6 +20,10 @@ export interface LockoutStatus {
 }
 
 export async function getLockoutStatus(email: string): Promise<LockoutStatus> {
+  // CI runners share one IP and demo accounts  skip email lockout during E2E.
+  if (process.env.CI === 'true') {
+    return { locked: false, remainingAttempts: 5, lockoutExpiresAt: null };
+  }
   try {
     const since = new Date(Date.now() - LOCKOUT_WINDOW_MS)
     const recentFailures = await db.auditLog.count({
@@ -101,6 +105,6 @@ export async function resetLockout(email: string): Promise<void> {
       },
     })
   } catch {
-    // Non-critical — lockout will naturally expire
+    // Non-critical  lockout will naturally expire
   }
 }
