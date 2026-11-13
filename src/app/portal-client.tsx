@@ -16,7 +16,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore, selectors, type AuthUser } from '@/lib/store';
 import { Suspense, useEffect } from 'react';
 import { loadPortal } from './portal-loaders';
-import { PreLaunchPage } from '@/components/kynthai/prelaunch-page';
 import { LandingPage } from '@/components/kynthai/landing-page';
 import { LoginPage } from '@/components/kynthai/login-page';
 import { PricingPage } from '@/components/kynthai/pricing-page';
