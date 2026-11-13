@@ -21,9 +21,11 @@ export function getSupabaseUrl(): string | null {
 }
 
 export function getSupabaseServerKey(): string | null {
+  const serviceKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || null;
+  if (serviceKey) return serviceKey;
+  if (process.env.NODE_ENV === 'production') return null;
   return (
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SECRET_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     null

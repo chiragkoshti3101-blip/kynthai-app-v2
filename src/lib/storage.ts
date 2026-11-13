@@ -8,11 +8,24 @@ import { encryptFile, decryptFile, generateFileId, sanitizeFilename } from './en
 let _supabaseAdmin: ReturnType<typeof createClient> | null = null;
 function getSupabaseAdmin() {
   if (!_supabaseAdmin) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder';
-    _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { persistSession: false },
-    });
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceKey) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+          '[storage] NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required in production'
+        );
+      }
+      _supabaseAdmin = createClient(
+        supabaseUrl || 'https://placeholder.supabase.co',
+        supabaseServiceKey || 'placeholder',
+        { auth: { persistSession: false } }
+      );
+    } else {
+      _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: { persistSession: false },
+      });
+    }
   }
   return _supabaseAdmin;
 }

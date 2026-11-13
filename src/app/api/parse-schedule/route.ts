@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createChatCompletion, choicesOf } from '@/lib/nvidia'
+import { createChatCompletion, choicesOf, isAiAvailable } from '@/lib/nvidia'
 import { requireAuth, requireAuthWithCsrf, jsonError, readJson, checkAiTier } from '@/lib/api-helpers'
 import { logAudit } from '@/lib/auth'
 import { sanitizeText } from '@/lib/security'
@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
 
   const tierErr = await checkAiTier(user, 'schedule parsing')
   if (tierErr) return tierErr
+
+  if (!isAiAvailable()) {
+    return NextResponse.json({
+      schedule: null,
+      message: 'AI schedule parsing requires NVIDIA_API_KEY.',
+    })
+  }
 
   try {
     const body = await readJson<{ text?: unknown }>(req)
