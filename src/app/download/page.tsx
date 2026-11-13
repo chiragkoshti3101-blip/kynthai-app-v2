@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Download, Bell, Shield, Battery } from 'lucide-react'
 import { KynthaiBrand } from '@/components/kynthai/logo'
+import { MarketingCtaAnchor } from '@/components/kynthai/marketing-ui'
 
 export const metadata: Metadata = {
   title: 'Download Kynthai for Android',
@@ -19,7 +20,7 @@ const APK = process.env.NEXT_PUBLIC_APK_URL || '/downloads/kynthai-android.apk'
 
 export default function DownloadPage() {
   return (
-    <main className="min-h-screen bg-[#f9fdfb] text-slate-900">
+    <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-lg px-5 py-10 space-y-8">
         <div className="flex justify-center">
           <Link href="/" className="inline-flex items-center gap-2" aria-label="Kynthai home">
@@ -39,20 +40,16 @@ export default function DownloadPage() {
             />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Download Kynthai</h1>
-          <p className="text-sm text-slate-600 leading-relaxed">
+          <p className="text-sm text-muted-foreground leading-relaxed">
             Official Android app for medication reminders, family care, doctor and lab alerts —
             built so notifications work more reliably when the phone is locked.
           </p>
         </div>
 
-        <a
-          href={APK}
-          download="Kynthai-android.apk"
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-4 text-base font-semibold text-white shadow-md hover:bg-emerald-700"
-        >
+        <MarketingCtaAnchor href={APK} download="Kynthai-android.apk">
           <Download className="h-5 w-5" />
           Download Android APK
-        </a>
+        </MarketingCtaAnchor>
 
         <ul className="space-y-3 text-sm text-slate-700">
           <li className="flex gap-3 rounded-xl border border-emerald-100 bg-white p-3">

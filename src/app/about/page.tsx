@@ -1,5 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import {
+  MarketingCtaLink,
+  MarketingEyebrow,
+  MarketingLead,
+  MarketingPage,
+  MarketingSecondaryLink,
+  MarketingTextLink,
+  MarketingTitle,
+} from '@/components/kynthai/marketing-ui'
 
 export const metadata: Metadata = {
   title: 'About',
@@ -10,37 +19,28 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <main className="mx-auto max-w-3xl px-4 py-16 text-slate-800">
-      <p className="text-sm font-medium text-emerald-600">
-        <Link href="/">Kynthai</Link> · About
-      </p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">About Kynthai</h1>
-      <p className="mt-4 text-lg leading-relaxed text-slate-600">
+    <MarketingPage>
+      <MarketingEyebrow>
+        <Link href="/" className="hover:underline">
+          Kynthai
+        </Link>{' '}
+        · About
+      </MarketingEyebrow>
+      <MarketingTitle>About Kynthai</MarketingTitle>
+      <MarketingLead>
         Kynthai helps patients and families stay on top of medications, while doctors and labs get
         clearer requests and updates — all in one place.
-      </p>
-      <ul className="mt-8 list-disc space-y-2 pl-5 text-slate-700">
+      </MarketingLead>
+      <ul className="mt-8 list-disc space-y-2 pl-5 text-foreground/90">
         <li>Medication reminders designed for real life (patient + family)</li>
         <li>Consult and lab workflows with in-app notifications</li>
         <li>Privacy-first design with clear account controls</li>
       </ul>
-      <div className="mt-10 flex flex-wrap gap-3">
-        <Link
-          href="/login"
-          className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
-        >
-          Sign in
-        </Link>
-        <Link
-          href="/download"
-          className="rounded-full border border-emerald-200 px-5 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-50"
-        >
-          Download Android app
-        </Link>
-        <Link href="/pricing" className="rounded-full px-5 py-2.5 text-sm font-medium text-slate-600 hover:text-slate-900">
-          Pricing
-        </Link>
+      <div className="mt-10 flex flex-wrap items-center gap-3">
+        <MarketingCtaLink href="/login">Sign in</MarketingCtaLink>
+        <MarketingSecondaryLink href="/download">Download Android app</MarketingSecondaryLink>
+        <MarketingTextLink href="/pricing">Pricing</MarketingTextLink>
       </div>
-    </main>
+    </MarketingPage>
   )
 }
