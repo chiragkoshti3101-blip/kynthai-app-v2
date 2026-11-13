@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { deleteMedicalDocument } from '@/lib/storage';
+import { deleteMedicalDocument, listUserDocuments } from '@/lib/storage';
 
 export const STRIPE_ERASURE_NOTE =
   'Stripe customer records may be retained for billing compliance; cancel active subscriptions in Stripe before erasure or use Stripe customer deletion per finance policy.';
@@ -28,6 +28,13 @@ export async function eraseUserScopedData(userId: string): Promise<{
     await db.medicalDocument.deleteMany({
       where: { id: { in: docs.map(d => d.id) } },
     });
+  }
+
+  const { files: storagePaths, error: listErr } = await listUserDocuments(userId);
+  if (listErr) storageWarnings.push(`storage list: ${listErr}`);
+  for (const path of storagePaths) {
+    const r = await deleteMedicalDocument(path);
+    if (!r.success && r.error) storageWarnings.push(`path ${path}: ${r.error}`);
   }
 
   await db.pushSubscription.deleteMany({ where: { userId } });

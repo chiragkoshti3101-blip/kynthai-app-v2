@@ -90,56 +90,100 @@ export async function GET(req: NextRequest) {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-    const patients = await Promise.all(
-      patientIds.map(async pid => {
-        const patient = appointments.find((a: any) => a.patientId === pid)!.patient;
-        const meds = await db.medication.findMany({ where: { userId: pid, active: true } });
-        const medIds = meds.map((m: any) => m.id);
-        const weekReminders =
-          medIds.length > 0
-            ? await db.reminder.findMany({
-                where: { medicationId: { in: medIds }, date: { gte: dateStr(sevenDaysAgo) } },
-              })
-            : [];
-        const takenWeek = weekReminders.filter((r: any) => r.status === 'taken').length;
-        const adherence = weekReminders.length
-          ? Math.round((takenWeek / weekReminders.length) * 100)
-          : 0;
-        const prevWeekReminders =
-          medIds.length > 0
-            ? await db.reminder.findMany({
-                where: {
-                  medicationId: { in: medIds },
-                  date: { gte: dateStr(fourteenDaysAgo), lt: dateStr(sevenDaysAgo) },
-                },
-              })
-            : [];
-        const prevTaken = prevWeekReminders.filter((r: any) => r.status === 'taken').length;
-        const prevAdherence = prevWeekReminders.length
-          ? Math.round((prevTaken / prevWeekReminders.length) * 100)
-          : adherence;
-        let trend: 'improving' | 'declining' | 'stable' = 'stable';
-        if (adherence > prevAdherence + 5) trend = 'improving';
-        else if (adherence < prevAdherence - 5) trend = 'declining';
-        const lastApt = appointments
-          .filter((a: any) => a.patientId === pid)
-          .sort((a: any, b: any) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime())[0];
-        const missedDoses = weekReminders.filter(
-          (r: any) => r.status === 'missed' || r.status === 'pending'
-        ).length;
-        return {
-          id: patient.id,
-          name: patient.name,
-          email: patient.email,
-          adherence,
-          trend,
-          lastConsultation: lastApt?.scheduledAt?.toISOString() ?? null,
-          activeMedications: meds.length,
-          missedDoses,
-          needsAttention: adherence < 60 || trend === 'declining',
-        };
-      })
-    );
+    const patientById = new Map<string, { id: string; name: string | null; email: string }>();
+    for (const a of appointments) {
+      if (!patientById.has(a.patientId)) {
+        patientById.set(a.patientId, {
+          id: a.patient.id,
+          name: a.patient.name,
+          email: a.patient.email,
+        });
+      }
+    }
+
+    const allMeds =
+      patientIds.length > 0
+        ? await db.medication.findMany({
+            where: { userId: { in: patientIds }, active: true },
+            select: { id: true, userId: true },
+          })
+        : [];
+    const medIdsByPatient = new Map<string, string[]>();
+    const allMedIds: string[] = [];
+    for (const med of allMeds) {
+      if (!med.userId) continue;
+      const list = medIdsByPatient.get(med.userId) ?? [];
+      list.push(med.id);
+      medIdsByPatient.set(med.userId, list);
+      allMedIds.push(med.id);
+    }
+
+    const weekFrom = dateStr(sevenDaysAgo);
+    const prevFrom = dateStr(fourteenDaysAgo);
+    const prevTo = dateStr(sevenDaysAgo);
+    const [weekReminders, prevWeekReminders] = await Promise.all([
+      allMedIds.length
+        ? db.reminder.findMany({
+            where: { medicationId: { in: allMedIds }, date: { gte: weekFrom } },
+          })
+        : Promise.resolve([]),
+      allMedIds.length
+        ? db.reminder.findMany({
+            where: { medicationId: { in: allMedIds }, date: { gte: prevFrom, lt: prevTo } },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const medToPatient = new Map(allMeds.map(m => [m.id, m.userId!] as const));
+    const weekByPatient = new Map<string, typeof weekReminders>();
+    const prevByPatient = new Map<string, typeof prevWeekReminders>();
+    for (const row of weekReminders) {
+      const pid = medToPatient.get(row.medicationId);
+      if (!pid) continue;
+      const bucket = weekByPatient.get(pid) ?? [];
+      bucket.push(row);
+      weekByPatient.set(pid, bucket);
+    }
+    for (const row of prevWeekReminders) {
+      const pid = medToPatient.get(row.medicationId);
+      if (!pid) continue;
+      const bucket = prevByPatient.get(pid) ?? [];
+      bucket.push(row);
+      prevByPatient.set(pid, bucket);
+    }
+
+    const patients = patientIds.map(pid => {
+      const patient = patientById.get(pid)!;
+      const medIds = medIdsByPatient.get(pid) ?? [];
+      const week = weekByPatient.get(pid) ?? [];
+      const prev = prevByPatient.get(pid) ?? [];
+      const takenWeek = week.filter((r: any) => r.status === 'taken').length;
+      const adherence = week.length ? Math.round((takenWeek / week.length) * 100) : 0;
+      const prevTaken = prev.filter((r: any) => r.status === 'taken').length;
+      const prevAdherence = prev.length ? Math.round((prevTaken / prev.length) * 100) : adherence;
+      let trend: 'improving' | 'declining' | 'stable' = 'stable';
+      if (adherence > prevAdherence + 5) trend = 'improving';
+      else if (adherence < prevAdherence - 5) trend = 'declining';
+      const lastApt = appointments
+        .filter((a: any) => a.patientId === pid)
+        .sort(
+          (a: any, b: any) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()
+        )[0];
+      const missedDoses = week.filter(
+        (r: any) => r.status === 'missed' || r.status === 'pending'
+      ).length;
+      return {
+        id: patient.id,
+        name: patient.name,
+        email: patient.email,
+        adherence,
+        trend,
+        lastConsultation: lastApt?.scheduledAt?.toISOString() ?? null,
+        activeMedications: medIds.length,
+        missedDoses,
+        needsAttention: adherence < 60 || trend === 'declining',
+      };
+    });
     const sorted = patients.sort((a, b) => a.adherence - b.adherence);
     const needsAttention = sorted.filter((p: any) => p.needsAttention).length;
     const avgAdherence = sorted.length
