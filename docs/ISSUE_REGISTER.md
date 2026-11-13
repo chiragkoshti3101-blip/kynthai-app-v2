@@ -282,6 +282,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 
 | **Paths** | `LabBooking` delivery address, `MedicalDocument.title`, `VideoCall.notes`, etc. |
 | **Fix** | Extend middleware map or stop persisting sensitive free text in plaintext columns. |
+| **Status** | **Partial** — `MedicalDocument.title/description`, `VideoCall.notes` and `LabBooking.deliveryAddress/City/Zip` now have `*_enc` shadows, middleware entries and backfill entries (`prisma/migrations/20271114000000_add_document_video_phi_encryption`). Remaining: run `scripts/encrypt-existing-data.mjs --apply --verify` in staging then production, and flip `ENCRYPTION_TRANSITIONAL=false` after verification. |
 
 ### KYN-MED-007 — Doctor nudge pushes free-text clinical message to lock screen
 

@@ -134,6 +134,9 @@ const MODELS = [
       { plain: 'notes', enc: 'notes_enc' },
       { plain: 'resultsNote', enc: 'resultsNote_enc' },
       { plain: 'tests', enc: 'tests_enc', required: true },
+      { plain: 'deliveryAddress', enc: 'deliveryAddress_enc' },
+      { plain: 'deliveryCity', enc: 'deliveryCity_enc' },
+      { plain: 'deliveryZip', enc: 'deliveryZip_enc' },
     ],
   },
   {
@@ -197,6 +200,19 @@ const MODELS = [
     name: 'Complaint',
     delegate: 'complaint',
     fields: [{ plain: 'description', enc: 'description_enc' }],
+  },
+  {
+    name: 'MedicalDocument',
+    delegate: 'medicalDocument',
+    fields: [
+      { plain: 'title', enc: 'title_enc', required: true },
+      { plain: 'description', enc: 'description_enc' },
+    ],
+  },
+  {
+    name: 'VideoCall',
+    delegate: 'videoCall',
+    fields: [{ plain: 'notes', enc: 'notes_enc' }],
   },
   {
     name: 'PrescriptionIntelligence',

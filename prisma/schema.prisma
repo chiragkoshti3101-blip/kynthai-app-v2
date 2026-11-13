@@ -300,8 +300,11 @@ model LabBooking {
   homeCollection       Boolean    @default(true)
   // Home-collection travel pricing fields (all money values are cents).
   deliveryAddress           String?
+  deliveryAddress_enc       String? // encrypted home-collection address
   deliveryCity              String?
+  deliveryCity_enc          String?
   deliveryZip               String?
+  deliveryZip_enc           String?
   deliveryDistanceMi        Float? // legacy compatibility; new writes also store km
   deliveryDistanceKm        Float?
   deliveryFee               Int        @default(0) // fixed $8 under 5 km or provider quote at/over 5 km
@@ -930,7 +933,9 @@ model MedicalDocument {
   type            DocumentType
   category        DocumentCategory     @default(CLINICAL)
   title           String
+  title_enc       String? // encrypted title; `title` holds '' after backfill
   description     String?
+  description_enc String? // encrypted description; `description` stays NULL
   mimeType        String
   fileSize        Int
 
@@ -970,6 +975,7 @@ model VideoCall {
   recordingUrl  String? // HIPAA-compliant encrypted recording (if enabled)
   qualityScore  Int? // optional self-reported or metric score 1-5
   notes         String? // optional clinical notes post-call
+  notes_enc     String? // encrypted notes; `notes` stays NULL after backfill
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
   participants  VideoCallParticipant[]

@@ -135,3 +135,4 @@ queried.
 | SEC-002 | `supabase/migrations/20261113_rls_internal_tables.sql` | Static SQL review; **not applied** |
 | SEC-003 | `src/lib/operator-token.ts` + four routes updated | `npm run typecheck`, `npx vitest run` |
 | SEC-006 | Publishable key redacted in `PRODUCTION-READINESS-REPORT.md` | Diff review |
+| KYN-MED-006 | `*_enc` shadows + middleware + backfill entries for `MedicalDocument.title/description`, `VideoCall.notes`, `LabBooking.deliveryAddress/City/Zip` | New unit tests in `prisma-encryption-write.test.ts`; **backfill not executed** |

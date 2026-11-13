@@ -58,6 +58,8 @@
  *  NotificationLog: title, body, recipient
  *  Payment: description
  *  PrescriptionIntelligence: rawText, imageData, medications, schedule, interactions, warnings
+ *  MedicalDocument: title, description
+ *  VideoCall: notes
  */
 
 import { type PrismaClient } from '@prisma/client'
@@ -147,6 +149,9 @@ const MODEL_ENCRYPTED_FIELDS: ModelEncMap = {
     { enc: 'notes_enc', as: 'notes' },
     { enc: 'resultsNote_enc', as: 'resultsNote' },
     { enc: 'tests_enc', as: 'tests', required: true, defaultValue: '[]' },
+    { enc: 'deliveryAddress_enc', as: 'deliveryAddress' },
+    { enc: 'deliveryCity_enc', as: 'deliveryCity' },
+    { enc: 'deliveryZip_enc', as: 'deliveryZip' },
   ],
   EmergencyAlert: [
     { enc: 'memberName_enc', as: 'memberName' },
@@ -183,6 +188,13 @@ const MODEL_ENCRYPTED_FIELDS: ModelEncMap = {
   ],
   Complaint: [
     { enc: 'description_enc', as: 'description' },
+  ],
+  MedicalDocument: [
+    { enc: 'title_enc', as: 'title', required: true },
+    { enc: 'description_enc', as: 'description' },
+  ],
+  VideoCall: [
+    { enc: 'notes_enc', as: 'notes' },
   ],
   PrescriptionIntelligence: [
     { enc: 'rawText_enc', as: 'rawText' },
