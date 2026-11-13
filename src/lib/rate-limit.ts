@@ -76,9 +76,6 @@ function applyRateLimitSecurityHeaders(res: NextResponse, req: NextRequest): voi
 
 // ── Synchronous in-memory rate limit ─────────────────────────────────
 export function rateLimit(req: NextRequest, max = 60, windowMs = 60000, opts?: { globalKey?: boolean }): NextResponse | null {
-  // Skip rate limiting in CI/E2E test environments to avoid false positives from
-  // the same-IP test runner. Production is unaffected (CI env var not set).
-  if (process.env.CI === 'true' || process.env.NODE_ENV === 'test') return null;
   const ip = getIp(req)
   const key = opts?.globalKey ? `global:${ip}` : `${ip}:${req.nextUrl.pathname}`
   const now = Date.now()
