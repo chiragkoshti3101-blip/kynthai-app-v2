@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { HOME_FAQS } from '@/components/kynthai/faq-data'
 import { HeroCarePreview } from '@/components/kynthai/hero-care-preview'
 import { StructuredData } from '@/components/structured-data'
+import { MarketingCtaLink, MarketingSecondaryLink } from '@/components/kynthai/marketing-ui'
 
 // Keep the public landing route fresh without making every request dynamic.
 // Authenticated portals and all health-data APIs remain uncached elsewhere.
@@ -50,19 +50,9 @@ function LandingSeoFallback() {
               Kynthai is a health management tool, not a doctor, hospital, or emergency service.
               It does not diagnose or replace professional medical care.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <Link
-                href="/register"
-                className="rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-700"
-              >
-                Get started free
-              </Link>
-              <Link
-                href="/faq"
-                className="rounded-full border border-border px-5 py-3 text-sm font-semibold hover:bg-muted"
-              >
-                Read common questions
-              </Link>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <MarketingCtaLink href="/register">Get started free</MarketingCtaLink>
+              <MarketingSecondaryLink href="/faq">Read common questions</MarketingSecondaryLink>
             </div>
           </div>
 

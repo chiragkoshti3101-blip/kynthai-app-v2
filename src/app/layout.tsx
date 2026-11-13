@@ -155,7 +155,7 @@ export default function RootLayout({
         {/* ACCESSIBILITY: Skip link for keyboard/screen-reader users — FIXED */}
         <a
           href="#main-content"
-          className="sr-only pointer-events-none focus:not-sr-only focus:pointer-events-auto focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-lg focus:bg-emerald-600 focus:px-4 focus:py-3 focus:text-white focus:shadow-lg focus:outline-none"
+          className="sr-only pointer-events-none focus:not-sr-only focus:pointer-events-auto focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-3 focus:text-primary-foreground focus:shadow-lg focus:outline-none"
         >
           Skip to main content
         </a>

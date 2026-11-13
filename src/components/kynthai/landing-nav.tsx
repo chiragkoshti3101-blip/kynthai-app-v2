@@ -85,6 +85,7 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
             ) : (
               <button
                 key={l.label}
+                type="button"
                 onClick={l.onClick}
                 className="group relative flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
@@ -125,6 +126,7 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
         </div>
 
         <button
+          type="button"
           className="inline-flex h-11 w-11 min-h-11 min-w-11 items-center justify-center rounded-xl border border-border lg:hidden transition-transform duration-200 active:scale-95"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
@@ -161,18 +163,19 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
                   key={l.label}
                   href={l.href}
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-accent"
+                  className="block min-h-11 rounded-lg px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-accent"
                 >
                   {l.label}
                 </Link>
               ) : (
                 <button
                   key={l.label}
+                  type="button"
                   onClick={() => {
                     setOpen(false)
                     l.onClick?.()
                   }}
-                  className="block w-full rounded-lg px-3 py-3 text-left text-sm font-medium text-muted-foreground hover:bg-accent"
+                  className="block w-full min-h-11 rounded-lg px-3 py-3 text-left text-sm font-medium text-muted-foreground hover:bg-accent"
                 >
                   {l.label}
                 </button>
