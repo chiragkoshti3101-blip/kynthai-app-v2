@@ -18,7 +18,7 @@ const feedbackSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const limited = rateLimit(req, 5, 60000, { globalKey: true });
+    const limited = rateLimit(req, 5, 60000, { globalKey: true } as const);
     if (limited) return limited;
 
     const rawBody = await readJson(req);
