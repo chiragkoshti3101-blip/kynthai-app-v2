@@ -7,7 +7,7 @@ import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-// Feedback schema with proper Zod errorMap (returns string, not object)
+// Feedback schema  errorMap returns string (not object) for Zod enum
 const feedbackSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: z.string().email('Valid email is required').max(200),
@@ -19,7 +19,7 @@ const feedbackSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const limited = rateLimit(req, 5, 60000, { globalKey: true } as const);
+    const limited = rateLimit(req, 5, 60_000, { globalKey: true } as const);
     if (limited) return limited;
 
     const rawBody = await readJson(req);
