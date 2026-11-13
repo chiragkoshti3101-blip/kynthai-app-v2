@@ -11,7 +11,7 @@
 //   - Raw bytes are AES-256-GCM encrypted server-side BEFORE they leave the
 //     process (lib/encryption.ts, per-file scrypt key; ENCRYPTION_KEY required
 //     in production).
-//   - Stored layout: iv(12) | salt(16) | authTag(16) | ciphertext — fixed
+//   - Stored layout: version(1) | iv(12) | salt(16) | authTag(16) | ciphertext  fixed
 //     offsets, no DB metadata row required.
 //   - fileToken = {sha256(userId)[:12]}_{32-hex fileId}. The token is opaque,
 //     contains no URL, and ownership is re-verified on every retrieval by
@@ -19,15 +19,13 @@
 //   - Files are only served through authenticated API routes with
 //     Content-Disposition: attachment + Cache-Control: no-store.
 
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { getSupabaseAdmin, initializeMedicalDocumentsBucket } from './storage';
-import { encryptFile, decryptFile } from './encryption';
+import { encryptHealthFile, decryptHealthFile } from './encryption';
 
 export const HEALTH_FILE_BUCKET = 'medical-documents';
 // Top-level folder for these files inside HEALTH_FILE_BUCKET.
 const ROOT = 'private-uploads';
-// iv(12) + salt(16) + authTag(16)
-const HEADER_BYTES = 44;
 const PREFIX_LEN = 12;
 const FILE_ID_LEN = 32;
 
@@ -60,32 +58,6 @@ export function parseFileToken(token: string): FileTokenParts | null {
 /** Deterministic per-user folder prefix (matches the token prefix). */
 export function userPrefixFor(userId: string): string {
   return createHash('sha256').update(userId).digest('hex').slice(0, PREFIX_LEN);
-}
-
-/** Encrypt raw bytes into the stored envelope (iv|salt|tag|ciphertext). */
-export function encryptHealthFile(raw: Buffer): Buffer {
-  const { encryptedData, iv, salt, authTag } = encryptFile(raw);
-  return Buffer.concat([iv, salt, authTag, encryptedData]);
-}
-
-/** Decrypt a stored envelope back to raw bytes. */
-export function decryptHealthFile(stored: Buffer): Buffer {
-  if (stored.length <= HEADER_BYTES) {
-    throw new HealthFileStorageError('Stored file is truncated or corrupt.', 'FILE_CORRUPT', 500);
-  }
-  const iv = stored.subarray(0, 12);
-  const salt = stored.subarray(12, 28);
-  const authTag = stored.subarray(28, HEADER_BYTES);
-  const ciphertext = stored.subarray(HEADER_BYTES);
-  try {
-    return decryptFile(ciphertext, iv, salt, authTag);
-  } catch {
-    throw new HealthFileStorageError(
-      'File could not be decrypted (encryption key mismatch).',
-      'DECRYPT_FAILED',
-      500
-    );
-  }
 }
 
 function storageReady(): boolean {
@@ -188,6 +160,35 @@ export async function loadEncryptedHealthFile(
   const dot = match.name.lastIndexOf('.');
   const ext = dot > -1 ? match.name.slice(dot + 1) : 'bin';
   return { stored, ext };
+}
+
+/** High-level: encrypt raw bytes + store in one call. */
+export async function storeHealthFile(
+  userId: string,
+  raw: Buffer,
+  ext: string
+): Promise<{ fileToken: string }> {
+  // Encrypt using new envelope format (version | iv | salt | tag | ciphertext)
+  const encrypted = encryptHealthFile(raw);
+  const fileId = createHash('sha256').update(randomBytes(16)).digest('hex').slice(0, FILE_ID_LEN);
+  const token = `${userPrefixFor(userId)}_${fileId}`;
+  await storeEncryptedHealthFile(token, ext, encrypted);
+  return { fileToken: token };
+}
+
+/** High-level: load + decrypt in one call. */
+export async function loadHealthFile(
+  userId: string,
+  fileToken: string
+): Promise<{ raw: Buffer; ext: string }> {
+  const parts = parseFileToken(fileToken);
+  if (!parts || parts.userPrefix !== userPrefixFor(userId)) {
+    throw new HealthFileStorageError('Invalid file token or access denied.', 'INVALID_TOKEN', 403);
+  }
+  const { stored, ext } = await loadEncryptedHealthFile(fileToken);
+  // Decrypt using new envelope format
+  const raw = decryptHealthFile(stored);
+  return { raw, ext };
 }
 
 export function contentTypeForExt(ext: string): string {
