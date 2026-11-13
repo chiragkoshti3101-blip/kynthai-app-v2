@@ -7,13 +7,11 @@ import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-// Feedback schema  use invalid_type_error for z.enum (simpler, avoids errorMap overload issues)
+// Feedback schema  simple z.enum without custom error options
 const feedbackSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: z.string().email('Valid email is required').max(200),
-  category: z.enum(['bug', 'feature', 'general'], {
-    invalid_type_error: 'Category is required',
-  }),
+  category: z.enum(['bug', 'feature', 'general']),
   message: z.string().min(1, 'Message is required').max(5000),
 });
 
