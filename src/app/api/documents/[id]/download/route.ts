@@ -70,6 +70,7 @@ export async function GET(
     }
 
     // Option 2: Stream decrypted file (fallback)
+    // The token format is {userPrefix}_{fileId} where userPrefix = sha256(userId)[:12]
     const { data: encryptedData, error: downloadError } = await downloadMedicalDocument(document.storagePath);
     if (downloadError || !encryptedData) {
       return jsonError('File not found', 404);
