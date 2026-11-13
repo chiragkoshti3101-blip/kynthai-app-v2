@@ -11,7 +11,7 @@ const feedbackSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: z.string().email('Valid email is required').max(200),
   category: z.enum(['bug', 'feature', 'general'], {
-    error: 'Category is required',
+    errorMap: () => ({ message: 'Category is required' }),
   }),
   message: z.string().min(1, 'Message is required').max(5000),
 });
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     const result = feedbackSchema.safeParse(rawBody);
     if (!result.success) {
-      const fields: Record<string, string> = {};
+      const fields = {};
       for (const issue of result.error.issues) {
         fields[String(issue.path.join('.') || 'body')] = issue.message;
       }
