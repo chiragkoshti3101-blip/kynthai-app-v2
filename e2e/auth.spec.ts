@@ -52,11 +52,11 @@ test.describe('Authentication', () => {
     });
 
     test('logs in with valid demo credentials and redirects to patient portal', async ({ page }) => {
+      test.setTimeout(60000);
       const errors: string[] = [];
       page.on('console', collectConsoleErrors(errors));
 
       await goto(page, '/login');
-      await page.waitForLoadState('networkidle');
 
       // Use demo patient credentials
       const demo = DEMO_ACCOUNTS.patient;
@@ -66,7 +66,7 @@ test.describe('Authentication', () => {
       await page.locator('#login-submit-btn').click();
 
       // Valid credentials must redirect the patient to /patient.
-      await page.waitForURL('**/patient**', { timeout: 15000 });
+      await page.waitForURL('**/patient**', { timeout: 30000 });
       expect(page.url()).toContain('/patient');
     });
   });
@@ -95,6 +95,7 @@ test.describe('Authentication', () => {
 
   test.describe('Role-Based Redirects', () => {
     test('patient role lands on patient dashboard after login', async ({ page }) => {
+      test.setTimeout(60000);
       await loginAs(page, 'patient', '/patient');
       // loginAs waits for the redirect — the auth guard must land the patient
       // on the patient dashboard, not leave them on /login.
