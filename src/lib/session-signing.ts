@@ -21,9 +21,12 @@
 function getSigningSecret(): string | null {
   const env = process.env;
   if (env.SESSION_SIGNING_SECRET) return env.SESSION_SIGNING_SECRET;
-  if (env.SUPABASE_SERVICE_ROLE_KEY) return env.SUPABASE_SERVICE_ROLE_KEY;
+  // Dev/local only: allow service-role fallback so signed-cookie paths work without a dedicated secret.
+  if (env.NODE_ENV !== 'production' && env.SUPABASE_SERVICE_ROLE_KEY) {
+    return env.SUPABASE_SERVICE_ROLE_KEY;
+  }
   if (env.NODE_ENV !== 'production') return 'kynthai-dev-fallback-secret';
-  // Production with no secret — refuse to sign (fail-closed)
+  // Production: never reuse the Supabase service role as an HMAC session-signing key.
   return null;
 }
 
