@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { rateLimit } from '@/lib/security';
+import { rateLimit } from '@/lib/rate-limit';
 import { jsonError, jsonOk, readJson } from '@/lib/api-helpers';
 import { logger } from '@/lib/logger';
 
@@ -11,7 +11,7 @@ const feedbackSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: z.string().email('Valid email is required').max(200),
   category: z.enum(['bug', 'feature', 'general'], {
-    error: 'Category is required',
+    errorMap: () => ({ message: 'Category is required' }),
   }),
   message: z.string().min(1, 'Message is required').max(5000),
 });
