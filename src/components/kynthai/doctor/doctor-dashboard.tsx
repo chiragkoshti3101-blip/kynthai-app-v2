@@ -73,6 +73,11 @@ import {
   PAYOUT_POLICY,
 } from '@/lib/commission';
 import { isDemoEnabled } from '@/lib/demo-mode'
+import {
+  useDoctorDemoSampleFallback,
+  resolveDoctorDashboardCounts,
+  doctorDashboardErrorBannerCopy,
+} from '@/lib/doctor-dashboard-data'
 import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
 interface DoctorProfile {
   id: string;
@@ -732,38 +737,38 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
       .catch(() => {});
   }, []);
 
-  // Stats — use live data, sample only as demo fallback when API failed
-  // Demo accounts: skip API and use sample data directly
-  const isRealData = !isDemo && dashboardData !== null;
-  const completed = isRealData
-    ? (dashboardData?.stats?.completed ?? 0)
-    : APPOINTMENTS.filter(a => a.status === 'completed').length;
-  const upcoming = isRealData
-    ? (dashboardData?.stats?.upcoming ?? 0)
-    : APPOINTMENTS.filter(
-        a => a.status === 'pending' || a.status === 'confirmed' || a.status === 'rescheduled'
-      ).length;
-  const grossEarnings = isRealData
-    ? (dashboardData?.stats?.grossEarnings ?? 0)
-    : APPOINTMENTS.filter(a => a.status === 'completed').reduce((s, a) => s + a.fee, 0);
-  // Wave-8: "upcoming today" now shows the date-bucketed count (demo rows are
-  // all "Today", so the demo constant equals its own today count).
-  const todayCount = isRealData
-    ? (dashboardData?.stats?.today ?? upcoming)
-    : upcoming;
-  const liveAppointments = isRealData ? (dashboardData?.appointments ?? []) : APPOINTMENTS;
-  const livePrescriptions = isRealData ? (dashboardData?.prescriptions ?? []) : PRESCRIPTIONS;
+  const useDemoSamples = useDoctorDemoSampleFallback(isDemo, isDemoEnabled());
+  const isRealData = !useDemoSamples && dashboardData !== null && !apiError;
+  const dashboardCounts = resolveDoctorDashboardCounts({
+    useDemoSamples,
+    apiError: !!apiError,
+    dashboardStats: dashboardData?.stats,
+    demoAppointments: APPOINTMENTS,
+  });
+  const { completed, upcoming, grossEarnings, todayCount } = dashboardCounts;
+  const liveAppointments = useDemoSamples
+    ? dashboardData?.appointments?.length
+      ? dashboardData.appointments
+      : APPOINTMENTS
+    : (dashboardData?.appointments ?? []);
+  const livePrescriptions = useDemoSamples
+    ? dashboardData?.prescriptions?.length
+      ? dashboardData.prescriptions
+      : PRESCRIPTIONS
+    : (dashboardData?.prescriptions ?? []);
   const hasRealData =
     apiLoaded &&
     dashboardData !== null &&
     (dashboardData.appointments.length > 0 || dashboardData.patients.length > 0);
-  const livePatients = isRealData
-    ? (dashboardData?.patients ?? [])
-    : [
-        { id: 'demo_dp1', name: 'Alex Johnson' },
-        { id: 'demo_dp2', name: 'Jordan Smith' },
-        { id: 'demo_dp3', name: 'Casey Lee' },
-      ];
+  const livePatients = useDemoSamples
+    ? dashboardData?.patients?.length
+      ? dashboardData.patients
+      : [
+          { id: 'demo_dp1', name: 'Alex Johnson' },
+          { id: 'demo_dp2', name: 'Jordan Smith' },
+          { id: 'demo_dp3', name: 'Casey Lee' },
+        ]
+    : (dashboardData?.patients ?? []);
 
   // Loyalty tier — derived from lifetime fulfilled orders.
   const totalCompletedLifetime = isRealData
@@ -895,7 +900,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex items-center gap-3">
             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
             <p className="text-xs text-amber-700 dark:text-amber-300">
-              Could not load live data. Showing sample data.{' '}
+              {doctorDashboardErrorBannerCopy(useDemoSamples)}{' '}
               <button
                 onClick={() => {
                   setApiError(null);

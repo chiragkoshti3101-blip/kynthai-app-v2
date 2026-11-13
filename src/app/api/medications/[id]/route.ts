@@ -13,6 +13,7 @@ import {
 } from '@/lib/api-helpers';
 import { updateMedicationSchema } from '@/lib/schemas';
 import { toISODateTime } from '@/lib/utils';
+import { userOwnsMedication } from '@/lib/medication-access';
 export const dynamic = 'force-dynamic';
 
 // GET /api/medications/[id]
@@ -28,20 +29,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const med = await db.medication.findUnique({ where: { id } });
   if (!med) return jsonError('Not found', 404);
 
-  // IDOR: ownership check.
-  if (med.userId && med.userId !== u.id) {
-    // Maybe it belongs to a family member owned by this user.
-    if (med.familyMemberId) {
-      const member = await db.familyMember.findUnique({
-        where: { id: med.familyMemberId },
-        include: { family: true },
-      });
-      if (!member || member.family.ownerId !== u.id) {
-        return jsonError('Forbidden', 403);
-      }
-    } else {
-      return jsonError('Forbidden', 403);
-    }
+  if (!(await userOwnsMedication(med, u.id))) {
+    return jsonError('Forbidden — you do not own this medication', 403);
   }
 
   return jsonOk({ ...med, times: parseTimes(med.times) });
@@ -60,14 +49,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const med = await db.medication.findUnique({ where: { id } });
   if (!med) return jsonError('Not found', 404);
 
-  const owns =
-    med.userId === u.id ||
-    (med.familyMemberId
-      ? !!(await db.familyMember.findFirst({
-          where: { id: med.familyMemberId, family: { ownerId: u.id } },
-        }))
-      : false);
-  if (!owns) return jsonError('Forbidden — you do not own this medication', 403);
+  if (!(await userOwnsMedication(med, u.id))) {
+    return jsonError('Forbidden — you do not own this medication', 403);
+  }
 
   const rawBody = await readJson(req);
   if (!rawBody) return jsonError('Invalid JSON', 400, 'INVALID_JSON');
@@ -139,14 +123,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const med = await db.medication.findUnique({ where: { id } });
   if (!med) return jsonError('Not found', 404);
 
-  const owns =
-    med.userId === u.id ||
-    (med.familyMemberId
-      ? !!(await db.familyMember.findFirst({
-          where: { id: med.familyMemberId, family: { ownerId: u.id } },
-        }))
-      : false);
-  if (!owns) return jsonError('Forbidden — you do not own this medication', 403);
+  if (!(await userOwnsMedication(med, u.id))) {
+    return jsonError('Forbidden — you do not own this medication', 403);
+  }
 
   await db.medication.delete({ where: { id } });
   await logAudit(u.id, 'medication.delete', `med=${id}`);

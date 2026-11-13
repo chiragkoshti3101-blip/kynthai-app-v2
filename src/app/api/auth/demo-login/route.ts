@@ -4,6 +4,7 @@ import { checkCsrf, isSecureRequest } from '@/lib/csrf';
 import { rateLimit, getIp, isValidEmail } from '@/lib/security';
 import { jsonError, jsonOk, readJson } from '@/lib/api-helpers';
 import { signSessionToken } from '@/lib/session-signing';
+import { setPortalRoleCookie } from '@/lib/portal-role-cookie';
 import { loginSchema } from '@/lib/schemas';
 import { logSecurityEvent } from '@/lib/security-audit';
 import { logger } from '@/lib/logger';
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
     });
+    setPortalRoleCookie(res, user.role, isSecureRequest(req));
     return res;
   } catch (error) {
     logger.phiSafeError(error, 'demo-login.POST');
