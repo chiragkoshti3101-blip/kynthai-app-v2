@@ -7,12 +7,12 @@ import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-// Feedback schema  errorMap returns string (not object) for Zod enum
+// Feedback schema  errorMap with proper ZodErrorMap signature
 const feedbackSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: z.string().email('Valid email is required').max(200),
   category: z.enum(['bug', 'feature', 'general'], {
-    errorMap: () => 'Category is required',
+    errorMap: (_issue, _ctx) => 'Category is required',
   }),
   message: z.string().min(1, 'Message is required').max(5000),
 });
