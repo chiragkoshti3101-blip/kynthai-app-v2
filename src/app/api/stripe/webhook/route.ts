@@ -8,14 +8,7 @@ import Stripe from 'stripe';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/stripe/webhook
-// Source of truth for payment status — handles payment_intent.succeeded,
-// payment_intent.payment_failed, and subscription lifecycle events.
 export async function POST(req: NextRequest) {
-  // SECURITY: constructing the client or the webhook verifier with missing
-  // env keys throws — return a clean 503 instead of an uncaught 500 so a
-  // misconfigured deployment fails loudly but safely, and the signature
-  // checks below still 400 on invalid input rather than crashing first.
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_WEBHOOK_SECRET) {
     return jsonError('Stripe is not configured', 503);
   }
@@ -26,14 +19,10 @@ export async function POST(req: NextRequest) {
   const sig = req.headers.get('stripe-signature');
   const body = await req.text();
 
-  let event: Stripe.Event;
+  let event: any;
   try {
     if (!sig) return jsonError('Missing Stripe signature', 400);
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
   } catch (err) {
     logger.phiSafeError(err, 'stripe.webhook.verify');
     return jsonError('Invalid webhook signature', 400);
@@ -62,16 +51,16 @@ export async function POST(req: NextRequest) {
       break;
     }
     default:
-      logger.info(`Unhandled Stripe event: ${event.type}`);
+      logger.info('Unhandled Stripe event: ' + event.type);
   }
 
   return jsonOk({ received: true });
 }
 
-async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
+async function handlePaymentSucceeded(intent: any) {
   const userId = intent.metadata.userId;
   if (!userId) {
-    logger.warn(`Stripe PaymentIntent ${intent.id} missing userId in metadata`);
+    logger.warn('Stripe PaymentIntent ' + intent.id + ' missing userId in metadata');
     return;
   }
 
@@ -91,18 +80,10 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
       },
     });
 
-    // SECURITY: metadata is never the sole authority for granting a tier. The
-    // amount actually paid must match the claimed tier's published price.
     const verifiedTier = verifiedTierFromIntent(intent);
     if (!verifiedTier) {
-      logger.warn(
-        `Stripe PaymentIntent ${intent.id} amount does not match claimed tier — tier NOT granted`
-      );
-      await logAudit(
-        userId,
-        'payment.tier_mismatch',
-        `payment=${payment.id} amount=${intent.amount / 100} currency=${intent.currency}`
-      );
+      logger.warn('Stripe PaymentIntent ' + intent.id + ' amount does not match claimed tier — tier NOT granted');
+      await logAudit(userId, 'payment.tier_mismatch', 'payment=' + payment.id + ' amount=' + intent.amount / 100 + ' currency=' + intent.currency);
       return;
     }
 
@@ -111,16 +92,11 @@ async function handlePaymentSucceeded(intent: Stripe.PaymentIntent) {
       data: { subscriptionTier: verifiedTier },
     });
 
-    await logAudit(userId, 'payment.succeeded', `payment=${payment.id} amount=${intent.amount / 100} tier=${verifiedTier}`);
+    await logAudit(userId, 'payment.succeeded', 'payment=' + payment.id + ' amount=' + intent.amount / 100 + ' tier=' + verifiedTier);
   }
 }
 
-/**
- * Resolve the canonical tier a PaymentIntent legitimately grants, verifying
- * the charged amount against the published price for that tier + currency.
- * Returns null when metadata is missing, unknown, or amount-mismatched.
- */
-function verifiedTierFromIntent(intent: Stripe.PaymentIntent): TierKey | null {
+function verifiedTierFromIntent(intent: any) {
   const claimed = tierFromClaim(intent.metadata.tier);
   if (!claimed) return null;
   const amountDollars = intent.amount / 100;
@@ -128,7 +104,7 @@ function verifiedTierFromIntent(intent: Stripe.PaymentIntent): TierKey | null {
   return amountMatchesTier(amountDollars, currency, claimed) ? claimed : null;
 }
 
-async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
+async function handlePaymentFailed(intent: any) {
   const userId = intent.metadata.userId;
   if (!userId) return;
 
@@ -142,28 +118,25 @@ async function handlePaymentFailed(intent: Stripe.PaymentIntent) {
       where: { id: payment.id },
       data: { status: 'failed' },
     });
-    await logAudit(userId, 'payment.failed', `payment=${payment.id}`);
+    await logAudit(userId, 'payment.failed', 'payment=' + payment.id);
   }
 }
 
-async function handleSubscriptionUpdate(sub: Stripe.Subscription) {
+async function handleSubscriptionUpdate(sub: any) {
   const userId = sub.metadata.userId;
   if (!userId) return;
 
-  // SECURITY: never grant a paid tier for a non-paying subscription state.
-  // past_due / unpaid immediately revoke the entitlement.
   if (sub.status !== 'active' && sub.status !== 'trialing') {
     if (sub.status === 'past_due' || sub.status === 'unpaid') {
       await db.user.update({
         where: { id: userId },
         data: { subscriptionTier: 'free' },
       });
-      await logAudit(userId, 'subscription.payment_failed', `status=${sub.status}`);
+      await logAudit(userId, 'subscription.payment_failed', 'status=' + sub.status);
     }
     return;
   }
 
-  // Verify the subscribed price's unit amount matches the claimed tier's price.
   const price = sub.items.data[0]?.price;
   const claimed = tierFromClaim(price?.metadata?.tier);
   if (!claimed) return;
@@ -173,9 +146,7 @@ async function handleSubscriptionUpdate(sub: Stripe.Subscription) {
     unitAmountDollars !== null &&
     !amountMatchesTier(unitAmountDollars, (price?.currency || 'usd').toUpperCase(), claimed)
   ) {
-    logger.warn(
-      `Stripe subscription ${sub.id} unit amount does not match tier ${claimed} — tier NOT granted`
-    );
+    logger.warn('Stripe subscription ' + sub.id + ' unit amount does not match tier ' + claimed + ' — tier NOT granted');
     return;
   }
 
@@ -184,10 +155,10 @@ async function handleSubscriptionUpdate(sub: Stripe.Subscription) {
     data: { subscriptionTier: claimed },
   });
 
-  await logAudit(userId, 'subscription.updated', `tier=${claimed} status=${sub.status}`);
+  await logAudit(userId, 'subscription.updated', 'tier=' + claimed + ' status=' + sub.status);
 }
 
-async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
+async function handleSubscriptionDeleted(sub: any) {
   const userId = sub.metadata.userId;
   if (!userId) return;
 
