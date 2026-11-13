@@ -14,7 +14,7 @@ const feedbackSchema = z.object({
     errorMap: () => ({ message: 'Category is required' }),
   }),
   message: z.string().min(1, 'Message is required').max(5000),
-);
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
     const result = feedbackSchema.safeParse(rawBody);
     if (!result.success) {
-      const fields: Record<string, string> = {};
+      const fields = {};
       for (const issue of result.error.issues) {
         fields[String(issue.path.join('.') || 'body')] = issue.message;
       }
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         category: result.data.category,
         message: result.data.message,
       },
-    );
+    });
 
     return jsonOk({ id: feedback.id, message: 'Feedback submitted successfully' });
   } catch (error) {
