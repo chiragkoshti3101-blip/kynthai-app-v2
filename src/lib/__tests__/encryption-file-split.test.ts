@@ -21,7 +21,11 @@ describe('decryptHealthFile', () => {
     const encrypted = encryptHealthFile(raw)
     // Tamper with the auth tag (bytes 29-44 in the envelope)
     const tampered = Buffer.from(encrypted)
-    tampered[29] = tampered[29] ^ 0xff
+    const idx = 29
+    const val = tampered[idx]
+    if (val !== undefined) {
+      tampered[idx] = val ^ 0xff
+    }
 
     expect(() => decryptHealthFile(tampered)).toThrow()
   })
