@@ -198,23 +198,49 @@ export function decryptValue(encryptedBase64: string): string {
 }
 
 /**
- * Legacy decryptFile function - decrypts a file buffer from stored envelope
- * @deprecated Use decryptHealthFile instead
+ * Decrypt a file buffer.
+ *
+ * Two supported forms:
+ *  - Split form (preferred for documents/storage): decryptFile(ciphertext, iv, salt, authTag)
+ *  - Packed envelope (legacy): decryptFile(stored) where stored is
+ *    version byte | iv(12) | salt(16) | tag(16) | ciphertext
+ *
+ * @deprecated The packed envelope form is legacy; use decryptHealthFile instead.
  */
-export function decryptFile(stored: Buffer): Buffer {
+export function decryptFile(stored: Buffer): Buffer;
+export function decryptFile(
+  encryptedData: Buffer,
+  iv: Buffer,
+  salt: Buffer,
+  authTag: Buffer
+): Buffer;
+export function decryptFile(
+  stored: Buffer,
+  iv?: Buffer,
+  salt?: Buffer,
+  authTag?: Buffer
+): Buffer {
+  // Split form — decryption material supplied separately.
+  if (iv && salt && authTag) {
+    const fileKey = deriveFileKey(salt);
+    const decipher = createDecipheriv(ALGORITHM, fileKey, iv);
+    decipher.setAuthTag(authTag);
+
+    return Buffer.concat([decipher.update(stored), decipher.final()]);
+  }
+
   if (stored.length <= 1 + 12 + 16 + 16) {
     throw new Error('Stored file is truncated or corrupt.');
   }
 
-  const version = stored[0];
-  const iv = stored.subarray(1, 13);
-  const salt = stored.subarray(13, 29);
-  const authTag = stored.subarray(29, 45);
+  const packedIv = stored.subarray(1, 13);
+  const packedSalt = stored.subarray(13, 29);
+  const packedAuthTag = stored.subarray(29, 45);
   const ciphertext = stored.subarray(45);
 
-  const fileKey = deriveFileKey(salt);
-  const decipher = createDecipheriv(ALGORITHM, fileKey, iv);
-  decipher.setAuthTag(authTag);
+  const fileKey = deriveFileKey(packedSalt);
+  const decipher = createDecipheriv(ALGORITHM, fileKey, packedIv);
+  decipher.setAuthTag(packedAuthTag);
 
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
