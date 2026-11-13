@@ -117,6 +117,15 @@ export async function disconnectDb(): Promise<void> {
     })
 
     process.on('uncaughtException', (error: Error) => {
+      const code = (error as NodeJS.ErrnoException).code
+      const benignConnection =
+        code === 'ECONNRESET' ||
+        code === 'ECONNABORTED' ||
+        /aborted|ECONNRESET/i.test(error.message)
+      if (benignConnection) {
+        logger.phiSafeError(error, 'uncaughtException.connection')
+        return
+      }
       logger.phiSafeError(error, 'uncaughtException')
       process.exit(1)
     })

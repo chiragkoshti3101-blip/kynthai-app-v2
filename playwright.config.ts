@@ -42,11 +42,12 @@ export default defineConfig({
     },
   ],
 
-  webServer: process.env.CI
-    ? undefined
-    : {
-        command: 'npm run dev',
-        url: 'http://localhost:3000',
-        reuseExistingServer: !process.env.CI,
-      },
+  webServer:
+    process.env.CI || process.env.PLAYWRIGHT_BASE_URL
+      ? undefined
+      : {
+          command: process.env.QA_LOCAL_DB === '1' ? 'npm run dev:qa' : 'npm run dev',
+          url: 'http://localhost:3000',
+          reuseExistingServer: true,
+        },
 });

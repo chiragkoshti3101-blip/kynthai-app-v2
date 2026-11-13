@@ -41,6 +41,10 @@ describe('API edge auth (KYN-HIGH-010)', () => {
 })
 
 describe('webhook CSRF exemptions', () => {
+  it('treats QA email-capture as a system path', () => {
+    expect(isSystemApiPath('/api/system/email-capture')).toBe(true)
+  })
+
   it('treats Stripe webhook and CSP report as system (CSRF-exempt) paths', () => {
     expect(isSystemApiPath('/api/stripe/webhook')).toBe(true)
     expect(isSystemApiPath('/api/csp-report')).toBe(true)

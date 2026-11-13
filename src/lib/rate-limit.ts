@@ -75,8 +75,16 @@ function applyRateLimitSecurityHeaders(res: NextResponse, req: NextRequest): voi
 }
 
 // ── Synchronous in-memory rate limit ─────────────────────────────────
+function isLocalQaRunner(ip: string): boolean {
+  return (
+    process.env.NODE_ENV === 'development' &&
+    (ip === '127.0.0.1' || ip === '::1' || ip === 'unknown')
+  )
+}
+
 export function rateLimit(req: NextRequest, max = 60, windowMs = 60000, opts?: { globalKey?: boolean }): NextResponse | null {
   const ip = getIp(req)
+  if (isLocalQaRunner(ip)) return null
   const key = opts?.globalKey ? `global:${ip}` : `${ip}:${req.nextUrl.pathname}`
   const now = Date.now()
   let bucket = buckets.get(key)

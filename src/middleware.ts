@@ -222,7 +222,17 @@ function expectedRoleForPortal(pathname: string): string | null {
 
 // ── Rate-limit helpers ────────────────────────────────────────────────────────
 
-function getApiLimit(pathname: string): number {
+function isLoopbackDevIp(ip: string): boolean {
+  return (
+    process.env.NODE_ENV === 'development' &&
+    (ip === '127.0.0.1' || ip === '::1' || ip === 'unknown')
+  );
+}
+
+function getApiLimit(pathname: string, ip: string): number {
+  // Local Playwright/Vitest runners hammer auth in a single minute; production
+  // keeps the tight limits below.
+  if (isLoopbackDevIp(ip)) return 5000;
   if (pathname === '/api/auth/me') return 60;
   if (pathname.startsWith('/api/auth/')) return 30;
   if (pathname.startsWith('/api/payments')) return 5;
@@ -574,7 +584,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
 
   // ── Rate limit ──────────────────────────────────────────────────────────
   if (isApi) {
-    const limit = getApiLimit(pathname);
+    const limit = getApiLimit(pathname, rawIp);
     const sessionUserId = supabaseUser?.id;
     const rateLimitKey = sessionUserId ?? rawIp; // unmasked IP for precise per-IP limiting
     const rateLimitResult = await rateLimitWithInfo(

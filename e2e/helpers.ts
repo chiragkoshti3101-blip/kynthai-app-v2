@@ -15,7 +15,7 @@ export type DemoRole = keyof typeof DEMO_ACCOUNTS;
 
 /** Navigate to a path and wait for the page to be fully loaded */
 export async function goto(page: Page, path: string) {
-  await page.goto(path, { waitUntil: 'networkidle' });
+  await page.goto(path, { waitUntil: 'domcontentloaded' });
 }
 
 /** Assert we're on a specific URL path */
