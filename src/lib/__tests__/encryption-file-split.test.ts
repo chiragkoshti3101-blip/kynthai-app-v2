@@ -1,26 +1,28 @@
 import { beforeAll, describe, expect, it } from 'vitest'
-import { decryptFile, encryptFile } from '@/lib/encryption'
+import { decryptHealthFile, encryptHealthFile } from '@/lib/encryption'
 
 beforeAll(() => {
-  // 64 hex chars → a real 32-byte master key for this suite.
+  // 64 hex chars � a real 32-byte master key for this suite.
   process.env.ENCRYPTION_KEY = 'a'.repeat(64)
 })
 
-describe('decryptFile', () => {
-  it('round-trips the split form used by medical documents', () => {
-    const raw = Buffer.from('Rx: amoxicillin 500mg — BP < 120 and > 90', 'utf8')
-    const { encryptedData, iv, salt, authTag } = encryptFile(raw)
+describe('decryptHealthFile', () => {
+  it('round-trips the envelope format used by medical documents', () => {
+    const raw = Buffer.from('Rx: amoxicillin 500mg  BP < 120 and > 90', 'utf8')
+    const encrypted = encryptHealthFile(raw)
 
-    const decrypted = decryptFile(encryptedData, iv, salt, authTag)
+    const decrypted = decryptHealthFile(encrypted)
 
     expect(decrypted.equals(raw)).toBe(true)
   })
 
-  it('rejects a tampered auth tag in the split form', () => {
-    const { encryptedData, iv, salt, authTag } = encryptFile(Buffer.from('phi'))
-    const tampered = Buffer.from(authTag)
-    tampered[0] = (tampered[0] ?? 0) ^ 0xff
+  it('rejects a tampered auth tag in the envelope format', () => {
+    const raw = Buffer.from('phi')
+    const encrypted = encryptHealthFile(raw)
+    // Tamper with the auth tag (bytes 29-44 in the envelope)
+    const tampered = Buffer.from(encrypted)
+    tampered[29] = tampered[29] ^ 0xff
 
-    expect(() => decryptFile(encryptedData, iv, salt, tampered)).toThrow()
+    expect(() => decryptHealthFile(tampered)).toThrow()
   })
 })
