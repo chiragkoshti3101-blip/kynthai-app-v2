@@ -55,8 +55,17 @@ export async function GET(
       select: { id: true, verified: true },
     })
     if (!profile?.verified) return jsonError('Verified doctor access is required', 403)
-    if (booking.resultsSharedWith.length > 0 && !booking.resultsSharedWith.includes(profile.id)) {
-      return jsonError('These results were not shared with this doctor', 403)
+    if (booking.resultsSharedWith.length === 0) {
+      const legacyCutoff = new Date('2025-06-01T00:00:00.000Z')
+      if (booking.createdAt >= legacyCutoff) {
+        return jsonError(
+          'These results were not shared with a specific doctor. Ask the patient to re-share.',
+          403,
+          'FORBIDDEN'
+        )
+      }
+    } else if (!booking.resultsSharedWith.includes(profile.id)) {
+      return jsonError('These results were not shared with this doctor', 403, 'FORBIDDEN')
     }
   }
 

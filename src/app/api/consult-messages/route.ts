@@ -7,6 +7,8 @@ import { sanitizeText } from '@/lib/security'
 import { consultMessageSchema } from '@/lib/schemas/security'
 export const dynamic = 'force-dynamic'
 
+/** Experimental API — backend-only; no production patient UI consumes this route yet. */
+
 export async function GET(req: NextRequest) {
   const limited = rateLimit(req)
   if (limited) return limited

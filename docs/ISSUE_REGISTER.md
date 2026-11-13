@@ -257,11 +257,13 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 
 | **Paths** | `src/app/api/lab/share/[token]/route.ts:58-60` |
 | **Fix** | Backfill share list or deny when empty unless explicit legacy flag. |
+| **Status** | **Fixed** (PR #81) — deny empty `resultsSharedWith` for bookings after 2025-06-01. |
 
 ### KYN-MED-003 — `test-dose` cron can target arbitrary email
 
 | **Paths** | `src/app/api/system/test-dose/route.ts:21-24` |
 | **Fix** | Allowlist demo emails; drop query param in production. |
+| **Status** | **Fixed** (PR #81) — demo email allowlist; no custom `?email=` in production. |
 
 ### KYN-MED-004 — `bootstrap-schema` DDL via bearer token (GET, no CSRF)
 
@@ -307,6 +309,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 
 | **Paths** | `src/app/api/consult-messages/route.ts` — no component imports |
 | **Fix** | Ship UI or mark API experimental / hide. |
+| **Status** | **Partial** (PR #81) — route documented experimental; UI deferred. |
 
 ### KYN-MED-013 — Video token / SFU story incomplete
 
@@ -332,6 +335,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 
 | **Paths** | `socket.io-client`, `@dnd-kit/*`, `next-auth`, `@auth/supabase-adapter` (no src imports) |
 | **Fix** | Remove or wire; verify bundle. |
+| **Status** | **Fixed** (PR #81) — removed unused auth/socket/dnd/tanstack/next-intl deps. |
 
 ### KYN-MED-018 — COPPA privacy copy vs schema (under 16) vs API (under 18 consent)
 
@@ -344,12 +348,12 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 
 | ID | Title | Paths | Notes |
 |----|-------|-------|-------|
-| KYN-LOW-001 | Orphan NextAuth config | `src/lib/auth.config.ts` | Remove or integrate |
+| KYN-LOW-001 | Orphan NextAuth config | `src/lib/auth.config.ts` | **Fixed** (PR #81) — module removed |
 | KYN-LOW-002 | `GET /api/debug` exposed in dev | `src/app/api/debug/route.ts` | 404 in production ✓ |
 | KYN-LOW-003 | `fcm-register` CSRF exempt | `middleware.ts` | Document threat model |
 | KYN-LOW-004 | CSP `unsafe-inline` scripts | `middleware.ts` CSP | Needed for Next hydration |
 | KYN-LOW-005 | Lab modal backdrop not keyboard-accessible | `lab-dashboard.tsx:322` | Add button + Esc handler |
-| KYN-LOW-006 | `encryptString` dead/wrong key path | `encryption.ts:117-136` | Remove or fix |
+| KYN-LOW-006 | `encryptString` dead/wrong key path | `encryption.ts:117-136` | **Fixed** (PR #81) — dead pair removed |
 | KYN-LOW-007 | Firebase engines want Node 24 | `npm warn EBADENGINE` | Pin or upgrade runtime |
 | KYN-LOW-008 | Internal docs contradict (strict, versioning) | `docs/*` | Update after fixes |
 | KYN-LOW-009 | `schema-complete.sql` drift risk | root SQL files | Deprecate in favor of Prisma |
@@ -359,3 +363,5 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 ## Suggested fix order (cross-reference)
 
 See `docs/PRODUCTION_READINESS.md` for batched implementation plan aligned to these IDs.
+
+**Ops deferred:** `docs/OPS_DEFERRED.md` (PR #81).

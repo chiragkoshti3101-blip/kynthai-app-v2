@@ -114,28 +114,6 @@ export function decryptHealthFile(stored: Buffer): Buffer {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
 
-export function encryptString(text: string): string {
-  const iv = randomBytes(IV_LENGTH);
-  const cipher = createCipheriv(ALGORITHM, getKey(), iv);
-  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-
-  return Buffer.concat([iv, authTag, encrypted]).toString('base64');
-}
-
-export function decryptString(encryptedBase64: string): string {
-  const data = Buffer.from(encryptedBase64, 'base64');
-  const iv = data.subarray(0, 12);
-  const authTag = data.subarray(12, 28);
-  const ciphertext = data.subarray(28);
-
-  const fileKey = deriveFileKey(randomBytes(SALT_LENGTH));
-  const decipher = createDecipheriv(ALGORITHM, getKey(), iv);
-  decipher.setAuthTag(authTag);
-
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
-}
-
 /**
  * BACKWARD COMPATIBILITY LAYER
  * These functions maintain compatibility with the legacy API used throughout the codebase.
