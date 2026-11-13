@@ -126,7 +126,7 @@ jobs:
         run: |
           # CI uses a standalone disposable Postgres fixture on a dedicated
           # Docker bridge network. Host-run Prisma, Next, and Playwright use
-          the container IPv4 address; no fixed or ephemeral host port is used.
+          # the container IPv4 address; no fixed or ephemeral host port is used.
           docker compose -f docker-compose.ci.yml down -v --remove-orphans
           docker compose -f docker-compose.ci.yml up -d db
           DB_CONTAINER_ID="$(docker compose -f docker-compose.ci.yml ps -q db)"
