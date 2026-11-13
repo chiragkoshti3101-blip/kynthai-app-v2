@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { decryptFile } from '@/lib/encryption';
+import { decryptFileLegacy as decryptFile } from '@/lib/encryption';
 import { downloadMedicalDocument, getSignedDocumentUrl } from '@/lib/storage';
 import { logger } from '@/lib/logger';
 import { requireAuth, jsonError } from '@/lib/api-helpers';
@@ -84,7 +84,7 @@ export async function GET(
     const salt = Buffer.from(saltB64!, 'base64');
     const authTag = Buffer.from(tagB64!, 'base64');
 
-    // Decrypt file
+    // Decrypt file using legacy API (takes 4 separate args)
     const decryptedData = decryptFile(encryptedData, iv, salt, authTag);
 
     // Update access tracking
@@ -114,7 +114,7 @@ export async function GET(
 
     // Return decrypted file
     // SECURITY: sanitize the title before it reaches the Content-Disposition
-    // header — CR/LF/quote injection via a hostile document title could allow
+    // header  CR/LF/quote injection via a hostile document title could allow
     // header splitting (response splitting / log injection).
     const safeTitle = (document.title || 'document').replace(/[\r\n"\\]/g, '_').slice(0, 120);
     return new NextResponse(new Uint8Array(decryptedData), {
