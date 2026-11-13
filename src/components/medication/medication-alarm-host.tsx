@@ -689,7 +689,8 @@ export function MedicationAlarmHost({
         <div className="w-full flex flex-col gap-3 pt-2">
           <Button
             size="lg"
-            className="h-14 w-full text-base font-semibold bg-emerald-600 text-white hover:bg-emerald-700 shadow-md"
+            variant="default"
+            className="h-14 min-h-[3.5rem] w-full text-base font-semibold shadow-md"
             onClick={() => handleAction(alarmTarget, 'taken')}
           >
             <CheckCircle2 className="h-5 w-5 mr-2" />

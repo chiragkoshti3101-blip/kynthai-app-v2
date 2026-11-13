@@ -751,7 +751,11 @@ export function LoginPage({
                             <span className="text-emerald-600">{inv.relation}</span>
                           </p>
                         </div>
-                        <button
+                        <Button
+                          type="button"
+                          variant="default"
+                          size="sm"
+                          className="shrink-0 min-h-11 rounded-xl"
                           onClick={async () => {
                             try {
                               const csrf = await fetch('/api/auth/csrf', { credentials: 'include' })
@@ -788,10 +792,9 @@ export function LoginPage({
                               });
                             }
                           }}
-                          className="shrink-0 min-h-11 rounded-xl bg-emerald-500 px-4 text-sm font-semibold text-white hover:bg-emerald-600"
                         >
                           Accept
-                        </button>
+                        </Button>
                       </div>
                     ))}
                   </div>

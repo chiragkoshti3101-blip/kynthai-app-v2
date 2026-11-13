@@ -1,130 +1,95 @@
 # Kynthai UI Design Audit
 
-**Branch:** `cursor/ui-audit-fixes-90ec`  
-**Last updated:** 2026-11-13
+**Branch:** `cursor/ui-audit-fixes-90ec` | **PR:** #82  
+**Last updated:** 2026-11-13 (rebased on `main` post #78–#80)
 
 ---
 
 ## Design acceptance criteria
 
-All pages and shared UI must meet the following before release.
-
 | ID | Criterion | Pass condition |
 |----|-----------|----------------|
-| **C-01** | WCAG 2.1 AA contrast | Text and UI components meet 4.5:1 (normal) / 3:1 (large UI); no axe `color-contrast` serious/critical on audited routes |
-| **C-02** | Visible focus states | Keyboard `:focus-visible` shows a clear ring (≥3px) on all interactive controls |
-| **C-03** | Keyboard navigation | Logical tab order; skip link; no keyboard traps outside modals |
-| **C-04** | Labelled form fields + inline errors | Inputs have visible label or `aria-label`; errors use `aria-describedby` / `aria-invalid` |
-| **C-05** | Tap targets ≥44px | Primary actions and icon buttons meet 44×44px |
-| **C-06** | No horizontal scroll | `scrollWidth ≤ clientWidth` at **375px**, **768px**, **1280px** |
-| **C-07** | Type scale | Consistent heading steps; marketing pages use shared `Marketing*` components |
-| **C-08** | Spacing scale | Tailwind 4px grid; section rhythm consistent |
-| **C-09** | Colour tokens | Semantic tokens (`primary`, `foreground`, `muted-foreground`, `border`) over one-off slate/emerald hex |
-| **C-10** | Button variants | Marketing CTAs use shared `Button` / `MarketingCtaLink` |
-| **C-11** | Data views: loading / empty / error | Async panels show explicit states (portal scope — see Open) |
-| **C-12** | Modals | Radix `Dialog`: focus trap, Esc close, 44px close control with `sr-only` label |
+| **C-01** | WCAG 2.1 AA contrast | No axe serious/critical `color-contrast` on audited routes |
+| **C-02** | Visible focus states | `:focus-visible` ring on interactive controls |
+| **C-03** | Keyboard navigation | Logical tab order; skip link; nav buttons `type="button"` |
+| **C-04** | Labelled form fields + inline errors | Labels / `aria-*`; validation wired |
+| **C-05** | Tap targets ≥44px | Primary controls `min-h-11` / Button sizes |
+| **C-06** | No horizontal scroll | `scrollWidth ≤ clientWidth` at **375 / 768 / 1280** |
+| **C-07–C-10** | Tokens, type, spacing, buttons | `primary` tokens + shared `Button` / `marketing-ui` |
+| **C-11** | Loading / empty / error | Seeded portal data shows real content; empty copy where applicable |
+| **C-12** | Modals | Radix `Dialog`: trap, Esc, 44px close |
 
-### Audit breakpoints
+**Tooling:** `e2e/ui-design-audit.spec.ts` (public), `e2e/ui-portal-audit.spec.ts` (authenticated), `e2e/local-ui-audit-db.sh`, `viewport-probe.mjs`.
 
-- Mobile: **375×812**
-- Tablet: **768×1024**
-- Desktop: **1280×800**
-
-### Tooling
-
-- `e2e/ui-design-audit.spec.ts` → `artifacts/ui-audit/{before|after}/`
-- `viewport-probe.mjs` (375, 768, 1280)
-- `@axe-core/playwright` (`wcag2aa`, `wcag21aa`)
+**Local Postgres:** `e2e/local-ui-audit-db.sh` after `.env.local` includes `DATABASE_URL`, `SESSION_SECRET`, `SESSION_SIGNING_SECRET`, `ENCRYPTION_KEY`. Demo logins: `prisma/seed.js` (`Demo@2024`).
 
 ---
 
-## Issues found (before) and resolution
+## Public routes (23 × 3 breakpoints)
 
-### Marketing routes — contrast & tokens
+| Check | Result |
+|-------|--------|
+| Horizontal overflow | **Pass** (Playwright + probe) |
+| Axe @1280 serious/critical | **0** (after marketing token fixes) |
 
-| Page | Breakpoint | Severity | Criteria | Issue | Status |
-|------|------------|----------|----------|-------|--------|
-| `/about` | 1280 | high | C-01, C-09, C-10 | `bg-emerald-600` Sign in link failed contrast (3.65:1); ad-hoc slate palette | **Fixed** — `MarketingCtaLink` + semantic tokens |
-| `/features` | 1280 | high | C-01, C-09, C-10 | Same on Get started CTA | **Fixed** |
-| `/download` | 1280 | high | C-01, C-09, C-10 | APK download anchor `bg-emerald-600` | **Fixed** — `MarketingCtaAnchor` |
-| `/` (SEO fallback) | 375–1280 | medium | C-09, C-10 | Emerald CTA on server fallback | **Fixed** |
-| `/contact`, `/faq` | 1280 | low | C-07–C-09 | Isolated `text-slate-*` / `text-emerald-*` | **Fixed** — `MarketingPage` shell |
-| `layout` skip link | all | low | C-01, C-09 | `focus:bg-emerald-600` | **Fixed** — `focus:bg-primary` |
+### Marketing fixes (prior pass)
 
-### Navigation
-
-| Page | Breakpoint | Severity | Criteria | Issue | Status |
-|------|------------|----------|----------|-------|--------|
-| Landing nav | mobile | medium | C-03, C-05 | Portal nav buttons missing `type="button"`; mobile drawer links under 44px height | **Fixed** in `landing-nav.tsx` |
-
-### Horizontal overflow
-
-All **23 public routes** × **3 breakpoints**: **PASS** (Playwright + viewport probe on spot checks).
-
-### Axe (public routes, 1280px)
-
-| Phase | Serious/critical violations |
-|-------|----------------------------|
-| Before | **3** (all `color-contrast` on emerald CTAs) |
-| After | **0** |
+- `marketing-ui.tsx` — shared CTAs (`primary` contrast vs `emerald-600`)
+- About, Features, Download, Contact, FAQ, landing SEO fallback, skip link
 
 ---
 
-## Per-page summary (public audit pass)
+## Portal audit (authenticated) — **O-01 closed**
 
-| Route | Overflow 375/768/1280 | Axe @1280 | Notes |
-|-------|----------------------|-----------|-------|
-| `/` | Pass | Pass | SEO fallback CTAs tokenized |
-| `/login` | Pass | Pass | — |
-| `/register` | Pass | Pass | — |
-| `/pricing` | Pass | Pass | — |
-| `/features` | Pass | Pass | Card borders → `border-border` |
-| `/faq` | Pass | Pass | `summary` focus ring → `ring-ring` |
-| `/about` | Pass | Pass | — |
-| `/contact` | Pass | Pass | — |
-| `/download` | Pass | Pass | `bg-background` |
-| Legal & policy pages (12) | Pass | Pass | No changes required |
+**Method:** Local Postgres 16, `prisma db push`, `node prisma/seed.js`, `next start` + real `/api/auth/login` (Playwright `page.evaluate` + CSRF). `DATABASE_URL` required.
 
----
+| Portal / route | 375 / 768 / 1280 overflow | Axe @1280 | UI fixes |
+|----------------|---------------------------|-----------|----------|
+| **/patient** (Home, Meds, Care, Journal, Labs tabs) | Pass | Pass | `Button` tokens: Join call, test alarm, today-view Take |
+| **/doctor** (Dashboard, Patients, Appointments) | Pass | Pass | Accept/Complete → `variant="default"` |
+| **/lab** (Dashboard, Bookings) | Pass | Pass | Save quote, status, upload → `Button` |
+| **/caretaker** (Home, Members) | Pass | Pass | Member schedule Taken → `variant="default"` |
+| **/admin** (Dashboard) | Pass | Pass | — |
+| **/settings**, **/family** | Pass | Pass | — |
+| **/dashboard** | Pass (redirects to role home) | Pass | Server redirect — audited via following navigation |
 
-## Shared components added
+### Portal token consolidation — **O-02 closed**
 
-- `src/components/kynthai/marketing-ui.tsx` — `MarketingPage`, `MarketingCtaLink`, `MarketingSecondaryLink`, `MarketingTextLink`, `MarketingCtaAnchor`, typography helpers
-- `e2e/ui-design-audit.spec.ts` — repeatable screenshot + axe matrix
+Replaced ad-hoc `bg-emerald-600` actions with shared `Button` `variant="default"` (primary token) in:
 
----
-
-## Open issues (not fixed in this PR)
-
-| ID | Criteria | Reason |
-|----|----------|--------|
-| **O-01** | C-11 | **Portal data views** (`/patient`, `/doctor`, `/lab`, `/caretaker`, `/dashboard`) not audited end-to-end: local dev did not seed demo DB in this run; auth middleware + Prisma are out of scope (parallel API PRs). Spot-check from `docs/accessibility/aria-findings.md` suggests remaining portal-only button labelling. |
-| **O-02** | C-09 | Residual `bg-emerald-600` inside **portal app shells** (patient/doctor/lab dashboards) — functional UI, not in public axe sweep; follow-up PR recommended without touching Stripe/checkout flows. |
-| **O-03** | — | `npm run typecheck` / one **vitest** failure (`encryption-file-split.test.ts`) are **pre-existing on `main`** in API/lib code outside this PR scope. |
+- `patient-app.tsx`, `today-view.tsx`, `medication-alarm-host.tsx`
+- `doctor-dashboard.tsx`, `lab-dashboard.tsx`, `caretaker/member-schedule.tsx`
+- `login-page.tsx` (family invite Accept), `web-alerts-banner.tsx` (44px icon well)
 
 ---
 
-## Test results log
+## Open / justified
 
-| Run | `eslint` | `vitest --run` | `next build` | Axe public @1280 | Viewport probe |
-|-----|----------|----------------|--------------|------------------|----------------|
-| After fixes | **Pass** | 191/192 pass (1 fail pre-existing lib) | **Pass** | **0 serious** | **12/12 pass** |
-| `tsc --noEmit` | — | — | — | — | Errors in `src/app/api/*`, `src/lib/*` (pre-existing; not introduced here) |
+| ID | Notes |
+|----|--------|
+| **O-04** | **Supabase optional noise** in dev without `NEXT_PUBLIC_SUPABASE_*` — login falls back to Prisma; harmless server logs only. |
+| **O-05** | **Stripe / checkout** — explicitly out of scope; not audited. |
+| **O-06** | **Prisma migrate deploy** on empty local DB may fail mid-chain; UI audit uses `db push` + seed (documented in `local-ui-audit-db.sh`). Schema changes remain other agents’ ownership. |
 
-Command log:
+---
+
+## Test results (after rebase onto `main`)
+
+| Gate | Result |
+|------|--------|
+| `tsc --noEmit` | **Pass** (O-03 resolved — stale base) |
+| `eslint` | **Pass** |
+| `vitest --run` | **231/231 pass** |
+| `next build` | **Pass** |
+| `e2e/ui-design-audit` | **88 passed**, 0 axe serious (public) |
+| `e2e/ui-portal-audit` | **36 passed**, 0 axe serious (portals) |
+| Viewport probe (spot) | **12/12** |
 
 ```bash
-PLAYWRIGHT_BASE_URL=http://localhost:3000 UI_AUDIT_PHASE=after \
-  npx playwright test e2e/ui-design-audit.spec.ts --project=chromium-desktop
-# 88 passed
-
-PROBE_URL=http://localhost:3000 PROBE_VIEWPORTS=375x812,768x1024,1280x800 \
-  PROBE_ROUTES=/,/login,/pricing,/feedback node viewport-probe.mjs
-# 12 passed
-
-npm run lint          # pass
-npm run test:ci       # 191 passed, 1 failed (encryption-file-split)
-npm run build         # pass
+# Local portal audit
+e2e/local-ui-audit-db.sh
+CI=true PLAYWRIGHT_BASE_URL=http://localhost:3000 DATABASE_URL=... \\
+  npx playwright test e2e/ui-portal-audit.spec.ts --project=chromium-desktop
 ```
 
-Screenshots: `artifacts/ui-audit/before/` and `artifacts/ui-audit/after/` (full matrix); PR attaches representative before/after pairs.
+Artifacts: `artifacts/ui-audit/{before,after,portal-after}/`

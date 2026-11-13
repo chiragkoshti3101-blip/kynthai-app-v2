@@ -1578,7 +1578,8 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                             <div className="px-3 pb-3 flex gap-2">
                               <Button
                                 size="sm"
-                                className="flex-1 min-h-11 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                variant="default"
+                                className="flex-1 min-h-11 text-xs"
                                 disabled={updatingApptId === a.id}
                                 onClick={() => handleAppointmentAction(a.id, 'confirmed')}
                               >
@@ -1607,7 +1608,8 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                             <div className="px-3 pb-3 flex gap-2">
                               <Button
                                 size="sm"
-                                className="flex-1 min-h-11 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                                variant="default"
+                                className="flex-1 min-h-11 text-xs"
                                 disabled={updatingApptId === a.id}
                                 onClick={() => handleAppointmentAction(a.id, 'completed')}
                               >

@@ -394,12 +394,15 @@ function ApptRow({
         {appt.status}
       </Badge>
       {appt.type === 'video' && appt.status === 'confirmed' && onJoinCall && (
-        <button
+        <Button
+          type="button"
+          size="sm"
+          variant="default"
+          className="shrink-0 min-h-11 px-3 text-xs"
           onClick={() => onJoinCall(appt.id)}
-          className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
         >
           Join
-        </button>
+        </Button>
       )}
       {appt.status === 'confirmed' && onCancel && (
         <button
@@ -826,9 +829,11 @@ function MedsTab({ userId, isDemo, showDebugAlarm }: { userId: string; isDemo: b
           isDemoEnabled() is build-time gated (false when NODE_ENV=production),
           so the demo alarm-test button only exists in local development. */}
       {showDebugAlarm && (
-        <button
+        <Button
           type="button"
-          className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-md active:scale-[0.99]"
+          variant="default"
+          size="lg"
+          className="w-full rounded-xl shadow-md"
           onClick={() => {
             try {
               window.dispatchEvent(new Event('kynthai:test-alarm'))
@@ -836,7 +841,7 @@ function MedsTab({ userId, isDemo, showDebugAlarm }: { userId: string; isDemo: b
           }}
         >
           Test full-screen dose alarm now
-        </button>
+        </Button>
       )}
       <TodayView userId={userId} isDemo={isDemo} externalAlarm />
       <MedicationsList userId={userId} isDemo={isDemo} />

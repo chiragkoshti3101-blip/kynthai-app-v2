@@ -90,7 +90,7 @@ export function FamilyMemberSchedule({ memberName, meds, onUpdate }: Props) {
                 <Button size="sm" variant="ghost" className="h-11 w-11 p-0" onClick={() => updateMed(m, 'skipped')} disabled={updating === m.id}>
                   {updating === m.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3.5 w-3.5 text-muted-foreground" />}
                 </Button>
-                <Button size="sm" className="min-h-11 px-3 text-xs bg-emerald-600 text-white" onClick={() => updateMed(m, 'taken')} disabled={updating === m.id}>
+                <Button size="sm" variant="default" className="min-h-11 px-3 text-xs" onClick={() => updateMed(m, 'taken')} disabled={updating === m.id}>
                   <CheckCircle2 className="h-3 w-3" /> Take
                 </Button>
               </div>

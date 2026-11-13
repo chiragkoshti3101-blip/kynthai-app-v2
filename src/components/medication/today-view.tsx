@@ -493,7 +493,8 @@ export function TodayView({ userId, isDemo, onLoaded, externalAlarm }: { userId?
             </Button>
             <Button
               size="sm"
-              className="min-h-11 flex-1 bg-emerald-600 text-white hover:bg-emerald-700"
+              variant="default"
+              className="min-h-11 flex-1"
               onClick={() => handleAlarmAction(alarmTarget, 'taken')}
             >
               <CheckCircle2 className="h-4 w-4" />

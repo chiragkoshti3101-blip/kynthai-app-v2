@@ -410,14 +410,15 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-normal focus:outline-none focus:ring-2 focus:ring-emerald-500/40 disabled:opacity-60"
                       />
                     </label>
-                    <button
+                    <Button
                       type="button"
+                      variant="default"
+                      className="min-h-11"
                       onClick={saveTravelQuote}
                       disabled={isDemoAccount || savingTravelQuote}
-                      className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
                     >
                       {savingTravelQuote ? 'Saving…' : 'Save quote'}
-                    </button>
+                    </Button>
                   </div>
                   <p className="text-[11px] text-muted-foreground">Leave blank to stop online long-distance bookings. The platform keeps no hard-coded $15/$30 tiers.</p>
                 </div>
@@ -505,19 +506,23 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                     </div>
                     {advance && (
                       <div className="flex gap-2">
-                        <button
+                        <Button
+                          type="button"
+                          variant="default"
+                          className="min-h-11 flex-1 gap-1.5"
                           onClick={() => updateBookingStatus(b.id, nextStatus(b.status))}
-                          className="flex-1 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
                         >
                           Mark as {STATUS_CFG[nextStatus(b.status)]?.label ?? nextStatus(b.status)}
-                        </button>
+                        </Button>
                         {(b.status === 'pending' || b.status === 'confirmed') && (
-                          <button
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="min-h-11 border-rose-300 text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400"
                             onClick={() => updateBookingStatus(b.id, 'cancelled')}
-                            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-rose-300 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400"
                           >
                             Cancel
-                          </button>
+                          </Button>
                         )}
                       </div>
                     )}
@@ -583,13 +588,16 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
                               onChange={e => setResultFile(e.target.files?.[0] ?? null)}
                             />
                           </label>
-                          <button
+                          <Button
+                            type="button"
+                            variant="default"
+                            size="sm"
+                            className="ml-auto min-h-11"
                             onClick={() => uploadResults(b.id)}
                             disabled={uploadingFor !== null || !resultFile}
-                            className="ml-auto inline-flex items-center rounded-lg bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-700 disabled:opacity-50"
                           >
                             {uploadingFor === b.id ? 'Uploading...' : 'Upload results'}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     )}

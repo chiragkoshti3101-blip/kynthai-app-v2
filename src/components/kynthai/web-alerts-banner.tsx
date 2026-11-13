@@ -78,7 +78,7 @@ export function WebAlertsBanner({ className }: { className?: string }) {
       role="status"
     >
       <div className="flex items-start gap-2">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+        <div className="mt-0.5 flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Bell className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1 space-y-1">
