@@ -25,6 +25,13 @@ import { logger } from '@/lib/logger';
 import { checkCsrf } from '@/lib/csrf';
 import { verifySessionToken, signSessionToken, verifySupabaseJwt } from './lib/session-signing';
 import { isDemoEnabled } from '@/lib/demo-mode';
+import {
+  requiresAuthenticatedApi,
+  expectedPortalRole,
+  portalRoleAllowed,
+  isSystemApiPath,
+  isPublicApiPath,
+} from '@/lib/api-edge-auth';
 
 // HMR-safe env validation (fail-loud in production, skip during build/edge)
 let envValidated = false;
@@ -133,86 +140,12 @@ function maskPathIds(pathname: string): string {
   return pathname.replace(/\/[a-f0-9]{8,}-[a-f0-9-]+/g, '/[id]');
 }
 
-// ── System-token API paths (cron / external schedulers) ───────────────────
-// These endpoints self-authenticate via requireSystemToken (Bearer CRON_SECRET),
-// so the proxy must NOT double-submit-CSRF them (cron can't hold a browser
-// cookie) and must NOT require a session. They are still gated by the system
-// token inside the route handler — in production requireSystemToken refuses
-// any call whose bearer doesn't match CRON_SECRET.
-//
-// /api/auth/logout is listed here as a session-meta exemption: every client
-// logout handler (patient, caretaker, doctor, lab, settings, AuthGuard 401
-// cleanup) calls it as a bare POST with no CSRF token, and the double-submit
-// gate was 403-ing every one of them — the session cookie survived logout and
-// the mount-time /api/auth/me check (AuthGuard / portal clients) re-logged the
-// user straight back in ("logout re-renders into demo mode"). CSRF on logout
-// protects nothing (worst case: a cross-site POST ends the victim's own
-// session — a nuisance, and SameSite=Strict cookies already block cross-site
-// POSTs from carrying the session). ponytail: if logout is ever made to
-// require auth, move it out of this set and add a CSRF fetch to the handlers.
-const SYSTEM_API_PATHS = new Set([
-  '/api/reminders/schedule',
-  '/api/reminders/send',
-  '/api/reminders/escalate',
-  '/api/appointment-reminders',
-  '/api/chat/cleanup',
-  '/api/auth/logout',
-  '/api/system/seed-demo',
-  '/api/system/test-dose',
-  '/api/notifications/fcm-register',
-  // Public pre-registration / newsletter — unauthenticated form, rate-limited,
-  // double-submit CSRF not possible without a session.
-  '/api/newsletter',
-]);
-
 function isSystemApi(pathname: string): boolean {
-  return SYSTEM_API_PATHS.has(pathname);
+  return isSystemApiPath(pathname);
 }
 
-// ── Public API Paths ─────────────────────────────────────────────────────────
-// Only true anonymous surfaces. Auth-required routes must NOT appear here —
-// even if the route handler also calls requireAuth (defense in depth).
-// GET-only public listings (doctors/labs directory) are method-gated below.
-const PUBLIC_API_PATHS = new Set([
-  '/api/auth/register',
-  '/api/auth/login',
-  '/api/auth/csrf',
-  '/api/auth/forgot-password',
-  '/api/auth/reset-password',
-  '/api/auth/verify-email',
-  '/api/auth/resend-verification',
-  '/api/auth/oauth',
-  '/api/auth/oauth/callback',
-  '/api/health',
-  '/api/stripe/webhook',
-  '/api/csp-report',
-  '/api/newsletter',
-  // API v1 variants
-  '/api/v1/auth/register',
-  '/api/v1/auth/login',
-  '/api/v1/auth/csrf',
-  '/api/v1/auth/forgot-password',
-  '/api/v1/auth/reset-password',
-  '/api/v1/auth/verify-email',
-  '/api/v1/auth/resend-verification',
-  '/api/v1/health',
-  '/api/v1/stripe/webhook',
-]);
-
-/** Directory-style GET endpoints safe without a session (no PHI in list). */
-const PUBLIC_GET_ONLY = new Set([
-  '/api/doctors',
-  '/api/labs',
-  '/api/search-medicine',
-  '/api/v1/doctors',
-  '/api/v1/labs',
-  '/api/v1/search-medicine',
-]);
-
 function isPublicApi(pathname: string, method: string = 'GET'): boolean {
-  if (PUBLIC_API_PATHS.has(pathname)) return true;
-  if (method === 'GET' && PUBLIC_GET_ONLY.has(pathname)) return true;
-  return false;
+  return isPublicApiPath(pathname, method);
 }
 
 // ── Auth-required prefixes ────────────────────────────────────────────────────
@@ -260,7 +193,8 @@ function buildAuthPrefixes(): string[] {
 
 const AUTH_REQUIRED_PREFIXES = buildAuthPrefixes();
 
-function requiresAuth(pathname: string): boolean {
+function requiresAuth(pathname: string, method: string): boolean {
+  if (requiresAuthenticatedApi(pathname, method)) return true;
   return AUTH_REQUIRED_PREFIXES.some(prefix => pathname.startsWith(prefix));
 }
 
@@ -525,7 +459,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   // configured the sb-* cookie is ignored entirely; every real login path
   // also sets the HMAC-verified kynthai-session cookie, so the gate still
   // works. There is no network call — pure WebCrypto at the edge.
-  let supabaseUser: { id: string } | null = null;
+  let supabaseUser: { id: string; role?: string } | null = null;
   try {
     const cookies = req.cookies.getAll();
     const sessionCookie = cookies.find(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
@@ -619,10 +553,16 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   }
 
   // ── Portal role guard ─────────────────────────────────────────────────
-  // Role-based access is enforced by each portal's client-side auth guard.
-  // The proxy only checks session presence (supabaseUser above).
-  // Demo mode: allow portal access without session cookie.
+  const sessionRoleCookie = req.cookies.get('kynthai-role')?.value;
   const isDemoMode = isDemoEnabled();
+
+  const portalRole = expectedPortalRole(pathname);
+  if (portalRole && !isApi && supabaseUser && sessionRoleCookie && !portalRoleAllowed(sessionRoleCookie, pathname)) {
+    const redirect = NextResponse.redirect(new URL('/login?error=portal_forbidden', req.url));
+    applyHeaders(redirect, pathname, requestId);
+    return redirect;
+  }
+
   if (isPortalPath(pathname) && !isApi && !supabaseUser && !isDemoMode) {
     const redirect = NextResponse.redirect(new URL('/login', req.url));
     applyHeaders(redirect, pathname, requestId);
@@ -671,7 +611,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   }
 
   // ── Auth-required path guard ───────────────────────────────────────────
-  if (requiresAuth(pathname)) {
+  if (requiresAuth(pathname, method)) {
     const sessionUser = supabaseUser;
 
     if (!sessionUser && !isPublicApi(pathname, method) && !isSystemApi(pathname)) {

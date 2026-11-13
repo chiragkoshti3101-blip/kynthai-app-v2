@@ -10,6 +10,8 @@ import { encryptFile, generateFileId, sanitizeFilename } from '@/lib/encryption'
 import { uploadMedicalDocument } from '@/lib/storage';
 import { DocumentType, DocumentCategory, DocumentVisibility } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { scanBuffer, isAntivirusRequired } from '@/lib/antivirus';
+import { logAudit } from '@/lib/auth';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_TYPES = [
@@ -143,6 +145,27 @@ export async function POST(req: NextRequest) {
     // Read file buffer
     const arrayBuffer = await file.arrayBuffer();
     const fileBuffer = Buffer.from(arrayBuffer);
+
+    const verdict = await scanBuffer(fileBuffer, file.name);
+    if (verdict.infected) {
+      await logAudit(user.id, 'document.upload.rejected_malware', {
+        resourceType: 'MedicalDocument',
+        details: verdict.details,
+      });
+      return NextResponse.json(
+        { error: 'This file was flagged as potentially malicious and was not uploaded.' },
+        { status: 400 },
+      );
+    }
+    if (isAntivirusRequired() && !verdict.clean) {
+      await logAudit(user.id, 'document.upload.rejected_av_unavailable', {
+        resourceType: 'MedicalDocument',
+      });
+      return NextResponse.json(
+        { error: 'Secure malware scanning is temporarily unavailable. Please try again later.' },
+        { status: 503 },
+      );
+    }
 
     // Encrypt file
     const { encryptedData, iv, salt, authTag } = encryptFile(fileBuffer);

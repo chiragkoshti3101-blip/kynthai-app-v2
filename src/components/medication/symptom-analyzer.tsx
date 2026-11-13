@@ -90,7 +90,7 @@ export function SymptomAnalyzer() {
             <p className="font-semibold text-primary">AI Symptom Analyzer</p>
             <p className="text-muted-foreground text-xs mt-1">
               Describe your symptoms and AI will analyze possible causes,
-              self-care tips, and red flags — backed by real-time web search.
+              self-care tips, and red flags. This is educational guidance, not a diagnosis.
             </p>
           </div>
         </CardContent>

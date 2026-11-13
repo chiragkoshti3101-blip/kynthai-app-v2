@@ -5,6 +5,7 @@ import { logAudit } from '@/lib/auth';
 import { isValidEmail, rateLimit, getIp } from '@/lib/security';
 import { checkCsrf, isSecureRequest } from '@/lib/csrf';
 import { signSessionToken } from '@/lib/session-signing';
+import { setPortalRoleCookie } from '@/lib/portal-role-cookie';
 import { verifyTurnstileToken, isCaptchaConfigured } from '@/lib/captcha';
 import { assessLoginRisk, logSuspiciousLogin, computeDeviceFingerprint } from '@/lib/login-anomaly';
 import {
@@ -361,6 +362,7 @@ export async function POST(req: NextRequest) {
       maxAge: 60 * 60 * 24 * 7,
       path: '/',
     });
+    setPortalRoleCookie(res, user.role, isSecureRequest(req));
     return res;
   } catch (error) {
     logger.phiSafeError(error, 'login.POST');

@@ -86,6 +86,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Reuse PUT `owns` predicate on GET; deny when neither owner nor permitted family caretaker. |
 | **Dependencies** | DB migration if legacy null `userId` rows exist |
 | **Acceptance** | Security test: user A cannot GET user B’s family-member med by ID; fuzz legacy rows. |
+| **Status** | **Fixed** — shared `userOwnsMedication` on GET/PUT/DELETE; regression in `medication-access.test.ts`. |
 
 ### KYN-HIGH-002 — Monthly health report sends identifiable PHI to third-party LLM
 
@@ -97,6 +98,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Reuse `buildDeidentifiedContext` / `phi-filter`; exclude chat verbatim; add `isAiAvailable()` guard. |
 | **Dependencies** | Legal review of AI subprocessors |
 | **Acceptance** | Unit test asserts outbound prompt contains no name/email/raw chat; manual prompt capture in staging shows de-identified payload. |
+| **Status** | **Fixed** — `buildHealthReportLlmUserContent` + `isAiAvailable()` guard; `health-report-payload.test.ts`. |
 
 ### KYN-HIGH-003 — Symptom analyzer: clinical JSON without server output controls
 
@@ -108,6 +110,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Post-process with schema validation + mandatory fixed disclaimer append; fix marketing copy or implement search. |
 | **Dependencies** | Product copy |
 | **Acceptance** | API rejects/hard-caps OTC lists; e2e asserts disclaimer present; search claim removed or backed by data source. |
+| **Status** | **Fixed** — `sanitizeSymptomAnalysisOutput`, OTC cap, UI copy (no false web-search claim); `clinical-ai-output.test.ts`. |
 
 ### KYN-HIGH-004 — Drug interactions route may suggest alternative meds (LLM)
 
@@ -119,6 +122,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Remove or constrain field to “discuss with prescriber”; apply `safeAIResponse`. |
 | **Dependencies** | Medical safety review |
 | **Acceptance** | Automated test: response never contains unsolicited drug switch without clinician framing. |
+| **Status** | **Fixed** — `sanitizeInteractionAnalysisOutput` replaces `alternativeSuggestion`; `clinical-ai-output.test.ts`. |
 
 ### KYN-HIGH-005 — `seed-demo` resets known password and returns it in JSON
 
@@ -130,6 +134,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Never return password; use random per-seed passwords; disable endpoint on production or IP-restrict; rotate secrets on schedule. |
 | **Dependencies** | Ops |
 | **Acceptance** | Response body has no credentials; prod deployment has endpoint disabled or 404. |
+| **Status** | **Fixed** — no password in JSON, random seed password server-side, production 404 unless `ALLOW_SEED_DEMO=true`; `seed-demo-policy.test.ts`. |
 
 ### KYN-HIGH-006 — Account deletion incomplete (erasure gaps)
 
@@ -141,6 +146,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Extend DELETE cascade list + Supabase object delete; document Stripe customer handling. |
 | **Dependencies** | Storage API |
 | **Acceptance** | Post-delete integration test: no rows or objects remain for user ID in DB + storage listing. |
+| **Status** | **Fixed** — `eraseUserScopedData()` (documents/storage, push, complaints, consult, video); Stripe note in response; `account-erasure.test.ts`. Full DB integration test deferred (needs staging DB). |
 
 ### KYN-HIGH-007 — Medical document upload without antivirus scan
 
@@ -152,6 +158,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Call `scanBuffer` + `isAntivirusRequired()` before encrypt on documents route. |
 | **Dependencies** | `KYNTHAI_CLAMSCAN` in prod |
 | **Acceptance** | EICAR test file rejected on documents upload in staging with AV required. |
+| **Status** | **Fixed** — `scanBuffer` before encrypt on `/api/documents/upload`; `documents-upload-scan.test.ts`. EICAR staging test deferred (needs ClamAV in env). |
 
 ### KYN-HIGH-008 — Push payload leaks drug names on lock screen channel data
 
@@ -163,6 +170,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Push `data` only opaque IDs; fetch med details in-app after auth. |
 | **Dependencies** | Mobile clients |
 | **Acceptance** | Push payload inspection shows no drug strings; reminders still open correct screen. |
+| **Status** | **Fixed** — opaque push `data` via `push-payload-privacy.ts`; `push-payload-privacy.test.ts`. |
 
 ### KYN-HIGH-009 — Doctor dashboard shows sample PHI-like data on API failure
 
@@ -174,6 +182,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Skeleton/error empty states only for non-demo; never render `APPOINTMENTS` for real accounts on error. |
 | **Dependencies** | None |
 | **Acceptance** | With API 500, verified doctor sees error state, zero fake patient names. |
+| **Status** | **Fixed** — demo samples only when `isDemo`; error banner without fake patients; `doctor-dashboard-data.test.ts`. |
 
 ### KYN-HIGH-010 — Middleware auth prefix gaps (defense in depth)
 
@@ -184,6 +193,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Root cause** | Prefix list incomplete vs API growth. |
 | **Proposed fix** | Default-deny: require session for all `/api/*` except explicit public/system sets; or extend prefix list. |
 | **Acceptance** | Unauthenticated request to `/api/user/data-export` gets 401 at edge without hitting handler. |
+| **Status** | **Fixed** — default-deny `/api/*` via `requiresAuthenticatedApi`; `api-edge-auth.test.ts`. |
 
 ### KYN-HIGH-011 — Portal role not enforced at edge
 
@@ -195,6 +205,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Encode role in signed session cookie or lightweight edge role check. |
 | **Dependencies** | Auth design |
 | **Acceptance** | Patient session receives 403 on `/admin` document request at edge. |
+| **Status** | **Partial** — `kynthai-role` cookie set on login/OAuth/demo; edge redirect when cookie present and role mismatches. Legacy sessions without cookie still client-only until re-login. Signed role in session token deferred (auth design). |
 
 ### KYN-HIGH-012 — Prescription intelligence image path may not be multimodal
 
@@ -206,6 +217,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Align message format with vision API used elsewhere. |
 | **Dependencies** | AI provider |
 | **Acceptance** | Integration test with sample Rx image returns structured fields in staging. |
+| **Status** | **Fixed** — multimodal `image_url` message + `AI_TIMEOUTS.MEDIA`; `prescription-intelligence-multimodal.test.ts`. Staging vision integration deferred. |
 
 ### KYN-HIGH-013 — `package-lock.json` out of sync with `package.json`
 
@@ -217,6 +229,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Regenerate lock on main; enforce `npm ci` in dev docs. |
 | **Dependencies** | None |
 | **Acceptance** | Fresh clone + `npm ci` succeeds on CI and agent VM. |
+| **Status** | **Fixed** (Batch 0–1 on main) — verified `npm ci` on agent VM; `lockfile-sync.test.ts`. |
 
 ### KYN-HIGH-014 — Distributed rate limiting degrades to per-instance memory
 
@@ -228,6 +241,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Proposed fix** | Wire edge Upstash limiter or accept + alert; ensure `UPSTASH_*` set in prod. |
 | **Dependencies** | Upstash account |
 | **Acceptance** | Load test from multiple workers shows shared 429 budget on login route. |
+| **Status** | **Partial** — `isDistributedRateLimitActive()` for observability; edge still in-memory. **Deferred:** wire Upstash on edge + prod `UPSTASH_*` (ops). |
 
 ---
 

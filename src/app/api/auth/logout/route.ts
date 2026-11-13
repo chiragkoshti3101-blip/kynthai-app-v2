@@ -3,6 +3,7 @@ import { logAudit } from '@/lib/auth';
 import { getSupabaseProfile } from '@/lib/supabase/sync';
 import { checkCsrf } from '@/lib/csrf';
 import { createServerClient } from '@supabase/ssr';
+import { clearPortalRoleCookie } from '@/lib/portal-role-cookie';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
@@ -39,6 +40,7 @@ export async function POST(req: NextRequest) {
 
   // Explicitly clear kynthai-session cookie (used by local auth fallback)
   res.headers.append('Set-Cookie', 'kynthai-session=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict');
+  clearPortalRoleCookie(res);
 
   // Parse cookies from raw Cookie header and clear them all
   const cookieHeader = req.headers.get('cookie') ?? '';

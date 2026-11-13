@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { sanitizeText, isValidE164 } from '@/lib/security'
 import { z } from 'zod'
+import { eraseUserScopedData } from '@/lib/account-erasure'
 export const dynamic = 'force-dynamic'
 
 const UpdateProfileSchema = z.object({
@@ -110,6 +111,11 @@ export async function DELETE(req: NextRequest) {
   try {
     const userId = u.id
 
+    const { storageWarnings, stripeNote } = await eraseUserScopedData(userId)
+    if (storageWarnings.length) {
+      logger.phiSafeError(new Error(storageWarnings.join('; ')), 'account.delete.storage')
+    }
+
     // Delete in dependency order (children first due to FK constraints).
     await db.chatMessage.deleteMany({ where: { userId } })
     await db.notificationLog.deleteMany({ where: { userId } })
@@ -182,7 +188,11 @@ export async function DELETE(req: NextRequest) {
     await db.user.delete({ where: { id: userId } })
 
     await logAudit(userId, 'account.delete', 'full-erasure')
-    return jsonOk({ success: true, message: 'Account and all associated data permanently deleted.' })
+    return jsonOk({
+      success: true,
+      message: 'Account and all associated data permanently deleted.',
+      notes: stripeNote,
+    })
   } catch (error) {
     logger.phiSafeError(error)
     return jsonError('Failed to delete account', 500)

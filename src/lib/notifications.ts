@@ -35,6 +35,7 @@ import {
 } from './integrations'
 import { sendPushToUser } from './push-server'
 import { formatNotificationDate } from './notification-time'
+import { privacySafeEscalationPushData, privacySafeReminderPushData } from './push-payload-privacy'
 
 // ponytail: email bodies need absolute links (mail clients can't navigate
 // relative paths); falls back to the production origin for local/dev.
@@ -599,22 +600,15 @@ export async function sendReminder(
   extraData?: { reminderId?: string; medicationId?: string },
 ): Promise<RouteResult> {
   const target = { ...(await loadUserTarget(userId)), ...overrides }
-  const alarmParams = new URLSearchParams({ alarm: '1', time: scheduledTime, med: medName.slice(0, 80) })
-  if (extraData?.reminderId) alarmParams.set('rid', extraData.reminderId)
-  if (extraData?.medicationId) alarmParams.set('mid', extraData.medicationId)
+  const safeData = privacySafeReminderPushData(
+    { scheduledTime },
+  { reminderId: extraData?.reminderId, medicationId: extraData?.medicationId },
+  )
   return sendNotification(target, {
     title: 'Medication reminder',
     body: `A dose is due now · ${scheduledTime}. Tap to open.`,
     type: 'reminder',
-    data: {
-      medName,
-      scheduledTime,
-      dosage,
-      type: 'reminder',
-      url: `/patient?${alarmParams.toString()}`,
-      ...(extraData?.reminderId ? { reminderId: extraData.reminderId } : {}),
-      ...(extraData?.medicationId ? { medicationId: extraData.medicationId } : {}),
-    },
+    data: safeData,
     dedupeKey,
   })
 }
@@ -635,7 +629,7 @@ export async function sendEscalation(
     title: 'Care reminder needs attention',
     body: 'A scheduled medication reminder was missed. Open Kynthai to review it.',
     type: 'reminder_escalation',
-    data: { medName, scheduledTime, escalated: '1', url: '/patient' },
+    data: privacySafeEscalationPushData(),
     ...(dedupeKey ? { dedupeKey: `${dedupeKey}:patient` } : {}),
   })
 
@@ -646,7 +640,7 @@ export async function sendEscalation(
       title: 'Family care reminder needs attention',
       body: 'A family member missed a scheduled medication reminder. Open Kynthai to review it.',
       type: 'reminder_escalation',
-      data: { medName, scheduledTime, forUserId: userId, url: '/caretaker' },
+      data: { ...privacySafeEscalationPushData(userId), url: '/caretaker' },
       ...(dedupeKey ? { dedupeKey: `${dedupeKey}:caretaker` } : {}),
     })
   }
