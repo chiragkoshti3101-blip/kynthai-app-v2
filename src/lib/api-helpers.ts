@@ -7,7 +7,7 @@ import { withTimeout } from './with-timeout';
 import { recordAudit, recordAuditSync, AuditContext, AuditCategory } from './audit-logger';
 import { rateLimit, rateLimitProduction, getIp } from './security';
 import { checkCsrf } from './csrf';
-import { db } from './db';
+import { db, isDatabaseConfigured } from './db';
 import type { User } from '@prisma/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
@@ -169,6 +169,14 @@ export function jsonError(
   if (details !== undefined) extras.details = details;
   const res = NextResponse.json({ error: message, code, ...extras }, { status });
   return applyStandardHeaders(res);
+}
+
+/** Returns a 503 response when DATABASE_URL is missing; otherwise null. */
+export function ensureDatabase(): NextResponse | null {
+  if (!isDatabaseConfigured()) {
+    return jsonError('Database is not configured', 503, 'DATABASE_UNAVAILABLE');
+  }
+  return null;
 }
 
 function inferErrorCode(status: number): string {

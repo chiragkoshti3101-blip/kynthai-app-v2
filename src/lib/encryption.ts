@@ -161,22 +161,53 @@ export function decryptValue(encryptedBase64: string): string {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 
-export function decryptFile(stored: Buffer): Buffer {
+/** Split metadata form used by medical document storage (ciphertext + iv + salt + authTag). */
+export function decryptFileParts(
+  encryptedData: Buffer,
+  iv: Buffer,
+  salt: Buffer,
+  authTag: Buffer,
+): Buffer {
+  const fileKey = deriveFileKey(salt);
+  const decipher = createDecipheriv(ALGORITHM, fileKey, iv);
+  decipher.setAuthTag(authTag);
+  return Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+}
+
+function decryptFilePacked(stored: Buffer): Buffer {
   if (stored.length <= 1 + 12 + 16 + 16) {
     throw new Error('Stored file is truncated or corrupt.');
   }
 
-  const version = stored[0];
   const iv = stored.subarray(1, 13);
   const salt = stored.subarray(13, 29);
   const authTag = stored.subarray(29, 45);
   const ciphertext = stored.subarray(45);
 
-  const fileKey = deriveFileKey(salt);
-  const decipher = createDecipheriv('aes-256-gcm', fileKey, iv);
-  decipher.setAuthTag(authTag);
+  return decryptFileParts(ciphertext, iv, salt, authTag);
+}
 
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+/**
+ * Decrypt file bytes. Accepts either the packed envelope (single buffer) or
+ * the split form returned by `encryptFile`.
+ */
+export function decryptFile(stored: Buffer): Buffer;
+export function decryptFile(
+  encryptedData: Buffer,
+  iv: Buffer,
+  salt: Buffer,
+  authTag: Buffer,
+): Buffer;
+export function decryptFile(
+  storedOrEncrypted: Buffer,
+  iv?: Buffer,
+  salt?: Buffer,
+  authTag?: Buffer,
+): Buffer {
+  if (iv !== undefined && salt !== undefined && authTag !== undefined) {
+    return decryptFileParts(storedOrEncrypted, iv, salt, authTag);
+  }
+  return decryptFilePacked(storedOrEncrypted);
 }
 
 export function generateFileId(): string {
