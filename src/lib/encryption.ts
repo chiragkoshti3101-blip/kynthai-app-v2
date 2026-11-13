@@ -11,8 +11,6 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 12;
-const SALT_LENGTH = 16;
 const KEY_VERSION = 1;
 
 let _KEY: Buffer | null = null;
@@ -146,32 +144,17 @@ export function decryptValue(encryptedBase64: string): string {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 
-export function decryptFile(stored: Buffer): Buffer;
-export function decryptFile(ciphertext: Buffer, iv: Buffer, salt: Buffer, authTag: Buffer): Buffer;
-export function decryptFile(stored: Buffer, iv?: Buffer, salt?: Buffer, authTag?: Buffer): Buffer {
-  // Split form: ciphertext with iv/salt/tag stored separately
-  // (medical documents keep them as an `iv:salt:tag` encryptionKey string).
-  if (iv && salt && authTag) {
-    const fileKey = deriveFileKey(salt);
-    const decipher = createDecipheriv(ALGORITHM, fileKey, iv);
-    decipher.setAuthTag(authTag);
-    return Buffer.concat([decipher.update(stored), decipher.final()]);
-  }
-
-  // Envelope form: version byte | iv | salt | tag | ciphertext
-  if (stored.length <= 1 + 12 + 16 + 16) {
-    throw new Error('Stored file is truncated or corrupt.');
-  }
-
-  const envelopeIv = stored.subarray(1, 13);
-  const envelopeSalt = stored.subarray(13, 29);
-  const envelopeTag = stored.subarray(29, 45);
-  const ciphertext = stored.subarray(45);
-
-  const fileKey = deriveFileKey(envelopeSalt);
-  const decipher = createDecipheriv(ALGORITHM, fileKey, envelopeIv);
-  decipher.setAuthTag(envelopeTag);
-
+// Medical documents keep iv/salt/authTag in an `iv:salt:tag` encryptionKey column,
+// separate from the ciphertext. Packed envelopes are handled by decryptHealthFile.
+export function decryptFile(
+  ciphertext: Buffer,
+  iv: Buffer,
+  salt: Buffer,
+  authTag: Buffer
+): Buffer {
+  const fileKey = deriveFileKey(salt);
+  const decipher = createDecipheriv(ALGORITHM, fileKey, iv);
+  decipher.setAuthTag(authTag);
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
 
