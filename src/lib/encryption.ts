@@ -1,10 +1,10 @@
 /**
- * src/lib/encryption.ts — HARDENED
+ * src/lib/encryption.ts  HARDENED
  *
  * Fixes:
  * 1. Encryption key now derived from hex (proper 32-byte key from 64-char hex string)
  * 2. Key versioning support for rotation (stores key version alongside ciphertext)
- * 3. Backward compatible — detects legacy UTF-8-slice keys and re-encrypts
+ * 3. Backward compatible  detects legacy UTF-8-slice keys and re-encrypts
  * 4. Backward compatibility layer for legacy API (encrypt, decryptValue, etc.)
  */
 
@@ -101,7 +101,7 @@ export function encryptFile(data: Buffer): {
 }
 
 /**
- * Encrypt file buffer to stored envelope format (iv | salt | tag | ciphertext)
+ * Encrypt file buffer to stored envelope format (version | iv | salt | tag | ciphertext)
  * with key version prefix.
  */
 export function encryptHealthFile(raw: Buffer): Buffer {
@@ -156,7 +156,6 @@ export function decryptString(encryptedBase64: string): string {
   const authTag = data.subarray(12, 28);
   const ciphertext = data.subarray(28);
 
-  const fileKey = deriveFileKey(randomBytes(SALT_LENGTH)); // salt not stored for strings; use random
   // Note: For string encryption, we use the master key directly
   const decipher = createDecipheriv(ALGORITHM, getKey(), iv);
   decipher.setAuthTag(authTag);
@@ -164,25 +163,56 @@ export function decryptString(encryptedBase64: string): string {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 
-/**
- * BACKWARD COMPATIBILITY LAYER
- * These functions maintain compatibility with the legacy API used throughout the codebase.
- */
+// ============================================================================
+// BACKWARD COMPATIBILITY LAYER (OLD SIGNATURES)
+// These functions match the OLD API used by existing callers:
+// - encryptFile(data: Buffer) -> { encryptedData, iv, salt, authTag } (no version)
+// - decryptFile(encryptedData: Buffer, iv: Buffer, salt: Buffer, authTag: Buffer) -> Buffer
+// ============================================================================
 
 /**
- * Legacy encrypt function - encrypts a string using master key
+ * Legacy encryptFile  matches old signature used by storage.ts, health-files.ts, etc.
+ * Returns object WITHOUT version field for backward compatibility.
+ */
+export function encryptFileLegacy(data: Buffer): {
+  encryptedData: Buffer;
+  iv: Buffer;
+  salt: Buffer;
+  authTag: Buffer;
+} {
+  const { encryptedData, iv, salt, authTag } = encryptFile(data);
+  return { encryptedData, iv, salt, authTag };
+}
+
+/**
+ * Legacy decryptFile  matches old 4-argument signature used by callers.
+ * Takes separate encryptedData, iv, salt, authTag and reconstructs envelope.
+ */
+export function decryptFileLegacy(
+  encryptedData: Buffer,
+  iv: Buffer,
+  salt: Buffer,
+  authTag: Buffer
+): Buffer {
+  const versionBuf = Buffer.from([KEY_VERSION]);
+  const stored = Buffer.concat([versionBuf, iv, salt, authTag, encryptedData]);
+  return decryptHealthFile(stored);
+}
+
+/**
+ * Encrypt a string (for metadata, keys, etc.)  legacy alias
  * @deprecated Use encryptString instead
  */
 export function encrypt(text: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', getKey(), iv);
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, getKey(), iv);
   const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
   const authTag = cipher.getAuthTag();
   return Buffer.concat([iv, authTag, encrypted]).toString('base64');
 }
 
 /**
- * Legacy decryptValue function - decrypts a string using master key
+ * Legacy decryptValue function  decrypts a string using master key
  * @deprecated Use decryptString instead
  */
 export function decryptValue(encryptedBase64: string): string {
@@ -198,55 +228,7 @@ export function decryptValue(encryptedBase64: string): string {
 }
 
 /**
- * Decrypt a file buffer.
- *
- * Two supported forms:
- *  - Split form (preferred for documents/storage): decryptFile(ciphertext, iv, salt, authTag)
- *  - Packed envelope (legacy): decryptFile(stored) where stored is
- *    version byte | iv(12) | salt(16) | tag(16) | ciphertext
- *
- * @deprecated The packed envelope form is legacy; use decryptHealthFile instead.
- */
-export function decryptFile(stored: Buffer): Buffer;
-export function decryptFile(
-  encryptedData: Buffer,
-  iv: Buffer,
-  salt: Buffer,
-  authTag: Buffer
-): Buffer;
-export function decryptFile(
-  stored: Buffer,
-  iv?: Buffer,
-  salt?: Buffer,
-  authTag?: Buffer
-): Buffer {
-  // Split form — decryption material supplied separately.
-  if (iv && salt && authTag) {
-    const fileKey = deriveFileKey(salt);
-    const decipher = createDecipheriv(ALGORITHM, fileKey, iv);
-    decipher.setAuthTag(authTag);
-
-    return Buffer.concat([decipher.update(stored), decipher.final()]);
-  }
-
-  if (stored.length <= 1 + 12 + 16 + 16) {
-    throw new Error('Stored file is truncated or corrupt.');
-  }
-
-  const packedIv = stored.subarray(1, 13);
-  const packedSalt = stored.subarray(13, 29);
-  const packedAuthTag = stored.subarray(29, 45);
-  const ciphertext = stored.subarray(45);
-
-  const fileKey = deriveFileKey(packedSalt);
-  const decipher = createDecipheriv(ALGORITHM, fileKey, packedIv);
-  decipher.setAuthTag(packedAuthTag);
-
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-}
-
-/**
- * Legacy generateFileId function - generates a random file ID
+ * Legacy generateFileId function  generates a random file ID
  * @deprecated Use crypto.randomUUID() or similar
  */
 export function generateFileId(): string {
@@ -254,7 +236,7 @@ export function generateFileId(): string {
 }
 
 /**
- * Legacy sanitizeFilename function - sanitizes a filename
+ * Legacy sanitizeFilename function  sanitizes a filename
  * @deprecated Use a proper filename sanitization library
  */
 export function sanitizeFilename(filename: string): string {
@@ -264,7 +246,7 @@ export function sanitizeFilename(filename: string): string {
 }
 
 /**
- * Legacy encryptValue function - encrypts a value (alias for encrypt)
+ * Legacy encryptValue function  encrypts a value (alias for encrypt)
  * @deprecated Use encryptString instead
  */
 export function encryptValue(text: string): string {
@@ -272,7 +254,7 @@ export function encryptValue(text: string): string {
 }
 
 /**
- * Legacy decryptValue alias - decrypts a value (alias for decryptValue)
+ * Legacy decryptValue alias  decrypts a value (alias for decryptValue)
  * @deprecated Use decryptString instead
  */
 export function decryptValueAlias(encryptedBase64: string): string {
@@ -280,7 +262,7 @@ export function decryptValueAlias(encryptedBase64: string): string {
 }
 
 /**
- * Legacy hashValue function - creates a hash of a value
+ * Legacy hashValue function  creates a hash of a value
  * @deprecated Use crypto.createHash('sha256') instead
  */
 export function hashValue(value: string): string {
