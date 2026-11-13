@@ -32,6 +32,10 @@ function isRealUpstashConfig(url: string | undefined, token: string | undefined)
   return !/PLACEHOLDER|placeholder|xxx|changeme|sample/i.test(url + token)
 }
 
+export function isDistributedRateLimitActive(): boolean {
+  return getRedisLimiter() !== null
+}
+
 function getRedisLimiter(): Ratelimit | null {
   if (redisLimiter) return redisLimiter
   const url = process.env.UPSTASH_REDIS_REST_URL

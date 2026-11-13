@@ -4,6 +4,8 @@ import { requireSystemToken, jsonOk, jsonError } from '@/lib/api-helpers'
 import { hashPassword } from '@/lib/auth'
 import { logger } from '@/lib/logger'
 import { ensureDemoDoctorProfile, ensureDemoLabProfile } from '@/lib/demo-profiles'
+import { isSeedDemoDisabled, seedDemoResponseBody } from '@/lib/seed-demo-policy'
+import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
@@ -28,11 +30,16 @@ const DEMOS: Array<{ email: string; name: string; role: string }> = [
 ]
 
 async function run(req: NextRequest) {
+  if (isSeedDemoDisabled()) {
+    return jsonError('Not found', 404)
+  }
+
   const { response, user } = await requireSystemToken(req)
   if (response || !user) return response!
 
   try {
-    const password = await hashPassword('Demo@2024')
+    const plainPassword = `Demo-${crypto.randomBytes(9).toString('base64url')}`
+    const password = await hashPassword(plainPassword)
     const results: Array<{ email: string; action: string }> = []
 
     for (const d of DEMOS) {
@@ -80,7 +87,7 @@ async function run(req: NextRequest) {
       else await ensureDemoLabProfile(u.id)
     }
 
-    return jsonOk({ ok: true, count: results.length, results, password: 'Demo@2024' })
+    return jsonOk(seedDemoResponseBody(results.length, results))
   } catch (e) {
     logger.phiSafeError(e, 'system.seed-demo')
     return jsonError('Seed failed', 500)

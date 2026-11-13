@@ -56,9 +56,24 @@ export async function POST(req: NextRequest) {
     if (!isAiAvailable()) return NextResponse.json({ intelligence: null, message: 'AI prescription intelligence requires NVIDIA_API_KEY.' })
     
     const safeText = text ? sanitizeForAi(text, MAX_TEXT_LEN) : ''
-    const userContent = imageData
-      ? `Analyze this prescription image and extract all medication information.${patientContext}`
-      : `Analyze this prescription text and extract all medication information:\n\n"${safeText}"${patientContext}`
+    const textUserContent = `Analyze this prescription text and extract all medication information:\n\n"${safeText}"${patientContext}`
+
+    let userMessage: string | Array<{ type: string; text?: string; image_url?: { url: string } }>
+    if (imageData) {
+      const imageUrl = imageData.startsWith('data:') ? imageData : `data:image/jpeg;base64,${imageData}`
+      if (!/^data:image\/(jpeg|jpg|png|webp|gif);base64,/i.test(imageUrl)) {
+        return jsonError('imageData must be a base64 JPEG/PNG/WebP/GIF data URI', 400)
+      }
+      userMessage = [
+        {
+          type: 'text',
+          text: `Analyze this prescription image and extract all medication information.${patientContext}`,
+        },
+        { type: 'image_url', image_url: { url: imageUrl } },
+      ]
+    } else {
+      userMessage = textUserContent
+    }
 
     const completion = await withAiTimeout(
       createChatCompletion({
@@ -123,11 +138,11 @@ Guidelines:
           },
           {
             role: 'user',
-            content: userContent,
+            content: userMessage,
           },
         ],
       }),
-      AI_TIMEOUTS.COMPLEX
+      imageData ? AI_TIMEOUTS.MEDIA : AI_TIMEOUTS.COMPLEX
     )
 
     const content = choicesOf(completion)[0]?.message?.content || ''

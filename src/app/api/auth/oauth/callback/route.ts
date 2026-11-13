@@ -14,6 +14,7 @@ import { createServerClient } from '@supabase/ssr';
 import { logAudit } from '@/lib/auth';
 import { logger } from '@/lib/logger';
 import { signSessionToken } from '@/lib/session-signing';
+import { setPortalRoleCookie } from '@/lib/portal-role-cookie';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,15 +85,19 @@ export async function GET(req: NextRequest) {
       // /auth/callback): the edge middleware only trusts verified cookies.
       const signedValue = await signSessionToken(profile?.id ?? user.id);
       if (signedValue) {
+        const secure =
+          req.headers.get('x-forwarded-proto') === 'https' ||
+          req.headers.get('x-forwarded-ssl') === 'on';
         res.cookies.set('kynthai-session', signedValue, {
           httpOnly: true,
-          secure:
-            req.headers.get('x-forwarded-proto') === 'https' ||
-            req.headers.get('x-forwarded-ssl') === 'on',
+          secure,
           sameSite: 'strict',
           maxAge: 60 * 60 * 24 * 7,
           path: '/',
         });
+        if (profile?.role) {
+          setPortalRoleCookie(res, profile.role, secure);
+        }
       }
 
       return res;

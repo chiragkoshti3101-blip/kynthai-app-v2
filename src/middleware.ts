@@ -25,6 +25,11 @@ import { logger } from '@/lib/logger';
 import { checkCsrf } from '@/lib/csrf';
 import { verifySessionToken, signSessionToken, verifySupabaseJwt } from './lib/session-signing';
 import { isDemoEnabled } from '@/lib/demo-mode';
+import {
+  requiresAuthenticatedApi,
+  expectedPortalRole,
+  portalRoleAllowed,
+} from '@/lib/api-edge-auth';
 
 // HMR-safe env validation (fail-loud in production, skip during build/edge)
 let envValidated = false;
@@ -260,7 +265,8 @@ function buildAuthPrefixes(): string[] {
 
 const AUTH_REQUIRED_PREFIXES = buildAuthPrefixes();
 
-function requiresAuth(pathname: string): boolean {
+function requiresAuth(pathname: string, method: string): boolean {
+  if (requiresAuthenticatedApi(pathname, method)) return true;
   return AUTH_REQUIRED_PREFIXES.some(prefix => pathname.startsWith(prefix));
 }
 
@@ -525,7 +531,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   // configured the sb-* cookie is ignored entirely; every real login path
   // also sets the HMAC-verified kynthai-session cookie, so the gate still
   // works. There is no network call — pure WebCrypto at the edge.
-  let supabaseUser: { id: string } | null = null;
+  let supabaseUser: { id: string; role?: string } | null = null;
   try {
     const cookies = req.cookies.getAll();
     const sessionCookie = cookies.find(c => c.name.startsWith('sb-') && c.name.endsWith('-auth-token'));
@@ -619,10 +625,16 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   }
 
   // ── Portal role guard ─────────────────────────────────────────────────
-  // Role-based access is enforced by each portal's client-side auth guard.
-  // The proxy only checks session presence (supabaseUser above).
-  // Demo mode: allow portal access without session cookie.
+  const sessionRoleCookie = req.cookies.get('kynthai-role')?.value;
   const isDemoMode = isDemoEnabled();
+
+  const portalRole = expectedPortalRole(pathname);
+  if (portalRole && !isApi && supabaseUser && sessionRoleCookie && !portalRoleAllowed(sessionRoleCookie, pathname)) {
+    const redirect = NextResponse.redirect(new URL('/login?error=portal_forbidden', req.url));
+    applyHeaders(redirect, pathname, requestId);
+    return redirect;
+  }
+
   if (isPortalPath(pathname) && !isApi && !supabaseUser && !isDemoMode) {
     const redirect = NextResponse.redirect(new URL('/login', req.url));
     applyHeaders(redirect, pathname, requestId);
@@ -671,7 +683,7 @@ export default async function middleware(req: NextRequest): Promise<NextResponse
   }
 
   // ── Auth-required path guard ───────────────────────────────────────────
-  if (requiresAuth(pathname)) {
+  if (requiresAuth(pathname, method)) {
     const sessionUser = supabaseUser;
 
     if (!sessionUser && !isPublicApi(pathname, method) && !isSystemApi(pathname)) {
