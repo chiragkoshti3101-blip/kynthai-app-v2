@@ -1,6 +1,3 @@
-import { initConsentAwareTelemetry } from './analytics-consent'
-
-// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 'use client'
 
 export const analytics = {

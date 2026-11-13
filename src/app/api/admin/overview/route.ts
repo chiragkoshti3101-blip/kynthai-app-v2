@@ -26,71 +26,147 @@ export async function GET(req: NextRequest) {
   await logAudit(auser.id, 'admin.overview');
 
   try {
-    const [users, doctors, labs, appointments, labBookings, refunds, payments, audit] =
-      await Promise.all([
-        db.user.findMany({
-          where: { deletedAt: null },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-            subscriptionTier: true,
-            isDemo: true,
-            createdAt: true,
-          },
-        }),
-        db.doctorProfile.findMany({
-          include: { user: { select: { name: true } } },
-        }),
-        db.labProfile.findMany({
-          include: { user: { select: { name: true } } },
-        }),
-        db.appointment.findMany({
-          where: { deletedAt: null },
-          select: {
-            id: true,
-            patientId: true,
-            doctorId: true,
-            status: true,
-            price: true,
-            commission: true,
-            createdAt: true,
-          },
-        }),
-        db.labBooking.findMany({
-          select: {
-            id: true,
-            patientId: true,
-            labId: true,
-            status: true,
-            price: true,
-            commission: true,
-            deliveryFee: true,
-            createdAt: true,
-          },
-        }),
-        db.refund.findMany({
-          select: { id: true, amount: true, status: true, createdAt: true },
-        }),
-        db.payment.findMany({
-          select: { status: true, amount: true },
-        }),
-        db.auditLog.findMany({
-          take: 20,
-          orderBy: { createdAt: 'desc' },
-          include: { user: { select: { name: true, email: true } } },
-        }),
-      ]);
+  const trendWindowStart = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+
+    const [
+      userRoleGroups,
+      tierGroups,
+      demoAccounts,
+      totalUsers,
+      doctors,
+      labs,
+      appointmentGroups,
+      labBookingGroups,
+      paymentGroups,
+      refundGroups,
+      refunds,
+      overdueRefunds,
+      appointmentTrendRows,
+      labBookingTrendRows,
+      signupTrendRows,
+      patientAppointmentRollup,
+      patientLabRollup,
+      partnerDoctorRollup,
+      partnerLabRollup,
+      audit,
+    ] = await Promise.all([
+      db.user.groupBy({
+        by: ['role'],
+        where: { deletedAt: null },
+        _count: { _all: true },
+      }),
+      db.user.groupBy({
+        by: ['subscriptionTier'],
+        where: { deletedAt: null },
+        _count: { _all: true },
+      }),
+      db.user.count({ where: { deletedAt: null, isDemo: true } }),
+      db.user.count({ where: { deletedAt: null } }),
+      db.doctorProfile.findMany({
+        select: { id: true, verificationStatus: true, user: { select: { name: true } } },
+      }),
+      db.labProfile.findMany({
+        select: {
+          id: true,
+          labName: true,
+          verificationStatus: true,
+          user: { select: { name: true } },
+        },
+      }),
+      db.appointment.groupBy({
+        by: ['status'],
+        where: { deletedAt: null },
+        _count: { _all: true },
+        _sum: { price: true, commission: true },
+      }),
+      db.labBooking.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+        _sum: { price: true, commission: true, deliveryFee: true },
+      }),
+      db.payment.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+        _sum: { amount: true },
+      }),
+      db.refund.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+        _sum: { amount: true },
+      }),
+      db.refund.findMany({
+        where: { createdAt: { gte: trendWindowStart } },
+        select: { id: true, amount: true, status: true, createdAt: true },
+      }),
+      db.refund.count({
+        where: {
+          status: 'pending',
+          createdAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+        },
+      }),
+      db.appointment.findMany({
+        where: { deletedAt: null, createdAt: { gte: trendWindowStart } },
+        select: {
+          patientId: true,
+          doctorId: true,
+          status: true,
+          price: true,
+          commission: true,
+          createdAt: true,
+        },
+      }),
+      db.labBooking.findMany({
+        where: { createdAt: { gte: trendWindowStart } },
+        select: {
+          patientId: true,
+          labId: true,
+          status: true,
+          price: true,
+          commission: true,
+          deliveryFee: true,
+          createdAt: true,
+        },
+      }),
+      db.user.findMany({
+        where: { deletedAt: null, createdAt: { gte: trendWindowStart } },
+        select: { id: true, name: true, email: true, role: true, subscriptionTier: true, createdAt: true },
+      }),
+      db.appointment.groupBy({
+        by: ['patientId'],
+        where: { deletedAt: null },
+        _count: { _all: true },
+        _max: { createdAt: true },
+      }),
+      db.labBooking.groupBy({
+        by: ['patientId'],
+        _count: { _all: true },
+        _max: { createdAt: true },
+      }),
+      db.appointment.groupBy({
+        by: ['doctorId'],
+        where: { deletedAt: null, status: { not: 'cancelled' } },
+        _count: { _all: true },
+        _sum: { price: true },
+      }),
+      db.labBooking.groupBy({
+        by: ['labId'],
+        where: { status: { not: 'cancelled' } },
+        _count: { _all: true },
+        _sum: { price: true },
+      }),
+      db.auditLog.findMany({
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        include: { user: { select: { name: true, email: true } } },
+      }),
+    ]);
 
     const { summary: fraud } = await runFraudChecks();
 
     // ---- Role / account counts (all accounts, demo included — the system is the truth) ----
     const usersByRole: Record<string, number> = { patient: 0, doctor: 0, lab: 0, caretaker: 0, admin: 0 };
-    let demoAccounts = 0;
-    for (const u of users) {
-      usersByRole[u.role] = (usersByRole[u.role] ?? 0) + 1;
-      if (u.isDemo) demoAccounts += 1;
+    for (const g of userRoleGroups) {
+      usersByRole[g.role] = g._count._all;
     }
 
     // ---- Partner applications ----
@@ -103,17 +179,21 @@ export async function GET(req: NextRequest) {
       return s;
     };
 
-    // ---- Appointments / lab bookings ----
+    // ---- Appointments / lab bookings (aggregated — no full-table scan) ----
     const apptStatus: Record<string, number> = {};
     let apptGross = 0;
     let apptGrossCompleted = 0;
     let apptCommission = 0;
-    for (const a of appointments) {
-      apptStatus[a.status] = (apptStatus[a.status] ?? 0) + 1;
-      if (a.status !== 'cancelled') apptGross += a.price;
+    let appointmentTotal = 0;
+    for (const a of appointmentGroups) {
+      apptStatus[a.status] = a._count._all;
+      appointmentTotal += a._count._all;
+      const price = a._sum.price ?? 0;
+      const commission = a._sum.commission ?? 0;
+      if (a.status !== 'cancelled') apptGross += price;
       if (a.status === 'completed') {
-        apptGrossCompleted += a.price;
-        apptCommission += a.commission;
+        apptGrossCompleted += price;
+        apptCommission += commission;
       }
     }
 
@@ -121,31 +201,35 @@ export async function GET(req: NextRequest) {
     let labGross = 0;
     let labGrossCompleted = 0;
     let labCommission = 0;
-    for (const b of labBookings) {
-      labStatus[b.status] = (labStatus[b.status] ?? 0) + 1;
-      if (b.status !== 'cancelled') labGross += b.price + b.deliveryFee;
+    let labBookingTotal = 0;
+    for (const b of labBookingGroups) {
+      labStatus[b.status] = b._count._all;
+      labBookingTotal += b._count._all;
+      const price = b._sum.price ?? 0;
+      const deliveryFee = b._sum.deliveryFee ?? 0;
+      const commission = b._sum.commission ?? 0;
+      if (b.status !== 'cancelled') labGross += price + deliveryFee;
       if (b.status === 'completed') {
-        labGrossCompleted += b.price + b.deliveryFee;
-        labCommission += b.commission;
+        labGrossCompleted += price + deliveryFee;
+        labCommission += commission;
       }
     }
 
     // ---- Payments / refunds ----
     const paymentStatus: Record<string, { count: number; sum: number }> = {};
-    for (const p of payments) {
-      const e = (paymentStatus[p.status] ??= { count: 0, sum: 0 });
-      e.count += 1;
-      e.sum += p.amount;
+    for (const p of paymentGroups) {
+      paymentStatus[p.status] = { count: p._count._all, sum: p._sum.amount ?? 0 };
     }
 
     const refundStatus: Record<string, number> = {};
     let refundsIssuedCents = 0;
-    let overdueRefunds = 0;
-    const sevenDays = 7 * 24 * 60 * 60 * 1000;
-    for (const r of refunds) {
-      refundStatus[r.status] = (refundStatus[r.status] ?? 0) + 1;
-      if (r.status === 'completed' || r.status === 'processing') refundsIssuedCents += r.amount;
-      if (r.status === 'pending' && Date.now() - r.createdAt.getTime() > sevenDays) overdueRefunds += 1;
+    let refundTotal = 0;
+    for (const r of refundGroups) {
+      refundStatus[r.status] = r._count._all;
+      refundTotal += r._count._all;
+      if (r.status === 'completed' || r.status === 'processing') {
+        refundsIssuedCents += r._sum.amount ?? 0;
+      }
     }
 
     // ---- Revenue ----
@@ -161,69 +245,64 @@ export async function GET(req: NextRequest) {
 
     // MRR: paid tiers × monthly price. 'pro' tier has no dedicated price in
     // SUBSCRIPTION_TIERS — it inherits 'plus' pricing (legacy tier).
-    const mrrCents = users.reduce((sum, u) => {
-      const key = u.subscriptionTier === 'pro' ? 'plus' : u.subscriptionTier;
-      return sum + Math.round(SUBSCRIPTION_TIERS[key].monthly * 100);
+    const mrrCents = tierGroups.reduce((sum, g) => {
+      const key = g.subscriptionTier === 'pro' ? 'plus' : g.subscriptionTier;
+      const tier = SUBSCRIPTION_TIERS[key];
+      if (!tier) return sum;
+      return sum + g._count._all * Math.round(tier.monthly * 100);
     }, 0);
     const mrrUsd = mrrCents / CENTS;
     // Est. annualized commission as MRR contribution (platform commission ÷ 12).
     const totalMrrUsd = mrrUsd + platformCommissionUsd / 12;
 
-    // ---- Partner leaderboard (top 8 by gross) ----
+    // ---- Partner leaderboard (top 8 by gross, aggregated) ----
     const partnerMap = new Map<
       string,
       { id: string; name: string; type: 'Doctor' | 'Lab'; lifetimeOrders: number; grossUsd: number }
     >();
-    for (const a of appointments) {
-      if (a.status === 'cancelled') continue;
+    for (const a of partnerDoctorRollup) {
       const doc = doctors.find(d => d.id === a.doctorId);
-      const name = doc?.user.name ?? 'Unknown doctor';
-      const e = partnerMap.get(`d-${a.doctorId}`) ?? {
+      partnerMap.set(`d-${a.doctorId}`, {
         id: a.doctorId,
-        name,
-        type: 'Doctor' as const,
-        lifetimeOrders: 0,
-        grossUsd: 0,
-      };
-      e.lifetimeOrders += 1;
-      e.grossUsd += a.price / CENTS;
-      partnerMap.set(`d-${a.doctorId}`, e);
+        name: doc?.user.name ?? 'Unknown doctor',
+        type: 'Doctor',
+        lifetimeOrders: a._count._all,
+        grossUsd: (a._sum.price ?? 0) / CENTS,
+      });
     }
-    for (const b of labBookings) {
-      if (b.status === 'cancelled') continue;
+    for (const b of partnerLabRollup) {
       const lab = labs.find(l => l.id === b.labId);
-      const name = lab?.labName ?? lab?.user.name ?? 'Unknown lab';
-      const e = partnerMap.get(`l-${b.labId}`) ?? {
+      partnerMap.set(`l-${b.labId}`, {
         id: b.labId,
-        name,
-        type: 'Lab' as const,
-        lifetimeOrders: 0,
-        grossUsd: 0,
-      };
-      e.lifetimeOrders += 1;
-      e.grossUsd += b.price / CENTS;
-      partnerMap.set(`l-${b.labId}`, e);
+        name: lab?.labName ?? lab?.user.name ?? 'Unknown lab',
+        type: 'Lab',
+        lifetimeOrders: b._count._all,
+        grossUsd: (b._sum.price ?? 0) / CENTS,
+      });
     }
     const partners = [...partnerMap.values()]
       .map(p => ({ ...p, tier: resolveTier(p.lifetimeOrders) }))
       .sort((x, y) => y.grossUsd - x.grossUsd)
       .slice(0, 8);
 
-    // ---- Retention ----
-    const patientIds = new Set(
-      users.filter(u => u.role === 'patient').map(u => u.id)
-    );
+    // ---- Retention (per-patient rollups) ----
+    const patientRoleCount = usersByRole.patient ?? 0;
     const bookingCount = new Map<string, number>();
     const lastBooking = new Map<string, number>();
-    const touch = (pid: string, ts: Date) => {
-      bookingCount.set(pid, (bookingCount.get(pid) ?? 0) + 1);
+    const touch = (pid: string, count: number, last: Date | null) => {
+      bookingCount.set(pid, (bookingCount.get(pid) ?? 0) + count);
+      const ts = last?.getTime() ?? 0;
       const prev = lastBooking.get(pid) ?? 0;
-      if (ts.getTime() > prev) lastBooking.set(pid, ts.getTime());
+      if (ts > prev) lastBooking.set(pid, ts);
     };
-    for (const a of appointments) touch(a.patientId, a.createdAt);
-    for (const b of labBookings) touch(b.patientId, b.createdAt);
+    for (const a of patientAppointmentRollup) {
+      touch(a.patientId, a._count._all, a._max.createdAt);
+    }
+    for (const b of patientLabRollup) {
+      touch(b.patientId, b._count._all, b._max.createdAt);
+    }
 
-    const totalPatients = patientIds.size;
+    const totalPatients = patientRoleCount;
     let activated = 0;
     let repeat = 0;
     const atRisk: {
@@ -235,15 +314,25 @@ export async function GET(req: NextRequest) {
       risk: 'high' | 'medium' | 'low';
     }[] = [];
     const now = Date.now();
-    for (const pid of patientIds) {
-      const n = bookingCount.get(pid) ?? 0;
-      if (n === 0) continue; // never engaged → not "at risk", just not yet active
+    const atRiskPatientIds: string[] = [];
+    for (const [pid, n] of bookingCount.entries()) {
+      if (n === 0) continue;
       activated += 1;
       if (n >= 2) repeat += 1;
       const last = lastBooking.get(pid) ?? 0;
       const days = Math.floor((now - last) / (24 * 60 * 60 * 1000));
-      if (days >= 7) {
-        const u = users.find(x => x.id === pid);
+      if (days >= 7) atRiskPatientIds.push(pid);
+    }
+    if (atRiskPatientIds.length > 0) {
+      const atRiskUsers = await db.user.findMany({
+        where: { id: { in: atRiskPatientIds.slice(0, 100) } },
+        select: { id: true, name: true, email: true, subscriptionTier: true },
+      });
+      const byId = new Map(atRiskUsers.map(u => [u.id, u]));
+      for (const pid of atRiskPatientIds.slice(0, 100)) {
+        const last = lastBooking.get(pid) ?? 0;
+        const days = Math.floor((now - last) / (24 * 60 * 60 * 1000));
+        const u = byId.get(pid);
         atRisk.push({
           id: pid,
           name: u?.name ?? u?.email ?? pid,
@@ -270,15 +359,12 @@ export async function GET(req: NextRequest) {
       const d = new Date(Date.now() - i * 30 * 24 * 60 * 60 * 1000);
       monthMap.set(fmtMonth(d), { gross: 0, commission: 0, refunds: 0 });
     }
-    for (const u of users) {
+    for (const u of signupTrendRows) {
       const key = fmtDay(u.createdAt);
       const e = dayMap.get(key);
       if (e) e.signups += 1;
-      const mk = fmtMonth(u.createdAt);
-      const m = monthMap.get(mk);
-      if (m) m.gross += 0; // signups aren't revenue; placeholder to keep map warm
     }
-    for (const a of appointments) {
+    for (const a of appointmentTrendRows) {
       const key = fmtDay(a.createdAt);
       const e = dayMap.get(key);
       if (e) e.bookings += 1;
@@ -288,7 +374,7 @@ export async function GET(req: NextRequest) {
       if (a.status !== 'cancelled') m.gross += a.price;
       if (a.status === 'completed') m.commission += a.commission;
     }
-    for (const b of labBookings) {
+    for (const b of labBookingTrendRows) {
       const key = fmtDay(b.createdAt);
       const e = dayMap.get(key);
       if (e) e.bookings += 1;
@@ -322,18 +408,18 @@ export async function GET(req: NextRequest) {
     return jsonOk({
       fetchedAt: new Date().toISOString(),
       stats: {
-        users: { ...usersByRole, total: users.length, demoAccounts },
+        users: { ...usersByRole, total: totalUsers, demoAccounts },
         doctorApps: appStatus(doctors as { verificationStatus: string }[]),
         labApps: appStatus(labs as { verificationStatus: string }[]),
-        appointments: { ...apptStatus, total: appointments.length },
-        labBookings: { ...labStatus, total: labBookings.length },
+        appointments: { ...apptStatus, total: appointmentTotal },
+        labBookings: { ...labStatus, total: labBookingTotal },
         payments: Object.fromEntries(
           Object.entries(paymentStatus).map(([k, v]) => [k, { ...v, usd: v.sum / CENTS }])
         ),
         refunds: {
           ...refundStatus,
           overdue: overdueRefunds,
-          total: refunds.length,
+          total: refundTotal,
           issuedUsd: refundsIssuedUsd,
         },
         fraud,
