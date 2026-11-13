@@ -286,6 +286,12 @@ export async function sendEmailReal(p: EmailPayload): Promise<SendResult> {
   // ──────────────────────────────────────────────────────────────────────────
   if (!isEmailEnabled()) {
     // Email disabled in this environment; avoid logging sensitive health data.
+    try {
+      const { captureQaEmail } = await import('@/lib/qa-email-sink')
+      captureQaEmail({ to: p.to, subject: p.subject, html: p.html, text: p.text })
+    } catch {
+      /* optional QA sink */
+    }
     return { ok: true, provider: 'mock-email', messageId: `mock_${Date.now()}`, mock: true }
   }
   try {

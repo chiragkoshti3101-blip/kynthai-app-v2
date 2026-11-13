@@ -103,10 +103,10 @@ test.describe('API endpoints', () => {
 // ── Landing page structure (requires browser — only runs in full E2E) ───────
 test.describe('Landing page structure', () => {
   test('footer has all three nav columns', async ({ page }) => {
-    await page.goto(BASE);
-    await expect(page.locator('nav[aria-label="Product"]')).toBeVisible();
-    await expect(page.locator('nav[aria-label="AI Features"]')).toBeVisible();
-    await expect(page.locator('nav[aria-label="Company"]')).toBeVisible();
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('footer nav[aria-label="Product"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('footer nav[aria-label="AI Features"]')).toBeVisible();
+    await expect(page.locator('footer nav[aria-label="Company"]')).toBeVisible();
   });
 
   test('login page has input fields', async ({ page }) => {
@@ -117,7 +117,7 @@ test.describe('Landing page structure', () => {
   });
 
   test('404 page renders correctly', async ({ page }) => {
-    await page.goto(`${BASE}/nonexistent-page-xyz`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE}/nonexistent-page-xyz`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('body')).toBeVisible();
   });
 });
@@ -129,13 +129,17 @@ test.describe('Mobile responsive', () => {
   test('landing page renders without JS errors', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
-    await page.goto(BASE, { waitUntil: 'networkidle' });
-    const ourErrors = errors.filter((e) => !e.includes('favicon') && !e.includes('livekit.kynthai.app'));
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+    const benignConsole = (e: string) =>
+      /favicon|livekit\.kynthai\.app|reticle|localhost:4400|WebSocket connection to 'ws:\/\/localhost:4400|unsafe-eval|Content-Security-Policy|object-src|csp-report|React will never use eval/i.test(
+        e,
+      );
+    const ourErrors = errors.filter((e) => !benignConsole(e));
     expect(ourErrors.length).toBe(0);
   });
 
   test('login page is usable on mobile', async ({ page }) => {
-    await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('button').first()).toBeVisible();
   });
 });

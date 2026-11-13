@@ -34,10 +34,16 @@ export default function ResetPasswordClient() {
     }
     setLoading(true)
     try {
+      const csrfRes = await fetch('/api/auth/csrf')
+      const { token: csrf } = (await csrfRes.json().catch(() => ({}))) as { token?: string }
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrf ? { 'x-csrf-token': csrf } : {}),
+        },
         body: JSON.stringify({ token, password }),
+        credentials: 'same-origin',
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to reset password')

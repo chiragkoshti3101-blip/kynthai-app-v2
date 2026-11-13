@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
+    "dev:qa": "bash -c 'set -a && [ -f .env.local ] && . ./.env.local; set +a && next dev -p 3000'",
+    "test:qa": "bash scripts/qa-regression.sh",
     "prebuild": "node scripts/cache-bust.js",
     "build": "npx prisma generate && NODE_ENV=production next build",
     "start": "NODE_ENV=production next start",

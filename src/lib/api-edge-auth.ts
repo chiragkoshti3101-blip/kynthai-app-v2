@@ -13,6 +13,7 @@ export const SYSTEM_API_PATHS = [
   '/api/chat/cleanup',
   '/api/auth/logout',
   '/api/system/seed-demo',
+  '/api/system/email-capture',
   '/api/system/test-dose',
   '/api/notifications/fcm-register',
   '/api/newsletter',

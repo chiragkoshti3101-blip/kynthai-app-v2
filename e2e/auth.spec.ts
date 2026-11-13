@@ -5,7 +5,7 @@ test.describe('Authentication', () => {
   test.describe('Login Page', () => {
     test('login page loads with form elements', async ({ page }) => {
       await goto(page, '/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Form elements visible
       await expect(page.locator('input[type="email"]')).toBeVisible();
@@ -21,7 +21,7 @@ test.describe('Authentication', () => {
 
     test('shows validation error for empty form', async ({ page }) => {
       await goto(page, '/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Submit empty form
       await page.locator('#login-submit-btn').click();
@@ -37,7 +37,7 @@ test.describe('Authentication', () => {
       page.on('console', collectConsoleErrors(errors));
 
       await goto(page, '/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Fill with wrong credentials
       await page.fill('input[type="email"]', 'nonexistent@test.com');
@@ -56,7 +56,7 @@ test.describe('Authentication', () => {
       page.on('console', collectConsoleErrors(errors));
 
       await goto(page, '/login');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Use demo patient credentials
       const demo = DEMO_ACCOUNTS.patient;
@@ -74,7 +74,7 @@ test.describe('Authentication', () => {
   test.describe('Registration Page', () => {
     test('register page loads with form', async ({ page }) => {
       await goto(page, '/register');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
 
       // Form elements
       const inputs = await page.locator('input').count();
@@ -88,7 +88,7 @@ test.describe('Authentication', () => {
   test.describe('Forgot Password', () => {
     test('forgot password page loads', async ({ page }) => {
       await goto(page, '/forgot-password');
-      await page.waitForLoadState('networkidle');
+      await page.waitForLoadState('domcontentloaded');
       await expect(page.locator('input[type="email"]').or(page.locator('form')).first()).toBeVisible();
     });
   });
