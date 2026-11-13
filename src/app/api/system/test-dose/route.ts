@@ -7,6 +7,13 @@ import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
+const ALLOWED_TEST_DOSE_EMAILS = new Set([
+  'patient@kynthai.app',
+  'patient@demo.kynthai.app',
+  'caretaker@kynthai.app',
+  'caretaker@demo.kynthai.app',
+])
+
 /**
  * GET/POST /api/system/test-dose
  * Auth: Bearer $CRON_SECRET
@@ -18,8 +25,18 @@ async function run(req: NextRequest) {
   if (response || !user) return response!
 
   try {
-    const email =
-      req.nextUrl.searchParams.get('email') || 'patient@kynthai.app'
+    let email = 'patient@kynthai.app'
+    const requested = req.nextUrl.searchParams.get('email')?.trim()
+    if (process.env.VERCEL_ENV === 'production') {
+      if (requested && requested !== email) {
+        return jsonError('Custom email is not allowed in production', 403, 'FORBIDDEN')
+      }
+    } else if (requested) {
+      if (!ALLOWED_TEST_DOSE_EMAILS.has(requested)) {
+        return jsonError('Email is not on the test-dose allowlist', 403, 'FORBIDDEN')
+      }
+      email = requested
+    }
     const u = await db.user.findUnique({ where: { email } })
     if (!u) return jsonError(`User not found: ${email}`, 404)
 

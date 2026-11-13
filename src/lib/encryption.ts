@@ -11,10 +11,22 @@
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, scryptSync } from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 12;
+const SALT_LENGTH = 16;
 const KEY_VERSION = 1;
 
 let _KEY: Buffer | null = null;
 
+/**
+ * Get the master encryption key as a proper 32-byte buffer.
+ *
+ * Resolution order:
+ *   1. ENCRYPTION_KEY (64 hex chars = 32 bytes when hex-decoded)
+ *   2. MASTER_ENCRYPTION_KEY (legacy alias, also hex)
+ *
+ * In production: throws if neither is set (fail-closed).
+ * In development: generates a per-process random key.
+ */
 function getKey(): Buffer {
   if (_KEY) return _KEY;
 
@@ -67,20 +79,20 @@ export function encryptFile(data: Buffer): {
   salt: Buffer;
   authTag: Buffer;
 } {
-  const salt = randomBytes(16);
+  const salt = randomBytes(SALT_LENGTH);
   const fileKey = deriveFileKey(salt);
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', fileKey, iv);
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, fileKey, iv);
 
   const encryptedData = Buffer.concat([cipher.update(data), cipher.final()]);
   const authTag = cipher.getAuthTag();
 
-  return { version: 1, encryptedData, iv, salt, authTag };
+  return { version: KEY_VERSION, encryptedData, iv, salt, authTag };
 }
 
 export function encryptHealthFile(raw: Buffer): Buffer {
   const { version, encryptedData, iv, salt, authTag } = encryptFile(raw);
-  const versionBuf = Buffer.from([1]);
+  const versionBuf = Buffer.from([version]);
   return Buffer.concat([versionBuf, iv, salt, authTag, encryptedData]);
 }
 
@@ -96,33 +108,16 @@ export function decryptHealthFile(stored: Buffer): Buffer {
   const ciphertext = stored.subarray(45);
 
   const fileKey = deriveFileKey(salt);
-  const decipher = createDecipheriv('aes-256-gcm', fileKey, iv);
+  const decipher = createDecipheriv(ALGORITHM, fileKey, iv);
   decipher.setAuthTag(authTag);
 
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
 
-export function encryptString(text: string): string {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', getKey(), iv);
-  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-
-  return Buffer.concat([iv, authTag, encrypted]).toString('base64');
-}
-
-export function decryptString(encryptedBase64: string): string {
-  const data = Buffer.from(encryptedBase64, 'base64');
-  const iv = data.subarray(0, 12);
-  const authTag = data.subarray(12, 28);
-  const ciphertext = data.subarray(28);
-
-  const fileKey = deriveFileKey(randomBytes(16));
-  const decipher = createDecipheriv('aes-256-gcm', getKey(), iv);
-  decipher.setAuthTag(authTag);
-
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
-}
+/**
+ * BACKWARD COMPATIBILITY LAYER
+ * These functions maintain compatibility with the legacy API used throughout the codebase.
+ */
 
 export function encrypt(text: string): string {
   const iv = randomBytes(12);
@@ -144,18 +139,53 @@ export function decryptValue(encryptedBase64: string): string {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
 }
 
-// Medical documents keep iv/salt/authTag in an `iv:salt:tag` encryptionKey column,
-// separate from the ciphertext. Packed envelopes are handled by decryptHealthFile.
-export function decryptFile(
-  ciphertext: Buffer,
+/** Split metadata form used by medical document storage (ciphertext + iv + salt + authTag). */
+export function decryptFileParts(
+  encryptedData: Buffer,
   iv: Buffer,
   salt: Buffer,
-  authTag: Buffer
+  authTag: Buffer,
 ): Buffer {
   const fileKey = deriveFileKey(salt);
   const decipher = createDecipheriv(ALGORITHM, fileKey, iv);
   decipher.setAuthTag(authTag);
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  return Buffer.concat([decipher.update(encryptedData), decipher.final()]);
+}
+
+function decryptFilePacked(stored: Buffer): Buffer {
+  if (stored.length <= 1 + 12 + 16 + 16) {
+    throw new Error('Stored file is truncated or corrupt.');
+  }
+
+  const iv = stored.subarray(1, 13);
+  const salt = stored.subarray(13, 29);
+  const authTag = stored.subarray(29, 45);
+  const ciphertext = stored.subarray(45);
+
+  return decryptFileParts(ciphertext, iv, salt, authTag);
+}
+
+/**
+ * Decrypt file bytes. Accepts either the packed envelope (single buffer) or
+ * the split form returned by `encryptFile`.
+ */
+export function decryptFile(stored: Buffer): Buffer;
+export function decryptFile(
+  encryptedData: Buffer,
+  iv: Buffer,
+  salt: Buffer,
+  authTag: Buffer,
+): Buffer;
+export function decryptFile(
+  storedOrEncrypted: Buffer,
+  iv?: Buffer,
+  salt?: Buffer,
+  authTag?: Buffer,
+): Buffer {
+  if (iv !== undefined && salt !== undefined && authTag !== undefined) {
+    return decryptFileParts(storedOrEncrypted, iv, salt, authTag);
+  }
+  return decryptFilePacked(storedOrEncrypted);
 }
 
 export function generateFileId(): string {
@@ -179,4 +209,3 @@ export function decryptValueAlias(encryptedBase64: string): string {
 export function hashValue(value: string): string {
   return createHmac('sha256', getKey()).update(value).digest('hex');
 }
-

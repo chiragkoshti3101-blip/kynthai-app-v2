@@ -358,6 +358,7 @@ model ConsultMessage {
 
   @@index([appointmentId, createdAt])
   @@index([doctorId, createdAt])
+  @@index([senderId])
   @@map("consult_messages")
 }
 

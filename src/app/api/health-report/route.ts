@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createChatCompletion, choicesOf } from '@/lib/nvidia'
+import { createChatCompletion, choicesOf, isAiAvailable } from '@/lib/nvidia'
 import { db } from '@/lib/db'
 import { requireAuthWithCsrf, checkAiTier, jsonError } from '@/lib/api-helpers'
 import { logAudit } from '@/lib/auth'
 import { withAiTimeout, AiTimeoutError, AI_TIMEOUTS } from '@/lib/ai-timeout'
 import { logger } from '@/lib/logger'
 import { dateStr, daysAgo } from '@/lib/utils'
+import {
+  buildHealthReportLlmUserContent,
+  HEALTH_REPORT_DISCLAIMER,
+} from '@/lib/health-report-payload'
 export const dynamic = 'force-dynamic'
 
 // POST /api/health-report — Generate monthly AI health report
@@ -15,6 +19,17 @@ export async function POST(req: NextRequest) {
 
   const tierErr = await checkAiTier(user, 'health report')
   if (tierErr) return tierErr
+
+  if (!isAiAvailable()) {
+    return NextResponse.json(
+      {
+        error: 'Health report generation is temporarily unavailable.',
+        code: 'AI_UNAVAILABLE',
+        message: 'Configure NVIDIA_API_KEY to enable AI health reports.',
+      },
+      { status: 503 },
+    )
+  }
 
   // Audit: health report generation (accesses medication + journal + lab sensitive health data)
   await logAudit(user.id, 'health.report.generate', { resourceType: 'HealthScore' })
@@ -71,48 +86,35 @@ export async function POST(req: NextRequest) {
     const totalTaken = allReminders.filter((r: any) => r.status === 'taken').length
     const adherence = totalDoses === 0 ? 0 : Math.round((totalTaken / totalDoses) * 100)
 
-    // Build data payload
-    const dataPayload = {
-      periodDays: span,
-      patient: {
-        name: user.name,
-        age: user.dateOfBirth
-          ? Math.floor((Date.now() - new Date(user.dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-          : null,
-        allergies: user.allergies,
-      },
-      medications: meds.map((m: any) => ({
-        name: m.name,
-        dosage: m.dosage,
+    const llmUserContent = buildHealthReportLlmUserContent({
+      dateOfBirth: user.dateOfBirth,
+      allergies: user.allergies,
+      span,
+      startDate,
+      endDate,
+      medications: meds.map(m => ({
+        name: m.name ?? '',
+        dosage: m.dosage ?? undefined,
         frequency: m.frequency,
-        times: m.times,
       })),
-      chronicConditions: conditions.map((c: any) => ({
-        name: c.name,
+      conditions: conditions.map(c => ({
+        name: c.name ?? '',
         severity: c.severity,
       })),
+      journalEntries,
       adherence: {
         totalDoses,
         totalTaken,
-        totalSkipped: allReminders.filter((r: any) => r.status === 'skipped').length,
+        totalSkipped: allReminders.filter((r: { status: string }) => r.status === 'skipped').length,
         adherencePct: adherence,
       },
-      healthScores: healthScores.map((h: any) => ({
-        date: h.date,
+      healthScores: healthScores.map(h => ({
+        date: h.date instanceof Date ? h.date.toISOString().slice(0, 10) : String(h.date),
         score: h.score,
       })),
-      journalSummary: {
-        totalEntries: journalEntries.length,
-        symptomsReported: journalEntries.reduce((acc, j) => {
-          const syms = JSON.parse(j.symptoms || '[]')
-          return acc + syms.length
-        }, 0),
-        averageMood: getMostCommon(journalEntries.map((j: any) => j.mood).filter(Boolean)),
-      },
-      recentHealthQuestions: chatMessages.slice(0, 5).map((m: any) => m.content),
-    }
+      chatMessageCount: chatMessages.length,
+    })
 
-    
     const completion = await withAiTimeout(
       createChatCompletion({
 
@@ -123,7 +125,7 @@ export async function POST(req: NextRequest) {
 
 Return ONLY valid JSON (no markdown) with this exact shape:
 {
-  "reportTitle": "Monthly Health Report for [Patient Name]",
+          "reportTitle": "Monthly Health Report",
   "period": "June 1 - June 30, 2026",
   "executiveSummary": "2-3 sentence overview of the patient's health this month",
   "adherenceAnalysis": {
@@ -175,7 +177,7 @@ Be thorough, specific, and reference actual data. Use relevant clinical context 
           },
           {
             role: 'user',
-            content: `Generate my monthly health report based on this data:\n\n${JSON.stringify(dataPayload, null, 2)}`,
+            content: llmUserContent,
           },
         ],
       }),
@@ -193,7 +195,7 @@ Be thorough, specific, and reference actual data. Use relevant clinical context 
       report = JSON.parse(cleaned)
     } catch {
       report = {
-        reportTitle: `Health Report for ${user.name}`,
+        reportTitle: 'Monthly Health Report',
         period: `${startDate} to ${endDate}`,
         executiveSummary: content || 'Report generation completed.',
         adherenceAnalysis: { score: 'Good', details: `${adherence}% adherence`, improvements: [] },
@@ -204,7 +206,12 @@ Be thorough, specific, and reference actual data. Use relevant clinical context 
         questionsForDoctor: [],
         overallHealthScore: { score: adherence, trend: 'stable', explanation: 'Based on medication adherence' },
         motivationalNote: 'Keep up the good work with your health!',
+        disclaimer: HEALTH_REPORT_DISCLAIMER,
       }
+    }
+
+    if (typeof report === 'object' && report !== null) {
+      ;(report as Record<string, unknown>).disclaimer = HEALTH_REPORT_DISCLAIMER
     }
 
     return NextResponse.json({
@@ -227,21 +234,4 @@ Be thorough, specific, and reference actual data. Use relevant clinical context 
     }
     return jsonError('Failed to generate health report', 500, 'REPORT_ERROR')
   }
-}
-
-function getMostCommon(arr: (string | null)[]): string | null {
-  if (arr.length === 0) return null
-  const counts = new Map<string, number>()
-  for (const item of arr) {
-    if (item) counts.set(item, (counts.get(item) || 0) + 1)
-  }
-  let maxCount = 0
-  let mostCommon: string | null = null
-  for (const [item, count] of counts) {
-    if (count > maxCount) {
-      maxCount = count
-      mostCommon = item
-    }
-  }
-  return mostCommon
 }

@@ -223,7 +223,8 @@ function getEncCounterpart(model: string, fieldName: string): string | null {
  *   database migration. Complete the controlled backfill and verification
  *   before disabling this mode.
  */
-const TRANSITIONAL = process.env.ENCRYPTION_TRANSITIONAL === 'true'
+/** Fallback to legacy plaintext columns when *_enc is null (until backfill completes). */
+const TRANSITIONAL = process.env.ENCRYPTION_TRANSITIONAL !== 'false'
 
 function encryptPayload(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null
@@ -258,7 +259,9 @@ function encryptArgs(args: Record<string, unknown>, model: string, applyDefaults
 
   for (const field of fields) {
     const hasPlainInput = Object.prototype.hasOwnProperty.call(args.data as object, field.as)
+    const hasEncInput = Object.prototype.hasOwnProperty.call(args.data as object, field.enc)
     const supplied = (args.data as any)[field.as]
+    const encSupplied = (args.data as any)[field.enc]
     const plain = supplied === undefined && applyDefaults && field.defaultValue !== undefined
       ? field.defaultValue
       : supplied
@@ -269,6 +272,14 @@ function encryptArgs(args: Record<string, unknown>, model: string, applyDefaults
     } else if ((plain === null || plain === '') && (hasPlainInput || (applyDefaults && field.defaultValue !== undefined))) {
       (args.data as any)[field.enc] = null
       if (field.search) (args.data as any)[field.search] = null
+      ;(args.data as any)[field.as] = clearedPlainValue(field)
+    } else if (
+      hasEncInput &&
+      encSupplied !== undefined &&
+      encSupplied !== null &&
+      encSupplied !== ''
+    ) {
+      // Ciphertext supplied without plaintext — never leave a stale plaintext column.
       ;(args.data as any)[field.as] = clearedPlainValue(field)
     }
   }
@@ -603,6 +614,7 @@ export function encryptSensitiveFields(data: Record<string, any>, model: string)
   const result = { ...data }
   for (const field of fields) {
     const plain = result[field.as]
+    const encVal = result[field.enc]
     if (plain !== undefined && plain !== null && plain !== '') {
       result[field.enc] = encryptPayload(plain)
       if (field.search) result[field.search] = hashValue(String(plain))
@@ -610,6 +622,8 @@ export function encryptSensitiveFields(data: Record<string, any>, model: string)
     } else if ((plain === null || plain === '') && result[field.as] !== undefined) {
       result[field.enc] = null
       if (field.search) result[field.search] = null
+      result[field.as] = clearedPlainValue(field)
+    } else if (encVal !== undefined && encVal !== null && encVal !== '') {
       result[field.as] = clearedPlainValue(field)
     }
   }
