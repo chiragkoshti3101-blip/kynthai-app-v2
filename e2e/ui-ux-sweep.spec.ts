@@ -100,6 +100,7 @@ for (const role of ['patient', 'doctor', 'lab'] as const) {
 // the reproducible a11y regression guard. On the live prod-smoke run it is
 // log-only: kynthai.app may be mid-deploy at test time, so a strict assertive
 // gate there would flakily block merges for a stale deploy.
+test.setTimeout(90000);
 test('A11y: landing + login + pricing — WCAG 2.x AA (hard on local build, log on prod)', async ({ page }) => {
   for (const path of ['/', '/login', '/pricing']) {
     await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
