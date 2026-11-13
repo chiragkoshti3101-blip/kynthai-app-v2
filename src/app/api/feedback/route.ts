@@ -11,10 +11,10 @@ const feedbackSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: z.string().email('Valid email is required').max(200),
   category: z.enum(['bug', 'feature', 'general'], {
-    required_error: 'Category is required',
+    errorMap: () => ({ message: 'Category is required' }),
   }),
   message: z.string().min(1, 'Message is required').max(5000),
-});
+);
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
         category: result.data.category,
         message: result.data.message,
       },
-    });
+    );
 
     return jsonOk({ id: feedback.id, message: 'Feedback submitted successfully' });
   } catch (error) {
