@@ -121,7 +121,7 @@ Kynthai is **live, secure, and serving real users** at `https://kynthai.app` (an
 | `NEXTAUTH_URL` | `https://kynthai.app` |
 | `DATABASE_POOL_SIZE` | `20` |
 | `RATE_LIMIT_REQUESTS` | `100` per 15 min |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_AyP3FdFPgZItUC5bsZZt5A_J2C_XyVV` |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `sb_publishable_…` (redacted — see Vercel/Supabase env) |
 
 ### Feature flags ✅
 - `FEATURE_FLAG_AI_CHAT` = `true`

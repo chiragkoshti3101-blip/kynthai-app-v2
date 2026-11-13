@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { requireOperatorToken } from '@/lib/operator-token'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,11 +44,8 @@ function isValidTimeZone(tz: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  const expected = process.env.SCHEMA_BOOTSTRAP_TOKEN
-  const provided = req.headers.get('authorization') ?? ''
-  if (!expected || provided !== `Bearer ${expected}`) {
-    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
-  }
+  const unauthorized = requireOperatorToken(req)
+  if (unauthorized) return unauthorized
 
   let body: { timezone?: unknown; email?: unknown; allMissing?: unknown }
   try {

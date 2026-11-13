@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
+import { requireOperatorToken } from '@/lib/operator-token'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,11 +39,8 @@ async function safeGroup(sql: string): Promise<Array<{ k: string; n: number }> |
 }
 
 export async function GET(req: NextRequest) {
-  const expected = process.env.SCHEMA_BOOTSTRAP_TOKEN
-  const provided = req.headers.get('authorization') ?? ''
-  if (!expected || provided !== `Bearer ${expected}`) {
-    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
-  }
+  const unauthorized = requireOperatorToken(req)
+  if (unauthorized) return unauthorized
 
   const out: Record<string, unknown> = { ok: true, generatedAt: new Date().toISOString() }
 

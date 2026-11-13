@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server'
-import { timingSafeEqual } from 'crypto'
 import { db } from '@/lib/db'
-import { rateLimit } from '@/lib/security'
+import { requireOperatorToken } from '@/lib/operator-token'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,20 +29,9 @@ export const dynamic = 'force-dynamic'
  * enforces CSRF on state-changing methods, and the statements are idempotent.
  * Disable after the migration by unsetting SCHEMA_BOOTSTRAP_TOKEN.
  */
-function tokenMatches(provided: string, expected: string): boolean {
-  const a = Buffer.from(provided)
-  const b = Buffer.from(`Bearer ${expected}`)
-  return a.length === b.length && timingSafeEqual(a, b)
-}
-
 export async function GET(req: NextRequest) {
-  const limited = rateLimit(req, 5, 60_000)
-  if (limited) return limited
-
-  const expected = process.env.SCHEMA_BOOTSTRAP_TOKEN
-  if (!expected || !tokenMatches(req.headers.get('authorization') ?? '', expected)) {
-    return Response.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
-  }
+  const unauthorized = requireOperatorToken(req)
+  if (unauthorized) return unauthorized
 
   try {
     await db.$executeRawUnsafe(

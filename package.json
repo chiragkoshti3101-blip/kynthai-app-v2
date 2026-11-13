@@ -144,7 +144,7 @@
     "hyperid": {
       "uuid": "$uuid"
     },
-    "fast-uri": "3.1.6",
+    "fast-uri": "3.1.9",
     "deepmerge-ts": "8.0.2",
     "js-yaml": "4.3.2"
   }
