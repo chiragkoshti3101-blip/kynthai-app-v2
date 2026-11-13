@@ -51,7 +51,6 @@ export async function assertNoConsoleErrors(errors: string[]) {
 export async function loginAs(page: Page, role: DemoRole, expectRedirect?: string): Promise<boolean> {
   const account = DEMO_ACCOUNTS[role];
   await goto(page, '/login');
-  await page.waitForLoadState('networkidle');
 
   // Fill login form
   await page.fill('input[type="email"]', account.email);
@@ -65,7 +64,7 @@ export async function loginAs(page: Page, role: DemoRole, expectRedirect?: strin
   // S4/S5). page.request shares the context cookie jar, so /api/auth/me reflects
   // exactly what the caller will read next.
   const origin = new URL(page.url()).origin;
-  const deadline = Date.now() + 30000;
+  const deadline = Date.now() + 20000;
   let authed = false;
   while (Date.now() < deadline) {
     const me = await page.request.get(`${origin}/api/auth/me`);
@@ -79,7 +78,7 @@ export async function loginAs(page: Page, role: DemoRole, expectRedirect?: strin
 
   // Wait for redirect after login
   if (expectRedirect) {
-    await page.waitForURL(`**${expectRedirect}`, { timeout: 15000 });
+    await page.waitForURL(`**${expectRedirect}`, { timeout: 20000 });
   }
   return authed;
 }
