@@ -17,10 +17,7 @@ export const createAppointmentSchema = z.object({
 export const updateAppointmentSchema = z.object({
   id: z.string().uuid('id must be a valid UUID'),
   status: z.enum(['pending', 'confirmed', 'completed', 'cancelled', 'no-show', 'rescheduled'], {
-    errorMap: () => ({
-      message:
-        'Status must be one of: pending, confirmed, completed, cancelled, no-show, rescheduled',
-    }),
+    error: 'Status must be one of: pending, confirmed, completed, cancelled, no-show, rescheduled',
   }),
   notes: z.string().max(1000).optional().nullable(),
 });

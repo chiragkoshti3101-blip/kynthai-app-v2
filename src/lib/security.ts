@@ -8,9 +8,9 @@
  * Sanitization strategy (defense in depth):
  * 1. Strip control characters (except whitespace)
  * 2. Remove <script>…</script> blocks entirely (tag + contents)
- * 3. Remove event handler attributes (onclick, onerror, onload, etc.)
- * 4. Remove javascript: URLs
- * 5. Strip remaining HTML tags
+ * 3. Remove HTML comments
+ * 4. Remove javascript: URL schemes
+ * 5. Strip remaining HTML tags (tag-name anchored, so `a < b` survives)
  * 6. Trim and truncate to maxLen
  *
  * CWE coverage: CWE-20 (Improper Input Validation), CWE-79 (XSS), CWE-80 (Improper Neutralization of Script-Related HTML Tags), CWE-116 (Improper Neutralization of Output)
@@ -24,17 +24,19 @@ const E164_RE = /^\+[1-9]\d{6,14}$/
 // ── Control characters (except allowed whitespace) ──────────────────────────
 const CONTROL_CHARS_RE = /[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g
 
-// ── <script>…</script> blocks — remove tag AND contents (greedy, case-insensitive, dotall) ────
-const SCRIPT_BLOCK_RE = /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi
+// ── <script>…</script> blocks — remove tag AND contents (case-insensitive) ────
+const SCRIPT_BLOCK_RE = /<script\b[^>]*>[\s\S]*?<\/script\s*>/gi
 
-// ── Event handler attributes: onclick=, onerror=, onload=, etc. ──────────────
-const EVENT_HANDLER_RE = /\s+on[a-zA-Z]+\s*=\s*(["'])[\s\S]*?\1/g
+// ── HTML comments — can otherwise hide markup from the tag stripper ─────────
+const HTML_COMMENT_RE = /<!--[\s\S]*?-->/g
 
 // ── javascript: URLs ────────────────────────────────────────────────────────
 const JAVASCRIPT_URL_RE = /javascript\s*:/gi
 
 // ── Remaining HTML tags ─────────────────────────────────────────────────────
-const HTML_TAG_RE = /<[^>]*>/g
+// A tag must start with an optional `/` and a letter, so plain comparisons such
+// as `BP < 120 and > 90` are preserved instead of being swallowed as markup.
+const HTML_TAG_RE = /<\/?[a-zA-Z][^<>]*>/g
 
 export function isValidEmail(email: string): boolean {
   return typeof email === 'string' && email.length <= 254 && EMAIL_RE.test(email)
@@ -62,11 +64,12 @@ export function sanitizeText(input: unknown, maxLen = 1000): string {
   // 2. Remove complete <script> blocks (tag + contents)
   text = text.replace(SCRIPT_BLOCK_RE, '')
 
-  // 3. Remove event handler attributes (onclick, onerror, etc.)
-  text = text.replace(EVENT_HANDLER_RE, '')
+  // 3. Remove HTML comments, which can otherwise hide markup
+  text = text.replace(HTML_COMMENT_RE, '')
 
-  // 4. Neutralize javascript: URLs
-  text = text.replace(JAVASCRIPT_URL_RE, 'javascript:')
+  // 4. Remove the javascript: scheme so the value is no longer a navigable
+  //    script URL (the previous replacement was an identical string).
+  text = text.replace(JAVASCRIPT_URL_RE, '')
 
   // 5. Strip remaining HTML tags
   text = text.replace(HTML_TAG_RE, '')

@@ -206,20 +206,31 @@ export function decryptValue(encryptedBase64: string): string {
  * Legacy decryptFile function - decrypts a file buffer from stored envelope
  * @deprecated Use decryptHealthFile instead
  */
-export function decryptFile(stored: Buffer): Buffer {
+export function decryptFile(stored: Buffer): Buffer;
+export function decryptFile(ciphertext: Buffer, iv: Buffer, salt: Buffer, authTag: Buffer): Buffer;
+export function decryptFile(stored: Buffer, iv?: Buffer, salt?: Buffer, authTag?: Buffer): Buffer {
+  // Split form: ciphertext with iv/salt/tag stored separately
+  // (medical documents keep them as an `iv:salt:tag` encryptionKey string).
+  if (iv && salt && authTag) {
+    const fileKey = deriveFileKey(salt);
+    const decipher = createDecipheriv(ALGORITHM, fileKey, iv);
+    decipher.setAuthTag(authTag);
+    return Buffer.concat([decipher.update(stored), decipher.final()]);
+  }
+
+  // Envelope form: version byte | iv | salt | tag | ciphertext
   if (stored.length <= 1 + 12 + 16 + 16) {
     throw new Error('Stored file is truncated or corrupt.');
   }
 
-  const version = stored[0];
-  const iv = stored.subarray(1, 13);
-  const salt = stored.subarray(13, 29);
-  const authTag = stored.subarray(29, 45);
+  const envelopeIv = stored.subarray(1, 13);
+  const envelopeSalt = stored.subarray(13, 29);
+  const envelopeTag = stored.subarray(29, 45);
   const ciphertext = stored.subarray(45);
 
-  const fileKey = deriveFileKey(salt);
-  const decipher = createDecipheriv('aes-256-gcm', fileKey, iv);
-  decipher.setAuthTag(authTag);
+  const fileKey = deriveFileKey(envelopeSalt);
+  const decipher = createDecipheriv(ALGORITHM, fileKey, envelopeIv);
+  decipher.setAuthTag(envelopeTag);
 
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
@@ -266,15 +277,10 @@ export function hashValue(value: string): string {
   return createHmac('sha256', getKey()).update(value).digest('hex');
 }
 
-// Re-export the new secure functions with their original names for clarity
+// Re-export the master key and the V2 aliases for callers that use them directly.
+// The plain names are already exported above, so re-exporting them again here
+// is a duplicate declaration.
 export {
-  getKeyVersion,
-  deriveFileKey,
-  encryptFile,
-  encryptHealthFile,
-  decryptHealthFile,
-  encryptString,
-  decryptString,
   getKey,
   encryptFile as encryptFileV2,
   decryptHealthFile as decryptFileV2,
