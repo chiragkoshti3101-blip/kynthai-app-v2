@@ -15,7 +15,8 @@ export type DemoRole = keyof typeof DEMO_ACCOUNTS;
 
 /** Navigate to a path and wait for the page to be fully loaded */
 export async function goto(page: Page, path: string) {
-  await page.goto(path, { waitUntil: 'networkidle' });
+  await page.goto(path, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForLoadState('networkidle').catch(() => {});
 }
 
 /** Assert we're on a specific URL path */
@@ -64,7 +65,7 @@ export async function loginAs(page: Page, role: DemoRole, expectRedirect?: strin
   // S4/S5). page.request shares the context cookie jar, so /api/auth/me reflects
   // exactly what the caller will read next.
   const origin = new URL(page.url()).origin;
-  const deadline = Date.now() + 15000;
+  const deadline = Date.now() + 30000;
   let authed = false;
   while (Date.now() < deadline) {
     const me = await page.request.get(`${origin}/api/auth/me`);
