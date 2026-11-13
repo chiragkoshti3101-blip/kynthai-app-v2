@@ -148,9 +148,10 @@ export async function POST(req: NextRequest) {
 
     const verdict = await scanBuffer(fileBuffer, file.name);
     if (verdict.infected) {
+      // Audit stores the resource type only: filenames and scanner detail can
+      // themselves reveal a diagnosis, so they stay out of the audit trail.
       await logAudit(user.id, 'document.upload.rejected_malware', {
         resourceType: 'MedicalDocument',
-        details: verdict.details,
       });
       return NextResponse.json(
         { error: 'This file was flagged as potentially malicious and was not uploaded.' },

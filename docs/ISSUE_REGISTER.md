@@ -252,6 +252,7 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 | **Paths** | `src/lib/session-signing.ts:23-24` |
 | **Fix** | Require dedicated `SESSION_SIGNING_SECRET` in production; remove fallback. |
 | **Acceptance** | App fails startup in prod if `SESSION_SIGNING_SECRET` unset. |
+| **Status** | **Fixed (conservative)** — production no longer uses `SUPABASE_SERVICE_ROLE_KEY` as the HMAC key; signing returns `null` and logs CRITICAL instead. Startup is not crashed, so a missing secret degrades to unauthenticated rather than a dead deployment. |
 
 ### KYN-MED-002 — Legacy lab share: empty `resultsSharedWith` allows any verified doctor
 
@@ -269,11 +270,13 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 
 | **Paths** | `src/app/api/admin/bootstrap-schema/route.ts` |
 | **Fix** | One-time migration job; disable after use; rate-limit failures. |
+| **Status** | **Fixed** — constant-time token compare, 5/min rate limit, fails closed when `SCHEMA_BOOTSTRAP_TOKEN` is unset; fixed DDL only. Unset the token after the migration to disable it. |
 
 ### KYN-MED-005 — Audit `details` stores PHI-adjacent strings
 
 | **Paths** | `src/app/api/documents/upload/route.ts`, download audit lines |
 | **Fix** | Store resource type + masked ID only. |
+| **Status** | **Fixed** — malware-rejection audit keeps `resourceType` only; filenames/scanner detail (diagnosis-revealing) are no longer persisted. |
 
 ### KYN-MED-006 — Many PHI fields never enrolled in encryption middleware
 
@@ -284,21 +287,25 @@ Severity scale: **Critical** (exploit/data loss/build blocker) → **High** → 
 
 | **Paths** | `src/lib/notifications.ts:657-668` |
 | **Fix** | Generic push body; clinical text in-app only. |
+| **Status** | **Fixed** — `nudge` push title/body are generic; the free-text message still reaches the in-app inbox via the notification record. |
 
 ### KYN-MED-008 — Supabase storage client placeholder credentials
 
 | **Paths** | `src/lib/storage.ts:11-12` |
 | **Fix** | Fail closed in production if URL/key missing. |
+| **Status** | **Fixed** — `getSupabaseAdmin()` throws in production when URL/key are absent (placeholder client is dev-only). |
 
 ### KYN-MED-009 — Server Supabase client may fall back to anon key
 
 | **Paths** | `src/lib/supabase/get-server-client.ts` |
 | **Fix** | Never use anon key for admin storage paths. |
+| **Status** | **Fixed** — `getSupabaseServerKey()` returns the anon key only outside production; production resolves service/secret key or `null`. |
 
 ### KYN-MED-010 — `parse-schedule` / `health-report` no `isAiAvailable()` soft fail
 
 | **Paths** | respective `route.ts` |
 | **Fix** | Consistent unavailable response vs 500. |
+| **Status** | **Fixed** — both routes return `isAiAvailable()`-guarded responses (`AI_UNAVAILABLE` 503 for health-report, graceful parse-schedule fallback). |
 
 ### KYN-MED-011 — Mock payment provider in non-production may confuse staging
 

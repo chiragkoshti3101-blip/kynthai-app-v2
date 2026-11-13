@@ -377,10 +377,18 @@ export async function sendNotification(
       notificationType.includes('prescription') ||
       notificationType.includes('invite')
     // FIX #23: Don't send PHI (medication name/dosage) in push notifications
-    // Only send generic reminder to avoid lock screen privacy leaks
+    // Only send generic reminder to avoid lock screen privacy leaks.
+    // Doctor nudges carry free-text clinical content in the in-app inbox, but
+    // the lock screen / notification-log copy must stay generic.
+    const pushTitle =
+      notificationType === 'nudge' ? 'New message from your care team' : payload.title
+    const pushBody =
+      notificationType === 'nudge'
+        ? 'Open Kynthai to read the message from your doctor.'
+        : payload.body
     const r = await sendPushToUser(target.userId, {
-      title: payload.title,
-      body: payload.body,
+      title: pushTitle,
+      body: pushBody,
       tag: (payload.data?.type as string | undefined) || payload.type,
       url: (payload.data?.url as string | undefined) || undefined,
       // medName and dosage removed from push to protect PHI
