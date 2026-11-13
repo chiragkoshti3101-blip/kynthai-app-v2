@@ -5,7 +5,7 @@ import { logAudit } from '@/lib/auth';
 import { sanitizeText, rateLimit } from '@/lib/security';
 import { encrypt, decryptValue } from '@/lib/encryption';
 import { checkCsrf } from '@/lib/csrf';
-import { jsonError, jsonOk, readJson, audit, parseJsonCol, requireAuth } from '@/lib/api-helpers';
+import { jsonError, jsonOk, readJson, audit, parseJsonCol, requireAuth, ensureDatabase } from '@/lib/api-helpers';
 import { verifyNpi } from '@/lib/npi-verify';
 import { validateProviderDocuments } from '@/lib/provider-documents';
 
@@ -20,6 +20,9 @@ function displayFee(cents: number): number {
 // GET /api/doctors
 // Public listing of verified doctors. Supports ?specialization=&city=&search=&userId=
 export async function GET(req: NextRequest) {
+  const dbUnavailable = ensureDatabase();
+  if (dbUnavailable) return dbUnavailable;
+
   const limited = rateLimit(req);
   if (limited) return limited;
 
