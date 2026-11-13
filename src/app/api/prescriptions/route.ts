@@ -168,10 +168,13 @@ export async function POST(req: NextRequest) {
   if (!doctor) return jsonError('Doctor not found', 404)
 
   const meds = Array.isArray(body.medications) ? body.medications : []
-  // The Prisma field-encryption extension encrypts the sanitized image data
-  // into imageBase64_enc before persistence.
-  const imageData = body.imageBase64
-    ? sanitizeText(body.imageBase64, 200000)
+  // The Prisma field-encryption extension encrypts the image data into
+  // imageBase64_enc before persistence. The payload is never rendered or
+  // echoed back, so it needs no HTML scrubbing — cap it before any processing
+  // rather than running the sanitizer's regex passes over up to 200 KB.
+  const MAX_IMAGE_BASE64_LEN = 200_000
+  const imageData = typeof body.imageBase64 === 'string' && body.imageBase64.length > 0
+    ? body.imageBase64.slice(0, MAX_IMAGE_BASE64_LEN)
     : null
   const prescription = await db.prescription.create({
     data: {
