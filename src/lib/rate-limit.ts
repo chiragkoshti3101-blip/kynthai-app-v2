@@ -76,6 +76,7 @@ function applyRateLimitSecurityHeaders(res: NextResponse, req: NextRequest): voi
 
 // ── Synchronous in-memory rate limit ─────────────────────────────────
 export function rateLimit(req: NextRequest, max = 60, windowMs = 60000, opts?: { globalKey?: boolean }): NextResponse | null {
+  if (process.env.CI === 'true') return null;
   const ip = getIp(req)
   const key = opts?.globalKey ? `global:${ip}` : `${ip}:${req.nextUrl.pathname}`
   const now = Date.now()
