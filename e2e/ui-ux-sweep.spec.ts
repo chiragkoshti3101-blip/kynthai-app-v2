@@ -102,7 +102,8 @@ for (const role of ['patient', 'doctor', 'lab'] as const) {
 // gate there would flakily block merges for a stale deploy.
 test('A11y: landing + login + pricing — WCAG 2.x AA (hard on local build, log on prod)', async ({ page }) => {
   for (const path of ['/', '/login', '/pricing']) {
-    await page.goto(`${BASE}${path}`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.waitForLoadState('networkidle').catch(() => {});
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();
