@@ -7,11 +7,13 @@ import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
 
-// Feedback schema  simple z.enum without custom error options
+// Feedback schema  use z.string() with refine instead of z.enum to avoid TypeScript overload issues
 const feedbackSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
   email: z.string().email('Valid email is required').max(200),
-  category: z.enum(['bug', 'feature', 'general']),
+  category: z.string().refine(val => ['bug', 'feature', 'general'].includes(val), {
+    message: 'Category is required',
+  }),
   message: z.string().min(1, 'Message is required').max(5000),
 });
 
