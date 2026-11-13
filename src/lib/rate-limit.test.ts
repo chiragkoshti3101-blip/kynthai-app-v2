@@ -54,6 +54,8 @@ function req(path = '/api/chat', ip = '1.2.3.4', origin?: string): NextRequest {
 }
 
 beforeEach(() => {
+  // Ensure CI env var is unset so the rate limiter works normally in unit tests.
+  delete process.env.CI;
   // Fresh bucket state per test (buckets live on globalThis for HMR safety).
   (globalThis as unknown as { __rateBuckets?: Map<string, unknown> }).__rateBuckets?.clear();
   // NOTE: do NOT clear MOCK_RATELIMIT.instances here — getRedisLimiter() caches
