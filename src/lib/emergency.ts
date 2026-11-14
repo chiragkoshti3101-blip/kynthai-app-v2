@@ -1,66 +1,4 @@
-// src/lib/emergency.ts
-// Emergency/SOS functionality for Kynthai health app
-// Safety-critical: handles emergency alert creation and notification
-
-import { createClient } from '@supabase/supabase-js';
-
-// Get Supabase client from environment
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-export const supabase = createClient(supabaseUrl, supabaseKey);
-
-export type EmergencyType = 'sos' | 'medical' | 'fall' | 'chest_pain' | 'stroke' | 'allergic' | 'other';
-export type EmergencyTier = 'low' | 'medium' | 'high' | 'critical';
-
-export interface EmergencyAlert {
-  id: string;
-  user_id: string;
-  type: EmergencyType;
-  tier: EmergencyTier;
-  location?: string | null;
-  resolved: boolean;
-  resolved_at?: string | null;
-  resolved_by?: string | null;
-  created_at: string;
-}
-
-/**
- * Trigger an SOS emergency alert
- */
-export async function triggerSOS(
-  userId: string,
-  type: EmergencyType = 'sos',
-  location?: string
-): Promise<{ success: boolean; alertId?: string; error?: string }> {
-  try {
-    const { data, error } = await supabase
-      .from('alerts')
-      .insert({
-        user_id: userId,
-        type,
-        priority: 'urgent',
-        status: 'pending',
-        title: 'SOS Emergency Alert',
-        body: `Emergency alert triggered by user ${userId}`,
-        location,
-      })
-      .select('id')
-      .single();
-
-    if (error) throw error;
-
-    return { success: true, alertId: data.id };
-  } catch (error: any) {
-    console.error('[emergency] Failed to trigger SOS:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Check for pending emergency alerts
- */
-export async function checkEmergencyStatus(userId: string): Promise<{
-  hasPendingAlert: boolean;
+ hasPendingAlert: boolean;
   alertType?: EmergencyType;
 }> {
   try {
@@ -82,5 +20,51 @@ export async function checkEmergencyStatus(userId: string): Promise<{
   } catch (error) {
     console.error('[emergency] Failed to check status:', error);
     return { hasPendingAlert: false };
+  }
+}
+
+/**
+ * Resolve an emergency alert
+ */
+export async function resolveEmergencyAlert(
+  alertId: string,
+  resolvedBy: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('alerts')
+      .update({
+        status: 'resolved',
+        resolved_at: new Date().toISOString(),
+        resolved_by: resolvedBy,
+      })
+      .eq('id', alertId);
+
+    if (error) throw error;
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[emergency] Failed to resolve alert:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get emergency alerts for a user
+ */
+export async function getEmergencyAlerts(userId: string): Promise<EmergencyAlert[]> {
+  try {
+    const { data, error } = await supabase
+      .from('alerts')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (data || []) as EmergencyAlert[];
+  } catch (error) {
+    console.error('[emergency] Failed to get alerts:', error);
+    return [];
   }
 }
