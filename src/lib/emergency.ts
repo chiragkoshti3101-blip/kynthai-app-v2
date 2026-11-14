@@ -1,71 +1,157 @@
-export type EmergencyCountry = {
-  code: string
-  name: string
-  number: string
-  dialNumber: string
-  callingCode: string
-  note?: string
-}
+// src/lib/emergency.ts
+// Emergency/SOS functionality for Kynthai health app
+// Safety-critical: handles emergency alert creation and notification
+// All functions require authentication
 
-// Curated from national emergency services and ITU E.129 references.
-// `callingCode` lets the account phone number determine the emergency route;
-// the browser locale is never used for SOS routing.
-export const EMERGENCY_COUNTRIES: EmergencyCountry[] = [
-  { code: 'AR', name: 'Argentina', number: '911', dialNumber: '911', callingCode: '+54' },
-  { code: 'AU', name: 'Australia', number: '000', dialNumber: '000', callingCode: '+61' },
-  { code: 'AT', name: 'Austria', number: '112', dialNumber: '112', callingCode: '+43' },
-  { code: 'BD', name: 'Bangladesh', number: '999', dialNumber: '999', callingCode: '+880' },
-  { code: 'BE', name: 'Belgium', number: '112', dialNumber: '112', callingCode: '+32' },
-  { code: 'BR', name: 'Brazil', number: '190 / 192 / 193', dialNumber: '192', callingCode: '+55', note: 'Police / ambulance / fire' },
-  { code: 'CA', name: 'Canada', number: '911', dialNumber: '911', callingCode: '+1' },
-  { code: 'CN', name: 'China', number: '110 / 120 / 119', dialNumber: '120', callingCode: '+86', note: 'Police / ambulance / fire' },
-  { code: 'FR', name: 'France', number: '112', dialNumber: '112', callingCode: '+33' },
-  { code: 'DE', name: 'Germany', number: '112', dialNumber: '112', callingCode: '+49' },
-  { code: 'IN', name: 'India', number: '112', dialNumber: '112', callingCode: '+91' },
-  { code: 'ID', name: 'Indonesia', number: '112', dialNumber: '112', callingCode: '+62', note: 'Availability can vary by region' },
-  { code: 'IE', name: 'Ireland', number: '112 / 999', dialNumber: '112', callingCode: '+353' },
-  { code: 'IT', name: 'Italy', number: '112', dialNumber: '112', callingCode: '+39' },
-  { code: 'JP', name: 'Japan', number: '119', dialNumber: '119', callingCode: '+81', note: 'Ambulance / fire; police is 110' },
-  { code: 'MY', name: 'Malaysia', number: '999', dialNumber: '999', callingCode: '+60' },
-  { code: 'MX', name: 'Mexico', number: '911', dialNumber: '911', callingCode: '+52' },
-  { code: 'NL', name: 'Netherlands', number: '112', dialNumber: '112', callingCode: '+31' },
-  { code: 'NZ', name: 'New Zealand', number: '111', dialNumber: '111', callingCode: '+64' },
-  { code: 'PK', name: 'Pakistan', number: '1122', dialNumber: '1122', callingCode: '+92', note: 'Rescue / ambulance' },
-  { code: 'PT', name: 'Portugal', number: '112', dialNumber: '112', callingCode: '+351' },
-  { code: 'SG', name: 'Singapore', number: '995 / 999', dialNumber: '995', callingCode: '+65', note: 'Ambulance / police' },
-  { code: 'ZA', name: 'South Africa', number: '112', dialNumber: '112', callingCode: '+27', note: 'From a mobile phone' },
-  { code: 'KR', name: 'South Korea', number: '119', dialNumber: '119', callingCode: '+82', note: 'Ambulance / fire; police is 112' },
-  { code: 'ES', name: 'Spain', number: '112', dialNumber: '112', callingCode: '+34' },
-  { code: 'SE', name: 'Sweden', number: '112', dialNumber: '112', callingCode: '+46' },
-  { code: 'CH', name: 'Switzerland', number: '112', dialNumber: '112', callingCode: '+41' },
-  { code: 'AE', name: 'United Arab Emirates', number: '998 / 999', dialNumber: '998', callingCode: '+971', note: 'Ambulance / police' },
-  { code: 'GB', name: 'United Kingdom', number: '999 / 112', dialNumber: '999', callingCode: '+44' },
-  { code: 'US', name: 'United States', number: '911', dialNumber: '911', callingCode: '+1' },
-  { code: 'ZZ', name: 'Unknown / international', number: 'Local emergency number', dialNumber: '', callingCode: '', note: 'Country-specific number unavailable; verify local guidance before calling' },
-]
+import { supabase } from './supabase';
+import { logAudit } from './auth';
 
-export const DEFAULT_EMERGENCY_COUNTRY = 'ZZ'
+export type EmergencyType = 'medical' | 'fall' | 'chest_pain' | 'stroke' | 'allergic' | 'other';
+export type EmergencyTier = 'low' | 'medium' | 'high' | 'critical';
 
-export function getEmergencyCountry(code: string): EmergencyCountry {
-  return EMERGENCY_COUNTRIES.find(country => country.code === code)
-    ?? EMERGENCY_COUNTRIES.find(country => country.code === DEFAULT_EMERGENCY_COUNTRY)!
+export interface EmergencyAlert {
+  id: string;
+  family_id: string;
+  family_member_id: string;
+  reporter_id: string;
+  type: EmergencyType;
+  tier: EmergencyTier;
+  location?: string | null;
+  resolved: boolean;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
+  created_at: string;
 }
 
 /**
- * Derive the emergency route from the phone captured at account creation.
- * Formatting characters are ignored. Shared calling code +1 defaults to the
- * US entry because an area-code-level country distinction is not reliable
- * without a separate numbering-plan database; both countries use 911.
+ * Get the current user's family ID from families or family_members tables
  */
-export function getEmergencyCountryFromPhone(phone?: string | null): EmergencyCountry {
-  const normalized = String(phone ?? '').replace(/[^\d+]/g, '')
-  if (!normalized.startsWith('+')) return getEmergencyCountry(DEFAULT_EMERGENCY_COUNTRY)
+export async function getUserFamilyId(userId: string): Promise<{ familyId: string | null; familyMemberId: string | null }> {
+  try {
+    // Check if user is a family owner
+    const { data: family } = await supabase
+      .from('families')
+      .select('id')
+      .eq('owner_id', userId)
+      .single();
 
-  const matches = EMERGENCY_COUNTRIES
-    .filter(country => country.callingCode && normalized.startsWith(country.callingCode))
-    .sort((a, b) => b.callingCode.length - a.callingCode.length)
+    if (family) return { familyId: family.id, familyMemberId: null };
 
-  if (matches.length === 0) return getEmergencyCountry(DEFAULT_EMERGENCY_COUNTRY)
-  if (normalized.startsWith('+1')) return getEmergencyCountry('US')
-  return matches[0]!
+    // Check if user is a family member
+    const { data: membership } = await supabase
+      .from('family_members')
+      .select('family_id, id')
+      .eq('user_id', userId)
+      .single();
+
+    if (membership) return { familyId: membership.family_id, familyMemberId: membership.id };
+
+    return { familyId: null, familyMemberId: null };
+  } catch (error: any) {
+    console.error('[emergency] Failed to get family ID:', error);
+    return { familyId: null, familyMemberId: null };
+  }
+}
+
+/**
+ * Create an emergency alert when SOS is triggered
+ */
+export async function createEmergencyAlert(
+  reporterId: string,
+  familyId: string,
+  familyMemberId: string,
+  type: EmergencyType = 'medical',
+  tier: EmergencyTier = 'high',
+  location?: string | null
+): Promise<{ success: boolean; alert?: EmergencyAlert; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('emergency_alerts')
+      .insert({
+        family_id: familyId,
+        family_member_id: familyMemberId,
+        reporter_id: reporterId,
+        type,
+        tier,
+        location,
+        resolved: false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log audit
+    await logAudit(reporterId, 'emergency_alert_created', {
+      resourceType: 'emergency_alert',
+      resourceId: data.id,
+      details: 'Emergency alert created: ' + type + ' (' + tier + ')',
+    }, 'security');
+
+    return { success: true, alert: data as EmergencyAlert };
+  } catch (error: any) {
+    console.error('[emergency] Failed to create alert:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get emergency alerts for a user's family
+ */
+export async function getEmergencyAlerts(userId: string): Promise<EmergencyAlert[]> {
+  try {
+    // Get user's family memberships
+    const { data: memberships } = await supabase
+      .from('family_members')
+      .select('family_id')
+      .eq('user_id', userId);
+
+    if (!memberships || memberships.length === 0) return [];
+
+    const familyIds = memberships.map(m => m.family_id);
+
+    const { data: alerts, error } = await supabase
+      .from('emergency_alerts')
+      .select('*')
+      .in('family_id', familyIds)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return (alerts || []) as EmergencyAlert[];
+  } catch (error: any) {
+    console.error('[emergency] Failed to get alerts:', error);
+    return [];
+  }
+}
+
+/**
+ * Resolve an emergency alert
+ */
+export async function resolveEmergencyAlert(
+  alertId: string,
+  resolvedBy: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('emergency_alerts')
+      .update({
+        resolved: true,
+        resolved_at: new Date().toISOString(),
+        resolved_by: resolvedBy,
+      })
+      .eq('id', alertId);
+
+    if (error) throw error;
+
+    await logAudit(resolvedBy, 'emergency_alert_resolved', {
+      resourceType: 'emergency_alert',
+      resourceId: alertId,
+    }, 'security');
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('[emergency] Failed to resolve alert:', error);
+    return { success: false, error: error.message };
+  }
 }
