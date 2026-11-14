@@ -1,3 +1,61 @@
+
+
+/* ========================================
+   iOS Safari Scroll Fixes
+   Prevents blinking/jittering during scroll
+   ======================================== */
+
+/* Enable momentum scrolling on iOS for all scroll containers */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent overscroll bounce on main content areas */
+html, body {
+  overscroll-behavior: none;
+}
+
+/* Smooth scrolling behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent fixed elements from causing scroll issues */
+.fixed, .sticky {
+  will-change: transform;
+}
+
+/* Touch action optimization for scroll containers */
+[style*="overflow"], [class*="overflow-auto"], [class*="overflow-y-auto"], [class*="overflow-scroll"] {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Prevent text selection during scroll on touch devices */
+@media (pointer: coarse) {
+  * {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 @import "tailwindcss";
 @import "tw-animate-css";
 
