@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
     )
   } catch (err: any) {
     console.error('DOCTORS ERROR:', err?.message || String(err))
-    return jsonError(, 500)
+    return jsonError(`Doctor query failed: ${err?.message || String(err)}`, 500)
   }
 }
 
