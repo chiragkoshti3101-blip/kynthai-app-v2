@@ -88,3 +88,107 @@ export async function GET(req: NextRequest) {
     return jsonError(`Lab query failed: ${err?.message || String(err)}`, 500)
   }
 
+export async function POST(req: NextRequest) {
+  const csrfError = await checkCsrf(req)
+  if (csrfError) return csrfError
+
+  const limited = rateLimit(req)
+  if (limited) return limited
+
+  const { response, user: session } = await requireAuth(req)
+  if (response || !session) return response!
+  if (session.role !== 'lab') return jsonError('Only lab accounts may create a lab profile', 403)
+
+  const rawBody = await readJson(req)
+  if (!rawBody) return jsonError('Invalid JSON', 400, 'INVALID_JSON')
+  const labResult = labProfileSchema.safeParse(rawBody)
+  if (!labResult.success) {
+    const fields: Record<string, string> = {}
+    for (const issue of labResult.error.issues) {
+      fields[String(issue.path.join('.') || 'body')] = issue.message
+    }
+    return jsonError('Validation failed', 422, 'VALIDATION_ERROR', { fields })
+  }
+  const body = labResult.data
+  if (body.userId && body.userId !== session.id) {
+    return jsonError('You can only submit your own profile', 403)
+  }
+
+  const labName = sanitizeText(body.labName, 120)
+  const licenseNumber = sanitizeText(body.licenseNumber, 60)
+  const city = sanitizeText(body.city, 60)
+  const address = sanitizeText(body.address, 500)
+  const tests = Array.isArray(body.tests)
+    ? body.tests
+        .filter((t) => t && t.name && Number(t.price) > 0)
+        .map((t) => ({ name: sanitizeText(t.name, 120), price: Number(t.price) || 0 }))
+    : []
+  if (!labName) return jsonError('Lab name is required', 400)
+  if (!licenseNumber) return jsonError('License number is required', 400)
+  if (!city) return jsonError('City is required', 400)
+  if (tests.length === 0) return jsonError('Add at least one priced test', 400)
+
+  const docs = body.documents ?? {}
+
+  const docCheck = await validateProviderDocuments(docs, session.id, 'lab')
+  if (!docCheck.ok) return jsonError(docCheck.error, 400)
+  const docsJson = JSON.stringify(docCheck.documents.map(({ id, slot }) => ({ id, slot })))
+
+  const existing = await db.labProfile.findUnique({ where: { userId: session.id } })
+
+  // Fraud prevention: a hard-blocked user cannot submit a lab application.
+  if (session.verificationLevel === 'blocked') {
+    return jsonError('This account is not eligible to apply.', 403, 'ACCOUNT_BLOCKED')
+  }
+
+  // Provider fraud: refuse a license already held by another approved lab.
+  if (licenseNumber) {
+    const dupLicense = await db.labProfile.findFirst({
+      where: { licenseNumber, verificationStatus: 'approved', userId: { not: session.id } },
+      select: { id: true },
+    })
+    if (dupLicense) {
+      await logAudit(session.id, 'lab.profile.duplicate_license', `license=${licenseNumber}`, 'security')
+      return jsonError('This license number is already registered to another lab.', 409, 'LICENSE_IN_USE')
+    }
+  }
+
+  const payload = {
+    labName,
+    licenseNumber,
+    city,
+    address,
+    homeCollection: !!body.homeCollection,
+    testsOffered: JSON.stringify(tests),
+    documents: docsJson,
+    verificationStatus: 'pending',
+    verified: false,
+    rejectionReason: null,
+    submittedAt: new Date(),
+  }
+
+  let profile
+  if (existing) {
+    profile = await db.labProfile.update({ where: { userId: session.id }, data: payload })
+  } else {
+    profile = await db.labProfile.create({ data: { userId: session.id, ...payload } })
+  }
+
+  await logAudit(session.id, 'lab.profile.submit', `profile=${profile.id}`)
+  return jsonOk({
+    id: profile.id,
+    userId: profile.userId,
+    labName: profile.labName,
+    licenseNumber: profile.licenseNumber,
+    city: profile.city,
+    address: profile.address,
+    serviceZip: extractZip(profile.address || ''),
+    homeCollection: profile.homeCollection,
+    longDistanceTravelFeeCents: profile.longDistanceTravelFeeCents,
+    testsOffered: parseJsonCol(profile.testsOffered, []),
+    verified: profile.verified,
+    verificationStatus: profile.verificationStatus,
+    rejectionReason: profile.rejectionReason,
+    documents: parseJsonCol(profile.documents, []),
+  })
+}
