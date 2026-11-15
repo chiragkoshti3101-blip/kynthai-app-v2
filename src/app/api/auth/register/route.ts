@@ -206,9 +206,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── Create Prisma profile ───────────────────────────────────────────
-    // Check if profile already exists (e.g., from OAuth callback or re-registration)
-    let profile = await db.user.findUnique({ where: { id: authData.user.id } });
+    // ── Create profile via Supabase REST API ────────────────────────────
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
+    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || ''
+    const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
+    const sbKey = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY
+
+    // Check if profile already exists
+    let profileRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${authData.user.id}&select=*`, {
+      headers: {
+        'apikey': sbKey,
+        'Authorization': `Bearer ${sbKey}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    let profiles = await profileRes.json()
+    let profile = profiles && profiles.length > 0 ? profiles[0] : null
 
     if (!profile) {
       // US privacy / Health Data Protection: require consent flags
@@ -219,21 +232,44 @@ export async function POST(req: NextRequest) {
       });
       if (consentErr) return consentErr;
 
-      profile = await db.user.create({
-        data: {
+      const createRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+        method: 'POST',
+        headers: {
+          'apikey': sbKey,
+          'Authorization': `Bearer ${sbKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify({
           id: authData.user.id,
           email,
           name,
           role: role || 'patient',
           phone: phone || null,
-          dateOfBirth,
-          password: null, // Supabase manages passwords
-          emailVerified: authData.user.email_confirmed_at ? new Date(authData.user.email_confirmed_at) : null,
+          dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : null,
+          password: null,
+          emailVerified: authData.user.email_confirmed_at ? new Date(authData.user.email_confirmed_at).toISOString() : null,
           consentAccepted: !!body.consentAccepted,
           dataProcessingConsent: !!body.dataProcessingConsent,
           aiTrainingConsent: !!body.aiTrainingConsent,
-        },
-      });
+          subscriptionTier: 'free',
+          isDemo: false,
+          failedLoginAttempts: 0,
+          phoneVerified: false,
+          identityConfirmed: false,
+          idDocumentUploaded: false,
+          idDocumentVerified: false,
+          verificationLevel: 'unverified',
+          emailOptOut: false,
+        }),
+      })
+      if (!createRes.ok) {
+        const errText = await createRes.text()
+        console.error('Profile creation failed:', errText)
+        return jsonError('Failed to create user profile', 500, 'PROFILE_CREATE_FAILED')
+      }
+      const created = await createRes.json()
+      profile = Array.isArray(created) ? created[0] : created
     }
 
     await logAudit(profile.id, 'auth.register', `role=${role}`);
