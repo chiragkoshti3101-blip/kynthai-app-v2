@@ -19,7 +19,7 @@ const config: CapacitorConfig = {
     // Capacitor 8 built-in SystemBars: injects --safe-area-inset-* CSS
     // variables (real pixel insets) into the WebView. globals.css consumes
     // them for the Android 15+/16 edge-to-edge layout (targetSdk 36).
-    // 'css' is the default — pinned explicitly to protect the behaviour.
+    // 'css' is the default  pinned explicitly to protect the behaviour.
     SystemBars: {
       insetsHandling: 'css',
     },
@@ -35,8 +35,8 @@ const config: CapacitorConfig = {
     },
     SplashScreen: {
       launchAutoHide: true,
-      launchShowDuration: 0,
-      backgroundColor: '#10b981',
+      launchShowDuration: 200,  // Brief delay prevents white flash during webview init
+      backgroundColor: '#f9fdfb',  // Match app background, not green
       showSpinner: false,
       splashFullScreen: true,
       splashImmersive: true,
@@ -56,6 +56,9 @@ const config: CapacitorConfig = {
   ios: {
     backgroundColor: '#f9fdfb',
     contentInset: 'automatic',
+    // Prevent white flash on launch by matching launch screen background
+    // The launch screen uses systemBackgroundColor (white), but our app uses cream #f9fdfb.
+    // This ensures no white flash during splash-to-webview transition.
   },
 }
 
