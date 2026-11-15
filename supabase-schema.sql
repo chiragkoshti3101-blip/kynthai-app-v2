@@ -728,7 +728,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Apply to all tables with updated_at
-DO $$ DECLACE
+DO $$ DECLARE
   t TEXT;
 BEGIN
   FOR t IN
@@ -1016,7 +1016,7 @@ CREATE TABLE IF NOT EXISTS feedback (
 
 CREATE TABLE IF NOT EXISTS free_tier_usage (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL,
+  user_id UUID NOT NULL,
   feature TEXT NOT NULL,
   date TIMESTAMPTZ NOT NULL DEFAULT now(),
   count INTEGER NOT NULL DEFAULT 0,
@@ -1029,7 +1029,7 @@ CREATE INDEX IF NOT EXISTS idx_free_tier_usage_user_feature_date ON free_tier_us
 
 CREATE TABLE IF NOT EXISTS free_tier_usage_audit (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL,
+  user_id UUID NOT NULL,
   feature TEXT NOT NULL,
   action TEXT NOT NULL,
   count INTEGER NOT NULL DEFAULT 1,
@@ -1041,9 +1041,9 @@ CREATE INDEX IF NOT EXISTS idx_free_tier_usage_audit_feature ON free_tier_usage_
 
 CREATE TABLE IF NOT EXISTS medical_document (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL,
-  uploaded_by_id TEXT NOT NULL,
-  family_id TEXT,
+  user_id UUID NOT NULL,
+  uploaded_by_id UUID NOT NULL,
+  family_id UUID,
   type TEXT NOT NULL,
   category TEXT NOT NULL DEFAULT 'CLINICAL',
   title TEXT NOT NULL DEFAULT '',
@@ -1082,7 +1082,7 @@ CREATE INDEX IF NOT EXISTS idx_newsletter_subscriber_created_at ON newsletter_su
 
 CREATE TABLE IF NOT EXISTS push_subscription (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL,
+  user_id UUID NOT NULL,
   endpoint TEXT NOT NULL,
   type TEXT NOT NULL DEFAULT 'webpush',
   token TEXT,
@@ -1097,7 +1097,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subscription_user_type_token ON push_
 
 CREATE TABLE IF NOT EXISTS revoked_session (
   id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-  user_id TEXT NOT NULL,
+  user_id UUID NOT NULL,
   session_jti TEXT NOT NULL UNIQUE,
   reason TEXT NOT NULL DEFAULT 'user_initiated',
   revoked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
