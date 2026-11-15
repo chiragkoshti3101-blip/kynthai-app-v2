@@ -82,7 +82,8 @@ export async function getUserFamilyId(userId: string): Promise<{ familyId: strin
 
 export async function getFamilyDoctors(familyId: string): Promise<string[]> {
   try {
-    const { data: doctors, error } = await (supabase as any)
+    // @ts-expect-error - family_members table not in generated types
+    const { data: doctors, error } = await supabase
       .from('family_members')
       .select('name, user_id, role')
       .eq('family_id', familyId)
@@ -105,7 +106,8 @@ export async function createEmergencyAlert(
   location?: string | null
 ): Promise<CreateEmergencyAlertResult> {
   try {
-    const { data, error } = await (supabase as any)
+    // @ts-expect-error - emergency_alerts table not in generated types
+    const { data, error } = await supabase
       .from('emergency_alerts')
       .insert({
         family_id: familyId,
@@ -185,7 +187,8 @@ export async function getEmergencyAlerts(userId: string): Promise<EmergencyAlert
 
     const familyIds = memberships.map(m => m.family_id);
 
-    const { data: alerts, error } = await (supabase as any)
+    // @ts-expect-error - emergency_alerts table not in generated types
+    const { data: alerts, error } = await supabase
       .from('emergency_alerts')
       .select('*')
       .in('family_id', familyIds)
@@ -219,7 +222,8 @@ export async function resolveEmergencyAlert(
   resolvedBy: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await (supabase as any)
+    // @ts-expect-error - emergency_alerts table not in generated types
+    const { error } = await supabase
       .from('emergency_alerts')
       .update({
         resolved: true,
@@ -283,7 +287,8 @@ export async function checkEmergencyStatus(userId: string): Promise<{
       return { hasPendingAlert: false };
     }
 
-    const { data, error } = await (supabase as any)
+    // @ts-expect-error - emergency_alerts table not in generated types
+    const { data, error } = await supabase
       .from('emergency_alerts')
       .select('type, resolved')
       .eq('family_id', familyId)
