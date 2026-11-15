@@ -6,7 +6,7 @@ import { sanitizeText } from '@/lib/security'
 import { emergencySosSchema } from '@/lib/schemas/security'
 import { sendSMSReal, isSMSEnabled } from '@/lib/integrations'
 import { logger } from '@/lib/logger'
-import { getEmergencyCountryFromPhone } from '@/lib/emergency'
+import { getEmergencyCountryFromPhone } from '@/lib/emergency-client'
 import { sendNotification } from '@/lib/notifications'
 export const dynamic = 'force-dynamic'
 

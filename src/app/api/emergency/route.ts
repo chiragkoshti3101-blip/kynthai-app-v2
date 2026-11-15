@@ -116,8 +116,7 @@ export async function POST(req: NextRequest) {
     }
   }
   // Shape matches caretaker-app.tsx: { name, eta? }
-  const storedDoctors = Array.from(doctorMap.entries()).map(([id, d]) => ({ id, name: d.name, email: d.email }))
-  const notifiedDoctors = storedDoctors.map((d) => ({ name: d.name }))
+  const notifiedDoctors = Array.from(doctorMap.values()).map((d) => ({ name: d.name }))
   const notifiedDoctorUserIds = Array.from(doctorMap.values()).map((d) => d.userId)
 
   const alert = await db.emergencyAlert.create({
@@ -131,7 +130,7 @@ export async function POST(req: NextRequest) {
       location,
       notes,
       status: 'active',
-      notifiedDoctors: JSON.stringify(storedDoctors),
+      notifiedDoctors: JSON.stringify(notifiedDoctors),
     } as any,
   })
 
