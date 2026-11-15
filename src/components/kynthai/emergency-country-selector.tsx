@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Globe2, Phone } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getEmergencyCountryFromPhone } from '@/lib/emergency'
+import { getEmergencyCountryFromPhone } from '@/lib/emergency-client'
 
 /**
  * SOS routing is derived from the signed-in account phone number. There is no

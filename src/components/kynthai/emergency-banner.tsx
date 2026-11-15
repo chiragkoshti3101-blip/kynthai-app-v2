@@ -5,7 +5,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { EmergencyAlert } from '@/lib/emergency';
+import type { EmergencyAlert } from '@/lib/emergency-client';
 
 interface EmergencyBannerProps {
   alerts: EmergencyAlert[];

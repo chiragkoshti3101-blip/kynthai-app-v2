@@ -5,7 +5,7 @@
 'use client';
 
 import { useState } from 'react';
-import { EmergencyType, EmergencyTier } from '@/lib/emergency';
+import type { EmergencyType, EmergencyTier } from '@/lib/emergency-client';
 
 interface EmergencyModalProps {
   isOpen: boolean;

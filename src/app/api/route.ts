@@ -4,16 +4,16 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createEmergencyAlert, getEmergencyAlerts, resolveEmergencyAlert, getUserFamilyId } from '@/lib/emergency';
-import { getAuth } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await getAuth();
+    const auth = await getAuthUser();
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const alerts = await getEmergencyAlerts(auth.userId);
+    const alerts = await getEmergencyAlerts(auth.id);
     return NextResponse.json({ alerts });
   } catch (error) {
     console.error('[emergency-api] GET failed:', error);
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getAuth();
+    const auth = await getAuthUser();
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { type = 'medical', tier = 'high', location } = body;
 
-    const { familyId, familyMemberId } = await getUserFamilyId(auth.userId);
+    const { familyId, familyMemberId } = await getUserFamilyId(auth.id);
     if (!familyId || !familyMemberId) {
       return NextResponse.json(
         { error: 'No family found for user. Emergency alerts require a family context.' },
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await createEmergencyAlert(
-      auth.userId,
+      auth.id,
       familyId,
       familyMemberId,
       type,
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await getAuth();
+    const auth = await getAuthUser();
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'alertId is required' }, { status: 400 });
     }
 
-    const result = await resolveEmergencyAlert(alertId, auth.userId);
+    const result = await resolveEmergencyAlert(alertId, auth.id);
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }
