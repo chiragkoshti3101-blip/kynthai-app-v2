@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
   const status = healthy ? 200 : 503
   const res = NextResponse.json({
     status: healthy ? 'ok' : 'degraded',
+    checks,
     timestamp: new Date().toISOString(),
   }, { status })
 
