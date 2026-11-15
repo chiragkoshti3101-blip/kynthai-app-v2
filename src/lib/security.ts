@@ -84,13 +84,59 @@ export { rateLimit, rateLimitProduction, getIp } from '@/lib/rate-limit'
 // ── Password strength ──────────────────────────────────────────────────
 const SPECIAL_RE = /[!@#$%^&*()_+\-=\[\]{}|;:',.<>?]/
 
-export function validatePasswordStrength(password: string): { valid: boolean; errors: string[] } {
-  const errors: string[] = []
+export function // Check against known breached passwords (HIBP k-anonymity API)
+async function checkBreachedPassword(password) {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    const prefix = hashHex.slice(0, 5);
+    const suffix = hashHex.slice(5);
+    
+    const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      headers: { 'User-Agent': 'Kynthai-Security-Check' },
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (!response.ok) return false;
+    
+    const text = await response.text();
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const [hashSuffix, count] = line.split(':');
+      if (hashSuffix === suffix) {
+        return parseInt(count, 10) > 0;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+validatePasswordStrength(password) {
+  const errors = []
   if (password.length < 12) errors.push('At least 12 characters')
   if (!/[A-Z]/.test(password)) errors.push('At least one uppercase letter')
   if (!/[a-z]/.test(password)) errors.push('At least one lowercase letter')
   if (!/\d/.test(password)) errors.push('At least one number')
   if (!SPECIAL_RE.test(password)) errors.push('At least one special character (!@#$%^&*()_+-=[]{}|;:\',.<>?)')
+  return { valid: errors.length === 0, errors }
+}
+
+export async function validatePasswordStrengthAsync(password) {
+  const errors = []
+  if (password.length < 12) errors.push('At least 12 characters')
+  if (!/[A-Z]/.test(password)) errors.push('At least one uppercase letter')
+  if (!/[a-z]/.test(password)) errors.push('At least one lowercase letter')
+  if (!/\d/.test(password)) errors.push('At least one number')
+  if (!SPECIAL_RE.test(password)) errors.push('At least one special character (!@#$%^&*()_+-=[]{}|;:\',.<>?)')
+  
+  const breached = await checkBreachedPassword(password);
+  if (breached) errors.push('This password has appeared in data breaches. Please choose a different one.');
+  
   return { valid: errors.length === 0, errors }
 }
 
