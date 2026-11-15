@@ -185,7 +185,6 @@ export async function POST(req: NextRequest) {
     state,
     rating: 4.5,
     reviewCount: 0,
-    consultationFee: consultationFee,
   }
 
   // Check if existing profile
