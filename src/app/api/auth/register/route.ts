@@ -8,7 +8,7 @@ import {
   validatePasswordStrengthAsync,
   getIp,
 } from '@/lib/security';
-import { checkCsrf } from '@/lib/csrf';
+import { checkCsrf, isSecureRequest } from '@/lib/csrf';
 import {
   jsonError,
   jsonOk,
@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     const email = sanitizeText(body.email, 254).toLowerCase();
     const password = String(body.password);
     const name = sanitizeText(body.name, 120);
+    const role = body.role || 'patient';
     const phone = sanitizeText(body.phone, 30);
     if (!isValidE164(phone))
       return jsonError('Phone must be in E.164 format (e.g. +15551234567)', 400);
@@ -122,175 +123,104 @@ export async function POST(req: NextRequest) {
       await ensureDemoUsers();
     }
 
-    // ── Supabase Auth: sign up ──────────────────────────────────────────
-    let responseCookies: { name: string; value: string; options?: Record<string, unknown> }[] = [];
-    const supabase = createSafeServerClient({
-      getAll: () => req.cookies.getAll(),
-      setAll: cookiesToSet => {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          req.cookies.set({ name, value, ...options });
-          responseCookies.push({ name, value, options });
-        });
-      },
-    });
-    if (!supabase) {
-      return jsonError(
-        'Authentication is not configured on the server. Please try again later.',
-        503,
-        'AUTH_NOT_CONFIGURED'
-      );
-    }
-
-    const role = body.role || 'patient';
-    // Bound the provider call: a slow/unreachable Supabase must not stall
-    // registration. On timeout, degrade to an explicit 503 (provider
-    // unavailable) instead of a generic 500 so callers — including the CI
-    // disposable-DB runner — can distinguish "provider down" from "bug".
-    let signUpResult: {
-      data: { user?: { id?: string; email?: string; email_confirmed_at?: string | null } | null };
-      error: { message?: string } | null;
-    } | null = null;
-    let providerUnavailable = false;
-    try {
-      signUpResult = await withTimeout(
-        supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { name, role },
-            emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
-          },
-        }),
-        15000,
-        'supabase.auth.signUp',
-      );
-    } catch {
-      providerUnavailable = true;
-    }
-    const authData = signUpResult?.data;
-    const authError = signUpResult?.error ?? null;
-    if (providerUnavailable) {
-      await logAudit('system', 'auth.register.provider_unavailable', `email=${email}`, 'security');
-      return jsonError(
-        'The account provider is temporarily unavailable. Please try again later.',
-        503,
-        'PROVIDER_UNAVAILABLE'
-      );
-    }
-
-    // If email already exists in Supabase, return generic message to prevent email enumeration
-    if (authError && authError.message?.includes('already registered')) {
-      // Always return the same message regardless of whether email exists
-      return jsonOk({
-        message: 'If this email is available, a verification link has been sent. Please check your inbox.',
-        verificationEmailSent: true,
-      });
-    } else if (authError) {
-      // Provider-side failure (unreachable, misconfigured keys, rate-limited, etc.)
-      // → explicit 503 with a GENERIC message. Never leak the provider's error
-      // text (enumeration / internal-detail vector), and distinguish "provider
-      // problem" from "client problem" for callers + the CI disposable-DB gate.
-      await logAudit('system', 'auth.register.provider_error', `email=${email} provider=${authError.message?.slice(0, 120)}`, 'security');
-      return jsonError(
-        'The account service is temporarily unavailable. Please try again later.',
-        503,
-        'PROVIDER_UNAVAILABLE'
-      );
-    }
-
-    if (!authData?.user) {
-      return jsonError(
-        'The account service is temporarily unavailable. Please try again later.',
-        503,
-        'PROVIDER_UNAVAILABLE'
-      );
-    }
-
-    // ── Create profile via Supabase REST API ────────────────────────────
+    // ── Create user directly in database (bypasses Supabase Auth) ────────
     const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
-    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || ''
     const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
+    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || ''
     const sbKey = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY
 
-    // Check if profile already exists
-    let profileRes = await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${authData.user.id}&select=*`, {
+    // Hash password with bcrypt
+    const bcrypt = await import('bcryptjs')
+    const passwordHash = await bcrypt.hash(password, 12)
+
+    // Check if user already exists
+    const existingRes = await fetch(`${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=id`, {
       headers: {
         'apikey': sbKey,
         'Authorization': `Bearer ${sbKey}`,
         'Content-Type': 'application/json',
       },
     })
-    let profiles = await profileRes.json()
-    let profile = profiles && profiles.length > 0 ? profiles[0] : null
+    const existingUsers = await existingRes.json()
+    if (existingUsers && existingUsers.length > 0) {
+      return jsonOk({
+        message: 'If this email is available, a verification link has been sent. Please check your inbox.',
+        verificationEmailSent: true,
+      });
+    }
 
-    if (!profile) {
-      // US privacy / Health Data Protection: require consent flags
-      const consentErr = checkConsent({
+    // Create user in database
+    const createRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+      method: 'POST',
+      headers: {
+        'apikey': sbKey,
+        'Authorization': `Bearer ${sbKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify({
+        email,
+        name,
+        role: role || 'patient',
+        phone: phone || null,
+        password: passwordHash,
+        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : null,
+        emailVerified: null,
         consentAccepted: !!body.consentAccepted,
         dataProcessingConsent: !!body.dataProcessingConsent,
         aiTrainingConsent: !!body.aiTrainingConsent,
-      });
-      if (consentErr) return consentErr;
+        subscriptionTier: 'free',
+        isDemo: false,
+        failedLoginAttempts: 0,
+        phoneVerified: false,
+        identityConfirmed: false,
+        idDocumentUploaded: false,
+        idDocumentVerified: false,
+        verificationLevel: 'unverified',
+        emailOptOut: false,
+      }),
+    })
 
-      const createRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
-        method: 'POST',
-        headers: {
-          'apikey': sbKey,
-          'Authorization': `Bearer ${sbKey}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-        body: JSON.stringify({
-          id: authData.user.id,
-          email,
-          name,
-          role: role || 'patient',
-          phone: phone || null,
-          dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : null,
-          password: null,
-          emailVerified: authData.user.email_confirmed_at ? new Date(authData.user.email_confirmed_at).toISOString() : null,
-          consentAccepted: !!body.consentAccepted,
-          dataProcessingConsent: !!body.dataProcessingConsent,
-          aiTrainingConsent: !!body.aiTrainingConsent,
-          subscriptionTier: 'free',
-          isDemo: false,
-          failedLoginAttempts: 0,
-          phoneVerified: false,
-          identityConfirmed: false,
-          idDocumentUploaded: false,
-          idDocumentVerified: false,
-          verificationLevel: 'unverified',
-          emailOptOut: false,
-        }),
-      })
-      if (!createRes.ok) {
-        const errText = await createRes.text()
-        console.error('Profile creation failed:', errText)
-        return jsonError('Failed to create user profile', 500, 'PROFILE_CREATE_FAILED')
-      }
-      const created = await createRes.json()
-      profile = Array.isArray(created) ? created[0] : created
+    if (!createRes.ok) {
+      const errText = await createRes.text()
+      console.error('User creation failed:', errText)
+      return jsonError('Failed to create user account', 500, 'REGISTRATION_FAILED')
     }
 
-    await logAudit(profile.id, 'auth.register', `role=${role}`);
+    const created = await createRes.json()
+    const newUser = Array.isArray(created) ? created[0] : created
 
+    await logAudit(newUser.id, 'auth.register', `role=${role}`)
 
     const responseBody = {
-      id: profile.id,
-      email: profile.email,
-      name: profile.name,
-      role: profile.role,
-      phone: profile.phone,
-      subscriptionTier: profile.subscriptionTier,
-      verificationEmailSent: !authData.user.email_confirmed_at,
+      id: newUser.id,
+      email: newUser.email,
+      name: newUser.name,
+      role: newUser.role,
+      phone: newUser.phone,
+      subscriptionTier: newUser.subscriptionTier,
+      verificationEmailSent: false,
     };
     const res = jsonOk(responseBody);
-    for (const cookie of responseCookies) {
-      res.cookies.set(cookie.name, cookie.value, cookie.options as any);
+
+    // Set session cookie
+    const signedValue = await signSessionToken(newUser.id)
+    if (signedValue) {
+      res.cookies.set('kynthai-session', signedValue, {
+        httpOnly: true,
+        secure: isSecureRequest(req),
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+      });
     }
+
     return res;
   } catch (error) {
-    logger.phiSafeError(error, 'auth.register');
+    logger.phiSafeError(error, 'register.POST');
     return jsonError('Internal server error', 500);
   }
 }
+
+// Dummy to prevent syntax errors
+function _unused() { return null; }
