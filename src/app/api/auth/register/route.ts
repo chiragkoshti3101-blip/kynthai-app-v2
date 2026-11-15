@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
             emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
           },
         }),
-        8000,
+        15000,
         'supabase.auth.signUp',
       );
     } catch {
