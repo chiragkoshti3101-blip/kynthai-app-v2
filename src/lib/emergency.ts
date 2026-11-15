@@ -3,7 +3,7 @@
 // Safety-critical: handles emergency alert creation and notification
 // All functions require authentication
 
-import { supabase } from './supabase';
+import { supabase } from './supabase/client';
 import { logAudit } from './auth';
 
 export type EmergencyType = 'medical' | 'fall' | 'chest_pain' | 'stroke' | 'allergic' | 'other';
