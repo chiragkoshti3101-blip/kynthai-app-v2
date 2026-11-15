@@ -361,7 +361,7 @@ function applyHeaders(res: NextResponse, pathname: string, requestId: string) {
         "base-uri 'self'",
         "form-action 'self'",
         "object-src 'none'",
-      ].join('; ') + " report-uri /api/csp-report";
+      ].join('; ') + "; report-uri /api/csp-report";
 
   res.headers.set('Content-Security-Policy', csp);
   res.headers.set('X-Frame-Options', 'DENY');
