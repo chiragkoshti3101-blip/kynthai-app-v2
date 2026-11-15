@@ -60,7 +60,9 @@ export const EMERGENCY_COUNTRIES: EmergencyCountry[] = [
   { code: 'ZZ', name: 'Other / international', number: '112', dialNumber: '112', callingCode: '', note: 'Use 112 only where supported; check local guidance' },
 ]
 
-export const DEFAULT_EMERGENCY_COUNTRY = 'ZZ'
+// US launch: when we can't derive a country from the account phone, default to
+// US (911). Non-US users still get the correct number once their phone is set.
+export const DEFAULT_EMERGENCY_COUNTRY = 'US'
 
 export function getEmergencyCountry(code: string): EmergencyCountry {
   return EMERGENCY_COUNTRIES.find(country => country.code === code)
