@@ -94,10 +94,8 @@ export async function POST(req: NextRequest) {
           include: { user: { select: { id: true, name: true, phone: true } } },
         })
 
-        const membershipNotifiedIds: string[] = []
         for (const fm of familyMembers) {
           if (fm.userId) {
-            membershipNotifiedIds.push(fm.userId)
             notifiedNames.push(fm.user?.name || 'A family member')
             if (fm.user?.phone) {
               smsTargets.push({ name: fm.user.name || 'Family member', phone: fm.user.phone })
@@ -114,11 +112,6 @@ export async function POST(req: NextRequest) {
             })
           }
         }
-
-        await tx.emergencyAlert.update({
-          where: { id: alert.id },
-          data: { notifiedDoctors: JSON.stringify(membershipNotifiedIds) },
-        })
 
         created.push(alert)
       }
@@ -204,6 +197,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      alertId: alerts[0]?.id ?? null,
       alertCount: alerts.length,
       message: 'SOS alert sent to all family members',
       emergencyNumber,

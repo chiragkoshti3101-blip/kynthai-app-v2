@@ -1077,14 +1077,17 @@ function SosTab({
           medicalInfo: '',
                   }),
       });
+      const sosData = (await sosRes.json().catch(() => ({}))) as { error?: string; alertId?: string };
       anyOk = sosRes.ok;
-      if (!sosRes.ok) lastError = ((await sosRes.json().catch(() => ({}))).error as string) || '';
+      if (!sosRes.ok) lastError = sosData.error || '';
 
-      // Step 2: call the emergency family alert endpoint (returns real linked doctors)
+      // Step 2: reuse the alert created by emergency-sos and notify linked
+      // doctors for it (returns real linked doctors). Passing alertId avoids
+      // creating a duplicate alert row for the same SOS.
       const emRes = await fetch('/api/emergency', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ memberId: selected.id, memberName: selected.name, tier }),
+        body: JSON.stringify({ alertId: sosData.alertId, memberId: selected.id, memberName: selected.name, tier }),
       });
       anyOk = anyOk || emRes.ok;
       let data: { notifiedDoctors?: { name: string; eta?: string }[]; summary?: string } = {};

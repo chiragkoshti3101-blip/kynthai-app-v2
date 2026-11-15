@@ -603,7 +603,7 @@ html { --deploy-hash-ref: var(--deploy-hash); }
   }
 }
 /* iOS Safari Scroll Fixes */
-html, body { -webkit-overflow-scrolling: touch; overscroll-behavior: none; }
+html, body { -webkit-overflow-scrolling: touch; overscroll-behavior-x: none; }
 html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }

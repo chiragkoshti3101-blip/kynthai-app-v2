@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
   if (roleErr) return roleErr
 
   const body = await readJson<{
+    alertId?: string
     familyId?: string
     memberId?: string
     memberName?: string
@@ -80,14 +81,24 @@ export async function POST(req: NextRequest) {
   }>(req)
   if (!body) return jsonError('Invalid JSON', 400)
 
-  let family = body.familyId
-    ? await db.family.findUnique({ where: { id: body.familyId } })
-    : await db.family.findFirst({ where: { ownerId: u.id } })
+  // When the caretaker already created the alert via /api/emergency-sos, reuse
+  // that row instead of creating a duplicate alert for the same SOS.
+  const existingAlert = body.alertId
+    ? await db.emergencyAlert.findUnique({ where: { id: body.alertId } })
+    : null
+  if (body.alertId && !existingAlert) return jsonError('Alert not found', 404)
+  if (existingAlert && existingAlert.reporterId !== u.id) return jsonError('Forbidden', 403)
+
+  let family = existingAlert
+    ? await db.family.findUnique({ where: { id: existingAlert.familyId } })
+    : body.familyId
+      ? await db.family.findUnique({ where: { id: body.familyId } })
+      : await db.family.findFirst({ where: { ownerId: u.id } })
   if (!family) return jsonError('Family not found. Create a family first.', 404)
-  if (family.ownerId !== u.id) return jsonError('Forbidden', 403)
+  if (!existingAlert && family.ownerId !== u.id) return jsonError('Forbidden', 403)
 
   const memberId = sanitizeText(body.memberId, 100) || 'self'
-  const memberName = sanitizeText(body.memberName, 120) || u.name
+  const memberName = existingAlert?.memberName || sanitizeText(body.memberName, 120) || u.name
   const notes = sanitizeText(body.notes, 1000)
   const location = sanitizeText(body.location, 300)
   const alertType = sanitizeText(body.type, 30) || 'sos'
@@ -119,20 +130,25 @@ export async function POST(req: NextRequest) {
   const notifiedDoctors = Array.from(doctorMap.values()).map((d) => ({ name: d.name }))
   const notifiedDoctorUserIds = Array.from(doctorMap.values()).map((d) => d.userId)
 
-  const alert = await db.emergencyAlert.create({
-    data: {
-      familyId: family.id,
-      familyMemberId: memberId === 'self' ? null : (memberId as string),
-      memberName,
-      reporterId: u.id,
-      type: alertType,
-      tier,
-      location,
-      notes,
-      status: 'active',
-      notifiedDoctors: JSON.stringify(notifiedDoctors),
-    } as any,
-  })
+  const alert = existingAlert
+    ? await db.emergencyAlert.update({
+        where: { id: existingAlert.id },
+        data: { notifiedDoctors: JSON.stringify(notifiedDoctors) },
+      })
+    : await db.emergencyAlert.create({
+        data: {
+          familyId: family.id,
+          familyMemberId: memberId === 'self' ? null : (memberId as string),
+          memberName,
+          reporterId: u.id,
+          type: alertType,
+          tier,
+          location,
+          notes,
+          status: 'active',
+          notifiedDoctors: JSON.stringify(notifiedDoctors),
+        } as any,
+      })
 
   // Best-effort: actually broadcast the SOS by in-app/email only to the reporter + every linked doctor.
   // sendEmergency() fans out to each notified doctor userId internally.
