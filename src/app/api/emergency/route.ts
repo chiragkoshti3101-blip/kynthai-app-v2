@@ -104,14 +104,20 @@ export async function POST(req: NextRequest) {
         include: { doctor: { include: { user: true } } },
       })
     : []
-  // doctorProfileId -> { userId, email }  (userId needed by sendEmergency → loadUserTarget)
-  const doctorMap = new Map<string, { userId: string; email: string }>()
+  // doctorProfileId -> { userId, email, name }  (userId needed by sendEmergency → loadUserTarget)
+  const doctorMap = new Map<string, { userId: string; email: string; name: string }>()
   for (const a of linkedAppts) {
     if (!doctorMap.has(a.doctor.id)) {
-      doctorMap.set(a.doctor.id, { userId: a.doctor.user.id, email: a.doctor.user.email })
+      doctorMap.set(a.doctor.id, {
+        userId: a.doctor.user.id,
+        email: a.doctor.user.email,
+        name: a.doctor.user.name || a.doctor.user.email,
+      })
     }
   }
-  const notifiedDoctors = Array.from(doctorMap.entries()).map(([id, d]) => ({ id, email: d.email }))
+  // Shape matches caretaker-app.tsx: { name, eta? }
+  const storedDoctors = Array.from(doctorMap.entries()).map(([id, d]) => ({ id, name: d.name, email: d.email }))
+  const notifiedDoctors = storedDoctors.map((d) => ({ name: d.name }))
   const notifiedDoctorUserIds = Array.from(doctorMap.values()).map((d) => d.userId)
 
   const alert = await db.emergencyAlert.create({
@@ -125,7 +131,7 @@ export async function POST(req: NextRequest) {
       location,
       notes,
       status: 'active',
-      notifiedDoctors: JSON.stringify(notifiedDoctors),
+      notifiedDoctors: JSON.stringify(storedDoctors),
     } as any,
   })
 
@@ -139,10 +145,14 @@ export async function POST(req: NextRequest) {
   } catch { /* best-effort — sendNotification logs internally */ }
 
   await logAudit(u.id, 'emergency.sos', `alert=${alert.id} notified=${notifiedDoctors.length}`)
+  const summary = notifiedDoctors.length > 0
+    ? `${memberName} — emergency SOS sent to your family and ${notifiedDoctors.length} linked doctor${notifiedDoctors.length === 1 ? '' : 's'}.`
+    : `${memberName} — emergency SOS sent to your family.`
   return jsonOk({
     id: alert.id,
     status: 'active',
     notifiedDoctors,
+    summary,
     createdAt: alert.createdAt.toISOString(),
   })
 }
