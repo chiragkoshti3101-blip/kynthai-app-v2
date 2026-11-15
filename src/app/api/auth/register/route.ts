@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
     if (!createRes.ok) {
       const errText = await createRes.text()
       console.error('User creation failed:', errText)
-      return jsonError('Failed to create user account', 500, 'REGISTRATION_FAILED')
+      return jsonError(`Failed to create user account: ${errText}`, 500, 'REGISTRATION_FAILED')
     }
 
     const created = await createRes.json()
