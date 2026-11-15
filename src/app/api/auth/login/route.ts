@@ -318,8 +318,8 @@ export async function POST(req: NextRequest) {
     setPortalRoleCookie(res, user.role, isSecureRequest(req));
     return res;
   } catch (error) {
-    console.error('LOGIN ERROR:', error?.message || String(error));
+    console.error("LOGIN ERROR:", error);
     logger.phiSafeError(error, 'login.POST');
-    return jsonError(`Internal server error: ${error?.message || String(error)}`, 500, 'INTERNAL_ERROR');
+    return jsonError('Internal server error: ' + String(error), 500, 'INTERNAL_ERROR');
   }
 }
