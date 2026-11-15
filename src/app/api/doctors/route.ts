@@ -68,52 +68,52 @@ export async function GET(req: NextRequest) {
   if (specialization) and.push({ specialization });
   if (city) and.push({ city: { contains: city } });
 
-  // `name` and `bio` are encrypted with randomized ciphertext and cannot be
-  // searched with SQL `contains`. Read only verified profiles (and any
-  // requested city/specialization scope), then filter the already-decrypted
-  // values in memory before returning the public listing.
   const where: any = { AND: and };
-  const candidates = await db.doctorProfile.findMany({
-    where,
-    include: { user: true },
-    ...(search ? {} : { take: 100 }),
-  });
-  const needle = search?.toLocaleLowerCase();
-  const doctors = needle
-    ? candidates
-        .filter((doctor: any) =>
-          [doctor.user?.name, doctor.specialization, doctor.city, doctor.bio]
-            .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(needle)),
-        )
-        .slice(0, 100)
-    : candidates;
+  try {
+    const candidates = await db.doctorProfile.findMany({
+      where,
+      include: { user: true },
+      ...(search ? {} : { take: 100 }),
+    });
+    const needle = search?.toLocaleLowerCase();
+    const doctors = needle
+      ? candidates
+          .filter((doctor: any) =>
+            [doctor.user?.name, doctor.specialization, doctor.city, doctor.bio]
+              .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(needle)),
+          )
+          .slice(0, 100)
+      : candidates;
 
-  // Sort by priority score (Pro doctors get +500 boost)
-  const { getPriorityScore } = await import('@/lib/doctor-subscription')
-  doctors.sort((a: any, b: any) => {
-    const scoreA = getPriorityScore(a.subscriptionTier, a.rating, a.reviewCount, a.lastActiveAt)
-    const scoreB = getPriorityScore(b.subscriptionTier, b.rating, b.reviewCount, b.lastActiveAt)
-    return scoreB - scoreA
-  })
+    const { getPriorityScore } = await import('@/lib/doctor-subscription')
+    doctors.sort((a: any, b: any) => {
+      const scoreA = getPriorityScore(a.subscriptionTier, a.rating, a.reviewCount, a.lastActiveAt)
+      const scoreB = getPriorityScore(b.subscriptionTier, b.rating, b.reviewCount, b.lastActiveAt)
+      return scoreB - scoreA
+    })
 
-  return jsonOk(
-    doctors.map((d: any) => ({
-      id: d.id,
-      userId: d.userId,
-      name: d.user.name || 'Provider',
-      specialization: d.specialization,
-      consultationFee: displayFee(d.consultationFee),
-      city: d.city,
-      bio: d.bio,
-      experience: d.experience,
-      videoCallEnabled: d.videoCallEnabled,
-      rating: d.rating,
-      reviewCount: d.reviewCount,
-      avatarColor: d.avatarColor,
-      subscriptionTier: d.subscriptionTier,
-      available: true, // All verified doctors are available
-    }))
-  );
+    return jsonOk(
+      doctors.map((d: any) => ({
+        id: d.id,
+        userId: d.userId,
+        name: d.user.name || 'Provider',
+        specialization: d.specialization,
+        consultationFee: displayFee(d.consultationFee),
+        city: d.city,
+        bio: d.bio,
+        experience: d.experience,
+        videoCallEnabled: d.videoCallEnabled,
+        rating: d.rating,
+        reviewCount: d.reviewCount,
+        avatarColor: d.avatarColor,
+        subscriptionTier: d.subscriptionTier,
+        available: true,
+      }))
+    )
+  } catch (err: any) {
+    console.error('DOCTORS ERROR:', err?.message || String(err))
+    return jsonError(, 500)
+  }
 }
 
 // POST /api/doctors
