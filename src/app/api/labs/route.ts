@@ -87,6 +87,7 @@ export async function GET(req: NextRequest) {
     console.error('LABS ERROR:', err?.message || String(err))
     return jsonError(`Lab query failed: ${err?.message || String(err)}`, 500)
   }
+}
 
 export async function POST(req: NextRequest) {
   const csrfError = await checkCsrf(req)
