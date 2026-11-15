@@ -1,192 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
-import { logAudit } from '@/lib/auth'
-import { sanitizeText, rateLimit } from '@/lib/security'
-import { requireAuth, requireAuthWithCsrf, jsonError, jsonOk, readJson, audit, parseJsonCol } from '@/lib/api-helpers'
-import { sendEmergency } from '@/lib/notifications'
-export const dynamic = 'force-dynamic'
+// src/app/api/emergency/route.ts
+// Legacy SOS endpoint (non-auth, backward compatible)
+// POST /api/emergency - Trigger SOS
+// GET /api/emergency - Check emergency status
+import { NextResponse } from 'next/server';
+import { triggerSOS, checkEmergencyStatus } from '@/lib/emergency';
 
-// SECURITY-CRITICAL: only caretaker and admin roles can manage family emergency alerts.
-const EMERGENCY_ACCESS_ROLES = ['caretaker', 'admin'] as const
-
-function assertEmergencyRole(u: { role: string }): NextResponse | null {
-  if (!EMERGENCY_ACCESS_ROLES.includes(u.role as any)) {
-    return jsonError('Forbidden — emergency management requires the caretaker or admin role', 403)
-  }
-  return null
-}
-
-// GET /api/emergency?familyId=...&status=active
-export async function GET(req: NextRequest) {
-  const limited = rateLimit(req)
-  if (limited) return limited
-
-  const { response, user } = await requireAuth(req)
-  if (response || !user) return response!
-  const u = user!
-
-  // SECURITY-CRITICAL: only caretaker / admin may view emergency alerts
-  const roleErr = assertEmergencyRole(u)
-  if (roleErr) return roleErr
-
-  const family = await db.family.findFirst({ where: { ownerId: u.id } })
-  if (!family) return jsonOk({ alerts: [] })
-
-  const alerts = await db.emergencyAlert.findMany({
-    where: { familyId: family.id },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-  })
-
-  return jsonOk({
-    alerts: alerts.map((a) => ({
-      id: a.id,
-      familyId: a.familyId,
-      memberId: (a as any).familyMemberId,
-      memberName: a.memberName,
-      type: a.type,
-      tier: a.tier,
-      location: a.location,
-      notes: a.notes,
-      status: a.status,
-      notifiedDoctors: parseJsonCol(a.notifiedDoctors, []),
-      createdAt: a.createdAt.toISOString(),
-      resolvedAt: a.resolvedAt?.toISOString() ?? null,
-    })),
-  })
-}
-
-// POST /api/emergency — trigger an SOS
-export async function POST(req: NextRequest) {
-  const limited = rateLimit(req, 10, 60000)
-  if (limited) return limited
-
-  const { response, user } = await requireAuthWithCsrf(req)
-  if (response || !user) return response!
-  const u = user!
-
-  // SECURITY-CRITICAL: only caretaker / admin may create emergency alerts
-  const roleErr = assertEmergencyRole(u)
-  if (roleErr) return roleErr
-
-  const body = await readJson<{
-    familyId?: string
-    memberId?: string
-    memberName?: string
-    type?: string
-    tier?: string
-    location?: string
-    notes?: string
-  }>(req)
-  if (!body) return jsonError('Invalid JSON', 400)
-
-  let family = body.familyId
-    ? await db.family.findUnique({ where: { id: body.familyId } })
-    : await db.family.findFirst({ where: { ownerId: u.id } })
-  if (!family) return jsonError('Family not found. Create a family first.', 404)
-  if (family.ownerId !== u.id) return jsonError('Forbidden', 403)
-
-  const memberId = sanitizeText(body.memberId, 100) || 'self'
-  const memberName = sanitizeText(body.memberName, 120) || u.name
-  const notes = sanitizeText(body.notes, 1000)
-  const location = sanitizeText(body.location, 300)
-  const alertType = sanitizeText(body.type, 30) || 'sos'
-  const tier = sanitizeText(body.tier, 30) || 'critical' // critical | family
-
-  // Notify doctors who have previously treated this family (via appointments).
-  const patientUserIds = await db.user.findMany({
-    where: { memberships: { some: { familyId: family.id } } },
-    select: { id: true },
-  })
-  const linkedAppts = patientUserIds.length
-    ? await db.appointment.findMany({
-        where: { patientId: { in: patientUserIds.map((p) => p.id) }, status: 'completed' },
-        include: { doctor: { include: { user: true } } },
-      })
-    : []
-  // doctorProfileId -> { userId, email, name }  (userId needed by sendEmergency → loadUserTarget)
-  const doctorMap = new Map<string, { userId: string; email: string; name: string }>()
-  for (const a of linkedAppts) {
-    if (!doctorMap.has(a.doctor.id)) {
-      doctorMap.set(a.doctor.id, {
-        userId: a.doctor.user.id,
-        email: a.doctor.user.email,
-        name: a.doctor.user.name || a.doctor.user.email,
-      })
-    }
-  }
-  // Shape matches caretaker-app.tsx: { name, eta? }
-  const notifiedDoctors = Array.from(doctorMap.values()).map((d) => ({ name: d.name }))
-  const notifiedDoctorUserIds = Array.from(doctorMap.values()).map((d) => d.userId)
-
-  const alert = await db.emergencyAlert.create({
-    data: {
-      familyId: family.id,
-      familyMemberId: memberId === 'self' ? null : (memberId as string),
-      memberName,
-      reporterId: u.id,
-      type: alertType,
-      tier,
-      location,
-      notes,
-      status: 'active',
-      notifiedDoctors: JSON.stringify(notifiedDoctors),
-    } as any,
-  })
-
-  // Best-effort: actually broadcast the SOS by in-app/email only to the reporter + every linked doctor.
-  // sendEmergency() fans out to each notified doctor userId internally.
+export async function POST(request: Request) {
   try {
-    await sendEmergency(u.id, memberName ?? '', notes ?? '', notifiedDoctorUserIds, {
-      email: u.email,
-      phone: null,
-    }, `emergency:${alert.id}`)
-  } catch { /* best-effort — sendNotification logs internally */ }
+    const body = await request.json();
+    const { userId, type = 'sos', location } = body;
 
-  await logAudit(u.id, 'emergency.sos', `alert=${alert.id} notified=${notifiedDoctors.length}`)
-  const summary = notifiedDoctors.length > 0
-    ? `${memberName} — emergency SOS sent to your family and ${notifiedDoctors.length} linked doctor${notifiedDoctors.length === 1 ? '' : 's'}.`
-    : `${memberName} — emergency SOS sent to your family.`
-  return jsonOk({
-    id: alert.id,
-    status: 'active',
-    notifiedDoctors,
-    summary,
-    createdAt: alert.createdAt.toISOString(),
-  })
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    const result = await triggerSOS(userId, type, location);
+
+    if (result.success) {
+      return NextResponse.json({ 
+        success: true, 
+        alertId: result.alertId,
+        notifiedDoctors: result.notifiedDoctors,
+        summary: result.summary,
+        message: 'Emergency alert sent to family members' 
+      });
+    }
+
+    return NextResponse.json({ error: result.error }, { status: 500 });
+  } catch (error) {
+    console.error('Emergency endpoint error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
-// PUT /api/emergency — resolve an active alert.
-export async function PUT(req: NextRequest) {
-  const limited = rateLimit(req)
-  if (limited) return limited
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
 
-  const { response, user } = await requireAuthWithCsrf(req)
-  if (response || !user) return response!
-  const u = user!
+    if (!userId) {
+      return NextResponse.json({ error: 'userId is required' }, { status: 400 });
+    }
 
-  // SECURITY-CRITICAL: only caretaker / admin may resolve emergency alerts
-  const roleErr = assertEmergencyRole(u)
-  if (roleErr) return roleErr
-
-  const body = await readJson<{ id?: string; status?: string; notes?: string }>(req)
-  if (!body?.id) return jsonError('id is required', 400)
-
-  const alert = await db.emergencyAlert.findUnique({ where: { id: body.id }, include: { family: true } })
-  if (!alert) return jsonError('Alert not found', 404)
-  if (alert.family.ownerId !== u.id && u.role !== 'admin') {
-    return jsonError('Forbidden', 403)
+    const status = await checkEmergencyStatus(userId);
+    return NextResponse.json(status);
+  } catch (error) {
+    console.error('Emergency GET error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  const updated = await db.emergencyAlert.update({
-    where: { id: alert.id },
-    data: {
-      status: sanitizeText(body.status, 30) || 'resolved',
-      resolvedAt: new Date(),
-      notes: body.notes ? sanitizeText(body.notes, 1000) : alert.notes,
-    },
-  })
-
-  await logAudit(u.id, 'emergency.resolve', `alert=${alert.id} status=${updated.status}`)
-  return jsonOk(updated)
 }
