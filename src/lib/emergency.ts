@@ -83,8 +83,8 @@ export async function getUserFamilyId(userId: string): Promise<{ familyId: strin
 export async function getFamilyDoctors(familyId: string): Promise<string[]> {
   try {
     // @ts-ignore
-    const query = supabase.from('family_members') as any;
-    const { data: doctors, error } = await query
+    const { data: doctors, error } = await supabase
+      .from('family_members')
       .select('name, user_id, role')
       .eq('family_id', familyId)
       .or('role.eq.doctor,role.eq.medical,role.eq.physician');
@@ -107,8 +107,8 @@ export async function createEmergencyAlert(
 ): Promise<CreateEmergencyAlertResult> {
   try {
     // @ts-ignore
-    const query = supabase.from('emergency_alerts') as any;
-    const { data, error } = await query
+    const { data, error } = await supabase
+      .from('emergency_alerts')
       .insert({
         family_id: familyId,
         family_member_id: familyMemberId,
@@ -188,8 +188,8 @@ export async function getEmergencyAlerts(userId: string): Promise<EmergencyAlert
     const familyIds = memberships.map(m => m.family_id);
 
     // @ts-ignore
-    const query = supabase.from('emergency_alerts') as any;
-    const { data: alerts, error } = await query
+    const { data: alerts, error } = await supabase
+      .from('emergency_alerts')
       .select('*')
       .in('family_id', familyIds)
       .order('created_at', { ascending: false });
@@ -223,8 +223,8 @@ export async function resolveEmergencyAlert(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // @ts-ignore
-    const query = supabase.from('emergency_alerts') as any;
-    const { error } = await query
+    const { error } = await supabase
+      .from('emergency_alerts')
       .update({
         resolved: true,
         resolved_at: new Date().toISOString(),
@@ -288,8 +288,8 @@ export async function checkEmergencyStatus(userId: string): Promise<{
     }
 
     // @ts-ignore
-    const query = supabase.from('emergency_alerts') as any;
-    const { data, error } = await query
+    const { data, error } = await supabase
+      .from('emergency_alerts')
       .select('type, resolved')
       .eq('family_id', familyId)
       .eq('resolved', false)
