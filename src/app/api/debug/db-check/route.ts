@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   const url = process.env.DATABASE_URL || 'NOT SET'
