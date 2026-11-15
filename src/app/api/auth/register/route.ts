@@ -181,6 +181,7 @@ export async function POST(req: NextRequest) {
         idDocumentVerified: false,
         verificationLevel: 'unverified',
         emailOptOut: false,
+        updatedAt: new Date().toISOString(),
       }),
     })
 
