@@ -151,6 +151,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Create user in database
+    const userId = crypto.randomUUID()
     const createRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
       method: 'POST',
       headers: {
@@ -160,6 +161,7 @@ export async function POST(req: NextRequest) {
         'Prefer': 'return=representation',
       },
       body: JSON.stringify({
+        id: userId,
         email,
         name,
         role: role || 'patient',
@@ -190,6 +192,7 @@ export async function POST(req: NextRequest) {
 
     const created = await createRes.json()
     const newUser = Array.isArray(created) ? created[0] : created
+    if (!newUser) { return jsonError('Failed to create user account', 500, 'REGISTRATION_FAILED') }
 
     await logAudit(newUser.id, 'auth.register', `role=${role}`)
 
