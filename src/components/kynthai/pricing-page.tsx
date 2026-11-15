@@ -211,7 +211,7 @@ export function PricingPage() {
   /** Subtle USD subtitle, e.g. "$9.99/mo · cancel anytime". */
   function inrSubtitle(tierId: string, billingCycle: 'monthly' | 'yearly'): string {
     const price = tierPrice(tierId) ?? 0;
-    if (billingCycle === 'yearly' && tierId !== 'free') {
+    if (billingCycle === 'yearly') {
       return `${formatPrice(price, currency)}/year · cancel anytime`;
     }
     return `${formatPrice(price, currency)}/mo · cancel anytime`;
@@ -279,7 +279,7 @@ export function PricingPage() {
               <span
                 className={cn(
                   'text-xs sm:text-sm font-medium transition-colors',
-                  cycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'
+                  cycle === 'yearly' ? 'text-foreground' : 'text-muted-foreground'
                 )}
               >
                 Monthly
