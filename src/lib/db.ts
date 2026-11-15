@@ -9,15 +9,10 @@ const globalForPrisma = globalThis as unknown as {
   prismaInitError: Error | undefined
 }
 
-/** Thrown when DATABASE_URL is missing or invalid — callers may map to HTTP 503. */
 export class DatabaseNotConfiguredError extends Error {
   readonly code = 'DATABASE_NOT_CONFIGURED' as const
-
   constructor(message?: string) {
-    super(
-      message ??
-        'DATABASE_URL is not set. Configure DATABASE_URL in .env.local (see .env.example).',
-    )
+    super(message ?? 'DATABASE_URL is not set.')
     this.name = 'DatabaseNotConfiguredError'
   }
 }
@@ -28,10 +23,9 @@ export function isDatabaseConfigured(): boolean {
   return url.startsWith('file:') || url.startsWith('postgresql://')
 }
 
-// Resolve Prisma datasource URL — handle relative `file:` paths against project root
 function resolveDatabaseUrl(url: string): string {
   if (!url.startsWith('file:')) return url
-  const filePath = url.slice(5) // strip 'file:'
+  const filePath = url.slice(5)
   if (path.isAbsolute(filePath)) return url
   const absolutePath = path.resolve(process.cwd(), filePath)
   return `file:${absolutePath}`
@@ -43,9 +37,7 @@ function requireDatabaseUrl(): string {
     throw new DatabaseNotConfiguredError()
   }
   if (!rawUrl.startsWith('file:') && !rawUrl.startsWith('postgresql://')) {
-    throw new DatabaseNotConfiguredError(
-      `Invalid DATABASE_URL: must start with 'file:' or 'postgresql://'`,
-    )
+    throw new DatabaseNotConfiguredError(`Invalid DATABASE_URL`)
   }
   return resolveDatabaseUrl(rawUrl)
 }
@@ -80,78 +72,8 @@ function getDb(): PrismaClient {
   }
 }
 
-// Lazy Prisma accessor — do NOT construct/validate Prisma at import time.
 export const db: PrismaClient = new Proxy({} as PrismaClient, {
   get(_target, prop: string | symbol) {
     return typeof prop === 'string' ? Reflect.get(getDb(), prop) : undefined
   },
 })
-
-// ── Connection lifecycle ──────────────────────────────────────────────
-
-/**
- * Gracefully disconnect the Prisma Client.
- * Call this in your server shutdown / process termination handler.
- */
-export async function disconnectDb(): Promise<void> {
-  try {
-    await db.$disconnect()
-  } catch (err) {
-    logger.phiSafeError(err, 'db.disconnect')
-  }
-}
-
-/**
- * Handle unhandled promise rejections by disconnecting before exit.
- */
-;(() => {
-  if (process.env.NODE_ENV !== 'test') {
-    process.on('SIGINT', async () => {
-      await disconnectDb()
-      process.exit(0)
-    })
-
-    process.on('SIGTERM', async () => {
-      await disconnectDb()
-      process.exit(0)
-    })
-
-    process.on('uncaughtException', (error: Error) => {
-      logger.phiSafeError(error, 'uncaughtException')
-      process.exit(1)
-    })
-  }
-})()
-
-/**
- * Log a query-count summary when the process is about to exit (dev only).
- */
-export function logQueryStats(): void {
-  if (process.env.NODE_ENV !== 'development') return
-  const engine = (db as PrismaClient & { _engine?: { metrics?: () => Promise<Record<string, number>> } })?._engine
-  if (typeof engine?.metrics === 'function') {
-    engine
-      .metrics()
-      .then((m: Record<string, number>) => {
-        console.table({
-          totalQueries: m.totalQueries ?? 0,
-          totalQueriesFailed: m.totalQueriesFailed ?? 0,
-        })
-      })
-      .catch(() => {
-        // Silently ignore if metrics are unavailable
-      })
-  }
-}
-
-if (process.env.NODE_ENV === 'production') {
-  const _maskArgs = maskArgs
-  const _origError = console.error.bind(console)
-  const _origWarn = console.warn.bind(console)
-  const _origInfo = console.info.bind(console)
-
-  console.log = (...a: any[]) => { /* disabled — use logger */ }
-  console.error = (...a: any[]) => _origError(..._maskArgs(a))
-  console.warn = (...a: any[]) => _origWarn(..._maskArgs(a))
-  console.info = (...a: any[]) => _origInfo(..._maskArgs(a))
-}
