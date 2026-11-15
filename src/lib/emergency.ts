@@ -3,8 +3,13 @@
 // Safety-critical: handles emergency alert creation and notification
 // All functions require authentication
 
-import { supabase } from './supabase/client';
+import { supabase as _supabase } from './supabase/client';
+import { db } from './db';
 import { logAudit } from './auth';
+
+// The generated Supabase Database types don't cover the legacy tables used
+// here, so keep this boundary untyped.
+const supabase: any = _supabase;
 
 // Type definitions for tables not in Supabase generated types
 interface EmergencyAlertRow {
@@ -19,14 +24,6 @@ interface EmergencyAlertRow {
   resolved_at: string | null;
   resolved_by: string | null;
   created_at: string;
-}
-
-interface FamilyMemberRow {
-  id: string;
-  family_id: string;
-  user_id: string;
-  name: string | null;
-  role: string;
 }
 
 export type EmergencyType = 'medical' | 'fall' | 'chest_pain' | 'stroke' | 'allergic' | 'other';
@@ -80,18 +77,31 @@ export async function getUserFamilyId(userId: string): Promise<{ familyId: strin
   }
 }
 
+// Real linked doctors are those with a completed appointment for any member of
+// this family (not a role on family_members — that role is never used for
+// doctors, which is why the old query always came back empty).
 export async function getFamilyDoctors(familyId: string): Promise<string[]> {
   try {
-    // @ts-ignore
-    const { data: doctors, error } = await supabase
-      .from('family_members')
-      .select('name, user_id, role')
-      .eq('family_id', familyId)
-      .or('role.eq.doctor,role.eq.medical,role.eq.physician');
+    const members = await db.familyMember.findMany({
+      where: { familyId },
+      select: { userId: true },
+    });
+    const patientIds = members
+      .map((m) => m.userId)
+      .filter((id): id is string => Boolean(id));
+    if (patientIds.length === 0) return [];
 
-    if (error || !doctors) return [];
+    const appointments = await db.appointment.findMany({
+      where: { patientId: { in: patientIds }, status: 'completed' },
+      include: { doctor: { include: { user: true } } },
+    });
 
-    return (doctors as FamilyMemberRow[]).map(d => d.name || d.user_id || 'Doctor').filter(Boolean);
+    const names = new Set<string>();
+    for (const a of appointments) {
+      const name = a.doctor.user.name || a.doctor.user.email;
+      if (name) names.add(name);
+    }
+    return Array.from(names);
   } catch (error: any) {
     return [];
   }
@@ -106,7 +116,6 @@ export async function createEmergencyAlert(
   location?: string | null
 ): Promise<CreateEmergencyAlertResult> {
   try {
-    // @ts-ignore
     const { data, error } = await supabase
       .from('emergency_alerts')
       .insert({
@@ -185,9 +194,8 @@ export async function getEmergencyAlerts(userId: string): Promise<EmergencyAlert
 
     if (!memberships || memberships.length === 0) return [];
 
-    const familyIds = memberships.map(m => m.family_id);
+    const familyIds = (memberships || []).map((m: any) => m.family_id);
 
-    // @ts-ignore
     const { data: alerts, error } = await supabase
       .from('emergency_alerts')
       .select('*')
@@ -222,7 +230,6 @@ export async function resolveEmergencyAlert(
   resolvedBy: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // @ts-ignore
     const { error } = await supabase
       .from('emergency_alerts')
       .update({
@@ -287,7 +294,6 @@ export async function checkEmergencyStatus(userId: string): Promise<{
       return { hasPendingAlert: false };
     }
 
-    // @ts-ignore
     const { data, error } = await supabase
       .from('emergency_alerts')
       .select('type, resolved')
