@@ -13,13 +13,13 @@ export const CURRENCIES: Record<
   { symbol: string; locale: string; label: string; flag: string }
 > = {
   USD: { symbol: '$', locale: 'en-US', label: 'USD', flag: '<<' },
-  EUR: { symbol: '¬', locale: 'en-IE', label: 'EUR', flag: '<<' },
-  GBP: { symbol: '£', locale: 'en-GB', label: 'GBP', flag: '<<' },
+  EUR: { symbol: '\u20AC', locale: 'en-IE', label: 'EUR', flag: '<<' },
+  GBP: { symbol: '\u00A3', locale: 'en-GB', label: 'GBP', flag: '<<' },
 }
 
 export const CURRENCY_ORDER: Currency[] = ['USD', 'EUR', 'GBP']
 
-/** Patient subscription prices  per month, before local taxes */
+/** Patient subscription prices   per month, before local taxes */
 export const PRICING: Record<
   Currency,
   {
@@ -38,15 +38,15 @@ export const PRICING: Record<
   GBP: {
     plus: { monthly: 9.99, yearly: 99.00 },
     family_pro: { monthly: 18.99, yearly: 199.00 },
-  },
-},
+  }
+}
 
 /**
  * Founding-member (grandfathered) prices.
  *
  * Kynthai published "forever pricing" to early adopters at these rates, so
  * those subscriptions are honoured for as long as they stay active. Verify a
- * legacy renewal with `legacyAmountMatchesTier`  NOT `amountMatchesTier`,
+ * legacy renewal with `legacyAmountMatchesTier`   NOT `amountMatchesTier`,
  * which only accepts current prices. New customers are charged PRICING above.
  */
 export const LEGACY_PRICING: Record<
@@ -70,7 +70,7 @@ export const LEGACY_PRICING: Record<
   },
 }
 
-/** Early Adopter prices  per month, before local taxes */
+/** Early Adopter prices   per month, before local taxes */
 export const EARLY_ADOPTER_PRICING = {
   USD: {
     individual: { monthly: 9.99, yearly: 99.99 },
@@ -166,7 +166,7 @@ export function amountMatchesTier(
  *
  * This is deliberately NOT folded into `amountMatchesTier`: the new Individual
  * price ($19.99) equals the legacy Family price, so accepting both sets in one
- * check would let an Individual payment satisfy a Family claim  the
+ * check would let an Individual payment satisfy a Family claim   the
  * upgrade-underpay attack. Callers must therefore prove the subscription is a
  * pre-existing founding-member one (e.g. an existing Stripe subscription whose
  * price ID predates the change) before consulting this function.

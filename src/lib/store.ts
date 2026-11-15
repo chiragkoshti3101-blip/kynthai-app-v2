@@ -35,6 +35,10 @@ export interface AuthUser {
   /** ISO-8601 date of birth, or null when unset. Returned by /api/auth/me. */
   dateOfBirth?: string | null;
   subscriptionTier?: 'free' | 'plus' | 'family_pro';
+  /** Stripe customer ID for billing. Null when the user has no Stripe customer. */
+  stripeCustomerId?: string | null;
+  /** Account verification level: 'unverified', 'verified', or 'blocked'. */
+  verificationLevel?: string;
   /** True for one-tap demo logins. Demo users skip backend verification
    *  (doctor/lab) and get seeded sample data so the dashboards render
    *  immediately without a real DB session. */

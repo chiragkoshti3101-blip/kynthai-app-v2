@@ -23,7 +23,9 @@ export async function syncSupabaseUser(
       supabaseUser.user_metadata?.name ||
       supabaseUser.user_metadata?.full_name ||
       email.split('@')[0];
-    const role = (supabaseUser.user_metadata?.role as string) || 'patient';
+    // Roles are assigned server-side only. Never trust user_metadata.role —
+    // it is user-editable and can be used to escalate to admin.
+    const role = 'patient';
 
     profile = await db.user.create({
       data: {
@@ -51,6 +53,8 @@ export async function syncSupabaseUser(
     phone: profile.phone,
     dateOfBirth: profile.dateOfBirth?.toISOString() ?? null,
     subscriptionTier: profile.subscriptionTier as AuthUser['subscriptionTier'],
+    stripeCustomerId: profile.stripeCustomerId ?? null,
+    verificationLevel: profile.verificationLevel ?? 'unverified',
     isDemo: profile.isDemo,
     consentAccepted: profile.consentAccepted,
     dataProcessingConsent: profile.dataProcessingConsent,
@@ -76,6 +80,8 @@ export async function getSupabaseProfile(
     phone: profile.phone,
     dateOfBirth: profile.dateOfBirth?.toISOString() ?? null,
     subscriptionTier: profile.subscriptionTier as AuthUser['subscriptionTier'],
+    stripeCustomerId: profile.stripeCustomerId ?? null,
+    verificationLevel: profile.verificationLevel ?? 'unverified',
     isDemo: profile.isDemo,
     consentAccepted: profile.consentAccepted,
     dataProcessingConsent: profile.dataProcessingConsent,

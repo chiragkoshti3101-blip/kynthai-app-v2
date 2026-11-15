@@ -90,6 +90,8 @@ const TIERS: Tier[] = [
       'Prescription scans: 10/month',
     ],
   },
+  {
+    id: 'plus',
     name: 'Plus',
     tagline: 'Unlimited AI for your health — zero limits',
     icon: Sparkles,

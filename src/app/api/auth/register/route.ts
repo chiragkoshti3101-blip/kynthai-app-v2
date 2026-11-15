@@ -5,7 +5,7 @@ import {
   isValidEmail,
   isValidE164,
   rateLimit,
-  validatePasswordStrength,
+  validatePasswordStrengthAsync,
   getIp,
 } from '@/lib/security';
 import { checkCsrf } from '@/lib/csrf';
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const strength = validatePasswordStrength(password);
+    const strength = await validatePasswordStrengthAsync(password);
     if (!strength.valid) return jsonError(strength.errors.join('; '), 400);
     if (WEAK_PASSWORDS.has(password.toLowerCase())) {
       return jsonError('This password is too common — choose a stronger one', 400);

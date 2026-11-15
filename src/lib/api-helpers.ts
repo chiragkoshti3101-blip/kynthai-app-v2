@@ -345,7 +345,7 @@ export async function requireAuth(
     password: null,
     emailVerified: profile.emailVerified ?? null,
     subscriptionTier: (profile.subscriptionTier ?? 'free') as any,
-    stripeCustomerId: null,
+    stripeCustomerId: profile.stripeCustomerId ?? null,
     sessionToken: null,
     sessionExpiry: null,
     consentAccepted: profile.consentAccepted ?? false,
