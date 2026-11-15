@@ -778,7 +778,7 @@ END $$;
 CREATE POLICY "users_select_own" ON users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "users_update_own" ON users FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "admins_select_all_users" ON users FOR SELECT USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Doctor profiles
@@ -786,7 +786,7 @@ CREATE POLICY "doctor_profiles_select" ON doctor_profiles FOR SELECT USING (true
 CREATE POLICY "doctor_profiles_insert_own" ON doctor_profiles FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "doctor_profiles_update_own" ON doctor_profiles FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "admins_manage_doctor_profiles" ON doctor_profiles FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Lab profiles
@@ -794,7 +794,7 @@ CREATE POLICY "lab_profiles_select" ON lab_profiles FOR SELECT USING (true);
 CREATE POLICY "lab_profiles_insert_own" ON lab_profiles FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "lab_profiles_update_own" ON lab_profiles FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "admins_manage_lab_profiles" ON lab_profiles FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Appointments
@@ -807,7 +807,7 @@ CREATE POLICY "appointments_doctor_update" ON appointments FOR UPDATE USING (
   doctor_id IN (SELECT id FROM doctor_profiles WHERE user_id = auth.uid())
 );
 CREATE POLICY "admins_manage_appointments" ON appointments FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Lab bookings
@@ -820,7 +820,7 @@ CREATE POLICY "lab_bookings_lab_update" ON lab_bookings FOR UPDATE USING (
   lab_id IN (SELECT id FROM lab_profiles WHERE user_id = auth.uid())
 );
 CREATE POLICY "admins_manage_lab_bookings" ON lab_bookings FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Prescriptions
@@ -832,7 +832,7 @@ CREATE POLICY "prescriptions_doctor_insert" ON prescriptions FOR INSERT WITH CHE
   doctor_id IN (SELECT id FROM doctor_profiles WHERE user_id = auth.uid())
 );
 CREATE POLICY "admins_manage_prescriptions" ON prescriptions FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Medications
@@ -880,14 +880,14 @@ CREATE POLICY "emergency_alerts_insert" ON emergency_alerts FOR INSERT WITH CHEC
 -- Payments
 CREATE POLICY "payments_user_view" ON payments FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "admins_manage_payments" ON payments FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Refunds
 CREATE POLICY "refunds_user_view" ON refunds FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "refunds_user_insert" ON refunds FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "admins_manage_refunds" ON refunds FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Payouts
@@ -898,13 +898,13 @@ CREATE POLICY "payouts_lab_view" ON payouts FOR SELECT USING (
   lab_id IN (SELECT id FROM lab_profiles WHERE user_id = auth.uid())
 );
 CREATE POLICY "admins_manage_payouts" ON payouts FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Audit logs (read-only, admin can read all)
 CREATE POLICY "audit_logs_user_view" ON audit_logs FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "audit_logs_admin_view" ON audit_logs FOR SELECT USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 CREATE POLICY "audit_logs_insert_service" ON audit_logs FOR INSERT WITH CHECK (true);
 
@@ -934,7 +934,7 @@ CREATE POLICY "doctor_availability_doctor" ON doctor_availability_slots FOR ALL 
 CREATE POLICY "notification_logs_user" ON notification_logs FOR ALL USING (user_id = auth.uid());
 CREATE POLICY "complaints_user" ON complaints FOR ALL USING (user_id = auth.uid());
 CREATE POLICY "admins_manage_complaints" ON complaints FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 CREATE POLICY "referrals_user" ON referrals FOR ALL USING (referrer_id = auth.uid());
 CREATE POLICY "consult_messages_user" ON consult_messages FOR ALL USING (

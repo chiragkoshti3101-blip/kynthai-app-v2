@@ -27,7 +27,6 @@ export async function GET(req: NextRequest) {
     checks.database = 'ok'
   } catch (err: any) {
     checks.database = 'error'
-    checks.databaseError = err?.message || String(err)
     healthy = false
     logger.phiSafeError(err, 'health_check.db')
   }
