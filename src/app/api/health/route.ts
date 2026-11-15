@@ -13,8 +13,9 @@ export async function GET(req: NextRequest) {
     const { db } = await import('@/lib/db')
     await db.$queryRaw`SELECT 1`
     checks.database = 'ok'
-  } catch (err) {
+  } catch (err: any) {
     checks.database = 'error'
+    checks.databaseError = err?.message || String(err)
     healthy = false
     logger.phiSafeError(err, 'health_check.db')
   }
