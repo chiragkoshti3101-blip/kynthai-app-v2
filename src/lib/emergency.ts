@@ -82,7 +82,7 @@ export async function getUserFamilyId(userId: string): Promise<{ familyId: strin
 
 export async function getFamilyDoctors(familyId: string): Promise<string[]> {
   try {
-    // @ts-expect-error - family_members table not in generated types
+    // @ts-ignore
     const { data: doctors, error } = await supabase
       .from('family_members')
       .select('name, user_id, role')
@@ -106,7 +106,7 @@ export async function createEmergencyAlert(
   location?: string | null
 ): Promise<CreateEmergencyAlertResult> {
   try {
-    // @ts-expect-error - emergency_alerts table not in generated types
+    // @ts-ignore
     const { data, error } = await supabase
       .from('emergency_alerts')
       .insert({
@@ -187,7 +187,7 @@ export async function getEmergencyAlerts(userId: string): Promise<EmergencyAlert
 
     const familyIds = memberships.map(m => m.family_id);
 
-    // @ts-expect-error - emergency_alerts table not in generated types
+    // @ts-ignore
     const { data: alerts, error } = await supabase
       .from('emergency_alerts')
       .select('*')
@@ -222,7 +222,7 @@ export async function resolveEmergencyAlert(
   resolvedBy: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // @ts-expect-error - emergency_alerts table not in generated types
+    // @ts-ignore
     const { error } = await supabase
       .from('emergency_alerts')
       .update({
@@ -287,7 +287,7 @@ export async function checkEmergencyStatus(userId: string): Promise<{
       return { hasPendingAlert: false };
     }
 
-    // @ts-expect-error - emergency_alerts table not in generated types
+    // @ts-ignore
     const { data, error } = await supabase
       .from('emergency_alerts')
       .select('type, resolved')
