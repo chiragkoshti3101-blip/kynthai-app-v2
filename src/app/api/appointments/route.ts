@@ -58,69 +58,46 @@ export async function GET(req: NextRequest) {
     return jsonError('Forbidden — patientId must match session', 403);
   }
 
-  const and: any[] = [];
-  if (patientId) and.push({ patientId });
-  if (doctorId) {
-    // IDOR: doctor may only view appointments for their own doctor profile.
-    if (u.role === 'doctor') {
-      const profile = await db.doctorProfile.findUnique({ where: { userId: u.id } });
-      if (!profile || profile.id !== doctorId) {
-        return jsonError('Forbidden — doctorId must match your profile', 403);
-      }
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
+  const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
+  const headers = {
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  }
+
+  // Build query
+  let url = `${SUPABASE_URL}/rest/v1/appointments?select=*`
+  if (patientId) url += `&patientId=eq.${patientId}`
+  if (doctorId) url += `&doctorId=eq.${doctorId}`
+  if (status) url += `&status=eq.${status === 'no-show' ? 'no_show' : status}`
+  url += `&order=scheduledAt.desc&limit=${limit}`
+
+  try {
+    const res = await fetch(url, { headers })
+    if (!res.ok) {
+      return jsonError('Failed to fetch appointments', 500)
     }
-    and.push({ doctorId });
+    const appts = await res.json()
+    const data = (appts || []).map((a: any) => ({
+      id: a.id,
+      doctorId: a.doctorId,
+      patientId: a.patientId,
+      patientName: 'Patient',
+      doctorName: 'Doctor',
+      specialization: '',
+      scheduledAt: a.scheduledAt,
+      type: a.type,
+      status: a.status,
+      price: a.price,
+      commission: a.commission,
+      reason: a.reason,
+      notes: a.notes,
+    }))
+    return jsonOk(data)
+  } catch (err: any) {
+    return jsonError('Failed to fetch appointments: ' + (err?.message || String(err)), 500)
   }
-  if (status) and.push({ status: status === 'no-show' ? 'no_show' : status });
-
-  // If no filter, default to caller's own scope.
-  if (!patientId && !doctorId) {
-    if (u.role === 'patient') and.push({ patientId: u.id });
-    else if (u.role === 'doctor') {
-      const profile = await db.doctorProfile.findUnique({ where: { userId: u.id } });
-      if (!profile) return jsonOk([]);
-      and.push({ doctorId: profile.id });
-    } else {
-      return jsonError('patientId or doctorId query param required', 400);
-    }
-  }
-
-  const where: any = { AND: and };
-
-  const take = limit + 1;
-  const findArgs: any = {
-    where,
-    include: { patient: true, doctor: { include: { user: true } } },
-    orderBy: { scheduledAt: 'desc' } as const,
-    take,
-  };
-  if (cursor) {
-    findArgs.cursor = { id: cursor };
-    findArgs.skipCursor = true;
-  }
-  const appts = (await db.appointment.findMany(
-    findArgs as Parameters<typeof db.appointment.findMany>[0]
-  )) as any[];
-  const hasMore = appts.length > limit;
-  const page = hasMore ? appts.slice(0, limit) : appts;
-  const nextCursor = hasMore && page.length > 0 ? page[page.length - 1]!.id : null;
-
-  const data = page.map((a: any) => ({
-    id: a.id,
-    doctorId: a.doctorId,
-    patientId: a.patientId,
-    patientName: a.patient.name,
-    doctorName: a.doctor.user.name,
-    specialization: a.doctor.specialization,
-    scheduledAt: a.scheduledAt.toISOString(),
-    type: a.type,
-    status: a.status,
-    price: a.price,
-    commission: a.commission,
-    reason: a.reason,
-    notes: a.notes,
-  }));
-
-  return jsonPage(data, { cursor: nextCursor, limit, hasMore, totalCount: appts.length });
 }
 
 // POST /api/appointments — book a new appointment
