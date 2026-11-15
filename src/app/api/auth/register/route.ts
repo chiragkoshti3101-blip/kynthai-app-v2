@@ -9,6 +9,7 @@ import {
   getIp,
 } from '@/lib/security';
 import { checkCsrf, isSecureRequest } from '@/lib/csrf';
+import { signSessionToken } from '@/lib/session-signing';
 import {
   jsonError,
   jsonOk,
