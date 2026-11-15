@@ -3,12 +3,8 @@
 // Safety-critical: handles emergency alert creation and notification
 // All functions require authentication
 
-import { supabase as _supabase } from './supabase/client';
+import { supabase } from './supabase/client';
 import { logAudit } from './auth';
-
-// The generated Supabase Database types don't cover the legacy tables used
-// here, so keep this boundary untyped.
-const supabase: any = _supabase;
 
 // Type definitions for tables not in Supabase generated types
 interface EmergencyAlertRow {
@@ -86,8 +82,9 @@ export async function getUserFamilyId(userId: string): Promise<{ familyId: strin
 
 export async function getFamilyDoctors(familyId: string): Promise<string[]> {
   try {
-    const { data: doctors, error } = await supabase
-      .from('family_members')
+    // @ts-ignore
+    const query = supabase.from('family_members') as any;
+    const { data: doctors, error } = await query
       .select('name, user_id, role')
       .eq('family_id', familyId)
       .or('role.eq.doctor,role.eq.medical,role.eq.physician');
@@ -109,8 +106,9 @@ export async function createEmergencyAlert(
   location?: string | null
 ): Promise<CreateEmergencyAlertResult> {
   try {
-    const { data, error } = await supabase
-      .from('emergency_alerts')
+    // @ts-ignore
+    const query = supabase.from('emergency_alerts') as any;
+    const { data, error } = await query
       .insert({
         family_id: familyId,
         family_member_id: familyMemberId,
@@ -187,10 +185,11 @@ export async function getEmergencyAlerts(userId: string): Promise<EmergencyAlert
 
     if (!memberships || memberships.length === 0) return [];
 
-    const familyIds = (memberships || []).map((m: any) => m.family_id);
+    const familyIds = memberships.map(m => m.family_id);
 
-    const { data: alerts, error } = await supabase
-      .from('emergency_alerts')
+    // @ts-ignore
+    const query = supabase.from('emergency_alerts') as any;
+    const { data: alerts, error } = await query
       .select('*')
       .in('family_id', familyIds)
       .order('created_at', { ascending: false });
@@ -223,8 +222,9 @@ export async function resolveEmergencyAlert(
   resolvedBy: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase
-      .from('emergency_alerts')
+    // @ts-ignore
+    const query = supabase.from('emergency_alerts') as any;
+    const { error } = await query
       .update({
         resolved: true,
         resolved_at: new Date().toISOString(),
@@ -287,8 +287,9 @@ export async function checkEmergencyStatus(userId: string): Promise<{
       return { hasPendingAlert: false };
     }
 
-    const { data, error } = await supabase
-      .from('emergency_alerts')
+    // @ts-ignore
+    const query = supabase.from('emergency_alerts') as any;
+    const { data, error } = await query
       .select('type, resolved')
       .eq('family_id', familyId)
       .eq('resolved', false)
