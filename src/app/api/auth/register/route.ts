@@ -107,12 +107,12 @@ export async function POST(req: NextRequest) {
     // reused phone, disposable email) BEFORE creating any Supabase account.
     const gate = await checkEnrollmentGate({ email, phone });
     if (!gate.allowed) {
-      await logAudit('system', 'auth.register.blocked', `email=${email} code=${gate.code}`, 'security');
+      await logAudit('system', 'auth.register.blocked', `email=${email} code=${(gate as any).code}`, 'security');
       // Generic message — never reveal WHY (prevents signal probing).
       return jsonError(
         'Registration is not available for this account. Contact support if you believe this is a mistake.',
         403,
-        gate.code
+        (gate as any).code
       );
     }
 

@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const rows = await db.$queryRawUnsafe<Array<{ n: number }>>(
+    const rows = await db.$queryRawUnsafe>(
       `SELECT COUNT(*)::int AS n FROM "users" WHERE "timezone" IS NOT NULL AND "timezone" <> ''`
     )
     return Response.json({

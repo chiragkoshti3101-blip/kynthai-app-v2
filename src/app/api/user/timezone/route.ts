@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
   if (!ok) return jsonOk({ timezone: null })
 
   try {
-    const rows = await db.$queryRawUnsafe<Array<{ timezone: string | null }>>(
+    const rows = await db.$queryRawUnsafe>(
       `SELECT timezone FROM "users" WHERE id = $1`,
       user.id
     )

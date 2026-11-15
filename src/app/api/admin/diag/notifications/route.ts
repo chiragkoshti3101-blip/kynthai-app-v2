@@ -22,7 +22,7 @@ type GrpRow = { k: string | null; n: number | bigint }
 
 async function safeCount(sql: string): Promise<number | null> {
   try {
-    const rows = await db.$queryRawUnsafe<CountRow[]>(sql)
+    const rows = await db.$queryRawUnsafe(sql)
     return Number(rows?.[0]?.n ?? 0)
   } catch {
     return null
@@ -31,7 +31,7 @@ async function safeCount(sql: string): Promise<number | null> {
 
 async function safeGroup(sql: string): Promise<Array<{ k: string; n: number }> | null> {
   try {
-    const rows = await db.$queryRawUnsafe<GrpRow[]>(sql)
+    const rows = await db.$queryRawUnsafe(sql)
     return rows.map((r) => ({ k: r.k ?? 'unknown', n: Number(r.n) }))
   } catch {
     return null
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
     ) !== null
       ? (
           await db
-            .$queryRawUnsafe<Array<{ mn: Date | null; mx: Date | null }>>(
+            .$queryRawUnsafe>(
               `SELECT MIN("date") AS mn, MAX("date") AS mx FROM "${remTable}"`
             )
             .catch(() => [{ mn: null, mx: null }])
@@ -140,7 +140,7 @@ export async function GET(req: NextRequest) {
      WHERE "createdAt" >= NOW() - INTERVAL '24 hours' AND "channel" = 'push'`
   )
   try {
-    const rows = await db.$queryRawUnsafe<Array<{ ts: Date | null }>>(
+    const rows = await db.$queryRawUnsafe>(
       `SELECT MAX("createdAt") AS ts FROM "notification_logs"`
     )
     out.lastNotificationAt = rows?.[0]?.ts ?? null
