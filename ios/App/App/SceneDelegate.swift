@@ -8,7 +8,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        window?.rootViewController = CAPBridgeViewController()
+                let bridge = CAPBridgeViewController()
+        // Prevent white flash during page loads by setting webview background
+        bridge.webView?.backgroundColor = UIColor(red: 0.976, green: 0.992, blue: 0.984, alpha: 1.0)
+        bridge.webView?.isOpaque = true
+        window?.rootViewController = bridge
         window?.makeKeyAndVisible()
 
         SceneDelegateProxy.shared.scene(scene, willConnectTo: session, options: connectionOptions)
