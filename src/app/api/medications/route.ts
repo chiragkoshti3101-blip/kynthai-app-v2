@@ -64,38 +64,33 @@ export async function GET(req: NextRequest) {
     return jsonError('Forbidden — userId must match session', 403);
   }
 
-  // Build where clause — if familyMemberId is provided, ONLY return that member's meds
-  let where: any;
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
+  const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
+  const headers = {
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    'Content-Type': 'application/json',
+  }
+
+  let url = `${SUPABASE_URL}/rest/v1/medications?select=*`
   if (familyMemberId) {
-    // IDOR: ensure family member belongs to a family owned by this user.
-    const member = await db.familyMember.findUnique({
-      where: { id: familyMemberId },
-      include: { family: true },
-    });
-    if (!member || (member as any).family.ownerId !== u.id) {
-      return jsonError('Forbidden — family member does not belong to your family', 403);
-    }
-    // ONLY return this family member's medications
-    where = { familyMemberId };
+    url += `&familyMemberId=eq.${familyMemberId}`
   } else {
-    // Return the user's own medications
-    where = { userId: u.id };
+    url += `&userId=eq.${u.id}`
   }
+  if (activeParam === 'true') url += '&active=eq.true'
+  if (activeParam === 'false') url += '&active=eq.false'
+  url += `&order=createdAt.desc&limit=${limit}`
 
-  const take = limit + 1; // fetch one extra to determine hasMore
-  const findArgs: any = { where, orderBy: { createdAt: 'desc' }, take };
-  if (cursor) {
-    findArgs.cursor = { id: cursor };
-    findArgs.skipCursor = true;
+  try {
+    const res = await fetch(url, { headers })
+    if (!res.ok) return jsonError('Failed to fetch medications', 500)
+    const meds = await res.json()
+    const serialized = (meds || []).map((m: any) => ({ ...m, times: parseTimes(m.times) }))
+    return jsonOk(serialized)
+  } catch (err: any) {
+    return jsonError('Failed to fetch medications: ' + (err?.message || String(err)), 500)
   }
-  const meds = await db.medication.findMany(findArgs);
-  const hasMore = meds.length > limit;
-  const page = hasMore ? meds.slice(0, limit) : meds;
-  const nextCursor = hasMore && page.length > 0 ? page[page.length - 1]!.id : null;
-
-  const serialized = page.map((m: any) => ({ ...m, times: parseTimes(m.times) }));
-
-  return jsonPage(serialized, { cursor: nextCursor, limit, hasMore });
 }
 
 // POST /api/medications — create a medication
