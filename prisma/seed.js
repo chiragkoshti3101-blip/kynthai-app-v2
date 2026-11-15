@@ -282,6 +282,25 @@ async function main() {
   });
   console.log(`✅ Appointment created`);
 
+  // ── COMPLETED APPOINTMENT (links doctor to patient for caretaker SOS Step 2) ──
+  const pastDate = new Date();
+  pastDate.setDate(pastDate.getDate() - 7);
+  pastDate.setHours(14, 0, 0, 0);
+  await prisma.appointment.create({
+    data: {
+      doctorId: doctor.id,
+      patientId: patient.id,
+      scheduledAt: pastDate,
+      durationMinutes: 30,
+      type: 'video',
+      status: 'completed',
+      price: 7500,
+      commission: 1125,
+      reason: 'Completed follow-up consult (seeded for linked-doctor verification)',
+    },
+  });
+  console.log(`✅ Completed appointment seeded (linked doctor for SOS)`);
+
   // ── LAB BOOKING ──
   const labBooking = await prisma.labBooking.create({
     data: {

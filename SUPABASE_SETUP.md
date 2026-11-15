@@ -1,11 +1,24 @@
 # Supabase Setup Guide for Kynthai
 
-## Production project
+## Production project (current — Mumbai, being migrated to US)
 
-- **Project ref:** `szqzeemimmafkopwqqfp`
-- **Project URL:** https://szqzeemimmafkopwqqfp.supabase.co
-- **Region:** us-east-1 (verify in Dashboard → Settings → General)
-- **Supabase CLI link:** `supabase link --project-ref szqzeemimmafkopwqqfp`
+- **Project ref:** `wsgwhwbdxhqtfpehplep`
+- **Project URL:** https://wsgwhwbdxhqtfpehplep.supabase.co
+- **Region:** `ap-south-1` (Mumbai) — **NOT** US; must be migrated to `us-east-1` for US launch.
+- **Supabase CLI link:** `supabase link --project-ref wsgwhwbdxhqtfpehplep`
+
+> ⚠️ The previously documented ref `wsgwhwbdxhqtfpehplep` is stale and must not be used.
+
+## US migration (required for launch)
+
+1. Create a new Supabase project in **N. Virginia (`us-east-1`)** via the Dashboard.
+2. Apply the Prisma schema (creates camelCase columns matching `prisma/schema.prisma`): run `npx prisma migrate deploy` with `DATABASE_URL`/`DIRECT_URL` pointed at the new project (or `npm run db:migrate:deploy`). Do NOT run `supabase-schema.sql` — it creates an incompatible snake_case schema (`password_hash` vs Prisma's `password`, etc.) and will break every Prisma query.
+   - Optional RLS policies from `supabase/migrations/*.sql` may be applied afterwards if you want Supabase-level RLS; they are not required for Prisma (which connects as the DB owner).
+3. Copy the new project's **Transaction pooler** (port 6543) string into Vercel `DATABASE_URL` with `?pgbouncer=true&sslmode=require`, and the **Direct connection** (port 5432) into `DIRECT_URL` with `?sslmode=require`.
+4. Update `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWKS_URL` to the new project.
+5. Redeploy (push to `main` or Vercel redeploy).
+6. Seed demo data: `node prisma/seed.js --force` (only against the new empty project).
+7. Verify with `POST /api/auth/register` returning 200 and `POST /api/auth/login` returning a session cookie.
 
 The CLI project ref is also stored in `supabase/config.json` so `supabase` commands
 can resolve the project automatically.
@@ -21,11 +34,11 @@ can resolve the project automatically.
 Copy `.env.example` to `.env.production` (gitignored) and fill in:
 
 ```bash
-NEXT_PUBLIC_SUPABASE_URL=https://szqzeemimmafkopwqqfp.supabase.co
+NEXT_PUBLIC_SUPABASE_URL=https://wsgwhwbdxhqtfpehplep.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx
 SUPABASE_SERVICE_ROLE_KEY=sb_secret_xxx        # server-only — never expose to client
 SUPABASE_JWT_SECRET=                            # Dashboard → Settings → API
-SUPABASE_JWKS_URL=https://szqzeemimmafkopwqqfp.supabase.co/auth/v1/.well-known/jwks.json
+SUPABASE_JWKS_URL=https://wsgwhwbdxhqtfpehplep.supabase.co/auth/v1/.well-known/jwks.json
 ```
 
 > The anon / publishable key is safe to ship to the browser. The service_role
@@ -34,7 +47,7 @@ SUPABASE_JWKS_URL=https://szqzeemimmafkopwqqfp.supabase.co/auth/v1/.well-known/j
 ## Migration
 
 Run `supabase/migrations/20260101_initial_schema.sql` in Supabase SQL Editor
-(https://supabase.com/dashboard/project/szqzeemimmafkopwqqfp/sql/new).
+(https://supabase.com/dashboard/project/wsgwhwbdxhqtfpehplep/sql/new).
 
 This creates:
 - All tables with RLS enabled
@@ -96,8 +109,8 @@ functions can't hold a direct Postgres connection.
 ### Example (correct)
 
 ```bash
-DATABASE_URL=postgresql://postgres.szqzeemimmafkopwqqfp:YOUR_PASSWORD@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require
-DIRECT_URL=postgresql://postgres.szqzeemimmafkopwqqfp:YOUR_PASSWORD@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
+DATABASE_URL=postgresql://postgres.wsgwhwbdxhqtfpehplep:YOUR_PASSWORD@aws-0-us-east-1.pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require
+DIRECT_URL=postgresql://postgres.wsgwhwbdxhqtfpehplep:YOUR_PASSWORD@aws-0-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require
 ```
 
 ---
@@ -146,7 +159,7 @@ brew install supabase       # macOS
 
 # Link your project
 supabase login
-supabase link --project-ref szqzeemimmafkopwqqfp
+supabase link --project-ref wsgwhwbdxhqtfpehplep
 
 # Run local development (uses .env.local)
 npm run dev
