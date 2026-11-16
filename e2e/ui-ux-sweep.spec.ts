@@ -124,6 +124,15 @@ for (const path of ['/', '/login', '/pricing']) {
 
 async function publicPageReady(page: import('@playwright/test').Page, path: string) {
   await expect(page.locator('h1').first()).toBeVisible();
+  // Visible is true mid-fade too. Axe must inspect the settled rendered state,
+  // not translucent reveal frames that temporarily change every text color.
+  await expect.poll(() => page.locator('h1').first().evaluate((heading) => {
+    for (let element: Element | null = heading; element; element = element.parentElement) {
+      if (Number(getComputedStyle(element).opacity) < 1) return false;
+    }
+    return true;
+  })).toBe(true);
+
   if (path === '/login') {
     await expect(page.locator('input[type="email"]')).toBeVisible();
     await expect(page.locator('#login-submit-btn')).toBeEnabled();
