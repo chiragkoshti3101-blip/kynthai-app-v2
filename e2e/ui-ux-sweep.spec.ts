@@ -56,8 +56,8 @@ const PUBLIC_PAGES = [
 for (const p of PUBLIC_PAGES) {
   test(`UI/UX: ${p.name} (${p.path}) renders cleanly`, async ({ page }) => {
     const t = trackPage(page);
-    await page.goto(`${BASE}${p.path}`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1500);
+    await page.goto(`${BASE}${p.path}`, { waitUntil: 'domcontentloaded' });
+    await publicPageReady(page, p.path);
 
     // Main content actually rendered (not a stuck loader / empty shell).
     const bodyText = await page.locator('body').innerText();
@@ -72,7 +72,7 @@ for (const p of PUBLIC_PAGES) {
 test('UI/UX: mobile viewport has no horizontal overflow on landing', async ({ context }) => {
   const page = await context.newPage();
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto(`${BASE}/`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   const { scrollWidth, clientWidth } = await page.evaluate(() => ({
     scrollWidth: document.documentElement.scrollWidth,
     clientWidth: document.documentElement.clientWidth,
@@ -101,10 +101,10 @@ for (const role of ['patient', 'doctor', 'lab'] as const) {
 // log-only: kynthai.app may be mid-deploy at test time, so a strict assertive
 // gate there would flakily block merges for a stale deploy.
 test.setTimeout(90000);
-test('A11y: landing + login + pricing — WCAG 2.x AA (hard on local build, log on prod)', async ({ page }) => {
-  for (const path of ['/', '/login', '/pricing']) {
+for (const path of ['/', '/login', '/pricing']) {
+  test(`A11y: ${path} — WCAG 2.x AA`, async ({ page }) => {
     await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    await page.waitForLoadState('networkidle').catch(() => {});
+    await publicPageReady(page, path);
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
       .analyze();
@@ -116,8 +116,20 @@ test('A11y: landing + login + pricing — WCAG 2.x AA (hard on local build, log 
       if (serious.length) {
         console.warn(`[a11y:prod log] ${serious.length} serious/critical on ${path}:\n${detail}`);
       }
-      continue;
+      return;
     }
     expect(serious, `WCAG serious/critical violations on ${path}:\n${detail}`).toEqual([]);
+  });
+}
+
+async function publicPageReady(page: import('@playwright/test').Page, path: string) {
+  await expect(page.locator('h1').first()).toBeVisible();
+  if (path === '/login') {
+    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.locator('#login-submit-btn')).toBeEnabled();
+  } else if (path === '/privacy') {
+    await expect(page.locator('h1')).toContainText(/privacy/i);
+  } else if (path === '/pricing') {
+    await expect(page.locator('body')).toContainText(/free|month|plan/i);
   }
-});
+}
