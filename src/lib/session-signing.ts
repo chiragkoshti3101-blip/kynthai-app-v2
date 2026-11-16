@@ -72,9 +72,9 @@ export async function verifySessionToken(signed: string): Promise<string | null>
   const userId = signed.slice(0, firstColon);
   const expiryStr = signed.slice(firstColon + 1, secondColon);
   const providedHmac = signed.slice(secondColon + 1);
-  if (!userId || !expiryStr || !providedHmac || providedHmac.length !== 64) return null;
+  if (!userId || !expiryStr || !providedHmac || ! /^[a-f0-9]{64}$/i.test(providedHmac)) return null;
   const expiryMs = Number(expiryStr);
-  if (!Number.isFinite(expiryMs) || expiryMs <= Date.now()) return null;
+  if (!Number.isSafeInteger(expiryMs) || expiryMs <= Date.now() || expiryMs > Date.now() + SESSION_TTL_MS) return null;
   const secret = getSigningSecret();
   if (!secret) return null;
   const signingInput = `${userId}:${expiryMs}`;
@@ -102,6 +102,11 @@ export async function verifySessionToken(signed: string): Promise<string | null>
   // Node-runtime callers instead: requireAuth() in lib/api-helpers.ts and
   // getSessionUser() in lib/auth.ts.
   return userId;
+}
+
+/** Only call after signature verification. Existing tokens encode issuance as expiry - TTL. */
+export function sessionIssuedAt(verifiedToken: string): Date {
+  return new Date(Number(verifiedToken.split(':')[1]) - SESSION_TTL_MS);
 }
 
 // ── Supabase auth-token cookie verification ─────────────────────────────────

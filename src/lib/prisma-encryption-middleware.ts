@@ -162,8 +162,8 @@ const MODEL_ENCRYPTED_FIELDS: ModelEncMap = {
     { enc: 'name_enc', as: 'name' },
     { enc: 'relation_enc', as: 'relation', required: true },
     { enc: 'conditions_enc', as: 'conditions', required: true, defaultValue: '[]' },
-    { enc: 'inviteEmail_enc', as: 'inviteEmail' },
-    { enc: 'inviteToken_enc', as: 'inviteToken' },
+    { enc: 'inviteEmail_enc', as: 'inviteEmail', search: 'inviteEmail_hash' },
+    { enc: 'inviteToken_enc', as: 'inviteToken', search: 'inviteToken_hash' },
   ],
   FamilyHealthAlert: [
     { enc: 'title_enc', as: 'title' },

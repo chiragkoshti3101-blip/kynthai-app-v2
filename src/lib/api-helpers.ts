@@ -1,7 +1,7 @@
 import { z, ZodError } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { verifySessionToken } from './session-signing';
+import { verifySessionToken, sessionIssuedAt } from './session-signing';
 import { logAudit, getSessionUser } from './auth';
 import { withTimeout } from './with-timeout';
 import { recordAudit, recordAuditSync, AuditContext, AuditCategory } from './audit-logger';
@@ -281,7 +281,7 @@ export async function requireAuth(
         try {
           const { db } = await import('@/lib/db')
           const revoked = await db.revokedSession.findFirst({
-            where: { userId, expiresAt: { gt: new Date() } },
+            where: { userId, expiresAt: { gt: new Date() }, revokedAt: { gte: sessionIssuedAt(kynthaiSession.value) } },
             orderBy: { revokedAt: 'desc' },
             take: 1,
           })
@@ -660,42 +660,16 @@ export function checkConsent(
   return null;
 }
 
-/**
- * Enforce AI feature tier limits. Free users get 3 AI-powered feature calls per day
- * (chat, symptom analysis, interactions, insights, identify, scan, voice, etc.).
- * Plus/Family Pro users get unlimited.
- *
- * Returns a NextResponse error (403) if the limit is exceeded, or null if OK.
- * Uses the same daily counter as the chat route (counts 'llm' source messages).
- */
+/** Reserve one free AI operation atomically across all AI endpoints, in UTC. */
 export async function checkAiTier(user: User, featureName: string): Promise<NextResponse | null> {
-  const tier = user.subscriptionTier;
-  if (tier === 'plus' || tier === 'family_pro' || tier === 'pro') return null; // unlimited
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
-
-  const usedToday = await db.chatMessage.count({
-    where: { userId: user.id, source: 'llm', createdAt: { gte: todayStart, lte: todayEnd } },
-  });
-
-  const FREE_DAILY_LIMIT = 3;
-  if (usedToday >= FREE_DAILY_LIMIT) {
-    return applyStandardHeaders(
-      NextResponse.json(
-        {
-          error: `Free tier allows ${FREE_DAILY_LIMIT} AI ${featureName} per day. Upgrade to Plus for unlimited access.`,
-          limitReached: true,
-          dailyLimit: FREE_DAILY_LIMIT,
-          usedToday,
-        },
-        { status: 403 }
-      )
-    );
-  }
-  return null;
+  const { FREE_TIER_AI_LIMIT, TIERS_UNLOCKED } = await import('./free-tier-guard');
+  if (TIERS_UNLOCKED.has(user.subscriptionTier)) return null;
+  const { reserveAiUsage } = await import('./supabase-db');
+  if (await reserveAiUsage(user.id, FREE_TIER_AI_LIMIT)) return null;
+  return applyStandardHeaders(NextResponse.json({
+    error: `Free tier allows ${FREE_TIER_AI_LIMIT} AI operations per UTC day. Upgrade for more access.`,
+    limitReached: true, dailyLimit: FREE_TIER_AI_LIMIT, usedToday: FREE_TIER_AI_LIMIT,
+  }, { status: 403 }));
 }
 
 /** Read JSON body safely; returns null on parse error. */

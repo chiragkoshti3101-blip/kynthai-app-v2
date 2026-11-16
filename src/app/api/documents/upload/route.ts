@@ -7,7 +7,7 @@ import { db } from '@/lib/db';
 import { checkCsrf } from '@/lib/csrf';
 import { rateLimit, sanitizeText } from '@/lib/security';
 import { encryptFile, generateFileId, sanitizeFilename } from '@/lib/encryption';
-import { uploadMedicalDocument } from '@/lib/storage';
+import { uploadMedicalDocument, deleteMedicalDocument } from '@/lib/storage';
 import { DocumentType, DocumentCategory, DocumentVisibility } from '@prisma/client';
 import { logger } from '@/lib/logger';
 import { scanBuffer, isAntivirusRequired } from '@/lib/antivirus';
@@ -196,7 +196,9 @@ export async function POST(req: NextRequest) {
     const encryptionKey = `${iv.toString('base64')}:${salt.toString('base64')}:${authTag.toString('base64')}`;
 
     // Create database record
-    const document = await db.medicalDocument.create({
+    let document;
+    try {
+      document = await db.medicalDocument.create({
       data: {
         userId: user.id,
         uploadedById: user.id,
@@ -221,6 +223,13 @@ export async function POST(req: NextRequest) {
         sharedWith,
       },
     });
+
+    } catch (error) {
+      // The database is the source of truth; never retain an orphaned PHI blob.
+      const cleanup = await deleteMedicalDocument(storagePath);
+      if (!cleanup.success) logger.phiSafeError(new Error('Orphaned document cleanup failed'), 'documents.upload.cleanup');
+      throw error;
+    }
 
     // Audit log
     await db.auditLog.create({

@@ -84,6 +84,8 @@ export async function GET(req: NextRequest) {
     and.push({ patientId })
   }
   if (doctorId) {
+    // A doctor filter is not permission to read that doctor's other patients.
+    if (u.role !== 'doctor' && u.role !== 'admin' && !patientId) and.push({ patientId: u.id })
     if (u.role === 'doctor') {
       const profile = await db.doctorProfile.findUnique({ where: { userId: u.id } })
       if (!profile || profile.id !== doctorId) {
@@ -152,48 +154,8 @@ export async function POST(req: NextRequest) {
   }>(req)
   if (!body) return jsonError('Invalid JSON', 400)
 
-  const patientId = body.patientId || u.id
-  if (patientId !== u.id && u.role !== 'doctor' && u.role !== 'admin') {
-    return jsonError('You can only create prescriptions for yourself', 403)
-  }
-
-  let doctorId = body.doctorId
-  if (!doctorId && u.role === 'doctor') {
-    const profile = await db.doctorProfile.findUnique({ where: { userId: u.id } })
-    if (!profile) return jsonError('Doctor profile not found', 404)
-    doctorId = profile.id
-  }
-  if (!doctorId) return jsonError('doctorId is required', 400)
-  const doctor = await db.doctorProfile.findUnique({ where: { id: doctorId }, select: { id: true } })
-  if (!doctor) return jsonError('Doctor not found', 404)
-
-  const meds = Array.isArray(body.medications) ? body.medications : []
-  // The Prisma field-encryption extension encrypts the image data into
-  // imageBase64_enc before persistence. The payload is never rendered or
-  // echoed back, so it needs no HTML scrubbing — cap it before any processing
-  // rather than running the sanitizer's regex passes over up to 200 KB.
-  const MAX_IMAGE_BASE64_LEN = 200_000
-  const imageData = typeof body.imageBase64 === 'string' && body.imageBase64.length > 0
-    ? body.imageBase64.slice(0, MAX_IMAGE_BASE64_LEN)
-    : null
-  const prescription = await db.prescription.create({
-    data: {
-      doctorId,
-      patientId,
-      notes: sanitizeText(body.notes, 2000) || null,
-      imageBase64: imageData,
-      medications: JSON.stringify(meds),
-      followUpDate: body.followUpDate ? new Date(body.followUpDate) : null,
-      inviteStatus: 'accepted',
-    } as any,
-  })
-
-  await logAudit(u.id, 'prescription.create', `prescription=${prescription.id}`)
-  return jsonOk({
-    id: prescription.id,
-    medications: parseJsonCol(prescription.medications, []),
-    notes: prescription.notes,
-    followUpDate: prescription.followUpDate?.toISOString() ?? null,
-    createdAt: prescription.createdAt.toISOString(),
-  })
+  // Issuing a clinical prescription must use the verified doctor workflow,
+  // which checks the treating relationship, consent, allergies and licensure.
+  // This upload endpoint cannot safely impersonate that issuing workflow.
+  return jsonError('Use the verified doctor prescribing workflow', 403)
 }

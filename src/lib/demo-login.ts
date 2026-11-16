@@ -28,6 +28,8 @@ const DEMO_ACCOUNTS: Record<DemoRole, string> = {
 export const DEMO_ROLES: DemoRole[] = ['patient', 'doctor', 'caretaker', 'lab', 'admin']
 
 export async function runDemoLogin(role: DemoRole): Promise<boolean> {
+  // Known-password demos must not authenticate against a production database.
+  if (process.env.NODE_ENV === 'production') return false
   const email = DEMO_ACCOUNTS[role]
   if (!email) return false
   try {

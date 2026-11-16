@@ -61,46 +61,7 @@ export async function POST(req: NextRequest) {
       update: { endpoint },
     })
   } catch {
-    try {
-      await db.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "push_subscriptions" (
-          "id" TEXT NOT NULL,
-          "userId" TEXT NOT NULL,
-          "endpoint" TEXT NOT NULL,
-          "type" TEXT NOT NULL DEFAULT 'webpush',
-          "token" TEXT,
-          "p256dh" TEXT NOT NULL,
-          "auth" TEXT NOT NULL,
-          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY ("id")
-        );
-      `)
-      for (const sql of [
-        `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'webpush'`,
-        `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "token" TEXT`,
-        `CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_endpoint_type_key" ON "push_subscriptions"("userId", "endpoint", "type")`,
-        `CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_type_token_key" ON "push_subscriptions"("userId", "type", "token")`,
-        `CREATE INDEX IF NOT EXISTS "push_subscriptions_userId_idx" ON "push_subscriptions"("userId")`,
-        `DROP INDEX IF EXISTS "push_subscriptions_userId_endpoint_key"`,
-      ]) {
-        await db.$executeRawUnsafe(sql).catch(() => {})
-      }
-      await db.pushSubscription.upsert({
-        where: { userId_type_token: { userId: user.id, type: requestedType, token } },
-        create: {
-          userId: user.id,
-          endpoint,
-          type: requestedType,
-          token,
-          p256dh: '',
-          auth: '',
-        },
-        update: { endpoint },
-      })
-    } catch (e) {
-      console.error('[fcm-register] store failed', e)
-      return jsonError('Failed to store native push token', 500)
-    }
+    return jsonError('Failed to store native push token', 500)
   }
 
   await logAudit(user.id, 'push.native_register', `${requestedType}:${tokenFingerprint}`)
@@ -133,9 +94,14 @@ export async function DELETE(req: NextRequest) {
   const { response, user } = await requireAuth(req)
   if (response || !user) return response || jsonError('Unauthorized', 401)
 
-  const result = await db.pushSubscription.deleteMany({
-    where: { userId: user.id, type: requestedType, token },
-  }).catch(() => ({ count: 0 }))
+  let result
+  try {
+    result = await db.pushSubscription.deleteMany({
+      where: { userId: user.id, type: requestedType, token },
+    })
+  } catch {
+    return jsonError('Failed to remove native push token', 500)
+  }
   await logAudit(user.id, 'push.native_unregister', `${requestedType}:${result.count}`)
   return jsonOk({ success: true, removed: result.count })
 }

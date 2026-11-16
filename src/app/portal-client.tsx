@@ -260,78 +260,9 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
       window.location.replace('/');
       return;
     }
-    // ponytail: opt-in demo mode. When NEXT_PUBLIC_ENABLE_DEMO=true the
-    // app auto-signs the user in as a real demo account (patient /
-    // doctor / lab / caretaker / admin @kynthai.app, password
-    // Demo@2024). These accounts have a real Supabase auth + public.users
-    // row, so the session is real and every API call works exactly as it
-    // would for a real user — the world-class AI (patient record,
-    // verified interaction/contraindication checking, streaming) all
-    // activates. The client-side store.login mock is gone.
-    if (isDemoEnabled() && !user && !onboardingComplete) {
-      // ponytail: do a real sign-in via the login API. The chosen
-      // demo account is the patient (most seeded: meds, conditions,
-      // allergies) so the patient portal demos the full world-class
-      // experience. cycle through the 5 roles in order so testers can
-      // log out and see each portal.
-      const demoAccounts: Array<{ email: string; role: 'patient' | 'doctor' | 'lab' | 'caretaker' | 'admin' }> = [
-        { email: 'patient@kynthai.app',   role: 'patient'   },
-        { email: 'doctor@kynthai.app',    role: 'doctor'    },
-        { email: 'caretaker@kynthai.app', role: 'caretaker' },
-        { email: 'lab@kynthai.app',       role: 'lab'       },
-        { email: 'admin@kynthai.app',     role: 'admin'     },
-      ];
-      const pick: { email: string; role: 'patient' | 'doctor' | 'lab' | 'caretaker' | 'admin' } = (() => {
-        if (typeof window !== 'undefined') {
-          const fromHash = (window.location.hash || '').replace('#', '').toLowerCase();
-          const found = demoAccounts.find(a => a.role === fromHash);
-          if (found) return found as { email: string; role: 'patient' | 'doctor' | 'lab' | 'caretaker' | 'admin' };
-        }
-        return demoAccounts[0]!;
-      })();
-      (async () => {
-        try {
-          // 1. Get CSRF (sets the cookie + returns the token)
-          const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
-          const { token: csrf } = await csrfRes.json();
-          // 2. Real sign-in — sets the kynthai-session cookie on success
-          const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-            body: JSON.stringify({
-              email: pick.email,
-              password: 'Demo@2024',
-              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            }),
-          });
-          if (res.ok) {
-            // 3. Client-side navigation (no hard reload) — the store already
-            //    has the user from runDemoLogin, and portal clients recover
-            //    via /api/auth/me. This avoids the triple-loading-state flash
-            //    (login AppLoader → portal chunk AppLoader → portal-app AppLoader).
-            router.push(pathname === '/' ? `/${pick.role}` : pathname);
-            return;
-          }
-        } catch { /* fall through to the client-side fallback below */ }
+    // Demo authentication is explicit on the login screen. Never embed
+    // production account credentials or fabricate a client-only session here.
 
-        // Fallback: client-side store login (no real session). Keeps the
-        // demo usable even if the network call to /api/auth/login fails.
-        const fallback: AuthUser = {
-          id: 'demo-caretaker',
-          email: 'caretaker@kynthai.app',
-          name: 'Demo Family',
-          role: 'caretaker',
-          consentAccepted: true,
-          dataProcessingConsent: true,
-          aiTrainingConsent: true,
-          isDemo: true,
-        };
-        login(fallback);
-        completeOnboarding('caretaker');
-        if (pathname === '/') router.replace('/caretaker');
-      })();
-    }
   }, [user, onboardingComplete, completeOnboarding, pathname, router]);
 
   // Prefetch auth routes so Get Started / Sign in feel instant.

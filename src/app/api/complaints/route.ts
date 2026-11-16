@@ -1,3 +1,4 @@
+import { parseFileToken, userPrefixFor } from '@/lib/health-files';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import {
@@ -58,6 +59,11 @@ export async function POST(req: NextRequest) {
     return jsonError('Description is required', 400, 'MISSING_DESCRIPTION');
   if (body.priority && !PRIORITIES.includes(body.priority as (typeof PRIORITIES)[number])) {
     return jsonError('Priority must be low, medium, high, or critical', 400, 'INVALID_PRIORITY');
+  }
+
+  if (body.proofFile) {
+    const file = typeof body.proofFile === 'string' ? parseFileToken(body.proofFile) : null;
+    if (!file || file.userPrefix !== userPrefixFor(u.id)) return jsonError('Invalid or unauthorized evidence file', 403);
   }
 
   const complaint = await db.complaint.create({

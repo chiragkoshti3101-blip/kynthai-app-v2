@@ -18,7 +18,7 @@ async function assertMemberOwned(memberId: string, callerId: string) {
   const isOwner = member.family.ownerId === callerId
   if (isOwner) return { error: null, member }
   const callerMembership = await db.familyMember.findFirst({
-    where: { familyId: member.familyId, userId: callerId },
+    where: { familyId: member.familyId, userId: callerId, inviteStatus: 'accepted' },
     select: { role: true },
   })
   const callerRole = callerMembership?.role ?? 'viewer'
@@ -148,6 +148,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   // manages the Family Pro plan.
   if (member.family.ownerId !== u.id) {
     return jsonError('Only the family owner can remove a member', 403)
+  }
+
+  if (member.userId === member.family.ownerId) {
+    return jsonError('The family owner cannot be removed', 409)
   }
 
   // Removal is a hard revoke for the removed member's linked account:

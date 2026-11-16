@@ -13,10 +13,8 @@ export const dynamic = 'force-dynamic'
  * doses on the user's local wall clock (a 08:00 dose fires at 08:00 where the
  * user lives — not 08:00 New York time).
  *
- * The `User.timezone` column is bootstrapped idempotently here AND in
- * /api/reminders/send, using raw SQL, so this works even before
- * `prisma db push` / migrations run and even if Prisma Client has not been
- * regenerated (raw SQL only — no typed field access).
+ * Reads and writes use the database adapter; the timezone column must be
+ * installed by the database migrations.
  *
  * Client usage (once per session, from auth-guard):
  *   Intl.DateTimeFormat().resolvedOptions().timeZone  →  e.g. "America/Los_Angeles"
@@ -37,15 +35,6 @@ function isValidTimeZone(tz: string): boolean {
   }
 }
 
-async function ensureTimezoneColumn(): Promise<boolean> {
-  try {
-    await db.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "timezone" TEXT`)
-    return true
-  } catch {
-    return false
-  }
-}
-
 export async function PUT(req: NextRequest) {
   const limited = rateLimit(req, 20, 60_000)
   if (limited) return limited
@@ -59,13 +48,8 @@ export async function PUT(req: NextRequest) {
     return jsonError('A valid IANA timezone is required (e.g. America/Los_Angeles)', 400)
   }
 
-  const ok = await ensureTimezoneColumn()
-  if (!ok) return jsonError('Could not store timezone right now', 500)
-
   try {
-    // Physical table is "users" (Prisma @@map) — "User" does not exist and
-    // this UPDATE silently 500'd forever, so no user ever had a stored tz.
-    await db.$executeRawUnsafe(`UPDATE "users" SET "timezone" = $1 WHERE id = $2`, tz, user.id)
+    await db.user.update({ where: { id: user.id }, data: { timezone: tz } })
   } catch {
     return jsonError('Could not store timezone right now', 500)
   }
@@ -81,15 +65,12 @@ export async function GET(req: NextRequest) {
   const { response, user } = await requireAuthWithCsrf(req)
   if (response || !user) return response!
 
-  const ok = await ensureTimezoneColumn()
-  if (!ok) return jsonOk({ timezone: null })
-
   try {
-    const rows = await db.$queryRawUnsafe>(
-      `SELECT timezone FROM "users" WHERE id = $1`,
-      user.id
-    )
-    return jsonOk({ timezone: rows?.[0]?.timezone ?? null })
+    const storedUser = await db.user.findUnique({
+      where: { id: user.id },
+      select: { timezone: true },
+    })
+    return jsonOk({ timezone: storedUser?.timezone ?? null })
   } catch {
     return jsonOk({ timezone: null })
   }

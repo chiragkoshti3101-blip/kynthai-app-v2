@@ -23,14 +23,14 @@ export async function GET(req: NextRequest) {
 
   try {
     const memberships = await db.familyMember.findMany({
-      where: { userId: u.id },
+      where: { userId: u.id, inviteStatus: 'accepted' },
       select: { familyId: true },
     })
     if (memberships.length === 0) return jsonOk({ contacts: [] })
 
     const familyIds = [...new Set(memberships.map((m) => m.familyId))]
     const members = await db.familyMember.findMany({
-      where: { familyId: { in: familyIds }, userId: { not: u.id } },
+      where: { familyId: { in: familyIds }, userId: { not: u.id }, inviteStatus: 'accepted' },
       select: {
         name: true,
         user: { select: { name: true, phone: true } },

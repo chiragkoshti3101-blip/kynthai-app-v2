@@ -82,21 +82,14 @@ export async function POST(req: NextRequest) {
     return jsonError('Invite token has expired. Please request a new prescription.', 410)
   }
 
-  // If patient email matches the session user's email, mark as accepted.
-  if ((prescription as any).patient?.email === u.email) {
-    const updated = await db.prescription.update({
-      where: { id: prescription.id },
-      data: { inviteStatus: 'accepted' as any } as any,
-    })
-    await logAudit(u.id, 'invite.accept', `prescription=${prescription.id}`)
-    return jsonOk({ accepted: true, prescriptionId: prescription.id, inviteStatus: (updated as any).inviteStatus })
+  // A bearer token must never transfer another patient's clinical record.
+  if (prescription.patientId !== u.id) {
+    return jsonError('This prescription invite is not addressed to your account', 403)
   }
-
-  // Otherwise, link this prescription to the session user (e.g., patient is logged in with a different email but accepts the invite).
   await db.prescription.update({
     where: { id: prescription.id },
-    data: { patientId: u.id, inviteStatus: 'accepted' as any } as any,
+    data: { inviteStatus: 'accepted', inviteToken: null } as any,
   })
-  await logAudit(u.id, 'invite.accept.link', `prescription=${prescription.id}`)
-  return jsonOk({ accepted: true, linked: true, prescriptionId: prescription.id })
+  await logAudit(u.id, 'invite.accept', `prescription=${prescription.id}`)
+  return jsonOk({ accepted: true, prescriptionId: prescription.id, inviteStatus: 'accepted' })
 }

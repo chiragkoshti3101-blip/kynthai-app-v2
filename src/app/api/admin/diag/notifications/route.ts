@@ -4,38 +4,26 @@ import { requireOperatorToken } from '@/lib/operator-token'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * GET /api/admin/diag/notifications
- *
- * Read-only notification-health snapshot for operators. Token-guarded with
- * the same SCHEMA_BOOTSTRAP_TOKEN secret as /api/admin/bootstrap-schema and
- * fails closed when the env var is unset. Returns AGGREGATE COUNTS ONLY —
- * no emails, names, ids, tokens, or any other PHI ever leaves this endpoint.
- *
- * Purpose: prove the closed-app reminder pipeline is healthy end-to-end:
- *   users (tz coverage) → push registrations (webpush + fcm) → reminder
- *   rows (pending/done) → notification_logs (what actually went out).
- */
-
-type CountRow = { n: number | bigint }
-type GrpRow = { k: string | null; n: number | bigint }
-
-async function safeCount(sql: string): Promise<number | null> {
-  try {
-    const rows = await db.$queryRawUnsafe(sql)
-    return Number(rows?.[0]?.n ?? 0)
-  } catch {
-    return null
+// No physical-schema guessing: Reminder maps to reminders in the model metadata.
+// Read only aggregate fields, never subscription tokens or clinical bodies.
+async function grouped(model: any, field: string, where = {}, limit?: number) {
+  const counts = new Map<string, number>()
+  const size = 500
+  let cursor: string | undefined
+  for (;;) {
+    const rows = await model.findMany({
+      where, select: { id: true, [field]: true }, orderBy: { id: 'asc' },
+      take: size, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    })
+    for (const row of rows) {
+      const key = row[field] ?? 'unknown'
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    if (rows.length < size) break
+    cursor = rows[rows.length - 1].id
   }
-}
-
-async function safeGroup(sql: string): Promise<Array<{ k: string; n: number }> | null> {
-  try {
-    const rows = await db.$queryRawUnsafe(sql)
-    return rows.map((r) => ({ k: r.k ?? 'unknown', n: Number(r.n) }))
-  } catch {
-    return null
-  }
+  const result = [...counts].map(([k, n]) => ({ k, n })).sort((a, b) => b.n - a.n)
+  return limit ? result.slice(0, limit) : result
 }
 
 export async function GET(req: NextRequest) {
@@ -43,110 +31,38 @@ export async function GET(req: NextRequest) {
   if (unauthorized) return unauthorized
 
   const out: Record<string, unknown> = { ok: true, generatedAt: new Date().toISOString() }
-
-  // ── 1. Users + timezone coverage (drives per-user scheduling accuracy) ──
-  out.usersTotal = await safeCount(`SELECT COUNT(*)::int AS n FROM "users"`)
-  out.usersWithTimezone = await safeCount(
-    `SELECT COUNT(*)::int AS n FROM "users" WHERE "timezone" IS NOT NULL AND "timezone" <> ''`
-  )
-  out.topTimezones = await safeGroup(
-    `SELECT "timezone" AS k, COUNT(*)::int AS n FROM "users"
-     WHERE "timezone" IS NOT NULL AND "timezone" <> ''
-     GROUP BY 1 ORDER BY 2 DESC LIMIT 8`
-  )
-
-  // ── 2. Push registrations — the closed-app delivery surface ─────────────
-  out.pushSubsTotal = await safeCount(`SELECT COUNT(*)::int AS n FROM "push_subscriptions"`)
-  out.pushSubsByType = await safeGroup(
-    `SELECT "type" AS k, COUNT(*)::int AS n FROM "push_subscriptions" GROUP BY 1`
-  )
-  out.pushSubsDistinctUsers = await safeCount(
-    `SELECT COUNT(DISTINCT "userId")::int AS n FROM "push_subscriptions"`
-  )
-
-  // ── 3. Reminder rows ────────────────────────────────────────────────────
-  // CRITICAL: the Reminder model has no @@map, so Prisma Client reads/writes
-  // the Prisma-default table "Reminder". An empty snake_case "reminders"
-  // table ALSO exists in this database (legacy bootstrap artifact). Report
-  // BOTH so the real store is never confused with the decoy.
-  const remindersSnake = await safeCount(`SELECT COUNT(*)::int AS n FROM "reminders"`)
-  const remindersPascal = await safeCount(`SELECT COUNT(*)::int AS n FROM "Reminder"`)
-  out.tableRemindersSnake = remindersSnake
-  out.tableReminderPascal = remindersPascal
-  let remTable: 'reminders' | 'Reminder' | null = null
-  // Prefer the table that actually has rows; fall back to Prisma default.
-  if (remindersPascal !== null && remindersPascal > 0) remTable = 'Reminder'
-  else if (remindersSnake !== null && remindersSnake > 0) remTable = 'reminders'
-  else if (remindersPascal !== null) remTable = 'Reminder'
-  else if (remindersSnake !== null) remTable = 'reminders'
-  out.reminderTable = remTable ?? 'not-found'
-  if (remTable) {
-    out.reminders24hByStatus = await safeGroup(
-      `SELECT "status" AS k, COUNT(*)::int AS n FROM "${remTable}"
-       WHERE "date" >= NOW() - INTERVAL '24 hours' AND "deletedAt" IS NULL
-       GROUP BY 1`
-    )
-    out.remindersPendingTotal = await safeCount(
-      `SELECT COUNT(*)::int AS n FROM "${remTable}"
-       WHERE "status" = 'pending' AND "deletedAt" IS NULL`
-    )
-    // Drift diagnostics: full-table truth + physical columns. If the table
-    // is empty while dose sends happen via the synthetic fallback, these
-    // reveal whether reminder-row creation is silently failing.
-    out.remindersTotalRows = await safeCount(
-      `SELECT COUNT(*)::int AS n FROM "${remTable}"`
-    )
-    out.remindersAllByStatus = await safeGroup(
-      `SELECT "status" AS k, COUNT(*)::int AS n FROM "${remTable}" GROUP BY 1`
-    )
-    out.remindersDateRange = await safeCount(
-      `SELECT 1 AS n FROM "${remTable}" WHERE "date" IS NOT NULL`
-    ) !== null
-      ? (
-          await db
-            .$queryRawUnsafe>(
-              `SELECT MIN("date") AS mn, MAX("date") AS mx FROM "${remTable}"`
-            )
-            .catch(() => [{ mn: null, mx: null }])
-        )[0]
-      : null
-    const colRows = await safeGroup(
-      `SELECT column_name AS k, 1 AS n FROM information_schema.columns
-       WHERE table_name = '${remTable}' ORDER BY ordinal_position`
-    )
-    out.reminderColumns = colRows ? colRows.map((x) => x.k) : null
-  } else {
-    out.reminders24hByStatus = null
-    out.remindersPendingTotal = null
+  const unavailable: string[] = []
+  const read = async (key: string, query: () => Promise<unknown>) => {
+    try { out[key] = await query() }
+    catch { out[key] = null; unavailable.push(key) }
   }
-
-  // ── 3b. Medications — the fuel for the whole pipeline ───────────────────
-  out.medicationsTotal = await safeCount(`SELECT COUNT(*)::int AS n FROM "medications"`)
-  out.medicationsActive = await safeCount(
-    `SELECT COUNT(*)::int AS n FROM "medications" WHERE "active" = true`
-  )
-
-  // ── 4. Notification traffic — what the engine actually delivered ────────
-  out.notifs24hByChannel = await safeGroup(
-    `SELECT "channel" AS k, COUNT(*)::int AS n FROM "notification_logs"
-     WHERE "createdAt" >= NOW() - INTERVAL '24 hours' GROUP BY 1`
-  )
-  out.doseReminders24h = await safeCount(
-    `SELECT COUNT(*)::int AS n FROM "notification_logs"
-     WHERE "createdAt" >= NOW() - INTERVAL '24 hours' AND "type" = 'reminder'`
-  )
-  out.pushDeliveries24h = await safeCount(
-    `SELECT COUNT(*)::int AS n FROM "notification_logs"
-     WHERE "createdAt" >= NOW() - INTERVAL '24 hours' AND "channel" = 'push'`
-  )
-  try {
-    const rows = await db.$queryRawUnsafe>(
-      `SELECT MAX("createdAt") AS ts FROM "notification_logs"`
-    )
-    out.lastNotificationAt = rows?.[0]?.ts ?? null
-  } catch {
-    out.lastNotificationAt = null
-  }
-
-  return Response.json(out)
+  const timezoneWhere = { AND: [{ timezone: { not: null } }, { timezone: { not: '' } }] }
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  await read('usersTotal', () => db.user.count())
+  await read('usersWithTimezone', () => db.user.count({ where: timezoneWhere }))
+  await read('topTimezones', () => grouped(db.user, 'timezone', timezoneWhere, 8))
+  await read('pushSubsTotal', () => db.pushSubscription.count())
+  await read('pushSubsByType', () => grouped(db.pushSubscription, 'type'))
+  await read('pushSubsDistinctUsers', async () => (await grouped(db.pushSubscription, 'userId')).length)
+  out.reminderTable = 'reminders'
+  await read('remindersTotalRows', () => db.reminder.count())
+  await read('reminders24hByStatus', () => grouped(db.reminder, 'status', { date: { gte: since }, deletedAt: null }))
+  await read('remindersPendingTotal', () => db.reminder.count({ where: { status: 'pending', deletedAt: null } }))
+  await read('remindersAllByStatus', () => grouped(db.reminder, 'status'))
+  await read('remindersDateRange', async () => {
+    const [first, last] = await Promise.all([
+      db.reminder.findFirst({ where: { date: { not: null } }, orderBy: { date: 'asc' }, select: { date: true } }),
+      db.reminder.findFirst({ where: { date: { not: null } }, orderBy: { date: 'desc' }, select: { date: true } }),
+    ])
+    return { mn: first?.date ?? null, mx: last?.date ?? null }
+  })
+  await read('medicationsTotal', () => db.medication.count())
+  await read('medicationsActive', () => db.medication.count({ where: { active: true } }))
+  await read('notifs24hByChannel', () => grouped(db.notificationLog, 'channel', { createdAt: { gte: since } }))
+  await read('doseReminders24h', () => db.notificationLog.count({ where: { createdAt: { gte: since }, type: 'reminder' } }))
+  await read('pushDeliveries24h', () => db.notificationLog.count({ where: { createdAt: { gte: since }, channel: 'push' } }))
+  await read('lastNotificationAt', async () => (await db.notificationLog.findFirst({ orderBy: { createdAt: 'desc' }, select: { createdAt: true } }))?.createdAt ?? null)
+  out.ok = unavailable.length === 0
+  if (unavailable.length) out.unavailable = unavailable
+  return Response.json(out, { status: unavailable.length ? 503 : 200 })
 }

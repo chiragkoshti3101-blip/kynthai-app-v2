@@ -40,7 +40,7 @@ export function WebAlertsBanner({ className }: { className?: string }) {
     setBusy(true)
     try {
       const result = await enablePushDetailed()
-      if (result.ok) {
+      if (result.ok === true) {
         setVisible(false)
         toast({
           title: 'Alerts enabled',
