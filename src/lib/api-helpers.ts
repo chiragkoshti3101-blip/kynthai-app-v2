@@ -613,6 +613,21 @@ export function assertOwnership(sessionUserId: string, resourceUserId?: string |
  * Returns a NextResponse error (400/403) if consent is missing, or null if OK.
  * Call this in any endpoint that returns or processes sensitive health data.
  */
+export function checkAiConsent(
+  user: { aiTrainingConsent: boolean; isDemo?: boolean },
+): NextResponse | null {
+  if (user.isDemo && process.env.NODE_ENV !== 'production') return null;
+  if (!user.aiTrainingConsent) {
+    return applyStandardHeaders(
+      NextResponse.json(
+        { error: 'You must consent to AI data processing to use AI-powered features.' },
+        { status: 403 }
+      )
+    );
+  }
+  return null;
+}
+
 export function checkConsent(
   user: {
     consentAccepted: boolean;
@@ -638,14 +653,6 @@ export function checkConsent(
     return applyStandardHeaders(
       NextResponse.json(
         { error: 'You must consent to data processing to use health features.' },
-        { status: 403 }
-      )
-    );
-  }
-  if (!user.aiTrainingConsent) {
-    return applyStandardHeaders(
-      NextResponse.json(
-        { error: 'You must consent to AI data processing to use AI-powered features.' },
         { status: 403 }
       )
     );
