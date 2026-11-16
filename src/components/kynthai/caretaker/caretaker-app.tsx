@@ -79,7 +79,7 @@ const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: st
   { id: 'market', label: 'Find Care', icon: ShoppingBag },
   { id: 'ai', label: 'Ask AI', icon: Sparkles },
   { id: 'care', label: 'Tools', icon: HeartPulse },
-  { id: 'sos', label: 'Family Alert', icon: Siren },
+  { id: 'sos', label: 'Family Alert (Beta)', icon: Siren },
 ];
 
 interface FamilyMember {
@@ -1144,7 +1144,7 @@ function SosTab({
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10">
             <Siren className="h-8 w-8 text-rose-600 dark:text-rose-400" />
           </div>
-          <h2 className="text-lg font-bold">Emergency SOS</h2>
+          <h2 className="text-lg font-bold">Emergency SOS (Beta)</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Trigger an emergency for{' '}
             <span className="font-semibold text-foreground">{selected.name}</span>. Alerts your
@@ -1176,7 +1176,7 @@ function SosTab({
                 className="w-full bg-gradient-to-r from-rose-500 to-rose-700 text-white shadow-lg shadow-rose-600/30 hover:from-rose-600 hover:to-rose-800 h-14 text-base"
               >
                 <Siren className="h-5 w-5" />
-                SOS -- Critical
+                SOS -- Critical (Beta)
               </Button>
               <p className="text-[11px] text-muted-foreground text-center">
                 Alerts family + linked doctors — contact local emergency services if life-threatening
@@ -1189,7 +1189,7 @@ function SosTab({
                 className="w-full border-amber-500/40 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10 h-12 text-sm"
               >
                 <Users className="h-4 w-4" />
-                Alert Caretaker
+                Alert Caretaker (Beta)
               </Button>
               <p className="text-[11px] text-muted-foreground text-center">
                 Not life-threatening — caretaker will reach out
