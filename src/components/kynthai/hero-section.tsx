@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { HeroCarePreview } from './hero-care-preview';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
-import { motion, useReducedMotion } from 'framer-motion';
 
 /**
  * Above-the-fold hero entrance: elements start hidden and cascade in on first
@@ -25,41 +24,21 @@ function HeroReveal({
   y?: number;
   className?: string;
 }) {
-  const reduced = useReducedMotion();
-  const [started, setStarted] = React.useState(false);
-  React.useEffect(() => {
-    const raf = requestAnimationFrame(() => setStarted(true));
-    return () => cancelAnimationFrame(raf);
-  }, []);
+  // Render content at full opacity on the first paint. Entrance fades caused a
+  // visible flash/blink on iOS Safari (especially combined with font swap).
   return (
-    <motion.div
-      initial={reduced ? { opacity: 0.001 } : { opacity: 0, y }}
-      animate={started ? { opacity: 1, y: 0 } : undefined}
-      transition={{ duration: reduced ? 0.3 : 0.75, delay, ease: [0.16, 1, 0.3, 1] }}
-      className={className}
-      suppressHydrationWarning
-    >
+    <div className={className} suppressHydrationWarning>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
 /** Gentle floating loop for the hero care preview card (desktop-only, reduced-motion-safe). */
 function FloatingCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  const reduced = useReducedMotion();
   return (
-    <motion.div
-      className={className}
-      animate={reduced ? undefined : { y: [0, -10, 0] }}
-      transition={
-        reduced
-          ? undefined
-          : { duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }
-      }
-      suppressHydrationWarning
-    >
+    <div className={className} suppressHydrationWarning>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
