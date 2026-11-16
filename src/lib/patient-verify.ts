@@ -153,12 +153,7 @@ export function createAffidavitPayload(name: string, email: string): {
 /**
  * Allowed ID document types for patient verification.
  */
-export const ID_DOCUMENT_TYPES = [
-  { value: 'drivers_license', label: "Driver's licence / driving ID" },
-  { value: 'national_id', label: 'National ID / government ID card' },
-  { value: 'passport', label: 'Passport' },
-  { value: 'other', label: 'Other Government ID' },
-] as const;
+export { ID_DOCUMENT_TYPES } from './identity-document-types';
 
 /**
  * US state list for doctor/license verification

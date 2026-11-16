@@ -160,7 +160,7 @@ export function NotificationPermissionBanner() {
         }
       }
       const result = await enablePushDetailed()
-      if (result.ok) {
+      if (result.ok === true) {
         setShow(false)
         return
       }

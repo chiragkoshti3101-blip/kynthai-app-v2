@@ -328,7 +328,8 @@ export async function GET(req: NextRequest) {
         where: { id: { in: atRiskPatientIds.slice(0, 100) } },
         select: { id: true, name: true, email: true, subscriptionTier: true },
       });
-      const byId = new Map(atRiskUsers.map(u => [u.id, u]));
+      const byId = new Map<string, { name: string | null; email: string; subscriptionTier: string }>()
+      for (const u of atRiskUsers) byId.set(u.id, u);
       for (const pid of atRiskPatientIds.slice(0, 100)) {
         const last = lastBooking.get(pid) ?? 0;
         const days = Math.floor((now - last) / (24 * 60 * 60 * 1000));

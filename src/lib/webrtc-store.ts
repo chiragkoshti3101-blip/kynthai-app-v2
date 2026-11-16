@@ -29,7 +29,10 @@ interface SignalingMessage {
 function getRedis(): Redis | null {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
+  if (!url || !token) {
+    if (process.env.NODE_ENV === 'production') throw new Error('Distributed signaling requires Redis in production');
+    return null;
+  }
   return new Redis({ url, token });
 }
 
@@ -69,7 +72,7 @@ export const signalingStore = {
 
     if (redis) {
       const raw = await redis.lrange(key, 0, MAX_PER_ROOM - 1);
-      const messages = raw.map((r: string) => JSON.parse(r) as SignalingMessage);
+      const messages = raw.map((r: unknown) => (typeof r === 'string' ? JSON.parse(r) : r) as SignalingMessage);
 
       if (afterId) {
         const idx = messages.findIndex(m => m.id === afterId || m.type === afterId);
@@ -78,7 +81,8 @@ export const signalingStore = {
       return messages;
     }
 
-    const messages = fallbackStore.get(key) || [];
+    const messages = (fallbackStore.get(key) || []).filter(m => m.createdAt > Date.now() - ROOM_TTL * 1000);
+    if (messages.length) fallbackStore.set(key, messages); else fallbackStore.delete(key);
     if (afterId) {
       const idx = messages.findIndex(m => m.id === afterId || m.type === afterId);
       return idx >= 0 ? messages.slice(0, idx) : messages;

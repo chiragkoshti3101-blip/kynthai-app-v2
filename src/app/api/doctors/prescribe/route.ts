@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+import { createRecordsAtomically } from '@/lib/supabase-db'
 import crypto from 'crypto'
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
@@ -100,15 +102,6 @@ export async function POST(req: NextRequest) {
     return jsonError('At least one medication is required', 400)
   }
 
-  // Self-heal: ensure the state columns exist (raw SQL, idempotent) so the
-  // typed reads below work even before migrations run in production.
-  try {
-    await db.$executeRawUnsafe(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "state" TEXT`)
-    await db.$executeRawUnsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "state" TEXT`)
-  } catch {
-    return jsonError('Could not verify licensing right now', 500)
-  }
-
   const profile = await db.doctorProfile.findUnique({ where: { userId: u.id } })
   if (!profile) return jsonError('Doctor profile not found', 404)
   if (!profile.verified) return jsonError('Only verified doctors may prescribe', 403)
@@ -203,56 +196,30 @@ export async function POST(req: NextRequest) {
   const inviteExpiresAt = new Date()
   inviteExpiresAt.setDate(inviteExpiresAt.getDate() + 30) // 30-day expiry
 
-  const { createdMeds, prescription, followUp } = await db.$transaction(async (tx) => {
-    const createdMeds: any[] = []
-    for (const medication of cleanedMeds) {
-      createdMeds.push(await tx.medication.create({
-        data: {
-          userId: patient!.id,
-          name: medication.name,
-          dosage: medication.dosage,
-          times: JSON.stringify(medication.times.length ? medication.times : ['09:00']),
-          frequency: medication.frequency,
-          instructions: medication.instructions || null,
-          active: true,
-        },
-      }))
-    }
-
-    const prescription = await tx.prescription.create({
-      data: {
-        doctorId: profile.id,
-        patientId: patient.id,
-        notes: sanitizeText(body.notes, 2000),
-        medications: JSON.stringify(
-          cleanedMeds.map((medication, index) => ({ id: createdMeds[index]!.id, ...medication })),
-        ),
-        inviteToken,
-        inviteStatus: 'sent',
-        inviteExpiresAt,
-        followUpDate: followUpAt,
-      },
-    })
-
-    let followUp: { id: string; scheduledAt: string } | null = null
-    if (followUpAt) {
-      const created = await tx.appointment.create({
-        data: {
-          doctorId: profile.id,
-          patientId: patient.id,
-          scheduledAt: followUpAt,
-          type: 'video',
-          status: 'pending',
-          price: profile.consultationFee,
-          commission: 0,
-          reason: 'Follow-up consultation',
-        },
-      })
-      followUp = { id: created.id, scheduledAt: created.scheduledAt.toISOString() }
-    }
-
-    return { createdMeds, prescription, followUp }
-  })
+  const medicationData = cleanedMeds.map(medication => ({
+    id: randomUUID(), userId: patient!.id, name: medication.name, dosage: medication.dosage,
+    times: JSON.stringify(medication.times.length ? medication.times : ['09:00']),
+    frequency: medication.frequency, instructions: medication.instructions || null, active: true,
+  }))
+  const prescriptionData = {
+    doctorId: profile.id, patientId: patient.id, notes: sanitizeText(body.notes, 2000),
+    medications: JSON.stringify(cleanedMeds.map((medication, index) => ({ id: medicationData[index].id, ...medication }))),
+    inviteToken, inviteStatus: 'sent', inviteExpiresAt, followUpDate: followUpAt,
+  }
+  const records = [
+    ...medicationData.map(data => ({ model: 'medication', data })),
+    { model: 'prescription', data: prescriptionData },
+    ...(followUpAt ? [{ model: 'appointment', data: {
+      doctorId: profile.id, patientId: patient.id, scheduledAt: followUpAt,
+      type: 'video', status: 'pending', price: profile.consultationFee, commission: 0,
+      reason: 'Follow-up consultation',
+    } }] : []),
+  ]
+  const committed = await createRecordsAtomically(records)
+  const createdMeds = committed.slice(0, medicationData.length)
+  const prescription = committed[medicationData.length]
+  const followUpRow = followUpAt ? committed[medicationData.length + 1] : null
+  const followUp = followUpRow ? { id: followUpRow.id, scheduledAt: followUpRow.scheduledAt.toISOString() } : null
 
   // Send follow-up reminder only after the clinical records have committed.
   if (followUp) {

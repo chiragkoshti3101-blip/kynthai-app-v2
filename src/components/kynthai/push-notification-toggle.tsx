@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Bell, BellOff, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
+  type PushEnableResult,
   enablePushDetailed,
   disablePush,
   permissionState,
@@ -88,15 +89,15 @@ export function PushNotificationToggle({ className }: { className?: string }) {
           )
           return
         }
-        const result = isNativeShell()
-          ? await (async () => {
+        const result: PushEnableResult = isNativeShell()
+          ? await (async (): Promise<PushEnableResult> => {
               const ok = await registerFcmDevice()
               return ok
                 ? ({ ok: true } as const)
                 : ({ ok: false, reason: 'subscribe_failed' as const, message: 'Could not register this phone for push notifications.' })
             })()
           : await enablePushDetailed()
-        if (result.ok) {
+        if (result.ok === true) {
           setEnabled(true)
           setHint(null)
           toast({ title: 'Notifications enabled', description: 'You will get alerts on this device.' })

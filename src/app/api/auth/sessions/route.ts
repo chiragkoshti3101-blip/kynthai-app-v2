@@ -1,9 +1,10 @@
 import { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { rateLimit } from '@/lib/security';
-import { jsonError, jsonOk } from '@/lib/api-helpers';
+import { requireAuthWithCsrf, readJson, jsonError, jsonOk } from '@/lib/api-helpers';
 import { logAudit } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { revokeSessions } from '@/lib/session-revocation';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,40 +83,16 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const limited = await rateLimit(req, 3, 60000);
+    const limited = await rateLimit(req, 10, 60000);
     if (limited) return limited;
-
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() { return req.cookies.getAll(); },
-          setAll() {},
-        },
-      }
-    );
-
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return jsonError('Authentication required', 401, 'UNAUTHORIZED');
+    const { response, user } = await requireAuthWithCsrf(req);
+    if (response || !user) return response!;
+    const body = await readJson<{ all?: boolean }>(req);
+    if (!body || typeof body !== 'object' || Array.isArray(body) ||
+        (body.all !== undefined && typeof body.all !== 'boolean')) {
+      return jsonError('Invalid request body', 400);
     }
-
-    // Supabase doesn't expose a "revoke other sessions" API directly.
-    // The most effective approach is to trigger a password change requirement
-    // or re-authentication. For now, log the intent and advise.
-    const body = await req.json().catch(() => null);
-    const revokeAll = body?.all === true;
-
-    await logAudit(user.id, 'auth.sessions.revoke', revokeAll ? 'All sessions revoked' : 'Other sessions revoked');
-
-    return jsonOk({
-      success: true,
-      message: revokeAll
-        ? 'All sessions will be invalidated on next request.'
-        : 'Other sessions will be invalidated on next request.',
-      action: 'To fully revoke all sessions, update your password which invalidates existing Supabase sessions.',
-    });
+    return await revokeSessions(req, user.id, body.all === true, 'user_initiated');
   } catch (error) {
     logger.phiSafeError(error, 'auth.sessions.revoke');
     return jsonError('Internal server error', 500);

@@ -120,15 +120,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (body.subscriptionTier !== undefined) data.subscriptionTier = sanitizeText(body.subscriptionTier, 30)
   }
 
-  // Self-heal: ensure the state column exists (raw SQL, idempotent).
-  if (data.state !== undefined) {
-    try {
-      await db.$executeRawUnsafe(`ALTER TABLE "doctor_profiles" ADD COLUMN IF NOT EXISTS "state" TEXT`)
-    } catch {
-      return jsonError('Could not update profile right now', 500)
-    }
-  }
-
   const updated = await db.doctorProfile.update({ where: { id }, data })
   await logAudit(session.id, 'doctor.profile.update', `profile=${id} fields=${Object.keys(data).join(',')}`)
   return jsonOk(updated)

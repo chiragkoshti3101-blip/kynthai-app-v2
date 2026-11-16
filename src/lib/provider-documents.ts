@@ -75,12 +75,16 @@ export async function validateProviderDocuments(
     },
     select: { id: true, title: true, description: true, mimeType: true, fileSize: true },
   })
-  const byId = new Map(records.map(record => [record.id, record]))
+  const byId = new Map<string, { id: string; title: string; mimeType: string; fileSize: number }>()
+  for (const record of records) byId.set(record.id, record)
   if (records.length !== ids.length) {
     return { ok: false, error: 'One or more certification documents are missing or unauthorized.' }
   }
 
-  const metadataById = new Map(records.map(record => [record.id, metadataFromDescription(record.description)]))
+  const metadataById = new Map<string, ReturnType<typeof metadataFromDescription>>()
+  for (const record of records) {
+    metadataById.set(record.id, metadataFromDescription(record.description))
+  }
   if (refs.some(ref => {
     const metadata = metadataById.get(ref.id)
     return metadata?.provider !== role || metadata?.slot !== ref.slot

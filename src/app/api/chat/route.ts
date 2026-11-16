@@ -16,7 +16,6 @@ import {
 import { logAudit } from '@/lib/auth';
 import { chatMessageSchema, chatQuerySchema } from '@/lib/schemas';
 import { sanitizeText, rateLimit } from '@/lib/security';
-import { getCached, setCached } from '@/lib/ai-cache';
 import { getMedicineFromDb, buildPatientAlerts } from '@/lib/medicine-db-cache';
 import { buildDeidentifiedContext } from '@/lib/phi-filter';
 import { safeAIResponse, normalizeMarkdownSpacing, enforceNsaidSafetyForAnticoagulatedPatients } from '@/lib/ai-output-filter';
@@ -248,30 +247,14 @@ export async function POST(req: NextRequest) {
         if (!h || typeof h !== 'object') return null;
         const item = h as { role?: unknown; content?: unknown };
         return {
-          role: typeof item.role === 'string' ? sanitizeText(item.role, 20) : 'user',
+          role: item.role === 'user' || item.role === 'assistant' ? item.role : '',
           content: sanitizeText(String(item.content ?? ''), MAX_HISTORY_ITEM_LEN),
         };
       })
-      .filter((h): h is { role: string; content: string } => !!h && !!h.content);
+      .filter((h): h is { role: string; content: string } => !!h && !!h.role && !!h.content);
 
-    // ── COST OPTIMIZATION 2: Response cache (saves ~20% of LLM calls) ──
-    if (history.length === 0) {
-      const cached = getCached<string>('chat', message);
-      if (cached) {
-        // Still persist cached responses with expiry.
-        try {
-          await db.chatMessage.createMany({
-            data: [
-              { userId: u.id, role: 'user', content: message, expiresAt: messageExpiry() },
-              { userId: u.id, role: 'assistant', content: cached, expiresAt: messageExpiry() },
-            ],
-          });
-        } catch (err) {
-          logger.phiSafeError(err, 'chat.persist.cache');
-        }
-        return NextResponse.json({ response: cached, source: 'cache' });
-      }
-    }
+    // Patient context changes independently of the question. Never reuse a
+    // question-only response across users or across changes to their health data.
 
     // Check if AI provider is configured before attempting the call
     if (!isAiAvailable()) {
@@ -504,7 +487,7 @@ hasPatientContext: formattedContext.length > 0,
               const delta = choicesOf(chunk)[0]?.delta?.content;
               if (delta) {
                 accumulated += delta;
-                send('delta', { text: delta });
+                // Buffer until the complete response passes output safety checks.
               }
             }
 
@@ -525,9 +508,7 @@ hasPatientContext: formattedContext.length > 0,
             );
 
             // Cache + persist (same as non-streaming path)
-            if (history.length === 0) {
-              setCached('chat', message, finalReply);
-            }
+
             try {
               await db.chatMessage.createMany({
                 data: [
@@ -586,9 +567,7 @@ hasPatientContext: formattedContext.length > 0,
     );
 
     // Cache the response for 24h (only for single-turn queries without history)
-    if (history.length === 0) {
-      setCached('chat', message, finalReply);
-    }
+
 
     // Persist the exchange with TTL (best-effort, non-blocking)
     try {

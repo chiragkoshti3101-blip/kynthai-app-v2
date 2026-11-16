@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 import reticleNext from '@reticlehq/next';
-import { withSentryConfig } from '@sentry/nextjs';
+import { withSentryConfig } from '@sentry/nextjs/config';
 
 const nextConfig = {
-  typescript: { ignoreBuildErrors: true },
+  typescript: { ignoreBuildErrors: false },
   // Hide x-powered-by header for security
   poweredByHeader: false,
 
@@ -34,7 +34,9 @@ const nextConfig = {
   // by reducing concurrency and memory pressure. cpus caps the number of
   // page-data collection workers (defaults to host core count - 1).
   experimental: {
-    cpus: 2,
+    cpus: 1,
+    webpackMemoryOptimizations: true,
+    webpackBuildWorker: false,
     // Tell Turbopack to reduce memory usage during build
     optimizePackageImports: ['lucide-react', 'framer-motion', '@radix-ui/*', 'recharts', 'date-fns', 'cmdk'],
     // DISABLED optimizeServerReact: it splits client components into a
@@ -144,7 +146,8 @@ export default withSentryConfig(
   reticleNext.withReticle(nextConfig),
   {
     silent: true,
-    hideSourceMaps: false,
+    // Avoid generating/uploading source maps when no upload is configured.
+    sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
     webpack: {
       treeshake: {
         removeDebugLogging: true,

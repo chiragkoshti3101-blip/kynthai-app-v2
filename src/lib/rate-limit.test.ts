@@ -238,15 +238,21 @@ describe('rateLimitProduction (Redis path)', () => {
   });
 
   it('constructs the limiter with the kynthai prefix', () => {
-    expect(redisInstance.opts.prefix).toBe('kynthai:ratelimit');
-    expect(MOCK_RATELIMIT.slidingWindow).toHaveBeenCalledWith(100, '1 m');
+    expect(redisInstance.opts.prefix).toBe('kynthai:ratelimit:100:60000');
+    expect(MOCK_RATELIMIT.slidingWindow).toHaveBeenCalledWith(100, '60 s');
+  });
+
+  it('honors distinct route policies and window durations', async () => {
+    await rateLimitProduction(req('/api/auth/login', '8.8.8.8'), 7, 120000);
+    expect(MOCK_RATELIMIT.slidingWindow).toHaveBeenCalledWith(7, '120 s');
+    expect(MOCK_RATELIMIT.instances.some(i => i.opts.prefix === 'kynthai:ratelimit:7:120000')).toBe(true);
   });
 
   it('returns null when the Redis limiter allows', async () => {
     redisInstance.limit.mockResolvedValue({ success: true, reset: Date.now() + 60_000 });
     const r = req('/api/auth/me', '5.5.5.5');
     expect(await rateLimitProduction(r)).toBeNull();
-    expect(redisInstance.limit).toHaveBeenCalledWith('5.5.5.5');
+    expect(redisInstance.limit).toHaveBeenCalledWith('5.5.5.5:/api/auth/me');
   });
 
   it('returns 429 with rate-limit headers when the Redis limiter blocks', async () => {
@@ -262,7 +268,9 @@ describe('rateLimitProduction (Redis path)', () => {
     // Stale/revoked Upstash credentials make limit() reject. An unhandled
     // throw here took down EVERY requireAuth route in production
     // (chat, medications, search-medicine) with an empty-body 500.
-    redisInstance.limit.mockRejectedValue(new Error('Upstash auth failed'));
+    await rateLimitProduction(req('/api/auth/me', '7.7.7.7'), 1, 60000);
+    const policyInstance = MOCK_RATELIMIT.instances.find(i => i.opts.prefix === 'kynthai:ratelimit:1:60000')!;
+    policyInstance.limit.mockRejectedValue(new Error('Upstash auth failed'));
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
       const r = req('/api/auth/me', '7.7.7.7');

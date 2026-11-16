@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
   let targetFamily = ownedFamily
   if (!ownedFamily) {
     const membership = (await db.familyMember.findFirst({
-      where: { userId: u.id },
+      where: { userId: u.id, inviteStatus: 'accepted' },
     })) as any
 
     if (membership) {

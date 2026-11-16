@@ -64,32 +64,27 @@ export async function GET(req: NextRequest) {
     return jsonError('Forbidden — userId must match session', 403);
   }
 
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
-  const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
-  const headers = {
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json',
-  }
-
-  let url = `${SUPABASE_URL}/rest/v1/medications?select=*`
+  // Family reads must use the same ownership policy as writes (IDOR guard).
   if (familyMemberId) {
-    url += `&familyMemberId=eq.${familyMemberId}`
-  } else {
-    url += `&userId=eq.${u.id}`
+    const member = await db.familyMember.findUnique({
+      where: { id: familyMemberId }, include: { family: true },
+    });
+    if (!member || member.family?.ownerId !== u.id) {
+      return jsonError('Forbidden — family member does not belong to your family', 403);
+    }
   }
-  if (activeParam === 'true') url += '&active=eq.true'
-  if (activeParam === 'false') url += '&active=eq.false'
-  url += `&order=createdAt.desc&limit=${limit}`
-
   try {
-    const res = await fetch(url, { headers })
-    if (!res.ok) return jsonError('Failed to fetch medications', 500)
-    const meds = await res.json()
-    const serialized = (meds || []).map((m: any) => ({ ...m, times: parseTimes(m.times) }))
-    return jsonOk(serialized)
-  } catch (err: any) {
-    return jsonError('Failed to fetch medications: ' + (err?.message || String(err)), 500)
+    const meds = await db.medication.findMany({
+      where: {
+        ...(familyMemberId ? { familyMemberId } : { userId: u.id }),
+        ...(_active === 'all' ? {} : { active: _active === 'true' }),
+      },
+      orderBy: { createdAt: 'desc' }, take: limit,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+    return jsonOk(meds.map((m: any) => ({ ...m, times: parseTimes(m.times) })));
+  } catch {
+    return jsonError('Failed to fetch medications', 500);
   }
 }
 

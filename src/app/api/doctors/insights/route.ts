@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       where: { doctorId: profile.id },
       include: { patient: true },
     });
-    const patientIds = Array.from(new Set(appointments.map((a: any) => a.patientId)));
+    const patientIds = Array.from(new Set<string>(appointments.map(a => a.patientId)));
     const today = todayStr();
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -134,7 +134,10 @@ export async function GET(req: NextRequest) {
         : Promise.resolve([]),
     ]);
 
-    const medToPatient = new Map(allMeds.map(m => [m.id, m.userId!] as const));
+    const medToPatient = new Map<string, string>();
+    for (const med of allMeds) {
+      if (med.userId) medToPatient.set(med.id, med.userId);
+    }
     const weekByPatient = new Map<string, typeof weekReminders>();
     const prevByPatient = new Map<string, typeof prevWeekReminders>();
     for (const row of weekReminders) {

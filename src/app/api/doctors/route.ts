@@ -1,3 +1,4 @@
+import { db } from '@/lib/db'
 import { NextRequest } from 'next/server';
 import { sanitizeText, rateLimit } from '@/lib/security';
 import { encrypt, decryptValue } from '@/lib/encryption';
@@ -7,19 +8,6 @@ import { verifyNpi } from '@/lib/npi-verify';
 import { validateProviderDocuments } from '@/lib/provider-documents';
 
 export const dynamic = 'force-dynamic';
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || ''
-
-function supabaseHeaders(useServiceKey = false) {
-  const key = useServiceKey ? SUPABASE_SERVICE_KEY : SUPABASE_ANON_KEY
-  return {
-    'apikey': key,
-    'Authorization': `Bearer ${key}`,
-    'Content-Type': 'application/json',
-  }
-}
 
 function displayFee(cents: number): number {
   return cents >= 1000 ? Math.round((cents / 100) * 100) / 100 : cents;
@@ -41,13 +29,8 @@ export async function GET(req: NextRequest) {
     const { response, user: session } = await requireAuth(req);
     if (response || !session || session.id !== userId) return response || jsonError('Unauthorized', 401);
     
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/doctor_profiles?userId=eq.${userId}&select=*`, {
-      headers: supabaseHeaders(true),
-    })
-    if (!res.ok) return jsonError('Not found', 404)
-    const profiles = await res.json()
-    if (!profiles || profiles.length === 0) return jsonError('Not found', 404)
-    const profile = profiles[0]
+    const profile = await db.doctorProfile.findFirst({ where: { userId } })
+    if (!profile) return jsonError('Not found', 404)
     return jsonOk({
       id: profile.id,
       userId: profile.userId,
@@ -71,17 +54,13 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Public listing of verified doctors
-  let url = `${SUPABASE_URL}/rest/v1/doctor_profiles?verified=eq.true&select=*`
-  if (specialization) url += '&specialization=eq.' + encodeURIComponent(specialization)
-  if (city) url += '&city=ilike.*' + encodeURIComponent(city) + '*'
-
+  // Server-side adapter access: public RLS grants are not required.
   try {
-    const res = await fetch(url, { headers: supabaseHeaders() })
-    if (!res.ok) {
-      return jsonError('Doctor query failed: ' + res.status, 500)
-    }
-    const candidates = await res.json()
+    const candidates = await db.doctorProfile.findMany({
+      where: { verified: true, ...(specialization ? { specialization } : {}), ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}) },
+      take: 100,
+      include: { user: { select: { name: true } } },
+    })
     const needle = search?.toLocaleLowerCase()
     const doctors = needle
       ? candidates.filter((doctor: any) =>
@@ -94,7 +73,7 @@ export async function GET(req: NextRequest) {
       doctors.map((d: any) => ({
         id: d.id,
         userId: d.userId,
-        name: 'Provider',
+        name: d.user?.name || 'Provider',
         specialization: d.specialization,
         consultationFee: displayFee(d.consultationFee),
         city: d.city,
@@ -109,8 +88,7 @@ export async function GET(req: NextRequest) {
       }))
     )
   } catch (err: any) {
-    console.error('DOCTORS ERROR:', err?.message || String(err))
-    return jsonError('Doctor query failed: ' + (err?.message || String(err)), 500)
+    return jsonError('Doctor query failed', 500)
   }
 }
 
@@ -187,28 +165,10 @@ export async function POST(req: NextRequest) {
     reviewCount: 0,
   }
 
-  // Check if existing profile
-  const existingRes = await fetch(`${SUPABASE_URL}/rest/v1/doctor_profiles?userId=eq.${session.id}&select=id`, {
-    headers: supabaseHeaders(true),
-  })
-  const existing = await existingRes.json()
-
-  let profile
-  if (existing && existing.length > 0) {
-    const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/doctor_profiles?userId=eq.${session.id}`, {
-      method: 'PATCH',
-      headers: { ...supabaseHeaders(true), 'Prefer': 'return=representation' },
-      body: JSON.stringify(payload),
-    })
-    profile = (await updateRes.json())[0]
-  } else {
-    const createRes = await fetch(`${SUPABASE_URL}/rest/v1/doctor_profiles`, {
-      method: 'POST',
-      headers: { ...supabaseHeaders(true), 'Prefer': 'return=representation' },
-      body: JSON.stringify(payload),
-    })
-    profile = (await createRes.json())[0]
-  }
+  const existing = await db.doctorProfile.findFirst({ where: { userId: session.id } })
+  const profile = existing
+    ? await db.doctorProfile.update({ where: { id: existing.id }, data: payload })
+    : await db.doctorProfile.create({ data: payload })
 
   return jsonOk({
     id: profile.id,

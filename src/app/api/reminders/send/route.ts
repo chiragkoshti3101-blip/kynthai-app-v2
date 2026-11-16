@@ -165,7 +165,8 @@ async function run(req: NextRequest) {
           },
         })
       : []
-    const directFamilyMap = new Map(directFamilies.map((family) => [family.id, family]))
+    const directFamilyMap = new Map<string, DirectFamily>()
+    for (const family of directFamilies) directFamilyMap.set(family.id, family)
 
     let sent = 0
     let skipped = 0

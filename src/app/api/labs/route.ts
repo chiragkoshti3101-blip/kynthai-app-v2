@@ -1,3 +1,4 @@
+import { db } from '@/lib/db'
 import { NextRequest } from 'next/server'
 import { sanitizeText, rateLimit } from '@/lib/security'
 import { checkCsrf } from '@/lib/csrf'
@@ -6,19 +7,6 @@ import { labProfileSchema } from '@/lib/schemas'
 import { validateProviderDocuments } from '@/lib/provider-documents'
 import { extractZip } from '@/lib/delivery-fee'
 export const dynamic = 'force-dynamic'
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || ''
-
-function supabaseHeaders(useServiceKey = false) {
-  const key = useServiceKey ? SUPABASE_SERVICE_KEY : SUPABASE_ANON_KEY
-  return {
-    'apikey': key,
-    'Authorization': `Bearer ${key}`,
-    'Content-Type': 'application/json',
-  }
-}
 
 // GET /api/labs — public list of verified labs. Supports ?city=&search=&userId=
 export async function GET(req: NextRequest) {
@@ -34,13 +22,8 @@ export async function GET(req: NextRequest) {
     const { response, user: session } = await requireAuth(req)
     if (response || !session || session.id !== userId) return response || jsonError('Unauthorized', 401)
     
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/lab_profiles?userId=eq.${userId}&select=*`, {
-      headers: supabaseHeaders(true),
-    })
-    if (!res.ok) return jsonError('Not found', 404)
-    const profiles = await res.json()
-    if (!profiles || profiles.length === 0) return jsonError('Not found', 404)
-    const profile = profiles[0]
+    const profile = await db.labProfile.findFirst({ where: { userId } })
+    if (!profile) return jsonError('Not found', 404)
     return jsonOk({
       id: profile.id,
       userId: profile.userId,
@@ -60,18 +43,11 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Public listing of verified labs
-  let url = `${SUPABASE_URL}/rest/v1/lab_profiles?verified=eq.true&select=*`
-  if (city) url += `&city=ilike.*${encodeURIComponent(city)}*`
-  
-  const res = await fetch(url, {
-    headers: supabaseHeaders(),
-  })
-  if (!res.ok) {
-    return jsonError(`Lab query failed: ${res.status} ${res.statusText}`, 500)
-  }
-  const candidates = await res.json()
-  
+  // Server-side adapter access: public RLS grants are not required.
+    const candidates = await db.labProfile.findMany({
+      where: { verified: true, ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}) },
+      take: 100,
+    })
   const needle = search?.toLocaleLowerCase()
   const labs = needle
     ? candidates.filter((lab: any) =>
@@ -154,39 +130,10 @@ export async function POST(req: NextRequest) {
     reviewCount: 0,
   }
 
-  // Check if existing profile
-  const existingRes = await fetch(`${SUPABASE_URL}/rest/v1/lab_profiles?userId=eq.${session.id}&select=id`, {
-    headers: supabaseHeaders(true),
-  })
-  const existing = await existingRes.json()
-
-  let profile
-  if (existing && existing.length > 0) {
-    const updateRes = await fetch(`${SUPABASE_URL}/rest/v1/lab_profiles?userId=eq.${session.id}`, {
-      method: 'PATCH',
-      headers: { ...supabaseHeaders(true), 'Prefer': 'return=representation' },
-      body: JSON.stringify(payload),
-    })
-    profile = (await updateRes.json())[0]
-  } else {
-    const createRes = await fetch(`${SUPABASE_URL}/rest/v1/lab_profiles`, {
-      method: 'POST',
-      headers: { ...supabaseHeaders(true), 'Prefer': 'return=representation' },
-      body: JSON.stringify(payload),
-    })
-    profile = (await createRes.json())[0]
-  }
-
-  await fetch(`${SUPABASE_URL}/rest/v1/audit_logs`, {
-    method: 'POST',
-    headers: supabaseHeaders(true),
-    body: JSON.stringify({
-      userId: session.id,
-      action: 'lab.profile.submit',
-      category: 'modification',
-      outcome: 'success',
-    }),
-  })
+  const existing = await db.labProfile.findFirst({ where: { userId: session.id } })
+  const profile = existing
+    ? await db.labProfile.update({ where: { id: existing.id }, data: payload })
+    : await db.labProfile.create({ data: payload })
 
   return jsonOk({
     id: profile.id,

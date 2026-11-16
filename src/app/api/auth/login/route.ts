@@ -109,14 +109,7 @@ export async function POST(req: NextRequest) {
       if (authError || !authData.user) {
         // Local auth: check Prisma database with bcrypt
         // Local auth fallback via Supabase REST API
-        const sbRes = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=*`, {
-          headers: {
-            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '',
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''}`,
-          },
-        })
-        const localUsers = await sbRes.json()
-        const localUser = localUsers && localUsers.length > 0 ? localUsers[0] : null
+        const localUser = await db.user.findUnique({ where: { email: email.toLowerCase() } });
         if (localUser?.password) {
           const bcrypt = await import('bcryptjs');
           const valid = await bcrypt.compare(password, localUser.password);
@@ -150,14 +143,7 @@ export async function POST(req: NextRequest) {
       }
     } catch (supabaseError) {
       // Supabase client creation failed (e.g., invalid URL/keys), fall back to local auth
-      const sbRes2 = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=*`, {
-        headers: {
-          'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '',
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''}`,
-        },
-      })
-      const localUsers2 = await sbRes2.json()
-      const localUser2 = localUsers2 && localUsers2.length > 0 ? localUsers2[0] : null
+      const localUser2 = await db.user.findUnique({ where: { email: email.toLowerCase() } });
       if (localUser2?.password) {
         const bcrypt = await import('bcryptjs');
         const valid = await bcrypt.compare(password, localUser2.password);
@@ -318,8 +304,7 @@ export async function POST(req: NextRequest) {
     setPortalRoleCookie(res, user.role, isSecureRequest(req));
     return res;
   } catch (error) {
-    console.error("LOGIN ERROR:", error);
     logger.phiSafeError(error, 'login.POST');
-    return jsonError('Internal server error: ' + String(error), 500, 'INTERNAL_ERROR');
+    return jsonError('Internal server error', 500, 'INTERNAL_ERROR');
   }
 }

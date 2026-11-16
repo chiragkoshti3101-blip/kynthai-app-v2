@@ -2,31 +2,27 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { isDatabaseConfigured } from '@/lib/db'
 
 describe('database configuration', () => {
-  const original = process.env.DATABASE_URL
+  afterEach(() => { vi.unstubAllEnvs(); vi.resetModules() })
 
-  afterEach(() => {
-    if (original === undefined) {
-      delete process.env.DATABASE_URL
-    } else {
-      process.env.DATABASE_URL = original
-    }
-    vi.resetModules()
-  })
-
-  it('isDatabaseConfigured is false when DATABASE_URL is unset', () => {
-    delete process.env.DATABASE_URL
+  it('isDatabaseConfigured is false when server configuration is missing', () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '')
+    vi.stubEnv('SUPABASE_URL', '')
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '')
     expect(isDatabaseConfigured()).toBe(false)
   })
 
-  it('isDatabaseConfigured accepts file: and postgresql:// URLs', () => {
-    process.env.DATABASE_URL = 'file:./dev.db'
+  it('requires an HTTPS REST endpoint and server credential, not DATABASE_URL', () => {
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://database.test')
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'server-only-test-key')
     expect(isDatabaseConfigured()).toBe(true)
-    process.env.DATABASE_URL = 'postgresql://localhost:5432/kynthai'
-    expect(isDatabaseConfigured()).toBe(true)
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '')
+    expect(isDatabaseConfigured()).toBe(false)
   })
 
   it('db accessor throws DatabaseNotConfiguredError instead of TypeError', async () => {
-    delete process.env.DATABASE_URL
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '')
+    vi.stubEnv('SUPABASE_URL', '')
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '')
     vi.resetModules()
     const { db } = await import('@/lib/db')
     try {

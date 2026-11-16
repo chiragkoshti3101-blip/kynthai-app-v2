@@ -77,7 +77,6 @@ export async function GET(req: NextRequest) {
   const reminders = medIds.length
     ? await db.reminder.findMany({
         where: { date, medicationId: { in: medIds } },
-        include: { medication: true },
         orderBy: { time: 'asc' },
       })
     : []
@@ -85,7 +84,12 @@ export async function GET(req: NextRequest) {
   return jsonOk(
     reminders.map((r) => ({
       ...r,
-      medication: r.medication ? { ...r.medication, times: parseTimes(r.medication.times) } : null,
+      medication: (() => {
+        // Reuse the already authorized medication set instead of querying each
+        // relation again (also avoids an adapter relation-filter failure).
+        const med = meds.find((m) => m.id === r.medicationId)
+        return med ? { ...med, times: parseTimes(med.times) } : null
+      })(),
     })),
   )
 }

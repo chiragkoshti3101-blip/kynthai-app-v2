@@ -66,6 +66,9 @@ export async function POST(req: NextRequest) {
     }>(req)
     if (!body) return jsonError('Invalid JSON', 400, 'INVALID_JSON')
 
+    if (body.date !== undefined && (typeof body.date !== 'string' || !/^\d{4}-\d{2}-\d{2}(T.*)?$/.test(body.date) || Number.isNaN(Date.parse(body.date)))) {
+      return jsonError('Invalid journal date', 422, 'VALIDATION_ERROR')
+    }
     const date = normalizeDate(body.date)
     const mood = typeof body.mood === 'string' && body.mood ? body.mood.slice(0, 50) : null
     const symptoms = Array.isArray(body.symptoms) ? JSON.stringify(body.symptoms) : '[]'

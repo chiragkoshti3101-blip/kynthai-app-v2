@@ -2,7 +2,8 @@
 // Supabase Storage client for medical documents
 
 import { createClient } from '@supabase/supabase-js';
-import { encryptFileLegacy as encryptFile, decryptFileLegacy as decryptFile, generateFileId, sanitizeFilename } from './encryption';
+import { db } from './db';
+import { encryptFileLegacy as encryptFile, decryptFileLegacy as decryptFile, generateFileId } from './encryption';
 
 // Lazy-initialized Supabase admin client to avoid build-time errors
 let _supabaseAdmin: ReturnType<typeof createClient> | null = null;
@@ -45,8 +46,10 @@ export async function initializeMedicalDocumentsBucket(): Promise<{
 }> {
   try {
     // Check if bucket exists
-    const { data: buckets } = await supabaseAdmin().storage.listBuckets();
-    const exists = buckets?.some(b => b.name === BUCKET);
+    const { data: buckets, error: listError } = await supabaseAdmin().storage.listBuckets();
+    if (listError) throw listError;
+    const existing = buckets?.find(b => b.name === BUCKET);
+    const exists = !!existing;
 
     if (!exists) {
       const { error } = await supabaseAdmin().storage.createBucket(BUCKET, {
@@ -60,9 +63,21 @@ export async function initializeMedicalDocumentsBucket(): Promise<{
           'application/dicom',
           'application/zip',
           'text/plain',
+          'application/octet-stream', // encrypted uploads are binary, regardless of original MIME
         ],
       });
       if (error) throw error;
+    } else {
+      // Preserve existing limits and MIME types; null means unrestricted.
+      // Encrypted uploads must be accepted even if the bucket predates encryption.
+      const allowed = existing.allowed_mime_types;
+      if (existing.public || (allowed && !allowed.includes('application/octet-stream'))) {
+        const { error } = await supabaseAdmin().storage.updateBucket(BUCKET, {
+          public: false,
+          ...(allowed ? { allowedMimeTypes: [...new Set([...allowed, 'application/octet-stream'])] } : {}),
+        });
+        if (error) throw error;
+      }
     }
 
     return { success: true };
@@ -198,7 +213,6 @@ export async function uploadAndStoreDocument(
 ): Promise<{ documentId: string; error?: string }> {
   const fileId = generateFileId();
   const fileExt = originalFilename.split('.').pop()?.toLowerCase() || 'bin';
-  const safeFilename = sanitizeFilename(originalFilename);
 
   // Encrypt file using legacy API (returns { encryptedData, iv, salt, authTag })
   const { encryptedData, iv, salt, authTag } = encryptFile(file);
@@ -221,33 +235,14 @@ export async function uploadAndStoreDocument(
 
   // Create document record in database
   try {
-    const { data: document, error: dbError } = await (supabaseAdmin()
-      .from('medical_documents') as any)
-      .insert({
-        user_id: userId,
-        uploaded_by_id: uploadedById,
-        family_id: options.familyId || null,
-        type: options.type.toUpperCase(),
-        category: options.category || 'CLINICAL',
-        title: options.title,
-        description: options.description || null,
-        mime_type: mimeType,
-        file_size: file.length,
-        storage_path: path,
-        bucket: BUCKET,
-        encrypted: true,
-        encryption_key: encryptionKey,
-        visibility: options.visibility || 'PRIVATE',
-        shared_with: options.sharedWith || [],
-      })
-      .select('id')
-      .single();
-
-    if (dbError) {
-      // Cleanup: delete uploaded file
-      await supabaseAdmin().storage.from(BUCKET).remove([path]);
-      return { documentId: '', error: dbError.message };
-    }
+    const document = await db.medicalDocument.create({ data: {
+      userId, uploadedById, familyId: options.familyId || null,
+      type: options.type.toUpperCase(), category: options.category || 'CLINICAL',
+      title: options.title, description: options.description || null,
+      mimeType, fileSize: file.length, storagePath: path, bucket: BUCKET,
+      encrypted: true, encryptionKey, visibility: options.visibility || 'PRIVATE',
+      sharedWith: options.sharedWith || [],
+    } });
 
     return { documentId: document.id };
   } catch (error) {
@@ -273,28 +268,25 @@ export async function getDocumentForDownload(
   mimeType: string;
   error?: string;
 }> {
-  const { data: document, error } = await (supabaseAdmin() as any)
-    .from('medical_documents')
-    .select('*')
-    .eq('id', documentId)
-    .eq('user_id', userId)
-    .single();
+  const document = await db.medicalDocument.findFirst({
+    where: { id: documentId, userId },
+  });
 
-  if (error || !document) {
+  if (!document) {
     return { signedUrl: '', encryptionKey: '', filename: '', mimeType: '', error: 'Document not found' };
   }
 
   // Get signed URL
-  const { url, error: urlError } = await getSignedDocumentUrl(document.storage_path);
+  const { url, error: urlError } = await getSignedDocumentUrl(document.storagePath);
   if (urlError || !url) {
     return { signedUrl: '', encryptionKey: '', filename: '', mimeType: '', error: 'Failed to generate download URL' };
   }
 
   return {
     signedUrl: url,
-    encryptionKey: document.encryption_key,
-    filename: `${document.id}.${document.storage_path.split('.').pop()}`,
-    mimeType: document.mime_type,
+    encryptionKey: document.encryptionKey,
+    filename: `${document.id}.${document.storagePath.split('.').pop()}`,
+    mimeType: document.mimeType,
   };
 }
 

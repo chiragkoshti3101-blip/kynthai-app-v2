@@ -52,12 +52,12 @@ export async function POST(req: NextRequest) {
 
   try {
     // Distinct accounts that have at least one registered device.
-    const rows: Array<{ userId: string }> = userIdFilter
-      ? await db.$queryRawUnsafe(
-          `SELECT DISTINCT "userId" FROM "push_subscriptions" WHERE "userId" = $1`,
-          userIdFilter
-        )
-      : await db.$queryRawUnsafe(`SELECT DISTINCT "userId" FROM "push_subscriptions"`)
+    const subscriptions = await db.pushSubscription.findMany({
+      where: userIdFilter ? { userId: userIdFilter } : {},
+      select: { userId: true },
+    })
+    const rows = [...new Set<string>(subscriptions.map((s: { userId: string }) => s.userId))]
+      .map(userId => ({ userId }))
 
     if (rows.length === 0) {
       return Response.json({

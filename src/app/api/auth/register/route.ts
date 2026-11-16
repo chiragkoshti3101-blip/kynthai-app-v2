@@ -124,43 +124,26 @@ export async function POST(req: NextRequest) {
       await ensureDemoUsers();
     }
 
-    // ── Create user directly in database (bypasses Supabase Auth) ────────
-    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
-    const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
-    const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || ''
-    const sbKey = SUPABASE_ANON_KEY
+    // Fail before creating an account if this deployment cannot issue sessions.
+    const signedValue = await signSessionToken('registration-config-check');
+    if (!signedValue) return jsonError('Session signing is not configured', 503, 'AUTH_CONFIG_MISSING');
 
     // Hash password with bcrypt
     const bcrypt = await import('bcryptjs')
     const passwordHash = await bcrypt.hash(password, 12)
 
     // Check if user already exists
-    const existingRes = await fetch(`${SUPABASE_URL}/rest/v1/users?email=eq.${encodeURIComponent(email)}&select=id`, {
-      headers: {
-        'apikey': sbKey,
-        'Authorization': `Bearer ${sbKey}`,
-        'Content-Type': 'application/json',
-      },
-    })
-    const existingUsers = await existingRes.json()
-    if (existingUsers && existingUsers.length > 0) {
+    const existingUser = await db.user.findUnique({ where: { email } });
+    if (existingUser) {
       return jsonOk({
-        message: 'If this email is available, a verification link has been sent. Please check your inbox.',
-        verificationEmailSent: true,
+        message: 'If this email is already registered, sign in or use account recovery.',
+        verificationEmailSent: false,
       });
     }
 
     // Create user in database
     const userId = crypto.randomUUID()
-    const createRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
-      method: 'POST',
-      headers: {
-        'apikey': sbKey,
-        'Authorization': `Bearer ${sbKey}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      },
-      body: JSON.stringify({
+    const newUser = await db.user.create({ data: {
         id: userId,
         email,
         name,
@@ -182,18 +165,7 @@ export async function POST(req: NextRequest) {
         verificationLevel: 'unverified',
         emailOptOut: false,
         updatedAt: new Date().toISOString(),
-      }),
-    })
-
-    if (!createRes.ok) {
-      const errText = await createRes.text()
-      console.error('User creation failed:', errText)
-      return jsonError(`Failed to create user account: ${errText}`, 500, 'REGISTRATION_FAILED')
-    }
-
-    const created = await createRes.json()
-    const newUser = Array.isArray(created) ? created[0] : created
-    if (!newUser) { return jsonError('Failed to create user account', 500, 'REGISTRATION_FAILED') }
+    } });
 
     await logAudit(newUser.id, 'auth.register', `role=${role}`)
 
@@ -209,9 +181,9 @@ export async function POST(req: NextRequest) {
     const res = jsonOk(responseBody);
 
     // Set session cookie
-    const signedValue = await signSessionToken(newUser.id)
-    if (signedValue) {
-      res.cookies.set('kynthai-session', signedValue, {
+    const sessionValue = await signSessionToken(newUser.id)
+    if (sessionValue) {
+      res.cookies.set('kynthai-session', sessionValue, {
         httpOnly: true,
         secure: isSecureRequest(req),
         sameSite: 'strict',

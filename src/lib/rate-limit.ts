@@ -20,7 +20,7 @@ const buckets = globalForRate.__rateBuckets ?? memBuckets
 globalForRate.__rateBuckets = buckets
 
 // ── Redis-backed limiter (production) ─────────────────────────────────
-let redisLimiter: Ratelimit | null = null
+const redisLimiters = new Map<string, Ratelimit>()
 const redisPrefix = 'kynthai:ratelimit'
 
 // Reject placeholder / sample config (mirrors nvidia.ts isRealProviderKey)
@@ -36,14 +36,16 @@ export function isDistributedRateLimitActive(): boolean {
   return getRedisLimiter() !== null
 }
 
-function getRedisLimiter(): Ratelimit | null {
-  if (redisLimiter) return redisLimiter
+function getRedisLimiter(limit = 100, windowMs = 60000): Ratelimit | null {
+  const policy = `${limit}:${windowMs}`
+  if (redisLimiters.has(policy)) return redisLimiters.get(policy)!
   const url = process.env.UPSTASH_REDIS_REST_URL
   const token = process.env.UPSTASH_REDIS_REST_TOKEN
   if (!isRealUpstashConfig(url, token)) return null
   const redis = new Redis({ url, token })
-  redisLimiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(100, '1 m'), analytics: true, prefix: redisPrefix })
-  return redisLimiter
+  const limiter = new Ratelimit({ redis, limiter: Ratelimit.slidingWindow(limit, `${Math.max(1, Math.ceil(windowMs / 1000))} s`), analytics: true, prefix: `${redisPrefix}:${policy}` })
+  redisLimiters.set(policy, limiter)
+  return limiter
 }
 
 // ── IP extraction (trusts X-Forwarded-For from Caddy) ────────────────
@@ -76,7 +78,6 @@ function applyRateLimitSecurityHeaders(res: NextResponse, req: NextRequest): voi
 
 // ── Synchronous in-memory rate limit ─────────────────────────────────
 export function rateLimit(req: NextRequest, max = 60, windowMs = 60000, opts?: { globalKey?: boolean }): NextResponse | null {
-  if (process.env.CI === 'true') return null;
   const ip = getIp(req)
   const key = opts?.globalKey ? `global:${ip}` : `${ip}:${req.nextUrl.pathname}`
   const now = Date.now()
@@ -133,9 +134,9 @@ export async function rateLimitProduction(req: NextRequest, limit = 100, windowM
   // NEVER take down every authenticated route (requireAuth calls this first).
   // On any failure we log and fall through to the in-memory limiter below.
   try {
-    const limiter = getRedisLimiter()
+    const limiter = getRedisLimiter(limit, windowMs)
     if (limiter) {
-      const { success, reset } = await limiter.limit(ip)
+      const { success, reset } = await limiter.limit(`${ip}:${req.nextUrl.pathname}`)
       if (!success) {
         const retryAfter = Math.ceil((reset - Date.now()) / 1000)
         return NextResponse.json(
