@@ -27,7 +27,10 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
   // SSR guard — window is undefined during server rendering
   React.useEffect(() => {
     if (typeof window === 'undefined') return
-    const onScroll = () => setScrolled(window.scrollY > 12)
+    const onScroll = () => {
+      const y = window.scrollY
+      setScrolled(prev => (prev ? y > 4 : y > 16))
+    }
     onScroll()
     window.addEventListener('scroll', onScroll, { passive: true })
     try {
@@ -55,9 +58,9 @@ export function LandingNav({ goToLogin }: { goToLogin: (portal: LoginPortal) => 
   return (
     <header
       className={cn(
-        'sticky top-0 z-50 transition-all duration-300 pt-safe',
+        'sticky top-0 z-50 pt-safe',
         scrolled
-          ? 'border-b border-border/60 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60'
+          ? 'border-b border-border/60 bg-background'
           : 'bg-transparent'
       )}
     >

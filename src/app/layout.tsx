@@ -10,19 +10,19 @@ import { StructuredData } from '@/components/structured-data';
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
-  display: 'swap',
+  display: 'optional',
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
-  display: 'swap',
+  display: 'optional',
 });
 const playfair = Playfair_Display({
   weight: ['600','700','800'],
   variable: '--font-playfair-display',
   subsets: ['latin'],
-  display: 'swap',
+  display: 'optional',
 });
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app';
@@ -37,15 +37,25 @@ export const metadata: Metadata = {
     'AI-powered medicine reminders, doctor consults, lab tests & family health management — families around the world. Free to start. Privacy-first.',
   keywords: [
     'Kynthai',
-    'family health management',
+    'family health management app',
     'medication reminder app',
+    'pill reminder app',
+    'medication tracker',
+    'family caregiver app',
     'health companion',
-    'doctor consultation',
+    'doctor consultation app',
+    'online doctor consultation',
+    'telemedicine app',
     'lab test booking',
+    'book lab tests online',
     'family medication management',
+    'care coordination app',
+    'health reminder app',
     'privacy-first health app',
     'AI health assistant',
-    'care coordination',
+    'medication adherence',
+    'family health tracker',
+    'patient portal app',
   ],
   authors: [{ name: 'Kynthai' }],
   manifest: '/manifest.json',
@@ -108,7 +118,7 @@ export default function RootLayout({
       <head>
         <StructuredData />
         {/* Instant first paint — prevents black/white flash on PWA cold start */}
-        <style dangerouslySetInnerHTML={{ __html: 'html,body{background:#f9fdfb!important;margin:0;min-height:100%;background-color:#f9fdfb}html.dark,html.dark body{background:#070f0c!important;background-color:#070f0c}#kynthai-boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#f9fdfb;color:#064e3b;font-family:system-ui,sans-serif;font-weight:600;font-size:18px;letter-spacing:0.02em;transition:opacity .2s}html.dark #kynthai-boot{background:#070f0c;color:#ecfdf5}#kynthai-boot.done{opacity:0;pointer-events:none;transition:opacity .25s}' }} />
+        <style dangerouslySetInnerHTML={{ __html: 'html,body{background:#f9fdfb!important;margin:0;min-height:100%;background-color:#f9fdfb}html.dark,html.dark body{background:#070f0c!important;background-color:#070f0c}#kynthai-boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#f9fdfb;color:#064e3b;font-family:system-ui,sans-serif;font-weight:600;font-size:18px;letter-spacing:0.02em;transition:opacity .15s}html.dark #kynthai-boot{background:#070f0c;color:#ecfdf5}#kynthai-boot.done{opacity:0;pointer-events:none;transition:opacity .15s}' }} />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Preconnect to critical origins for faster DNS + TLS */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

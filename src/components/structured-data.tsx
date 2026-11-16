@@ -64,6 +64,37 @@ const WEBAPP_SCHEMA = {
   publisher: { '@id': `${BASE_URL}/#organization` },
 } as const
 
+const SOFTWARE_APP_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  '@id': `${BASE_URL}/#software`,
+  name: 'Kynthai',
+  applicationCategory: 'HealthApplication',
+  applicationSubCategory: 'Family Health Management',
+  operatingSystem: 'iOS, Android, Web',
+  softwareVersion: '2.0.0',
+  description:
+    "Privacy-first family health app with smart medication reminders, doctor consultations, lab test booking, and AI-guided health information.",
+  url: BASE_URL,
+  downloadUrl: `${BASE_URL}/download`,
+  offers: {
+    '@type': 'Offer',
+    price: '0',
+    priceCurrency: 'USD',
+    description: 'Free to start; paid plans available.',
+  },
+  featureList: [
+    'Smart medication reminders',
+    'Doctor consultations',
+    'Lab test booking',
+    'Family health management',
+    'AI health information',
+    'Privacy-first data handling',
+  ],
+  author: { '@id': `${BASE_URL}/#organization` },
+  publisher: { '@id': `${BASE_URL}/#organization` },
+} as const
+
 // One canonical organization entity. Kynthai is a health-management company;
 // this does not claim that Kynthai itself is a hospital or licensed provider.
 const ORG_SCHEMA = {
@@ -74,7 +105,14 @@ const ORG_SCHEMA = {
   description:
     'Kynthai connects patients, families, doctors, and labs in one privacy-first care experience across supported markets.',
   url: BASE_URL,
+  logo: `${BASE_URL}/icon-512.png`,
   ...KYNTHAI_CONTACT,
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer support',
+    email: 'privacy@kynthai.app',
+    availableLanguage: ['English'],
+  },
   foundingDate: '2025',
   ...(SOCIAL_PROFILES.length ? { sameAs: [...SOCIAL_PROFILES] } : {}),
   knowsAbout: [
@@ -136,6 +174,10 @@ function webPageSchema(pathname: string) {
     accessibilitySummary:
       'Designed for keyboard navigation and screen readers; accessibility is an ongoing effort.',
     isPartOf: { '@id': `${BASE_URL}/#website` },
+    speakable: {
+      '@type': 'SpeakableSpecification',
+      cssSelector: ['h1', '[data-speakable]'],
+    },
   }
 }
 
@@ -173,7 +215,7 @@ export function StructuredData({
   faqEntries,
 }: StructuredDataProps) {
   const schemas: Record<string, unknown>[] = includeSiteIdentity
-    ? [WEBSITE_SCHEMA, WEBAPP_SCHEMA, ORG_SCHEMA]
+    ? [WEBSITE_SCHEMA, WEBAPP_SCHEMA, SOFTWARE_APP_SCHEMA, ORG_SCHEMA]
     : []
 
   if (pathname) {
