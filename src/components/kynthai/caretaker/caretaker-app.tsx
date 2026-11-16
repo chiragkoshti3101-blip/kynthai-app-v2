@@ -472,8 +472,8 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
     [toast]
   );
 
-  const accountName = resolveDisplayName(user, 'Family manager');
-  const initial = accountName.charAt(0).toUpperCase();
+  const accountName = resolveDisplayName(user, 'Family manager') || 'Family manager';
+  const initial = (accountName || 'F').charAt(0).toUpperCase();
   const familyName = isDemo
     ? accountName
     : (accountName.split(' ').filter(Boolean).slice(-1)[0] ?? 'Family');

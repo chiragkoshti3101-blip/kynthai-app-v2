@@ -111,7 +111,7 @@ function MemberCard({ member, index, onClick }: { member: PulseMember; index: nu
         <div className="flex items-center gap-3">
           <Avatar className={`h-11 w-11 bg-gradient-to-br ${grad} text-white ring-2 ring-white/20`}>
             <AvatarFallback className="bg-transparent text-white font-bold text-lg">
-              {member.name.charAt(0).toUpperCase()}
+              {(member.name || '?').charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
