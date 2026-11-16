@@ -72,6 +72,12 @@ export async function POST(req: NextRequest) {
     const lockoutErr = await checkAccountLockout(email, ip);
     if (lockoutErr) return lockoutErr;
 
+    // Retire the historical publicly shipped seed password on deployed hosts.
+    // This protects existing seeded accounts without changing real passwords.
+    if (process.env.NODE_ENV === 'production' && password === 'Demo@2024') {
+      return jsonError('Demo credentials are disabled. Reset your password to sign in.', 403, 'DEMO_DISABLED');
+    }
+
     // ── Supabase Auth: sign in ──────────────────────────────────────────
     let supabaseResponseCookies: { name: string; value: string; options?: Record<string, unknown> }[] = [];
     let user: any = null;
