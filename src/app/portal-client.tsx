@@ -64,8 +64,15 @@ const PUBLIC_SCREENS = [
 // ── Main routing component ─────────────────────────────────────────────────
 export function PortalClient({ children }: { children: React.ReactNode }) {
   const rawPathname = usePathname(); // updates reactively on every nav
+  // SSR safety: usePathname() can be null during server rendering. Treat a
+  // missing pathname as the root route so the landing page renders on the
+  // first paint instead of falling through to the SEO children (which caused
+  // the whole-page swap/flash on iOS Safari).
+  const resolvedPathname = rawPathname || '/';
   const pathname =
-    rawPathname.endsWith('/') && rawPathname.length > 1 ? rawPathname.slice(0, -1) : rawPathname;
+    resolvedPathname.endsWith('/') && resolvedPathname.length > 1
+      ? resolvedPathname.slice(0, -1)
+      : resolvedPathname;
   const isKnownPath =
     pathname === '/' ||
     pathname in ROUTE_SCREEN ||
@@ -302,8 +309,11 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   // the store hydrates. This gives anonymous crawlers and no-JS users complete
   // marketing content instead of an empty loader; authenticated users are
   // redirected by the auth-aware branch immediately after hydration.
+  // Landing page renders the interactive LandingPage on the very first paint
+  // (server + client) so there is no SEO-fallback -> interactive swap that
+  // flashed/blurred the whole page on iOS Safari.
   if (!hydrated) {
-    if (isLandingPage || isPortalPath || isProtectedPath) {
+    if (isPortalPath || isProtectedPath) {
       return <ErrorBoundary>{children}</ErrorBoundary>;
     }
   }
