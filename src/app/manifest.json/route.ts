@@ -47,7 +47,7 @@ const manifest = {
     { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
     { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
   ],
-  version: 'bf4af23-mwial8nx',
+  version: 'b6af4a4-mwir7zz0',
 };
 
 export async function GET() {
