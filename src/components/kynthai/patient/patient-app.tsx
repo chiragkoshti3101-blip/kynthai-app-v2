@@ -142,7 +142,7 @@ const MORE_ITEMS: { id: Tab; label: string; desc: string; icon: React.ComponentT
   { id: 'ai', label: 'AI Assistant', desc: 'Ask about meds, symptoms & health', icon: Sparkles },
   { id: 'journal', label: 'Health Journal', desc: 'Track how you feel each day', icon: BookOpen },
   { id: 'tools', label: 'Care Tools', desc: 'Family care & health checks', icon: HeartPulse },
-  { id: 'sos', label: 'Emergency SOS', desc: 'Alert your trusted contacts', icon: Siren },
+  { id: 'sos', label: 'Emergency SOS (Beta)', desc: 'Alert your trusted contacts', icon: Siren },
 ];
 
 interface HealthMetric {
@@ -1428,7 +1428,7 @@ function SosTab({ phone }: { phone?: string | null }) {
   };
   return (
     <div className="space-y-5">
-      <h2 className="text-xl font-bold text-rose-600 dark:text-rose-400">Emergency SOS</h2>
+      <h2 className="text-xl font-bold text-rose-600 dark:text-rose-400">Emergency SOS (Beta)</h2>
       <Card className="border-rose-500/30 bg-rose-500/5">
         <CardContent className="p-5 space-y-4">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10">
@@ -1482,7 +1482,7 @@ function SosTab({ phone }: { phone?: string | null }) {
               onClick={trigger}
               className="w-full h-12 text-sm border-rose-500/40 text-rose-700 dark:text-rose-400 hover:bg-rose-500/10"
             >
-              <Siren className="h-4 w-4" /> Trigger SOS alert to family
+              <Siren className="h-4 w-4" /> Trigger SOS alert to family (Beta)
             </Button>
           )}
           {stage === 'triggering' && (
@@ -1762,10 +1762,11 @@ export function PatientApp({ user }: { user: AuthUser }) {
         <button
           type="button"
           onClick={() => setTab('sos')}
-          aria-label="Emergency SOS"
-          className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-rose-600 text-white shadow-lg shadow-rose-600/40 transition-transform active:scale-95"
+          aria-label="Emergency SOS (Beta)"
+          className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-40 flex h-14 w-14 flex-col gap-0.5 items-center justify-center rounded-full bg-rose-600 text-white shadow-lg shadow-rose-600/40 transition-transform active:scale-95"
         >
-          <Siren className="h-6 w-6" aria-hidden />
+          <Siren className="h-5 w-5" aria-hidden />
+          <span className="text-[10px] font-semibold leading-none">Beta</span>
         </button>
       )}
 

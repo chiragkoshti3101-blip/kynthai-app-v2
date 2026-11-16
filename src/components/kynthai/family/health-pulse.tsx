@@ -253,7 +253,7 @@ export function FamilyHealthPulse({ onDataLoaded }: { onDataLoaded?: (members: F
           </Button>
           <Button variant="outline" size="sm" className="flex-1">
             <AlertTriangle className="h-4 w-4 mr-1" />
-            SOS
+            SOS (Beta)
           </Button>
         </div>
       </CardContent>
