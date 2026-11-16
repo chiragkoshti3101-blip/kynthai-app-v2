@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { applyStandardHeaders } from '@/lib/api-helpers'
+import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
 export const runtime = 'nodejs'
@@ -8,27 +9,22 @@ export async function GET(req: NextRequest) {
   const checks: Record<string, string> = {}
   let healthy = true
 
-  // Check database connectivity via Supabase REST API (HTTPS — works from Vercel)
+  // Read-only, bounded probe of the same backend used by application queries.
+  let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Supabase URL or Anon Key not configured')
-    }
-    const res = await fetch(`${supabaseUrl}/rest/v1/users?select=count`, {
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-      },
-    })
-    if (!res.ok) {
-      throw new Error(`Supabase REST returned ${res.status}`)
-    }
+    await Promise.race([
+      db.user.findFirst({ select: { id: true } }),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Database health timeout')), 5000)
+      }),
+    ])
     checks.database = 'ok'
   } catch (err: any) {
     checks.database = 'error'
     healthy = false
     logger.phiSafeError(err, 'health_check.db')
+  } finally {
+    clearTimeout(timer)
   }
 
   // SECURITY: Only return minimal health info — no env, no uptime, no internals

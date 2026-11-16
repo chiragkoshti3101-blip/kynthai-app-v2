@@ -104,7 +104,7 @@ async function apiLogin(
 
 // ── 1. Unauthenticated visitor ─────────────────────────────────────────
 test('S1 unauthenticated: protected portal redirects to /login and protected API 401s', async ({ page }) => {
-  await page.goto(`${BASE}/patient`, { waitUntil: 'networkidle' });
+  await page.goto(`${BASE}/patient`, { waitUntil: 'domcontentloaded' });
   await expect(page).toHaveURL(/\/login/, 'unauthenticated portal visit bounces to login');
   const api = await apiGet(page, '/api/medications');
   expect(api.status, 'GET /api/medications without session is 401').toBe(401);

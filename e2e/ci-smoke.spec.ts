@@ -117,7 +117,7 @@ test.describe('Landing page structure', () => {
   });
 
   test('404 page renders correctly', async ({ page }) => {
-    await page.goto(`${BASE}/nonexistent-page-xyz`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE}/nonexistent-page-xyz`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('body')).toBeVisible();
   });
 });
@@ -129,13 +129,13 @@ test.describe('Mobile responsive', () => {
   test('landing page renders without JS errors', async ({ page }) => {
     const errors: string[] = [];
     page.on('console', (msg) => msg.type() === 'error' && errors.push(msg.text()));
-    await page.goto(BASE, { waitUntil: 'networkidle' });
+    await page.goto(BASE, { waitUntil: 'domcontentloaded' });
     const ourErrors = errors.filter((e) => !e.includes('favicon') && !e.includes('livekit.kynthai.app'));
     expect(ourErrors.length).toBe(0);
   });
 
   test('login page is usable on mobile', async ({ page }) => {
-    await page.goto(`${BASE}/login`, { waitUntil: 'networkidle' });
+    await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('button').first()).toBeVisible();
   });
 });

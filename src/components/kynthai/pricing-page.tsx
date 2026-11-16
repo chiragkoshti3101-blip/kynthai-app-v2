@@ -261,7 +261,7 @@ export function PricingPage() {
           <Reveal>
             <Badge
               variant="secondary"
-              className="mb-4 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              className="mb-4 border-emerald-500/20 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
             >
               <Zap className="h-3 w-3" />
               Simple, transparent pricing

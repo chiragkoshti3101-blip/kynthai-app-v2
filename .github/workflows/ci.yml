@@ -45,7 +45,15 @@ jobs:
           echo "📦 Installing dependencies (frozen lockfile)..."
           npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Run npm audit (fail on high+)
+      # Shared audit runner reads the committed pnpm lock, not node_modules.
+      # Other jobs still use npm ci; keep both lockfiles synchronized.
+      - name: Setup pnpm for dependency audit
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - name: Audit committed pnpm dependency graph (fail on high+)
         # Blocking gate: high/critical CVEs fail CI, EXCEPT the known
         # next-bundled sharp/postcss advisories whose only npm fix is
         # next@16.3.1 (breaks the Vercel prod build). See scripts/check-deps.mjs.

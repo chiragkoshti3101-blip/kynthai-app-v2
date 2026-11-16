@@ -2,7 +2,7 @@
 /**
  * CI dependency audit gate runner.
  *
- * Runs `npm audit --json` and fails the build on every HIGH or CRITICAL
+ * Runs `pnpm audit --json` and fails the build on every HIGH or CRITICAL
  * advisory, except for an explicit, reviewed allowlist entry in
  * check-deps.mjs. No advisory exceptions are currently required; the
  * package-level fallback remains empty.
@@ -15,9 +15,9 @@ import { isAllowlistedAdvisory, isAllowlistedPackage } from './check-deps.mjs';
 
 let raw;
 try {
-  raw = execFileSync('npm', ['audit', '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  raw = execFileSync('pnpm', ['audit', '--json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 } catch (e) {
-  // npm audit exits non-zero when findings exist; stdout still has the JSON.
+  // pnpm audit exits non-zero when findings exist; stdout still has the JSON.
   raw = `${e.stdout || ''}`;
 }
 
@@ -25,11 +25,21 @@ let audit;
 try {
   audit = JSON.parse(raw);
 } catch {
-  console.error('[deps] could not parse npm audit output');
+  console.error('[deps] could not parse pnpm audit output');
   process.exit(2);
 }
 
-const vulnerabilities = audit?.vulnerabilities || {};
+if (audit.error || !audit.advisories || !audit.metadata) {
+  console.error('[deps] incomplete ppnpm audit response');
+  process.exit(2);
+}
+const vulnerabilities = Object.fromEntries(Object.entries(audit.advisories).map(([id, advisory]) => [
+  `${advisory.module_name} (${id})`, {
+    severity: advisory.severity,
+    range: advisory.vulnerable_versions,
+    via: [{ url: advisory.url }],
+  },
+]));
 const blockers = [];
 const allowlisted = [];
 
