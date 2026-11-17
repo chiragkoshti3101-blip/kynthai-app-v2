@@ -8,7 +8,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  ShieldCheck,
   Users,
   HeartPulse,
   Stethoscope,
@@ -34,6 +33,8 @@ import { KynthaiBrand } from './logo';
 import { FadeIn } from './animations';
 import { TurnstileWidget, type TurnstileWidgetHandle } from './turnstile-widget';
 import { runDemoLogin, demoRolePath, type DemoRole, DEMO_ROLES } from '@/lib/demo-login';
+import { AppLoader } from '@/components/kynthai/app-loader';
+import { isDemoLoginEnabled, isDemoUser } from '@/lib/demo-mode'
 
 // Hash-driven demo boot must not flash the sign-in form, so on the client the
 // marker is applied in a *layout* effect (before paint). On the server there is
@@ -42,16 +43,17 @@ import { runDemoLogin, demoRolePath, type DemoRole, DEMO_ROLES } from '@/lib/dem
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? React.useLayoutEffect : React.useEffect
 
-function calculateAge(dobString: string): number {
-  const dob = new Date(dobString);
+// Minimum-age check for signup — mirrors the server-side rule in
+// /api/auth/register so users get the message before the request.
+function isAtLeast18(dob: string): boolean {
+  const d = new Date(dob);
+  if (Number.isNaN(d.getTime())) return false;
   const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) age--;
-  return age;
+  let age = today.getFullYear() - d.getFullYear();
+  const monthDiff = today.getMonth() - d.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d.getDate())) age--;
+  return age >= 18;
 }
-import { AppLoader } from '@/components/kynthai/app-loader';
-import { isDemoLoginEnabled, isDemoUser } from '@/lib/demo-mode'
 
 interface PortalConfig {
   id: LoginPortal;
@@ -189,10 +191,6 @@ export function LoginPage({
   // a render-phase browser read is a server/client branch and caused an
   // intermittent React #418 hydration mismatch (full-page boot-splash lockup).
   const [email, setEmail] = React.useState('');
-  const [familyMembers, setFamilyMembers] = React.useState<Array<{name: string; relation?: string; dob?: string; conditions?: string[]; medications?: string[]; allergies?: string[]; pharmacy?: string}>>([{name: '', relation: '', dob: '', conditions: [], medications: [], allergies: [], pharmacy: ''}]);
-  const [reminderTime, setReminderTime] = React.useState<'morning' | 'evening' | 'both'>('both');
-  const [alertDelegation, setAlertDelegation] = React.useState<'self' | 'family' | 'both'>('both');
-  const [dataSharing, setDataSharing] = React.useState<boolean>(true);
   React.useEffect(() => {
     try {
       const saved = sessionStorage.getItem('kynthai.login.email')
@@ -205,13 +203,9 @@ export function LoginPage({
   const [phone, setPhone] = React.useState('');
   const [dateOfBirth, setDateOfBirth] = React.useState('');
   const [termsConsent, setTermsConsent] = React.useState(false);
-  const [dataConsent, setDataConsent] = React.useState(false);
-  const [aiTrainingConsent, setAiTrainingConsent] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [demoBusy, setDemoBusy] = React.useState(false);
   const [invitesLoading, setInvitesLoading] = React.useState(false);
-  const [emergencyContact1, setEmergencyContact1] = React.useState('');
-  const [emergencyContact2, setEmergencyContact2] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [removedFromFamily, setRemovedFromFamily] = React.useState(false);
   // ── SECURITY: Cloudflare Turnstile (active only when the site key is set) ────
@@ -225,19 +219,7 @@ export function LoginPage({
   // ── COMPLIANCE: age-gate modal ──────────────────────────────────────────────
   // Blocks registration until the caller confirms they are 18+. Shown before the
   // form when mode is 'register'; dismissed by clicking "I am 18 or older".
-  const [ageGateOpen, setAgeGateOpen] = React.useState(false);
-  const [ageGateDismissed, setAgeGateDismissed] = React.useState(false);
   // ────────────────────────────────────────────────────────────────────────────
-
-  // ── COMPLIANCE: auto-show age-gate when user switches to registration ─────
-  React.useEffect(() => {
-    if (mode === 'register' && !ageGateDismissed) {
-      setAgeGateOpen(true);
-    }
-    if (mode === 'signin') {
-      setAgeGateOpen(false);
-    }
-  }, [mode, ageGateDismissed]);
 
   // Turnstile tokens are single-use — discard any minted token when the
   // mode flips so a stale one can never be reused for the other flow.
@@ -374,16 +356,20 @@ export function LoginPage({
       (!name ||
         !phone ||
         !dateOfBirth ||
-        !termsConsent ||
-        !dataConsent ||
-        !aiTrainingConsent ||
-        ((active.id === 'patient' || active.id === 'caretaker') && !emergencyContact1))
+        !termsConsent)
     ) {
       toast({
         title: 'Almost there',
-        description: !aiTrainingConsent
-          ? 'Please accept the AI training consent, add your name, phone number, date of birth, accept the checkboxes, and provide an emergency contact.'
-          : 'Please add your name, phone number, date of birth, accept the consent checkboxes, and provide an emergency contact.',
+        description: 'Please add your name, phone number, date of birth and accept the terms to continue.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    if (mode === 'register' && !isAtLeast18(dateOfBirth)) {
+      toast({
+        title: 'Under 18',
+        description:
+          'Kynthai is designed for users 18 years or older. A parent or guardian can create and manage the account through the Family portal.',
         variant: 'destructive',
       });
       return;
@@ -412,10 +398,10 @@ export function LoginPage({
           name,
           role: active.id,
           phone: `+${phone.replace(/\D/g, '')}`,
-          dateOfBirth: dateOfBirth || undefined,
+          dateOfBirth,
           consentAccepted: termsConsent,
-          dataProcessingConsent: dataConsent,
-          aiTrainingConsent,
+          dataProcessingConsent: termsConsent,
+          aiTrainingConsent: false,
           captchaToken: effectiveCaptcha,
         });
         toast({ title: 'Account created', description: 'Welcome to Kynthai!' });
@@ -817,8 +803,6 @@ export function LoginPage({
                   <button
                     onClick={() => {
                       setMode('register');
-                      setAgeGateDismissed(false);
-                      setAgeGateOpen(true);
                     }}
                     className={cn(
                       'min-h-11 rounded-full px-4 py-2 text-sm font-medium transition-all',
@@ -872,71 +856,6 @@ export function LoginPage({
                   </div>
                 </div>
 
-                {/* ── COMPLIANCE: age-gate modal — prevents under-18 registration ─── */}
-                {ageGateOpen && !ageGateDismissed && (
-                  <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/80 p-4 backdrop-blur-sm sm:items-center">
-                    <Card className="my-auto w-full max-w-sm border-amber-500/30 shadow-xl">
-                      <CardContent className="p-6 text-center space-y-4">
-                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-                          <ShieldCheck className="h-6 w-6 text-amber-600" />
-                        </div>
-                        <p className="text-sm font-semibold text-foreground">
-                          Age verification required
-                        </p>
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          Kynthai is designed for users <span className="font-semibold text-foreground">18 years or older</span>.
-                          Enter your date of birth to verify eligibility.
-                        </p>
-                        <div className="space-y-1.5 mt-4">
-                          <Label htmlFor="ageGateDob">Date of birth</Label>
-                          <Input
-                            id="ageGateDob"
-                            type="date"
-                            value={dateOfBirth}
-                            onChange={e => setDateOfBirth(e.target.value)}
-                            required
-                            max={new Date().toISOString().split('T')[0]}
-                          />
-                          {dateOfBirth && (
-                            <p className="text-xs text-muted-foreground">
-                              You are {calculateAge(dateOfBirth)} years old.
-                            </p>
-                          )}
-                        </div>
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            if (!dateOfBirth) {
-                              toast({
-                                title: 'Date of birth required',
-                                description: 'Please enter your date of birth to verify you are 18 or older.',
-                                variant: 'destructive',
-                              });
-                              return;
-                            }
-                            const age = calculateAge(dateOfBirth);
-                            if (age < 18) {
-                              toast({
-                                title: 'Under 18',
-                                description: 'Kynthai is designed for users 18 years or older. A parent or guardian can create and manage the account through the Family portal.',
-                                variant: 'destructive',
-                              });
-                              return;
-                            }
-                            setAgeGateDismissed(true);
-                            setAgeGateOpen(false);
-                          }}
-                          variant="brand"
-                          size="cta"
-                          className="w-full"
-                        >
-                          Verify Age & Continue
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-                {/* ───────────────────────────────────────────────────────────────────── */}
 
                 <form id="login-form" onSubmit={submit} className="space-y-4" noValidate>
                 {formError && (
@@ -988,159 +907,23 @@ export function LoginPage({
                         type="date"
                         value={dateOfBirth}
                         onChange={e => setDateOfBirth(e.target.value)}
+                        autoComplete="bday"
+                        max={new Date().toISOString().split('T')[0]}
                         required
                         disabled={mode !== 'register'}
                       />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="emergency1">
-                        Emergency contact 1<span className="text-muted-foreground">(optional)</span>
-                      </Label>
-                      <Input
-                        id="emergency1"
-                        type="tel"
-                        placeholder="+1 555-123-4567"
-                        value={emergencyContact1}
-                        onChange={e => setEmergencyContact1(e.target.value)}
-                        autoComplete="tel"
-                        required={false}
-                        disabled={mode !== 'register'}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="emergency2">Emergency contact 2 (optional)</Label>
-                      <Input
-                        id="emergency2"
-                        type="tel"
-                        placeholder="+1 555-123-4567"
-                        value={emergencyContact2}
-                        onChange={e => setEmergencyContact2(e.target.value)}
-                        autoComplete="tel"
-                      />
+                      <p className="text-xs text-muted-foreground">
+                        You must be 18 or older to create an account.
+                      </p>
                     </div>
                   </div>
                   )}
 
-                  {mode === 'register' && active.id === 'caretaker' && (
-                  <div className="space-y-3.5 rounded-xl border border-border/60 bg-muted/30 p-4">
-                    <h3 className="text-sm font-semibold text-foreground mb-3">
-                      Family Members
-                    </h3>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Add up to 4 family members you&rsquo;ll manage in Kynthai.
+                                    {mode === 'register' && active.id === 'caretaker' && (
+                    <p className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs text-muted-foreground">
+                      Family members and their medicines are added after you sign in — open
+                      Family in the app and tap Add. Nothing else is needed to create your account.
                     </p>
-                    {[0, 1, 2, 3].map(i => (
-                      <div key={i} className="space-y-3 border-b border-border/40 pb-3 last:border-0">
-                        <div className="flex items-start gap-2 mb-1">
-                          <span className="text-sm font-semibold text-foreground">Family Member {i + 1}</span>
-                          <span className="ml-auto text-xs text-muted-foreground">{i + 1} of 4</span>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor={`familyName${i}`}>
-                            Name <span className="text-rose-500">*</span>
-                          </Label>
-                          <Input
-                            id={`familyName${i}`}
-                            placeholder="e.g., Sarah Johnson"
-                            value={familyMembers[i]?.name || ''}
-                            onChange={e => {
-                              const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: e.target.value };
-                              setFamilyMembers(updated);
-                            }}
-                            required
-                            disabled={mode !== 'register'}
-                          />
-                          <Label htmlFor={`familyRelation${i}`}>
-                            Relationship <span className="text-rose-500">*</span>
-                          </Label>
-                          <Input
-                            id={`familyRelation${i}`}
-                            placeholder="e.g., Child, Parent, Spouse"
-                            value={familyMembers[i]?.relation || ''}
-                            onChange={e => {
-                              const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i]!.name || '', relation: e.target.value };
-                              setFamilyMembers(updated);
-                            }}
-                            required
-                            disabled={mode !== 'register'}
-                          />
-                          <Label htmlFor={`familyDob${i}`}>
-                            Date of Birth <span className="text-rose-500">*</span>
-                          </Label>
-                          <Input
-                            id={`familyDob${i}`}
-                            type="date"
-                            value={familyMembers[i]?.dob || ''}
-                            onChange={e => {
-                              const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i]!.name || '', dob: e.target.value };
-                              setFamilyMembers(updated);
-                            }}
-                            required
-                            disabled={mode !== 'register'}
-                            max={new Date().toISOString().split('T')[0]}
-                          />
-                          <Label htmlFor={`familyConditions${i}`}>
-                            Conditions</Label>
-                          <Input
-                            id={`familyConditions${i}`}
-                            placeholder="e.g., Diabetes, Hypertension"
-                            value={familyMembers[i]?.conditions?.join(', ') || ''}
-                            onChange={e => {
-                              const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i]!.name || '', conditions: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
-                              setFamilyMembers(updated);
-                            }}
-                            disabled={mode !== 'register'}
-                          />
-                          <Label htmlFor={`familyMedications${i}`}>
-                            Current Medications</Label>
-                          <Input
-                            id={`familyMedications${i}`}
-                            placeholder="e.g., Lisinopril 10mg daily"
-                            value={familyMembers[i]?.medications?.join(', ') || ''}
-                            onChange={e => {
-                              const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i]!.name || '', medications: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
-                              setFamilyMembers(updated);
-                            }}
-                            disabled={mode !== 'register'}
-                          />
-                          <Label htmlFor={`familyAllergies${i}`}>
-                            Allergies</Label>
-                          <Input
-                            id={`familyAllergies${i}`}
-                            placeholder="e.g., Penicillin, Shellfish"
-                            value={familyMembers[i]?.allergies?.join(', ') || ''}
-                            onChange={e => {
-                              const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i]!.name || '', allergies: e.target.value.split(',').map(s => s.trim()).filter(Boolean) };
-                              setFamilyMembers(updated);
-                            }}
-                            disabled={mode !== 'register'}
-                          />
-                          <Label htmlFor={`familyPharmacy${i}`}>
-                            Preferred Pharmacy</Label>
-                          <Input
-                            id={`familyPharmacy${i}`}
-                            placeholder="e.g., CVS Main Street"
-                            value={familyMembers[i]?.pharmacy || ''}
-                            onChange={e => {
-                              const updated = [...familyMembers];
-                              updated[i] = { ...updated[i], name: updated[i]!.name || '', pharmacy: e.target.value };
-                              setFamilyMembers(updated);
-                            }}
-                            disabled={mode !== 'register'}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    <p className="text-[0.6875rem] text-muted-foreground mt-2">
-                      Family members can be added or edited later in Settings.
-                    </p>
-                  </div>
                   )}
 
                   <div className="space-y-1.5">
@@ -1210,268 +993,32 @@ export function LoginPage({
                   </div>
 
                   {mode === 'register' && (
-                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/30 p-3">
-                    <label className="flex items-start gap-2.5">
-                      <Checkbox
-                        checked={termsConsent}
-                        onCheckedChange={v => setTermsConsent(v === true)}
-                        className="mt-0.5 h-6 w-6 shrink-0"
-                      />
-                      <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
-                        I agree to the{' '}
-                        <button
-                          type="button"
-                          onClick={() => router.push('/terms')}
-                          className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
-                        >
-                          Terms of Service
-                        </button>{' '}
-                        and{' '}
-                        <button
-                          type="button"
-                          onClick={() => router.push('/privacy')}
-                          className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
-                        >
-                          Privacy Policy
-                        </button>
-                        .
-                      </span>
-                    </label>
-                    <label className="flex items-start gap-2.5">
-                      <Checkbox
-                        checked={dataConsent}
-                        onCheckedChange={v => setDataConsent(v === true)}
-                        className="mt-0.5 h-6 w-6 shrink-0"
-                      />
-                      <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
-                        I consent to processing of my personal and health data under applicable
-                        health-data and privacy laws.{' '}
-                        <span className="font-medium text-foreground">Privacy-first</span>.
-                      </span>
-                    </label>
-                    <label className="flex items-start gap-2.5">
-                      <Checkbox
-                        checked={aiTrainingConsent}
-                        onCheckedChange={v => setAiTrainingConsent(v === true)}
-                        className="mt-0.5 h-6 w-6 shrink-0"
-                      />
-                      <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
-                        I consent to letting Kynthai use <em>de-identified</em> health data to
-                        improve AI features. My personal data is never shared or identifiable. See
-                        the{' '}
-                        <button
-                          type="button"
-                          onClick={() => router.push('/privacy')}
-                          className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
-                        >
-                          Privacy Policy
-                        </button>{' '}
-                        for details.
-                      </span>
-                    </label>
-                  </div>
-                  )}
-
-                  {mode === 'register' && (
-                  <div className="space-y-3.5 rounded-xl border border-border/60 bg-muted/30 p-4">
-                    <h3 className="text-sm font-semibold text-foreground mb-3">
-                      Preferences
-                    </h3>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      How would you like Kynthai to help your family?
-                    </p>
-                    <div className="space-y-2">
-                      <Label htmlFor="reminderTime">
-                        Reminder Preferences
-                      </Label>
-                      <div className="flex gap-2">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="reminderTime"
-                            value="morning"
-                            checked={reminderTime === 'morning'}
-                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Morning reminders
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="reminderTime"
-                            value="evening"
-                            checked={reminderTime === 'evening'}
-                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Evening reminders
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="reminderTime"
-                            value="both"
-                            checked={reminderTime === 'both'}
-                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Both
-                        </label>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="alertDelegation">
-                        Alert Delegation
-                      </Label>
-                      <div className="flex gap-2">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="alertDelegation"
-                            value="self"
-                            checked={alertDelegation === 'self'}
-                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Notify me only
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="alertDelegation"
-                            value="family"
-                            checked={alertDelegation === 'family'}
-                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Notify whole family
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="alertDelegation"
-                            value="both"
-                            checked={alertDelegation === 'both'}
-                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Both
-                        </label>
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={dataSharing}
-                        onCheckedChange={(v) => setDataSharing(v === true)}
-                        className="h-4 w-4 shrink-0"
-                      />
-                      <span className="text-[0.8125rem] text-muted-foreground">
-                        Allow anonymized health data to improve AI features for your family
-                      </span>
-                    </label>
-                  </div>
-                  )}
-
-                  {mode === 'register' && (
-                  <div className="space-y-3.5 rounded-xl border border-border/60 bg-muted/30 p-4">
-                    <h3 className="text-sm font-semibold text-foreground mb-3">
-                      Preferences
-                    </h3>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      How would you like Kynthai to help your family?
-                    </p>
-                    <div className="space-y-2">
-                      <Label htmlFor="reminderTime">
-                        Reminder Preferences
-                      </Label>
-                      <div className="flex gap-2">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="reminderTime"
-                            value="morning"
-                            checked={reminderTime === 'morning'}
-                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Morning reminders
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="reminderTime"
-                            value="evening"
-                            checked={reminderTime === 'evening'}
-                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Evening reminders
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="reminderTime"
-                            value="both"
-                            checked={reminderTime === 'both'}
-                            onChange={(e) => setReminderTime(e.target.value as "morning" | "evening" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Both
-                        </label>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="alertDelegation">
-                        Alert Delegation
-                      </Label>
-                      <div className="flex gap-2">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="alertDelegation"
-                            value="self"
-                            checked={alertDelegation === 'self'}
-                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Notify me only
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="alertDelegation"
-                            value="family"
-                            checked={alertDelegation === 'family'}
-                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Notify whole family
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="alertDelegation"
-                            value="both"
-                            checked={alertDelegation === 'both'}
-                            onChange={(e) => setAlertDelegation(e.target.value as "self" | "family" | "both")}
-                            className="h-4 w-4 text-emerald-600"
-                          />
-                          Both
-                        </label>
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={dataSharing}
-                        onCheckedChange={(v) => setDataSharing(v === true)}
-                        className="h-4 w-4 shrink-0"
-                      />
-                      <span className="text-[0.8125rem] text-muted-foreground">
-                        Allow anonymized health data to improve AI features for your family
-                      </span>
-                    </label>
-                  </div>
+                  <label className="flex items-start gap-2.5 rounded-xl border border-border/60 bg-muted/30 p-3">
+                    <Checkbox
+                      checked={termsConsent}
+                      onCheckedChange={v => setTermsConsent(v === true)}
+                      className="mt-0.5 h-6 w-6 shrink-0"
+                    />
+                    <span className="text-[0.8125rem] text-muted-foreground leading-relaxed">
+                      I agree to the{' '}
+                      <button
+                        type="button"
+                        onClick={() => router.push('/terms')}
+                        className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
+                      >
+                        Terms of Service
+                      </button>{' '}
+                      and{' '}
+                      <button
+                        type="button"
+                        onClick={() => router.push('/privacy')}
+                        className="min-h-11 rounded-md px-1 -mx-1 py-2 -my-2 font-medium text-emerald-600 underline"
+                      >
+                        Privacy Policy
+                      </button>
+                      , including processing of my health data.
+                    </span>
+                  </label>
                   )}
 
                   {turnstileSiteKey && (
