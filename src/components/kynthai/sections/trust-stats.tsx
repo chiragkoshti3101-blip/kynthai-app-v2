@@ -20,7 +20,7 @@ export function TrustStats() {
   return (
     <section className="relative border-y border-border/60">
       <div
-        className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 h-40 blur-3xl"
+        className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 h-40"
         aria-hidden="true"
         style={{
           background:

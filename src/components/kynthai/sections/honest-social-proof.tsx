@@ -20,7 +20,7 @@ function HonestSocialProof() {
   return (
     <section className="relative overflow-hidden border-y border-border/60 bg-gradient-to-b from-muted/20 via-emerald-500/[0.03] to-muted/20">
       <div
-        className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full"
         aria-hidden="true"
         style={{
           background: 'radial-gradient(closest-side, rgba(16,185,129,0.1) 0%, transparent 70%)',

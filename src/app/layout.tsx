@@ -137,7 +137,7 @@ export default function RootLayout({
             default. Matches next-themes' 'theme' localStorage key. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme')||'system';var d=document.documentElement;var dark=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark)d.classList.add('dark');}catch(e){}function done(){var b=document.getElementById('kynthai-boot');if(b&&!b.classList.contains('done'))b.classList.add('done');}function dismissBoot(){if(!document.getElementById('kynthai-boot'))return;requestAnimationFrame(function(){requestAnimationFrame(done);});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',dismissBoot);}else{dismissBoot();}setTimeout(done,1200);})();`,
+            __html: `(function(){try{var t=localStorage.getItem('theme')||'system';var d=document.documentElement;var dark=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark)d.classList.add('dark');}catch(e){}var started=0;function themed(){var c=document.documentElement.classList;return c.contains('dark')||c.contains('light');}function done(){var b=document.getElementById('kynthai-boot');if(b&&!b.classList.contains('done'))b.classList.add('done');}function settle(){if(!document.getElementById('kynthai-boot'))return;if(!started)started=Date.now();if(!themed()&&Date.now()-started<1500){setTimeout(settle,40);return;}requestAnimationFrame(function(){requestAnimationFrame(done);});}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',settle);}else{settle();}})();`,
           }}
         />
         {/* ponytail: switch sizing is now handled entirely by inline styles

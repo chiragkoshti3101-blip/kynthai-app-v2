@@ -108,7 +108,7 @@ export function BentoFeatures() {
           <div className="h-full">
             <Card className="relative h-full overflow-hidden border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-card to-teal-500/5">
               <div
-                className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full opacity-40 blur-3xl"
+                className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full opacity-40"
                 style={{
                   background:
                     'radial-gradient(closest-side, rgba(16,185,129,0.5), transparent 70%)',
