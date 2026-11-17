@@ -76,7 +76,17 @@ interface DoctorApp {
   fee: number;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
-  documents: { name: string; type: string }[];
+  documents: { id?: string; name: string; type: string }[];
+  aiVerdict?: 'auto_reject' | 'manual_review' | 'strong_match' | null;
+  aiReview?: VerificationReview | null;
+}
+
+interface VerificationReview {
+  verdict: string;
+  score: number;
+  aiAssisted: boolean;
+  reasons: string[];
+  checks: { id: string; label: string; status: 'pass' | 'warn' | 'fail'; detail: string }[];
 }
 
 interface LabApp {
@@ -88,7 +98,9 @@ interface LabApp {
   testCount: number;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
-  documents: { name: string; type: string }[];
+  documents: { id?: string; name: string; type: string }[];
+  aiVerdict?: 'auto_reject' | 'manual_review' | 'strong_match' | null;
+  aiReview?: VerificationReview | null;
 }
 
 /* Partner leaderboard row — filled from the real /api/admin/overview
@@ -375,6 +387,8 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
                   status: d.status,
                   submittedAt: d.submittedAt,
                   documents: d.documents,
+                  aiVerdict: d.aiVerdict ?? null,
+                  aiReview: d.aiReview ?? null,
                 }))}
                 onReview={id => {
                   const app = doctorApps.find(d => d.id === id);
@@ -401,6 +415,8 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
                   status: l.status,
                   submittedAt: l.submittedAt,
                   documents: l.documents,
+                  aiVerdict: l.aiVerdict ?? null,
+                  aiReview: l.aiReview ?? null,
                 }))}
                 onReview={id => {
                   const app = labApps.find(l => l.id === id);
@@ -835,7 +851,7 @@ interface AppRow {
   license: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
-  documents: { name: string; type: string }[];
+  documents: { id?: string; name: string; type: string }[];
 }
 
 function ApplicationsTab({
@@ -1353,6 +1369,58 @@ function ReviewDialog({
             </CardContent>
           </Card>
 
+          {/* Automated pre-screen (rules + optional AI) */}
+          {app.aiReview && (
+            <Card className="border-border/60">
+              <CardContent className="p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold">Automated pre-screen</p>
+                  <Badge
+                    variant="outline"
+                    className={
+                      app.aiReview.verdict === 'strong_match'
+                        ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                        : app.aiReview.verdict === 'auto_reject'
+                          ? 'border-rose-500/40 text-rose-600 dark:text-rose-400'
+                          : 'border-amber-500/40 text-amber-600 dark:text-amber-400'
+                    }
+                  >
+                    {app.aiReview.verdict === 'strong_match'
+                      ? 'Strong match'
+                      : app.aiReview.verdict === 'auto_reject'
+                        ? 'Failed checks'
+                        : 'Needs manual review'}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground">
+                  Score {app.aiReview.score}/100 ·{' '}
+                  {app.aiReview.aiAssisted ? 'rule checks + AI review' : 'rule checks only'}
+                </p>
+                <ul className="space-y-1">
+                  {app.aiReview.checks.map(c => (
+                    <li key={c.id} className="flex items-start gap-1.5">
+                      <span
+                        className={
+                          c.status === 'pass'
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : c.status === 'warn'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                        }
+                      >
+                        {c.status === 'pass' ? '✓' : c.status === 'warn' ? '!' : '✕'}
+                      </span>
+                      <span>
+                        <span className="font-medium">{c.label}:</span>{' '}
+                        <span className="text-muted-foreground">{c.detail}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Documents */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
@@ -1362,14 +1430,19 @@ function ReviewDialog({
               {documents.map((d, i) => (
                 <button
                   key={i}
-                  className="flex items-center gap-2 rounded-xl border border-border/60 p-2.5 text-left hover:border-emerald-500/40 transition-all"
+                  type="button"
+                  onClick={() => {
+                    if (d.id) window.open(`/api/documents/${d.id}/download`, '_blank', 'noopener');
+                  }}
+                  disabled={!d.id}
+                  className="flex items-center gap-2 rounded-xl border border-border/60 p-2.5 text-left hover:border-emerald-500/40 transition-all disabled:opacity-60"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                     <FileText className="h-4 w-4" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-xs font-medium truncate">{d.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{d.type} · preview</p>
+                    <p className="text-[10px] text-muted-foreground">{d.type} · open document</p>
                   </div>
                 </button>
               ))}

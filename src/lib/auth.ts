@@ -246,6 +246,7 @@ export async function canAccessDocument(
     userId: string;
     uploadedById: string;
     familyId: string | null;
+    type: string;
     category: string;
     visibility: string;
     sharedWith: string[];
@@ -253,6 +254,12 @@ export async function canAccessDocument(
 ): Promise<boolean> {
   // Owner can always access their own document.
   if (user.id === document.userId) return true;
+
+  // Admins must be able to open the licence/degree/CLIA documents submitted
+  // with a doctor or lab application, otherwise verification is impossible.
+  // This is deliberately limited to provider CERTIFICATE uploads: patient
+  // clinical records stay closed to admins.
+  if (user.role === 'admin' && document.type === 'CERTIFICATE') return true;
 
   // Uploader can access the document they uploaded.
   if (user.id === document.uploadedById) return true;

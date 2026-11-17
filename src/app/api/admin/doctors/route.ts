@@ -57,6 +57,10 @@ export async function GET(req: NextRequest) {
         reviewCount: d.reviewCount,
         degreeType: d.degreeType,
         medicalCouncil: d.medicalCouncil,
+        npiNumber: d.npiNumber,
+        aiVerdict: d.aiVerdict,
+        aiReview: parseJsonCol(d.aiReview, null),
+        aiReviewAt: d.aiReviewAt?.toISOString() ?? null,
       }))
     );
   } catch (error) {

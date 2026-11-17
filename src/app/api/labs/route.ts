@@ -5,6 +5,7 @@ import { checkCsrf } from '@/lib/csrf'
 import { jsonError, jsonOk, readJson, parseJsonCol, requireAuth } from '@/lib/api-helpers'
 import { labProfileSchema } from '@/lib/schemas'
 import { validateProviderDocuments } from '@/lib/provider-documents'
+import { REQUIRED_DOCUMENTS, screenProviderWithAi, serializeScreen } from '@/lib/provider-verification'
 import { extractZip } from '@/lib/delivery-fee'
 export const dynamic = 'force-dynamic'
 
@@ -114,6 +115,33 @@ export async function POST(req: NextRequest) {
   if (!city) return jsonError('City is required', 400)
   if (tests.length === 0) return jsonError('Add at least one priced test', 400)
 
+  // Documents must be real encrypted CERTIFICATE records owned by this account.
+  const docCheck = await validateProviderDocuments(body.documents ?? {}, session.id, 'lab')
+  if ('error' in docCheck) return jsonError(docCheck.error, 400, 'INVALID_DOCUMENTS')
+  const uploadedSlots = docCheck.documents.map((d) => d.slot)
+  const missingDocs = REQUIRED_DOCUMENTS.lab.filter((d) => !uploadedSlots.includes(d.id))
+  if (missingDocs.length > 0) {
+    return jsonError(
+      `Upload the required verification documents before submitting: ${missingDocs.map((d) => d.label).join(', ')}`,
+      400,
+      'DOCUMENTS_REQUIRED',
+      { missing: missingDocs.map((d) => d.id) },
+    )
+  }
+
+  const duplicate = await db.labProfile.findFirst({
+    where: { licenseNumber, NOT: { userId: session.id } },
+    select: { id: true },
+  })
+  const screen = await screenProviderWithAi({
+    role: 'lab',
+    licenseNumber,
+    documents: uploadedSlots,
+    state: null,
+    city,
+    duplicateLicense: Boolean(duplicate),
+  })
+
   const payload = {
     userId: session.id,
     labName,
@@ -122,10 +150,14 @@ export async function POST(req: NextRequest) {
     address,
     homeCollection: !!body.homeCollection,
     testsOffered: JSON.stringify(tests),
+    documents: JSON.stringify(docCheck.documents.map(({ id, slot, name, type, size }) => ({ id, slot, name, type, size }))),
     verificationStatus: 'pending',
     verified: false,
     rejectionReason: null,
     submittedAt: new Date().toISOString(),
+    aiReview: serializeScreen(screen),
+    aiVerdict: screen.verdict,
+    aiReviewAt: new Date(),
     rating: 4.5,
     reviewCount: 0,
   }
@@ -149,5 +181,8 @@ export async function POST(req: NextRequest) {
     verified: profile.verified,
     verificationStatus: profile.verificationStatus,
     rejectionReason: profile.rejectionReason,
+    documents: parseJsonCol(profile.documents, []),
+    aiVerdict: profile.aiVerdict,
+    aiReview: parseJsonCol(profile.aiReview, null),
   })
 }

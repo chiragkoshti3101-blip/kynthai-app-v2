@@ -228,8 +228,9 @@ export function RefundRequestDialog({
           {/* 7-day notice */}
           <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
             <p className="text-xs text-amber-800 dark:text-amber-200">
-              Our team will review your request and proof within <strong>10 business days</strong>.
-              You will be notified of the decision via in-app notification.
+              Refunds can be requested within <strong>7 days</strong> of the appointment. Our team
+              reviews your request and proof and replies within <strong>7 days</strong>. You will be
+              notified of the decision via in-app notification.
             </p>
           </div>
 

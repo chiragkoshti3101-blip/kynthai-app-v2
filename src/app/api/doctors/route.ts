@@ -4,8 +4,9 @@ import { sanitizeText, rateLimit } from '@/lib/security';
 import { encrypt, decryptValue } from '@/lib/encryption';
 import { checkCsrf } from '@/lib/csrf';
 import { jsonError, jsonOk, readJson, audit, parseJsonCol, requireAuth, ensureDatabase } from '@/lib/api-helpers';
-import { verifyNpi } from '@/lib/npi-verify';
+import { verifyNpi, type NpiResult } from '@/lib/npi-verify';
 import { validateProviderDocuments } from '@/lib/provider-documents';
+import { REQUIRED_DOCUMENTS, screenProviderWithAi, serializeScreen } from '@/lib/provider-verification';
 
 export const dynamic = 'force-dynamic';
 
@@ -145,6 +146,60 @@ export async function POST(req: NextRequest) {
   if (!city) return jsonError('City is required', 400);
   if (!state) return jsonError('State is required (2-letter US state where you are licensed)', 400);
 
+  const npiNumber = sanitizeText(body.npiNumber, 20) || null;
+
+  // Documents must be real encrypted CERTIFICATE records owned by this account.
+  const docCheck = await validateProviderDocuments(body.documents ?? {}, session.id, 'doctor');
+  if ('error' in docCheck) return jsonError(docCheck.error, 400, 'INVALID_DOCUMENTS');
+  const uploadedSlots = docCheck.documents.map((d) => d.slot);
+  const missingDocs = REQUIRED_DOCUMENTS.doctor.filter((d) => !uploadedSlots.includes(d.id));
+  if (missingDocs.length > 0) {
+    return jsonError(
+      `Upload the required verification documents before submitting: ${missingDocs.map((d) => d.label).join(', ')}`,
+      400,
+      'DOCUMENTS_REQUIRED',
+      { missing: missingDocs.map((d) => d.id) },
+    );
+  }
+
+  // Automated pre-screen: duplicate license across accounts, license shape,
+  // state/city, NPI checksum, then the CMS NPPES registry as a second source.
+  const duplicate = await db.doctorProfile.findFirst({
+    where: { licenseNumber, NOT: { userId: session.id } },
+    select: { id: true },
+  });
+  let npiRegistry: NpiResult | null = null;
+  if (npiNumber) {
+    npiRegistry = await Promise.race([
+      verifyNpi(npiNumber),
+      new Promise<NpiResult>((resolve) => setTimeout(() => resolve({ valid: false, error: 'NPI registry timed out' }), 6000)),
+    ]);
+  }
+  const screen = await screenProviderWithAi({
+    role: 'doctor',
+    licenseNumber,
+    documents: uploadedSlots,
+    state,
+    city,
+    npiNumber,
+    duplicateLicense: Boolean(duplicate),
+  });
+  if (npiRegistry) {
+    screen.checks.push({
+      id: 'npi_registry',
+      label: 'CMS NPPES registry',
+      status: npiRegistry.valid ? 'pass' : 'warn',
+      detail: npiRegistry.valid
+        ? `Registered${npiRegistry.name ? ` as ${npiRegistry.name}` : ''}${npiRegistry.taxonomy ? ` — ${npiRegistry.taxonomy}` : ''}`
+        : npiRegistry.error || 'Not found in the CMS registry',
+    });
+    if (!npiRegistry.valid) {
+      screen.reasons.push(npiRegistry.error || 'NPI not found in the CMS registry')
+      // An unverifiable NPI must never auto-approve: route it to a human.
+      if (screen.verdict === 'strong_match') screen.verdict = 'manual_review'
+    }
+  }
+
   const payload = {
     userId: session.id,
     specialization,
@@ -161,6 +216,11 @@ export async function POST(req: NextRequest) {
     degreeType,
     medicalCouncil,
     state,
+    npiNumber,
+    documents: JSON.stringify(docCheck.documents.map(({ id, slot, name, type, size }) => ({ id, slot, name, type, size }))),
+    aiReview: serializeScreen(screen),
+    aiVerdict: screen.verdict,
+    aiReviewAt: new Date(),
     rating: 4.5,
     reviewCount: 0,
   }
@@ -186,5 +246,9 @@ export async function POST(req: NextRequest) {
     degreeType: profile.degreeType,
     medicalCouncil: profile.medicalCouncil,
     state: profile.state,
+    npiNumber: profile.npiNumber,
+    documents: parseJsonCol(profile.documents, []),
+    aiVerdict: profile.aiVerdict,
+    aiReview: parseJsonCol(profile.aiReview, null),
   })
 }

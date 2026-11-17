@@ -62,9 +62,13 @@ export async function POST(req: NextRequest) {
     if (!isValidE164(phone))
       return jsonError('Phone must be in E.164 format (e.g. +15551234567)', 400);
 
-    // Age verification
+    // Age verification — date of birth is required, not optional: without it
+    // the 18+ gate could be skipped by omitting the field entirely.
+    if (!body.dateOfBirth) {
+      return jsonError('Date of birth is required', 400, 'DATE_OF_BIRTH_REQUIRED');
+    }
     let dateOfBirth: Date | undefined;
-    if (body.dateOfBirth) {
+    {
       const dob = new Date(body.dateOfBirth);
       if (isNaN(dob.getTime())) return jsonError('Invalid date of birth', 400);
       const today = new Date();

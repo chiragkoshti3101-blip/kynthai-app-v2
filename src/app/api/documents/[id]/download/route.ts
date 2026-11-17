@@ -32,7 +32,7 @@ export async function GET(
     // Check access permissions through the shared policy used by all callers.
     const hasAccess = await canAccessDocument(
       { id: u.id, email: u.email, role: u.role, name: u.name ?? undefined },
-      document,
+      { ...document, type: document.type },
     );
     if (!hasAccess) {
       return jsonError('Forbidden', 403);
@@ -86,7 +86,12 @@ export async function GET(
     // SECURITY: sanitize the title before it reaches the Content-Disposition
     // header  CR/LF/quote injection via a hostile document title could allow
     // header splitting (response splitting / log injection).
-    const safeTitle = (document.title || 'document').replace(/[\r\n"\\]/g, '_').slice(0, 120);
+    // Header values must be Latin-1; a title with an em dash (the generated
+    // certificate titles use one) would otherwise throw and block the download.
+    const safeTitle = (document.title || 'document')
+      .replace(/[\r\n"\\]/g, '_')
+      .replace(/[^\x20-\x7E]/g, '_')
+      .slice(0, 120);
     return new NextResponse(new Uint8Array(decryptedData), {
       headers: {
         'Content-Type': document.mimeType,

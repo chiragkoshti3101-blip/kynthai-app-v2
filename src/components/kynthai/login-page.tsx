@@ -14,7 +14,6 @@ import {
   Microscope,
   Lock,
   Sparkles,
-  UserCircle,
   Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,8 +21,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { useAppStore, selectors, type AuthUser, type LoginPortal } from '@/lib/store';
 import { logger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';

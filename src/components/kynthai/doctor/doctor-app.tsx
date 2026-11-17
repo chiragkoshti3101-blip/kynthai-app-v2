@@ -110,7 +110,7 @@ export function DoctorApp({ user }: { user: AuthUser }) {
         onSubmitted={() => {
           toast({
             title: 'Application submitted',
-            description: 'Our team will review your profile within 24-48 hours.',
+            description: 'Our team will review your profile within 20–48 hours.',
           });
           load();
         }}
@@ -165,7 +165,7 @@ function PendingState({
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Thanks for submitting your details. Our admin team is reviewing your profile and
-            documents. You&apos;ll receive an email once approved (usually within 24-48 hours).
+            documents. You&apos;ll receive an email once approved (usually within 20–48 hours).
           </p>
 
           <Card className="mt-6 w-full border-amber-500/30 bg-amber-500/5">
