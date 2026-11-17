@@ -23,7 +23,8 @@ function HonestSocialProof() {
         className="pointer-events-none absolute left-1/2 top-1/2 h-96 w-96 -translate-x-1/2 -translate-y-1/2 rounded-full"
         aria-hidden="true"
         style={{
-          background: 'radial-gradient(closest-side, rgba(16,185,129,0.1) 0%, transparent 70%)',
+          background:
+            'radial-gradient(closest-side, rgba(16,185,129,0.1) 0%, rgba(16,185,129,0.094) 15%, rgba(16,185,129,0.08) 30%, rgba(16,185,129,0.062) 45%, rgba(16,185,129,0.042) 60%, rgba(16,185,129,0.024) 75%, rgba(16,185,129,0.01) 88%, rgba(16,185,129,0) 100%)',
         }}
       />
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-14">

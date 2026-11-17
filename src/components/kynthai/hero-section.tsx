@@ -61,28 +61,40 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
      * and zero the hero gutters (env() is 0 outside notched iOS). The section
      * has no padding of its own, so they apply cleanly here.
      */
-    <section className="relative pl-safe pr-safe">
+    <section className="relative isolate pl-safe pr-safe">
       {/* Multi-layer soft gradient orbs — clipped by this backdrop layer only.
           No `blur-*`: the gradients already fade to transparent, and a 64px
           filter on 400–700px elements made iOS Safari repaint the layer while
-          scrolling (flickering/blank patches over the hero copy). */}
+          scrolling (flickering/blank patches over the hero copy).
+
+          `isolate` on the section is required: without a stacking context here
+          the `-z-10` layer paints BEHIND the page's opaque `bg-background`, so
+          the whole glow was invisible (verified by pixel-diffing the page with
+          this layer removed: zero change on desktop and at 390px).
+
+          Stops are an eased ramp out to 100% of the box. The old `…, transparent
+          70%` died a third of the way out with an abrupt end to the falloff;
+          the blur used to hide that, and this dense ramp replaces it. */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <div
           className="absolute -top-48 left-1/2 h-[44rem] w-[44rem] -translate-x-1/2 rounded-full opacity-60"
           style={{
-            background: 'radial-gradient(closest-side, rgba(16,185,129,0.32), transparent 70%)',
+            background:
+              'radial-gradient(closest-side, rgba(16,185,129,0.32) 0%, rgba(16,185,129,0.30) 15%, rgba(16,185,129,0.26) 30%, rgba(16,185,129,0.20) 45%, rgba(16,185,129,0.13) 60%, rgba(16,185,129,0.08) 75%, rgba(16,185,129,0.03) 88%, rgba(16,185,129,0) 100%)',
           }}
         />
         <div
           className="absolute -top-20 -left-48 h-[26rem] w-[26rem] rounded-full opacity-40"
           style={{
-            background: 'radial-gradient(closest-side, rgba(13,148,136,0.32), transparent 70%)',
+            background:
+              'radial-gradient(closest-side, rgba(13,148,136,0.32) 0%, rgba(13,148,136,0.30) 15%, rgba(13,148,136,0.26) 30%, rgba(13,148,136,0.20) 45%, rgba(13,148,136,0.13) 60%, rgba(13,148,136,0.08) 75%, rgba(13,148,136,0.03) 88%, rgba(13,148,136,0) 100%)',
           }}
         />
         <div
           className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full opacity-35"
           style={{
-            background: 'radial-gradient(closest-side, rgba(16,185,129,0.22), transparent 70%)',
+            background:
+              'radial-gradient(closest-side, rgba(16,185,129,0.22) 0%, rgba(16,185,129,0.21) 15%, rgba(16,185,129,0.18) 30%, rgba(16,185,129,0.14) 45%, rgba(16,185,129,0.09) 60%, rgba(16,185,129,0.05) 75%, rgba(16,185,129,0.02) 88%, rgba(16,185,129,0) 100%)',
           }}
         />
       </div>
