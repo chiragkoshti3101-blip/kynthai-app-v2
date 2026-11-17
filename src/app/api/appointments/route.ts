@@ -53,39 +53,69 @@ export async function GET(req: NextRequest) {
   const cursor = qp.cursor;
   const limit = qp.limit;
 
-  // IDOR: patient may only view their own appointments.
-  if (patientId && patientId !== u.id) {
-    return jsonError('Forbidden — patientId must match session', 403);
+  // Read through the app's data layer (service role), not the Supabase anon
+  // key: anon requests are filtered by RLS and came back empty for every
+  // signed-in patient. Scope the query to the viewer instead.
+  const where: Record<string, unknown> = {};
+
+  if (u.role === 'admin') {
+    if (patientId) where.patientId = patientId;
+    if (doctorId) where.doctorId = doctorId;
+  } else if (u.role === 'doctor') {
+    const profiles = await db.doctorProfile.findMany({
+      where: { userId: u.id },
+      select: { id: true },
+    });
+    const ownDoctorIds = profiles.map((p: { id: string }) => p.id);
+    if (doctorId) {
+      // IDOR: a doctor may only ask about their own profile.
+      if (!ownDoctorIds.includes(doctorId)) {
+        return jsonError('Forbidden — doctorId must be your own profile', 403);
+      }
+      where.doctorId = doctorId;
+    } else if (ownDoctorIds.length > 0) {
+      where.doctorId = { in: ownDoctorIds };
+    } else {
+      // No doctor profile means no appointments to show.
+      return jsonOk([]);
+    }
+    if (patientId) where.patientId = patientId;
+  } else {
+    // IDOR: any non-staff role may only view its own appointments.
+    if (patientId && patientId !== u.id) {
+      return jsonError('Forbidden — patientId must match session', 403);
+    }
+    where.patientId = u.id;
+    if (doctorId) where.doctorId = doctorId;
   }
 
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
-  const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
-  const headers = {
-    'apikey': SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-    'Content-Type': 'application/json',
-  }
-
-  // Build query
-  let url = `${SUPABASE_URL}/rest/v1/appointments?select=*`
-  if (patientId) url += `&patientId=eq.${patientId}`
-  if (doctorId) url += `&doctorId=eq.${doctorId}`
-  if (status) url += `&status=eq.${status === 'no-show' ? 'no_show' : status}`
-  url += `&order=scheduledAt.desc&limit=${limit}`
+  where.deletedAt = null;
+  if (status) where.status = status === 'no-show' ? 'no_show' : status;
 
   try {
-    const res = await fetch(url, { headers })
-    if (!res.ok) {
-      return jsonError('Failed to fetch appointments', 500)
-    }
-    const appts = await res.json()
+    const appts = await db.appointment.findMany({
+      where,
+      orderBy: { scheduledAt: 'desc' },
+      take: limit,
+      ...(cursor ? { cursor: { id: cursor } } : {}),
+      include: {
+        patient: { select: { id: true, name: true } },
+        doctor: {
+          select: {
+            id: true,
+            specialization: true,
+            user: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
     const data = (appts || []).map((a: any) => ({
       id: a.id,
       doctorId: a.doctorId,
       patientId: a.patientId,
-      patientName: 'Patient',
-      doctorName: 'Doctor',
-      specialization: '',
+      patientName: a.patient?.name ?? 'Patient',
+      doctorName: a.doctor?.user?.name ?? 'Your doctor',
+      specialization: a.doctor?.specialization ?? 'General Care',
       scheduledAt: a.scheduledAt,
       type: a.type,
       status: a.status,
@@ -93,10 +123,11 @@ export async function GET(req: NextRequest) {
       commission: a.commission,
       reason: a.reason,
       notes: a.notes,
-    }))
-    return jsonOk(data)
+    }));
+    return jsonOk(data);
   } catch (err: any) {
-    return jsonError('Failed to fetch appointments: ' + (err?.message || String(err)), 500)
+    logger.phiSafeError(err);
+    return jsonError('Failed to fetch appointments', 500);
   }
 }
 
