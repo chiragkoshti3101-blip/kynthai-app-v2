@@ -309,6 +309,12 @@ export async function requireAuth(
     profile = await db.user.findUnique({ where: { id: userId } })
   }
 
+  // A session can outlive its user row (deleted account, or a fixture removed
+  // out-of-band). Treat that as signed out — 401 JSON, never a crash.
+  if (!profile) {
+    return { response: jsonError('Unauthorized', 401), user: null }
+  }
+
   // C3: load the patient's allergies (plain JSON string or comma list) so the
   // drug-allergy safety checks in chat/interactions/symptom-analyze actually
   // fire. `getSupabaseProfile` strips them, so fetch the two columns directly.
