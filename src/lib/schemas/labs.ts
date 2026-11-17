@@ -1,8 +1,10 @@
 import { z } from 'zod'
+import { dbId, dbIdOptional } from './ids'
 
 /** POST /api/labs — create / update lab profile */
 export const labProfileSchema = z.object({
-  userId:            z.string().uuid().optional().nullable(),
+  // Users are Prisma cuid()s; only ownership (session.id) is authoritative here.
+  userId:            dbIdOptional,
   labName:           z.string().min(1, 'Lab name is required').max(120),
   licenseNumber:     z.string().min(1, 'License number is required').max(60),
   city:              z.string().min(1, 'City is required').max(60),
@@ -19,7 +21,7 @@ export const labProfileSchema = z.object({
 export const labsQuerySchema = z.object({
   city:   z.string().max(60).optional(),
   search: z.string().max(120).optional(),
-  userId: z.string().uuid().optional(),
+  userId: dbId.optional(),
   cursor: z.string().optional(),
   limit:  z.coerce.number().int().min(1).max(100).optional().default(20),
   fields: z.string().optional(),
