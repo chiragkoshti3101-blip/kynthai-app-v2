@@ -358,14 +358,19 @@ test.describe('Scenario 6: Rescheduling / Cancelling', () => {
     }
   });
 
-  test('PUT /api/appointments endpoint does support cancellation', async ({ page }) => {
+  test('PUT /api/appointments cancels a booking by its real id', async ({ page }) => {
     await loginAsPatient(page);
 
-    // Create an appointment via API first
+    // Create an appointment via API first — this exercises the same path a real
+    // booking takes, so the cancellation is tested against a production-shaped
+    // id (Prisma cuid) rather than a hand-written UUID.
     const doctorsResp = await page.request.get('/api/doctors');
-    if (doctorsResp.status() !== 200) { test.skip(true); return; }
+    if (doctorsResp.status() !== 200) { test.skip(true, 'Doctors API unavailable'); return; }
     const doctors = await doctorsResp.json();
-    if (!Array.isArray(doctors) || doctors.length === 0) { test.skip(true); return; }
+    if (!Array.isArray(doctors) || doctors.length === 0) {
+      test.skip(true, 'No verified doctors available to book');
+      return;
+    }
 
     const scheduledAt = new Date(Date.now() + 172800000).toISOString();
     const createResp = await page.request.post('/api/appointments', {
@@ -377,21 +382,28 @@ test.describe('Scenario 6: Rescheduling / Cancelling', () => {
         consultationConsent: true,
       },
     });
+    const createBody = await createResp.text();
+    // POST /api/appointments answers 201 Created — asserting 200 here skipped
+    // the PUT below entirely, which is how this endpoint went untested.
+    expect(createResp.status(), `create failed: ${createBody.slice(0, 300)}`).toBe(201);
 
-    if (createResp.status() === 200) {
-      const appt = await createResp.json();
-      const apptId = appt.id;
+    const appointment = JSON.parse(createBody) as { id: string; status: string };
+    expect(appointment.id, 'appointment id missing from create response').toBeTruthy();
+    expect(appointment.status).toBe('pending');
 
-      // Now cancel it
-      const cancelResp = await page.request.put('/api/appointments', {
-        data: { id: apptId, status: 'cancelled' },
-      });
-      console.log(`[S6] Cancel API response: ${cancelResp.status()}`);
-      if (cancelResp.status() === 200) {
-        const result = await cancelResp.json();
-        console.log(`[S6] Cancelled status: ${result.status}`);
-      }
-    }
+    const cancelResp = await page.request.put('/api/appointments', {
+      data: { id: appointment.id, status: 'cancelled' },
+    });
+    const cancelBody = await cancelResp.text();
+    expect(cancelResp.status(), `cancel failed: ${cancelBody.slice(0, 300)}`).toBe(200);
+    expect((JSON.parse(cancelBody) as { status: string }).status).toBe('cancelled');
+
+    // Confirm the change persisted, so a 200 that never wrote through fails too.
+    const listResp = await page.request.get('/api/appointments');
+    expect(listResp.status()).toBe(200);
+    const list = (await listResp.json()) as Array<{ id: string; status: string }>;
+    const saved = Array.isArray(list) ? list.find((a) => a.id === appointment.id) : undefined;
+    expect(saved?.status, 'cancelled status did not persist').toBe('cancelled');
   });
 
   test('only patient, doctor (owner), or admin can modify appointment', async ({ page }) => {
