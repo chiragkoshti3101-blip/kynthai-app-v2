@@ -49,6 +49,7 @@ interface LabDashboardProps {
     labName: string
     city: string
     verified: boolean
+    verificationStatus?: string
     homeCollection: boolean
     longDistanceTravelFeeCents?: number | null
   }
@@ -341,10 +342,24 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
               )}
             </div>
             <OfflineIndicator />
-            <Badge variant="secondary"
-              className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hidden sm:inline-flex">
-              <CheckCircle2 className="h-3 w-3" /> Verified Lab
-            </Badge>
+            {profile.verified ? (
+              <Badge variant="secondary"
+                className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hidden sm:inline-flex">
+                <CheckCircle2 className="h-3 w-3" /> Verified Lab
+              </Badge>
+            ) : (
+              <Badge variant="secondary"
+                className={cn(
+                  'hidden sm:inline-flex',
+                  profile.verificationStatus === 'rejected'
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+                )}>
+                {profile.verificationStatus === 'rejected'
+                  ? <><XCircle className="h-3 w-3" /> Changes needed</>
+                  : <><Clock className="h-3 w-3" /> Pending review</>}
+              </Badge>
+            )}
           </div>
         </div>
       </header>
