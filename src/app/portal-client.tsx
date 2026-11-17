@@ -14,9 +14,7 @@ import { isDemoEnabled } from '@/lib/demo-mode'
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore, selectors, type AuthUser } from '@/lib/store';
-import { Suspense, useEffect } from 'react';
-import { loadPortal } from './portal-loaders';
-import { LandingPage } from '@/components/kynthai/landing-page';
+import { useEffect } from 'react';
 import { LoginPage } from '@/components/kynthai/login-page';
 import { PricingPage } from '@/components/kynthai/pricing-page';
 import { CheckoutPage } from '@/components/kynthai/checkout-page';
@@ -299,6 +297,14 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     PROTECTED_PATHS.has(pathname) || pathname.startsWith('/family/members/');
   const isLandingPage = pathname === '/';
 
+  // The landing is server-rendered by app/page.tsx (LandingRoute), so `/` must
+  // render that page rather than mounting a second copy here: swapping the
+  // server's short fallback for the full landing after hydration moved the
+  // hero ~190px and re-laid out the whole page (the iOS "content jumps" report).
+  if (isLandingPage) {
+    return <ErrorBoundary>{children}</ErrorBoundary>;
+  }
+
   // Public pages (marketing, legal, auth helpers) always render their real page.
   if (isPublicPath) {
     return <ErrorBoundary>{children}</ErrorBoundary>;
@@ -397,97 +403,5 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   }
 
   // Unknown paths: render the server page (404), not the landing page.
-  if (!isLandingPage) {
-    return <ErrorBoundary>{children}</ErrorBoundary>;
-  }
-
-  // ─── Screen resolution logic ──────────────────────────────────────────────
-  // URL wins if it corresponds to a known public page
-  const routeScreen = ROUTE_SCREEN[pathname] ?? screen;
-  const resolvedScreen = [...PORTAL_SCREENS, ...PUBLIC_SCREENS].includes(routeScreen as any)
-    ? routeScreen
-    : 'landing';
-
-  // Logged-in user hitting `/` or `/login` → hard-redirect to their portal path.
-  // Avoids rendering the portal under the `/` URL (which caused a Landing flash
-  // on reopen and left the address bar on the marketing route).
-  if (user && (routeScreen === 'landing' || routeScreen === 'login')) {
-    const portalFromRole: Record<string, string> = {
-      caretaker: 'caretaker',
-      family: 'caretaker',
-      patient: 'patient',
-      doctor: 'doctor',
-      lab: 'lab',
-      admin: 'admin',
-    };
-    const dest = '/' + (portalFromRole[user.role] ?? 'caretaker');
-    router.replace(dest);
-    return (
-      <ErrorBoundary>
-        <AppLoader label="Opening your portal…" />
-      </ErrorBoundary>
-    );
-  }
-
-  // Auth-aware screen resolution
-  let effectiveScreen: AppScreen = resolvedScreen;
-  if (!user && PORTAL_SCREENS.includes(routeScreen as any)) {
-    effectiveScreen = 'landing';
-  }
-
-  // ── Portal apps — loaded via portal-loaders.tsx ───────────────────────────
-  const { key, node } = loadPortal(effectiveScreen, user);
-  if (node) {
-    return (
-      <Suspense fallback={<AppLoader label="Loading…" />}>
-        <div key={key}>{node}</div>
-      </Suspense>
-    );
-  }
-
-  // SECURITY: User is authenticated but attempting to access a portal
-  // they don't have the correct role for. Redirect to their own portal or login.
-  if (user && PORTAL_PATHS.has(pathname)) {
-    const userPortal = user.role as string;
-    // Map 'caretaker' (DB role) to the 'family' client portal path, and
-    // 'family' to 'caretaker' (the actual DB role). All other roles map 1:1.
-    const portalFromRole: Record<string, string> = {
-      caretaker: 'caretaker',
-      family: 'caretaker',
-      patient: 'patient',
-      doctor: 'doctor',
-      lab: 'lab',
-      admin: 'admin',
-    };
-    const expectedPath = '/' + (portalFromRole[userPortal] ?? userPortal);
-    if (
-      pathname !== expectedPath &&
-      ['patient', 'doctor', 'lab', 'caretaker', 'family', 'admin'].includes(userPortal)
-    ) {
-      router.replace(expectedPath);
-      return (
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="text-sm text-muted-foreground">Redirecting to your portal...</div>
-        </div>
-      );
-    }
-  }
-
-  // ── Landing (default) ────────────────────────────────────────────────────
-  return (
-    <ErrorBoundary>
-      <LandingPage
-        onGetStarted={(type?: string) => {
-          const safePortal = (type ?? 'caretaker') as LoginPortal;
-          setLoginPortal(safePortal);
-          router.push('/login/');
-        }}
-        onPickPortal={(portal: LoginPortal) => {
-          setLoginPortal(portal);
-          router.push('/login/');
-        }}
-        currency={currency}
-      />
-    </ErrorBoundary>
-  );
+  return <ErrorBoundary>{children}</ErrorBoundary>;
 }
