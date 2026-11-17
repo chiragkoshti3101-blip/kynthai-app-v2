@@ -26,6 +26,7 @@ import { logger } from '@/lib/logger';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils'
 import { isNativeShell, isStandaloneDisplay } from '@/lib/native-shell';
+import { getCsrfToken } from '@/lib/client-fetch';
 import { KynthaiBrand } from './logo';
 import { FadeIn } from './animations';
 import { TurnstileWidget, type TurnstileWidgetHandle } from './turnstile-widget';
@@ -91,21 +92,13 @@ const PORTALS: PortalConfig[] = [
   },
 ];
 
-function getCsrfToken(): string | null {
-  if (typeof document === 'undefined') return null;
-  const match = document.cookie.match(/(?:^|; )kynthai-csrf=([^;]*)/);
-  return match ? decodeURIComponent(match[1]!) : null;
-}
-
 async function apiCall(path: string, body: Record<string, unknown>, attempt = 1): Promise<unknown> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   const url = `/api${path.startsWith('/auth') ? path : path}`;
 
-  let token = getCsrfToken();
-  if (!token) {
-    await fetch(`/api/auth/csrf`, { method: 'GET', credentials: 'include' });
-    token = getCsrfToken();
-  }
+  // The token lives in an HttpOnly cookie, so it must come from the JSON
+  // response of /api/auth/csrf — never from document.cookie.
+  const token = await getCsrfToken();
   if (token) headers['X-CSRF-Token'] = token;
 
   try {

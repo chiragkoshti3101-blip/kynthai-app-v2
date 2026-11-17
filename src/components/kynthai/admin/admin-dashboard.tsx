@@ -1603,6 +1603,8 @@ function toDoctorApp(x: any): DoctorApp {
     status,
     submittedAt: x.submittedAt ? timeAgo(x.submittedAt) : 'unknown',
     documents: x.documents ?? [],
+    aiVerdict: x.aiVerdict ?? null,
+    aiReview: x.aiReview ?? null,
   };
 }
 
@@ -1623,6 +1625,8 @@ function toLabApp(x: any): LabApp {
     status,
     submittedAt: x.submittedAt ? timeAgo(x.submittedAt) : 'unknown',
     documents: x.documents ?? [],
+    aiVerdict: x.aiVerdict ?? null,
+    aiReview: x.aiReview ?? null,
   };
 }
 
