@@ -274,12 +274,13 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   }, [newFee, profile.id, toast]);
 
   const handleLogout = React.useCallback(async () => {
-    // Navigate first to avoid landing page flash
-    router.replace('/login');
+    // Clear the server session before navigating, or the login page's auth
+    // check can bounce the user straight back into this portal.
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch { /* ignore */ }
     logout();
+    router.replace('/login');
   }, [logout, router]);
 
   React.useEffect(() => {

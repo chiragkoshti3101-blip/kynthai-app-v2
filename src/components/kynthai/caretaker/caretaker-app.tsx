@@ -246,9 +246,11 @@ export function CaretakerApp({ user }: { user: AuthUser }) {
   const [profileOpen, setProfileOpen] = React.useState(false);
 
   const handleLogout = React.useCallback(async () => {
-    router.replace('/login');
+    // Clear the server session before navigating, or the login page's auth
+    // check can bounce the user straight back into this portal.
     try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch {}
     logout();
+    router.replace('/login');
   }, [logout, router]);
   const [family, setFamily] = React.useState<FamilyMember[]>(isDemo ? SAMPLE_FAMILY : []);
   const [alerts, setAlerts] = React.useState<EscalatedAlert[]>(isDemo ? SAMPLE_ALERTS : []);

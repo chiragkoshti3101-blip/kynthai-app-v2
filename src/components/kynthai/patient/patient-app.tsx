@@ -1646,11 +1646,13 @@ export function PatientApp({ user }: { user: AuthUser }) {
   const initial = resolveInitial(user);
 
   const handleLogout = React.useCallback(async () => {
-    router.replace('/login');
+    // Clear the server session before navigating, or the login page's auth
+    // check can bounce the user straight back into this portal.
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch { /* ignore */ }
     logout();
+    router.replace('/login');
   }, [logout, router]);
 
   return (
