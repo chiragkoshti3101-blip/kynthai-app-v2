@@ -62,22 +62,25 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
      * has no padding of its own, so they apply cleanly here.
      */
     <section className="relative pl-safe pr-safe">
-      {/* Multi-layer soft gradient orbs — clipped by this backdrop layer only */}
+      {/* Multi-layer soft gradient orbs — clipped by this backdrop layer only.
+          No `blur-*`: the gradients already fade to transparent, and a 64px
+          filter on 400–700px elements made iOS Safari repaint the layer while
+          scrolling (flickering/blank patches over the hero copy). */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <div
-          className="absolute -top-48 left-1/2 h-[44rem] w-[44rem] -translate-x-1/2 rounded-full opacity-60 blur-3xl"
+          className="absolute -top-48 left-1/2 h-[44rem] w-[44rem] -translate-x-1/2 rounded-full opacity-60"
           style={{
             background: 'radial-gradient(closest-side, rgba(16,185,129,0.32), transparent 70%)',
           }}
         />
         <div
-          className="absolute -top-20 -left-48 h-[26rem] w-[26rem] rounded-full opacity-40 blur-3xl"
+          className="absolute -top-20 -left-48 h-[26rem] w-[26rem] rounded-full opacity-40"
           style={{
             background: 'radial-gradient(closest-side, rgba(13,148,136,0.32), transparent 70%)',
           }}
         />
         <div
-          className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full opacity-35 blur-3xl"
+          className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full opacity-35"
           style={{
             background: 'radial-gradient(closest-side, rgba(16,185,129,0.22), transparent 70%)',
           }}
