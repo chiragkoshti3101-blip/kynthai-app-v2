@@ -15,8 +15,9 @@ export const createAppointmentSchema = z.object({
 
 /** PUT /api/appointments — update status */
 export const updateAppointmentSchema = z.object({
-  // Appointment ids are Prisma cuid()s, so a uuid-only check rejected every
-  // appointment this app creates. dbId accepts cuid and legacy UUID rows.
+  // Appointment ids are not always UUIDs: the Prisma fixture path issues
+  // cuid()s while the production REST layer issues UUIDs. A uuid-only check
+  // rejected every cuid appointment, so accept both shapes.
   id: dbIdWithMessage('id must be a valid id'),
   status: z.enum(['pending', 'confirmed', 'completed', 'cancelled', 'no-show', 'rescheduled'], {
     error: 'Status must be one of: pending, confirmed, completed, cancelled, no-show, rescheduled',

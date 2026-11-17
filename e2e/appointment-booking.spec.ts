@@ -362,8 +362,11 @@ test.describe('Scenario 6: Rescheduling / Cancelling', () => {
     await loginAsPatient(page);
 
     // Create an appointment via API first — this exercises the same path a real
-    // booking takes, so the cancellation is tested against a production-shaped
-    // id (Prisma cuid) rather than a hand-written UUID.
+    // booking takes, so the cancellation is tested against the id the endpoint
+    // actually issues instead of a hand-written UUID. CI fixture mode uses real
+    // Prisma (@default(cuid())), while the production REST layer generates a
+    // UUID for both cuid and uuid defaults; a uuid-only id check rejected every
+    // appointment the fixture database created.
     const doctorsResp = await page.request.get('/api/doctors');
     if (doctorsResp.status() !== 200) { test.skip(true, 'Doctors API unavailable'); return; }
     const doctors = await doctorsResp.json();
@@ -377,9 +380,8 @@ test.describe('Scenario 6: Rescheduling / Cancelling', () => {
       data: {
         doctorId: doctors[0].id,
         scheduledAt,
-        type: 'video',
+        appointmentType: 'video',
         reason: 'Cancel test',
-        consultationConsent: true,
       },
     });
     const createBody = await createResp.text();
@@ -399,11 +401,16 @@ test.describe('Scenario 6: Rescheduling / Cancelling', () => {
     expect((JSON.parse(cancelBody) as { status: string }).status).toBe('cancelled');
 
     // Confirm the change persisted, so a 200 that never wrote through fails too.
-    const listResp = await page.request.get('/api/appointments');
-    expect(listResp.status()).toBe(200);
-    const list = (await listResp.json()) as Array<{ id: string; status: string }>;
-    const saved = Array.isArray(list) ? list.find((a) => a.id === appointment.id) : undefined;
-    expect(saved?.status, 'cancelled status did not persist').toBe('cancelled');
+    // A repeat cancel is the read-back: the route re-reads the stored row and
+    // refuses the cancelled → cancelled transition, naming the stored status.
+    // (GET /api/appointments cannot be used here — it reads Supabase over the
+    // anon key, so it returns an empty list regardless of the caller's data.)
+    const againResp = await page.request.put('/api/appointments', {
+      data: { id: appointment.id, status: 'cancelled' },
+    });
+    const againBody = await againResp.text();
+    expect(againResp.status(), `repeat cancel: ${againBody.slice(0, 300)}`).toBe(400);
+    expect(againBody, 'cancelled status did not persist').toContain("from 'cancelled'");
   });
 
   test('only patient, doctor (owner), or admin can modify appointment', async ({ page }) => {
