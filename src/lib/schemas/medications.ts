@@ -49,7 +49,7 @@ export const updateMedicationSchema = z.object({
 
 /** GET /api/medications — query parameters */
 export const medicationsQuerySchema = z.object({
-  userId:         z.string().uuid().optional(),
+  userId:         dbIdOptional,
   familyMemberId: dbId.optional(),
   active:         z.enum(['true','false','all']).optional().default('all'),
   cursor:         z.string().optional(),

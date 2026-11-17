@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { dbId } from './ids'
+import { dbId, dbIdOptional } from './ids'
 
 const RELATIONS = ['self','spouse','parent','child','sibling','grandparent','grandchild','other'] as const
 const ROLES     = ['patient','caretaker','viewer'] as const
@@ -15,7 +15,7 @@ export const createMemberSchema = z.object({
   color:        z.enum(COLORS).optional().default('emerald'),
   conditions:   z.array(z.string().max(120)).optional().default([]),
   photoUrl:     z.string().url('photoUrl must be a valid URL').max(500).optional().nullable(),
-  userId:       z.string().uuid().optional().nullable(),
+  userId:       dbIdOptional,
   /** COMPLIANCE: must be true and accompanied by guardianName when age is under 18. */
   parentalConsentGiven: z.boolean().optional().default(false),
   /** COMPLIANCE: full legal name of the parent/guardian consenting on behalf of a minor. */

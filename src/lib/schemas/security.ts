@@ -1,10 +1,11 @@
 import { z } from 'zod'
+import { dbId, dbIdOptional } from './ids'
 
 // ── Lab bookings ─────────────────────────────────────────────────────
 
 export const createLabBookingSchema = z.object({
-  labId:       z.string().uuid('labId must be a valid UUID'),
-  patientId:   z.string().uuid().optional().nullable(),
+  labId:       dbId,
+  patientId:   dbIdOptional,
   scheduledAt: z.string().datetime('scheduledAt must be an ISO date/time'),
   tests: z.array(
     z.object({
@@ -26,7 +27,7 @@ export const emergencySosSchema = z.object({
 // ── Doctor: notes ────────────────────────────────────────────────────
 
 export const createDoctorNoteSchema = z.object({
-  patientId: z.string().uuid('patientId must be a valid UUID'),
+  patientId: dbId,
   content:   z.string().min(1, 'content is required').max(5000),
   type:      z.enum(['observation', 'diagnosis', 'follow-up']).default('observation'),
 })
@@ -56,7 +57,7 @@ export const availabilityUpdateSchema = z.object({
 // ── Doctor: prescribe ────────────────────────────────────────────────
 
 export const prescribeSchema = z.object({
-  patientId:    z.string().uuid().optional().nullable(),
+  patientId:    dbIdOptional,
   patientEmail: z.string().email().max(254).optional().nullable(),
   medications: z.array(
     z.object({
@@ -85,7 +86,7 @@ export const adminActionSchema = z.object({
 // ── Consult messages ─────────────────────────────────────────────────
 
 export const consultMessageSchema = z.object({
-  appointmentId: z.string().uuid('appointmentId must be a valid UUID'),
+  appointmentId: dbId,
   content:       z.string().min(1, 'content is required').max(5000),
 })
 
