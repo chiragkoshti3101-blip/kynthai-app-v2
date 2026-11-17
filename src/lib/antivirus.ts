@@ -21,8 +21,18 @@
 import { spawn } from 'child_process';
 import { logger } from '@/lib/logger';
 
-export type ScanVerdict =
-  | { clean: boolean; infected: boolean; engine: 'clamav' | 'unavailable'; details?: string };
+export type ScanVerdict = {
+  clean: boolean;
+  infected: boolean;
+  engine: 'clamav' | 'unavailable';
+  details?: string;
+  /**
+   * No engine is installed at all (as opposed to an engine that ran and
+   * errored). Serverless hosts never ship `clamscan`, so callers distinguish
+   * "cannot scan here" from "scanner is broken" when deciding to reject.
+   */
+  engineMissing?: boolean;
+};
 
 export function isAntivirusRequired(): boolean {
   return process.env.KYNTHAI_REQUIRE_AV !== '0' && (
@@ -68,6 +78,7 @@ export function scanBuffer(buffer: Buffer, filename?: string): Promise<ScanVerdi
         clean: !required,
         infected: false,
         engine: 'unavailable',
+        engineMissing: err.code === 'ENOENT',
         details: required ? 'AV unavailable (fail-closed)' : err.message,
       });
     });

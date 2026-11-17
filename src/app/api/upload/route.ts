@@ -11,6 +11,7 @@ import {
   HealthFileStorageError,
 } from '@/lib/health-files';
 import { isAntivirusRequired, scanBuffer } from '@/lib/antivirus';
+import { inspectDocumentContent } from '@/lib/document-content-check';
 import { logger } from '@/lib/logger';
 export const dynamic = 'force-dynamic';
 
@@ -85,18 +86,40 @@ export async function POST(req: NextRequest) {
     return jsonError('File too large. Max 5 MB.', 400);
   }
 
-  // SECURITY: malware scan (ClamAV) — read the full raw bytes and scan them
-  // BEFORE encrypting/storing. In production, an unavailable or failed scan is
-  // rejected rather than silently treating a health file as clean.
+  // SECURITY: content checks + malware scan (ClamAV) — read the full raw bytes
+  // and inspect them BEFORE encrypting/storing. Documents carrying active
+  // content are always rejected; a broken scanner fails closed.
   const rawBuffer = Buffer.from(await file.arrayBuffer());
+
+  const content = inspectDocumentContent(rawBuffer, file.type);
+  if (content.blocking.length > 0) {
+    await logAudit(session.id, 'upload.rejected_content', { resourceType: 'upload' });
+    logger.warn('upload.rejected_content', {
+      codes: content.blocking.map((finding) => finding.code),
+      mimeType: file.type,
+    });
+    return jsonError(
+      'This file contains active content and cannot be uploaded. Please upload a plain PDF, JPEG or PNG.',
+      400,
+      'UNSAFE_DOCUMENT_CONTENT'
+    );
+  }
+
   const verdict = await scanBuffer(rawBuffer, file.name);
   if (verdict.infected) {
     await logAudit(session.id, 'upload.rejected_malware', { resourceType: 'upload', details: verdict.details });
     return jsonError('This file was flagged as potentially malicious and was not uploaded.', 400, 'MALWARE_DETECTED');
   }
   if (isAntivirusRequired() && !verdict.clean) {
-    await logAudit(session.id, 'upload.rejected_av_unavailable', { resourceType: 'upload' });
-    return jsonError('Secure malware scanning is temporarily unavailable. Please try again later.', 503, 'MALWARE_SCANNER_UNAVAILABLE');
+    if (verdict.engineMissing) {
+      // Serverless hosts ship no scanner; the static checks above already ran,
+      // so accept the file and record that no signature scan took place.
+      logger.warn('upload.unscanned', { mimeType: file.type });
+      await logAudit(session.id, 'upload.unscanned', { resourceType: 'upload' });
+    } else {
+      await logAudit(session.id, 'upload.rejected_av_unavailable', { resourceType: 'upload' });
+      return jsonError('Secure malware scanning is temporarily unavailable. Please try again later.', 503, 'MALWARE_SCANNER_UNAVAILABLE');
+    }
   }
 
   // Sanitize filename: strip path components, keep only safe chars + one extension.

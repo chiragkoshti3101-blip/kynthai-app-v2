@@ -11,6 +11,7 @@ import { uploadMedicalDocument, deleteMedicalDocument } from '@/lib/storage';
 import { DocumentType, DocumentCategory, DocumentVisibility } from '@prisma/client';
 import { logger } from '@/lib/logger';
 import { scanBuffer, isAntivirusRequired } from '@/lib/antivirus';
+import { inspectDocumentContent } from '@/lib/document-content-check';
 import { logAudit } from '@/lib/auth';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -146,6 +147,32 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const fileBuffer = Buffer.from(arrayBuffer);
 
+    // Static content checks need no engine, so they run first and are the
+    // active-content defence on hosts where a scanner is not installed.
+    const content = inspectDocumentContent(fileBuffer, file.type);
+    if (content.blocking.length > 0) {
+      await logAudit(user.id, 'document.upload.rejected_content', {
+        resourceType: 'MedicalDocument',
+      });
+      logger.warn('documents.upload.rejected_content', {
+        codes: content.blocking.map((finding) => finding.code),
+        mimeType: file.type,
+      });
+      return NextResponse.json(
+        {
+          error:
+            'This file contains active content and cannot be uploaded. Please upload a plain PDF, JPEG, PNG or TIFF.',
+        },
+        { status: 400 },
+      );
+    }
+    if (content.advisory.length > 0) {
+      logger.warn('documents.upload.content_advisory', {
+        codes: content.advisory.map((finding) => finding.code),
+        mimeType: file.type,
+      });
+    }
+
     const verdict = await scanBuffer(fileBuffer, file.name);
     if (verdict.infected) {
       // Audit stores the resource type only: filenames and scanner detail can
@@ -159,13 +186,23 @@ export async function POST(req: NextRequest) {
       );
     }
     if (isAntivirusRequired() && !verdict.clean) {
-      await logAudit(user.id, 'document.upload.rejected_av_unavailable', {
-        resourceType: 'MedicalDocument',
-      });
-      return NextResponse.json(
-        { error: 'Secure malware scanning is temporarily unavailable. Please try again later.' },
-        { status: 503 },
-      );
+      if (verdict.engineMissing) {
+        // Serverless hosts do not ship a scanner. Rejecting here would block
+        // every upload, so the file is accepted on the strength of the static
+        // checks above and the missing signature scan is recorded.
+        logger.warn('documents.upload.unscanned', { mimeType: file.type });
+        await logAudit(user.id, 'document.upload.unscanned', {
+          resourceType: 'MedicalDocument',
+        });
+      } else {
+        await logAudit(user.id, 'document.upload.rejected_av_unavailable', {
+          resourceType: 'MedicalDocument',
+        });
+        return NextResponse.json(
+          { error: 'Secure malware scanning is temporarily unavailable. Please try again later.' },
+          { status: 503 },
+        );
+      }
     }
 
     // Encrypt file
