@@ -412,7 +412,7 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
                   id: l.id,
                   name: l.labName,
                   subtitle: `${l.testCount} tests`,
-                  meta: `${l.city} · NABL: ${l.licenseNumber}`,
+                  meta: `${l.city} · License: ${l.licenseNumber}`,
                   license: l.licenseNumber,
                   status: l.status,
                   submittedAt: l.submittedAt,
