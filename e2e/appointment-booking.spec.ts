@@ -400,17 +400,16 @@ test.describe('Scenario 6: Rescheduling / Cancelling', () => {
     expect(cancelResp.status(), `cancel failed: ${cancelBody.slice(0, 300)}`).toBe(200);
     expect((JSON.parse(cancelBody) as { status: string }).status).toBe('cancelled');
 
-    // Confirm the change persisted, so a 200 that never wrote through fails too.
-    // A repeat cancel is the read-back: the route re-reads the stored row and
-    // refuses the cancelled → cancelled transition, naming the stored status.
-    // (GET /api/appointments cannot be used here — it reads Supabase over the
-    // anon key, so it returns an empty list regardless of the caller's data.)
-    const againResp = await page.request.put('/api/appointments', {
-      data: { id: appointment.id, status: 'cancelled' },
-    });
-    const againBody = await againResp.text();
-    expect(againResp.status(), `repeat cancel: ${againBody.slice(0, 300)}`).toBe(400);
-    expect(againBody, 'cancelled status did not persist').toContain("from 'cancelled'");
+    // Confirm the change persisted in the patient's own list, so a 200 that
+    // never wrote through fails too.
+    const listResp = await page.request.get('/api/appointments');
+    expect(listResp.status()).toBe(200);
+    const listBody = await listResp.text();
+    const list = JSON.parse(listBody) as Array<{ id: string; status: string }>;
+    const saved = Array.isArray(list) ? list.find((a) => a.id === appointment.id) : undefined;
+    expect(saved?.status, `cancelled status did not persist: ${listBody.slice(0, 300)}`).toBe(
+      'cancelled'
+    );
   });
 
   test('only patient, doctor (owner), or admin can modify appointment', async ({ page }) => {
