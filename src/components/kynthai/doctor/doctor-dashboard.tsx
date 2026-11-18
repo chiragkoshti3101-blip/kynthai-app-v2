@@ -251,6 +251,22 @@ const PRO_FEATURES = [
   'lower_commission',
 ] as const;
 
+const AVAILABILITY_LOAD_ERROR =
+  'Your availability settings could not be loaded, so these hours may be incomplete.';
+
+/** Inline "that lookup failed, try again" row, shared by the schedule card and
+ * the reschedule dialog so a failed fetch never reads as an empty result. */
+function LoadErrorNotice({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg bg-destructive/5 px-3 py-2">
+      <p className="text-xs text-destructive">{message}</p>
+      <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+        Retry
+      </Button>
+    </div>
+  );
+}
+
 export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthUser; profile: DoctorProfile; isDemo?: boolean }) {
   const { logout, setScreen, doctorOnline, setDoctorOnline } = useAppStore();
   const router = useRouter();
@@ -772,8 +788,9 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
     [rescheduleApptId, rescheduleTime, toast, fetchDashboardData]
   );
 
-  // Fetch doctor availability. A failure is recorded rather than swallowed:
-  // the reschedule dialog reports it instead of showing an empty day.
+  // Fetch doctor availability. A failure is recorded rather than swallowed, so
+  // the schedule card and the reschedule dialog both say the hours are missing
+  // instead of showing defaults an empty grid implies are real.
   React.useEffect(() => {
     let cancelled = false;
     setAvailabilityError(null);
@@ -781,14 +798,14 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
       .then(r => (r.ok ? r.json() : Promise.reject(new Error('availability unavailable'))))
       .then(d => {
         if (cancelled) return;
+        if (typeof d?.doctorId !== 'string') throw new Error('doctor profile missing');
         if (d.schedule) setSchedule(d.schedule);
         setClinicZone(typeof d.timeZone === 'string' ? d.timeZone : null);
-        if (typeof d.doctorId === 'string') setClinicDoctorId(d.doctorId);
-        else setAvailabilityError('Your availability settings could not be loaded.');
+        setClinicDoctorId(d.doctorId);
       })
       .catch(() => {
         if (cancelled) return;
-        setAvailabilityError('Your availability settings could not be loaded.');
+        setAvailabilityError(AVAILABILITY_LOAD_ERROR);
       });
     return () => {
       cancelled = true;
@@ -860,12 +877,13 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
     availabilityError,
   ]);
 
-  // Retries the slot list, and the availability lookup too when the doctor id
-  // it is keyed on never arrived.
+  // Retries the slot list, and the availability lookup only when the doctor id
+  // it is keyed on never arrived (otherwise the id is known and re-fetching
+  // availability would just repeat work the schedule card can retry itself).
   const retryRescheduleSlots = React.useCallback(() => {
     setRescheduleRetry(n => n + 1);
-    setAvailabilityRetry(n => n + 1);
-  }, []);
+    if (!clinicDoctorId) setAvailabilityRetry(n => n + 1);
+  }, [clinicDoctorId]);
 
   const useDemoSamples = useDoctorDemoSampleFallback(isDemo, isDemoEnabled());
   const isRealData = !useDemoSamples && dashboardData !== null && !apiError;
@@ -1461,20 +1479,29 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                         <CalendarDays className="h-4 w-4 text-emerald-600" />
                         Weekly availability
                       </h3>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="min-h-11 text-xs gap-1"
-                        onClick={() => {
-                          setEditSchedule(schedule);
-                          setEditClinicZone(clinicZone ?? CLINIC_FALLBACK_TIME_ZONE);
-                          setAvailOpen(true);
-                        }}
-                      >
-                        <Edit3 className="h-3 w-3" />
-                        Edit
-                      </Button>
+                      {/* Editing unloaded hours would overwrite them with defaults. */}
+                      {!availabilityError && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="min-h-11 text-xs gap-1"
+                          onClick={() => {
+                            setEditSchedule(schedule);
+                            setEditClinicZone(clinicZone ?? CLINIC_FALLBACK_TIME_ZONE);
+                            setAvailOpen(true);
+                          }}
+                        >
+                          <Edit3 className="h-3 w-3" />
+                          Edit
+                        </Button>
+                      )}
                     </div>
+                    {availabilityError ? (
+                      <LoadErrorNotice
+                        message={availabilityError}
+                        onRetry={() => setAvailabilityRetry(n => n + 1)}
+                      />
+                    ) : (
                     <div className="space-y-1.5">
                       <p className="text-[11px] text-muted-foreground mb-2">
                         Hours are in {clinicZone ?? CLINIC_FALLBACK_TIME_ZONE}
@@ -1521,6 +1548,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                         );
                       })}
                     </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -2541,17 +2569,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                 ) : rescheduleSlotsLoading ? (
                   <p className="text-xs text-muted-foreground">Loading open times…</p>
                 ) : rescheduleSlotsError ? (
-                  <div className="flex items-center justify-between gap-2 rounded-lg bg-destructive/5 px-3 py-2">
-                    <p className="text-xs text-destructive">{rescheduleSlotsError}</p>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={retryRescheduleSlots}
-                    >
-                      Retry
-                    </Button>
-                  </div>
+                  <LoadErrorNotice message={rescheduleSlotsError} onRetry={retryRescheduleSlots} />
                 ) : rescheduleSlots.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
                     No open times this day. Try another date, or widen your weekly hours.
