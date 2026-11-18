@@ -9,17 +9,18 @@ import {
   jsonError,
   jsonOk,
   readJson,
-  audit,
   checkConsent,
-  jsonPage,
 } from '@/lib/api-helpers';
 import { logger } from '@/lib/logger';
+import { updateAppointmentSchema, appointmentsQuerySchema } from '@/lib/schemas';
 import {
-  createAppointmentSchema,
-  updateAppointmentSchema,
-  appointmentsQuerySchema,
-} from '@/lib/schemas';
-import { computeCommission } from '@/lib/commission';
+  availabilityRejection,
+  checkAvailability,
+  isSlotConflictError,
+  MAX_APPOINTMENT_MINUTES,
+  clinicTimeZone,
+  timeRangesOverlap,
+} from '@/lib/doctor-availability';
 import { sendNotification } from '@/lib/notifications';
 import { formatNotificationDate } from '@/lib/notification-time';
 // Prevent static generation — reads session + DB at runtime
@@ -145,6 +146,7 @@ export async function POST(req: NextRequest) {
       scheduledAt?: unknown;
       reason?: unknown;
       appointmentType?: unknown;
+      durationMinutes?: unknown;
     }>(req);
     if (!rawBody) return jsonError('Invalid JSON', 400, 'INVALID_JSON');
 
@@ -164,39 +166,91 @@ export async function POST(req: NextRequest) {
     // Verify doctor exists and is approved
     const doctor = await db.doctorProfile.findUnique({
       where: { id: doctorId },
-      select: { id: true, userId: true, verified: true, verificationStatus: true, consultationFee: true },
+      select: {
+        id: true,
+        userId: true,
+        verified: true,
+        verificationStatus: true,
+        consultationFee: true,
+        user: { select: { timezone: true } },
+      },
     });
     if (!doctor) return jsonError('Doctor not found', 404);
     if (!['verified', 'approved'].includes(doctor.verificationStatus)) {
       return jsonError('Doctor is not available for booking', 400);
     }
 
-    // FIX #6: Narrowed conflict window from 2hr to ±30min for accuracy
-    const windowStart = new Date(date.getTime() - 30 * 60 * 1000);
-    const windowEnd = new Date(date.getTime() + 30 * 60 * 1000);
-    const conflict = await db.appointment.findFirst({
-      where: {
-        doctorId,
-        status: { in: ['pending', 'confirmed'] },
-        scheduledAt: { gte: windowStart, lte: windowEnd },
-      },
+    // ─── Availability gate ────────────────────────────────────────────────
+    // Windows are weekly wall-clock strings, so they are read in the doctor's
+    // zone. Never the requester's: a caller-supplied zone would let anyone book
+    // any hour by claiming to be in another part of the world.
+    const timeZone = clinicTimeZone(doctor.user?.timezone);
+    const durationMinutes = Math.min(
+      MAX_APPOINTMENT_MINUTES,
+      Math.max(5, Number(rawBody.durationMinutes) || 15),
+    );
+
+    const availabilitySlots = await db.doctorAvailabilitySlot.findMany({
+      where: { doctorId, active: true },
+      select: { day: true, start: true, end: true },
     });
-    if (conflict) {
-      return jsonError('Doctor is not available at that time', 409);
+    const availability = checkAvailability({
+      slots: availabilitySlots,
+      instant: date,
+      durationMinutes,
+      timeZone,
+    });
+    if (!availability.allowed) {
+      const { message, details } = availabilityRejection(availability, durationMinutes);
+      return jsonError(message, 409, 'OUTSIDE_AVAILABILITY', details);
     }
 
-    const appointment = await db.appointment.create({
-      data: {
-        patientId: u.id,
+    // ─── Overlap check ────────────────────────────────────────────────────
+    // Friendly rejection before the insert; the exclusion constraint
+    // `appointments_doctor_slot_no_overlap` is the real guarantee. Any booking
+    // that can overlap this one starts at most MAX_APPOINTMENT_MINUTES earlier
+    // and before this one ends, so that is the whole scan.
+    const nearby = await db.appointment.findMany({
+      where: {
         doctorId,
-        scheduledAt: date,
-        reason: reason || undefined,
-        type: appointmentType,
-        status: 'pending',
-        price: doctor.consultationFee,
+        status: { in: ['pending', 'confirmed', 'rescheduled'] },
+        deletedAt: null,
+        scheduledAt: {
+          gte: new Date(date.getTime() - MAX_APPOINTMENT_MINUTES * 60_000),
+          lt: new Date(date.getTime() + durationMinutes * 60_000),
+        },
       },
-      include: { doctor: { include: { user: true } }, patient: true },
+      select: { id: true, scheduledAt: true, durationMinutes: true },
     });
+    const conflict = nearby.find((a: any) =>
+      timeRangesOverlap(date, durationMinutes, a.scheduledAt, a.durationMinutes ?? 15),
+    );
+    if (conflict) {
+      return jsonError('That time has just been taken. Pick another slot.', 409, 'SLOT_UNAVAILABLE');
+    }
+
+    let appointment: any;
+    try {
+      appointment = await db.appointment.create({
+        data: {
+          patientId: u.id,
+          doctorId,
+          scheduledAt: date,
+          durationMinutes,
+          reason: reason || undefined,
+          type: appointmentType,
+          status: 'pending',
+          price: doctor.consultationFee,
+        },
+        include: { doctor: { include: { user: true } }, patient: true },
+      });
+    } catch (createError) {
+      // Another booking won the race between our check and this insert.
+      if (isSlotConflictError(createError)) {
+        return jsonError('That time has just been taken. Pick another slot.', 409, 'SLOT_UNAVAILABLE');
+      }
+      throw createError;
+    }
 
     await logAudit(u.id, 'appointment.created', `appointment=${appointment.id}`);
 

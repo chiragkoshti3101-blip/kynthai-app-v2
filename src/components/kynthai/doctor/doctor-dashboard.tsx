@@ -79,6 +79,7 @@ import {
   doctorDashboardErrorBannerCopy,
 } from '@/lib/doctor-dashboard-data'
 import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
+import { CLINIC_FALLBACK_TIME_ZONE, type BookingSlot } from '@/lib/doctor-availability';
 interface DoctorProfile {
   id: string;
   specialization: string;
@@ -101,6 +102,8 @@ interface Appointment {
   fee: number;
   /** Raw ISO timestamp (real API rows only) — used for the date-bucketed "today" stat. */
   scheduledAt?: string;
+  /** Visit length; the reschedule grid is spaced by it so every slot fits. */
+  durationMinutes?: number;
 }
 
 // ponytail: dashboard API returns raw scheduledAt ISO strings; format once here instead of per-render.
@@ -128,6 +131,22 @@ const formatRxDate = (v: unknown): string => {
   if (!/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s; // already a display string
   return new Date(s).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 };
+
+// Suggestions for the clinic-zone field; any valid IANA name can be typed.
+const CLINIC_TIME_ZONE_OPTIONS = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Phoenix',
+  'America/Los_Angeles',
+  'America/Anchorage',
+  'Pacific/Honolulu',
+  'America/Puerto_Rico',
+  'Europe/London',
+  'Asia/Tokyo',
+  'Australia/Sydney',
+  'UTC',
+];
 
 interface Prescription {
   id: string;
@@ -394,6 +413,17 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   const [rescheduleApptId, setRescheduleApptId] = React.useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = React.useState('');
   const [rescheduleTime, setRescheduleTime] = React.useState('');
+  const [rescheduleSlots, setRescheduleSlots] = React.useState<BookingSlot[]>([]);
+  const [rescheduleSlotsLoading, setRescheduleSlotsLoading] = React.useState(false);
+  const [rescheduleSlotsError, setRescheduleSlotsError] = React.useState<string | null>(null);
+  // Bumped by the retry button to re-run the slot fetch for the same date.
+  const [rescheduleRetry, setRescheduleRetry] = React.useState(0);
+  // Doctor profile id for the slots endpoint. The availability payload is the
+  // primary source; the dashboard and /api/doctors/me responses fill in if it
+  // is unavailable, so the reschedule dialog never lacks a doctor to ask.
+  const [clinicDoctorId, setClinicDoctorId] = React.useState<string | null>(null);
+  const [availabilityError, setAvailabilityError] = React.useState<string | null>(null);
+  const [availabilityRetry, setAvailabilityRetry] = React.useState(0);
 
   const loadPatientChart = React.useCallback(async (patientId: string) => {
     setPatientChart(null);
@@ -458,6 +488,10 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
     sunday: [],
   };
   const [schedule, setSchedule] = React.useState<WeeklySchedule>(defaultSchedule);
+  // Clinic zone the weekly windows are wall-clock times in. Null = never set;
+  // availability then falls back to America/New_York on the server.
+  const [clinicZone, setClinicZone] = React.useState<string | null>(null);
+  const [editClinicZone, setEditClinicZone] = React.useState('');
   const [availOpen, setAvailOpen] = React.useState(false);
   const [editSchedule, setEditSchedule] = React.useState<WeeklySchedule>(defaultSchedule);
 
@@ -475,6 +509,9 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         if (res.ok) {
           const data = await res.json();
           setIsPro(data?.profile?.isPro || false);
+          if (typeof data?.profile?.id === 'string') {
+            setClinicDoctorId(prev => prev ?? data.profile.id);
+          }
         }
       } catch (err) {
         console.error('[dashboard] Failed to fetch pro status:', err);
@@ -533,6 +570,10 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         fetch('/api/doctors/patients/adherence', { cache: 'no-store' }).catch(() => null),
       ]);
       const dashData = dashRes.ok ? await dashRes.json() : {};
+      const dashboardProfileId = (dashData as { profile?: { id?: unknown } }).profile?.id;
+      if (typeof dashboardProfileId === 'string') {
+        setClinicDoctorId(prev => prev ?? dashboardProfileId);
+      }
       const adherenceData = adherenceRes?.ok ? await adherenceRes.json() : null;
 
       const apiAppointments = ((dashData as Record<string, unknown[]>).appointments ?? []).map(
@@ -549,6 +590,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
             status: (rec.status ?? 'confirmed') as Appointment['status'],
             fee: Number(rec.fee ?? rec.price ?? 0),
             scheduledAt: rec.scheduledAt ? String(rec.scheduledAt) : undefined,
+            durationMinutes: rec.durationMinutes ? Number(rec.durationMinutes) : undefined,
           };
         }
       );
@@ -694,17 +736,18 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
 
   const handleReschedule = React.useCallback(
     async () => {
-      if (!rescheduleApptId || !rescheduleDate || !rescheduleTime) {
-        toast({ title: 'Please select date and time', variant: 'destructive' });
+      if (!rescheduleApptId || !rescheduleTime) {
+        toast({ title: 'Please choose an available time', variant: 'destructive' });
         return;
       }
       setUpdatingApptId(rescheduleApptId);
       try {
-        const scheduledAt = new Date(`${rescheduleDate}T${rescheduleTime}`).toISOString();
+        // `rescheduleTime` is a server-issued slot instant; submitting it as-is
+        // is what keeps the dialog and the availability gate in agreement.
         const res = await fetch(`/api/appointments/${rescheduleApptId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scheduledAt }),
+          body: JSON.stringify({ scheduledAt: rescheduleTime }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -714,6 +757,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         setRescheduleApptId(null);
         setRescheduleDate('');
         setRescheduleTime('');
+        setRescheduleSlots([]);
         fetchDashboardData(true);
       } catch (error) {
         toast({
@@ -725,17 +769,102 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
         setUpdatingApptId(null);
       }
     },
-    [rescheduleApptId, rescheduleDate, rescheduleTime, toast, fetchDashboardData]
+    [rescheduleApptId, rescheduleTime, toast, fetchDashboardData]
   );
 
-  // Fetch doctor availability
+  // Fetch doctor availability. A failure is recorded rather than swallowed:
+  // the reschedule dialog reports it instead of showing an empty day.
   React.useEffect(() => {
+    let cancelled = false;
+    setAvailabilityError(null);
     fetch('/api/doctors/availability', { cache: 'no-store' })
-      .then(r => r.json())
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('availability unavailable'))))
       .then(d => {
+        if (cancelled) return;
         if (d.schedule) setSchedule(d.schedule);
+        setClinicZone(typeof d.timeZone === 'string' ? d.timeZone : null);
+        if (typeof d.doctorId === 'string') setClinicDoctorId(d.doctorId);
+        else setAvailabilityError('Your availability settings could not be loaded.');
       })
-      .catch(() => {});
+      .catch(() => {
+        if (cancelled) return;
+        setAvailabilityError('Your availability settings could not be loaded.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [availabilityRetry]);
+
+  // Reschedule uses the same server-built grid as patient booking: only
+  // instants the PATCH gate will accept are offered, spaced by this
+  // appointment's own length.
+  React.useEffect(() => {
+    if (!rescheduleApptId || !rescheduleDate) {
+      setRescheduleSlots([]);
+      setRescheduleSlotsError(null);
+      setRescheduleSlotsLoading(false);
+      return;
+    }
+    // Without a doctor id there is no grid to ask for. Say so and let the
+    // doctor retry; a successful availability fetch re-runs this effect anyway.
+    if (!clinicDoctorId) {
+      setRescheduleSlots([]);
+      setRescheduleTime('');
+      if (availabilityError) {
+        setRescheduleSlotsLoading(false);
+        setRescheduleSlotsError(availabilityError);
+      } else {
+        // Availability, and with it the doctor id, is still on its way.
+        setRescheduleSlotsLoading(true);
+      }
+      return;
+    }
+    const appointment = dashboardData?.appointments.find(a => a.id === rescheduleApptId);
+    const params = new URLSearchParams({
+      date: rescheduleDate,
+      timeZone: clinicZone ?? CLINIC_FALLBACK_TIME_ZONE,
+    });
+    if (appointment?.durationMinutes) params.set('duration', String(appointment.durationMinutes));
+    let cancelled = false;
+    setRescheduleSlotsLoading(true);
+    setRescheduleSlotsError(null);
+    fetch(`/api/doctors/${encodeURIComponent(clinicDoctorId)}/slots?${params.toString()}`, {
+      cache: 'no-store',
+    })
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('slots unavailable'))))
+      .then((data: { slots?: BookingSlot[] }) => {
+        if (cancelled) return;
+        const next = (data.slots ?? []).filter(s => s.available);
+        setRescheduleSlots(next);
+        setRescheduleTime(prev => (prev && next.some(s => s.at === prev) ? prev : ''));
+        setRescheduleSlotsLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // A failed lookup is not an empty day: say so and let the doctor retry.
+        setRescheduleSlots([]);
+        setRescheduleTime('');
+        setRescheduleSlotsError('Could not load open times for this date.');
+        setRescheduleSlotsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    rescheduleApptId,
+    rescheduleDate,
+    clinicDoctorId,
+    clinicZone,
+    dashboardData,
+    rescheduleRetry,
+    availabilityError,
+  ]);
+
+  // Retries the slot list, and the availability lookup too when the doctor id
+  // it is keyed on never arrived.
+  const retryRescheduleSlots = React.useCallback(() => {
+    setRescheduleRetry(n => n + 1);
+    setAvailabilityRetry(n => n + 1);
   }, []);
 
   const useDemoSamples = useDoctorDemoSampleFallback(isDemo, isDemoEnabled());
@@ -1338,6 +1467,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                         className="min-h-11 text-xs gap-1"
                         onClick={() => {
                           setEditSchedule(schedule);
+                          setEditClinicZone(clinicZone ?? CLINIC_FALLBACK_TIME_ZONE);
                           setAvailOpen(true);
                         }}
                       >
@@ -1346,6 +1476,10 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                       </Button>
                     </div>
                     <div className="space-y-1.5">
+                      <p className="text-[11px] text-muted-foreground mb-2">
+                        Hours are in {clinicZone ?? CLINIC_FALLBACK_TIME_ZONE}
+                        {!clinicZone && ' (default)'} — clinic time.
+                      </p>
                       {(
                         [
                           'monday',
@@ -2167,6 +2301,27 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="clinic-timezone" className="text-xs">Clinic timezone</Label>
+                <Input
+                  id="clinic-timezone"
+                  list="clinic-timezone-options"
+                  value={editClinicZone}
+                  onChange={e => setEditClinicZone(e.target.value)}
+                  placeholder="America/New_York"
+                  className="h-8 text-xs"
+                />
+                <datalist id="clinic-timezone-options">
+                  {[...new Set([Intl.DateTimeFormat().resolvedOptions().timeZone, ...CLINIC_TIME_ZONE_OPTIONS])]
+                    .filter(Boolean)
+                    .map(tz => (
+                      <option key={tz} value={tz} />
+                    ))}
+                </datalist>
+                <p className="text-[11px] text-muted-foreground">
+                  The weekly hours below are wall-clock times in this zone. Patients see them converted to their own time.
+                </p>
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
@@ -2326,13 +2481,24 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                     const res = await fetch('/api/doctors/availability', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ schedule: entries }),
+                      body: JSON.stringify({
+                        schedule: entries,
+                        timeZone: editClinicZone.trim() || null,
+                      }),
                     });
-                    if (res.ok) {
-                      const data = await res.json();
-                      setSchedule(data.schedule);
-                      setAvailOpen(false);
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                      const fieldError = data?.details?.fields?.timeZone;
+                      toast({
+                        title: 'Could not save availability',
+                        description: fieldError || data?.error || 'Please try again.',
+                        variant: 'destructive',
+                      });
+                      return;
                     }
+                    setSchedule(data.schedule);
+                    setClinicZone(typeof data.timeZone === 'string' ? data.timeZone : null);
+                    setAvailOpen(false);
                   } catch {
                     /* ignore */
                   }
@@ -2361,18 +2527,53 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                   id="reschedule-date"
                   type="date"
                   value={rescheduleDate}
-                  onChange={e => setRescheduleDate(e.target.value)}
+                  onChange={e => {
+                    setRescheduleDate(e.target.value);
+                    setRescheduleTime('');
+                  }}
                   min={new Date().toISOString().split('T')[0]}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="reschedule-time">Time</Label>
-                <Input
-                  id="reschedule-time"
-                  type="time"
-                  value={rescheduleTime}
-                  onChange={e => setRescheduleTime(e.target.value)}
-                />
+                <Label>Time</Label>
+                {!rescheduleDate ? (
+                  <p className="text-xs text-muted-foreground">Pick a date to see open times.</p>
+                ) : rescheduleSlotsLoading ? (
+                  <p className="text-xs text-muted-foreground">Loading open times…</p>
+                ) : rescheduleSlotsError ? (
+                  <div className="flex items-center justify-between gap-2 rounded-lg bg-destructive/5 px-3 py-2">
+                    <p className="text-xs text-destructive">{rescheduleSlotsError}</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={retryRescheduleSlots}
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                ) : rescheduleSlots.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No open times this day. Try another date, or widen your weekly hours.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {rescheduleSlots.map(slot => (
+                      <Button
+                        key={slot.at}
+                        type="button"
+                        size="sm"
+                        variant={rescheduleTime === slot.at ? 'default' : 'outline'}
+                        onClick={() => setRescheduleTime(slot.at)}
+                      >
+                        {slot.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Clinic time ({clinicZone ?? CLINIC_FALLBACK_TIME_ZONE}). Only times your schedule accepts are listed.
+                </p>
               </div>
             </div>
             <DialogFooter className="gap-2">

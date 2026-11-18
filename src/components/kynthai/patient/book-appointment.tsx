@@ -17,9 +17,10 @@ import {
 } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-// FIX #6: real slots come from GET /api/doctors/[id]/slots?date= (availability
-// windows + booked instants) expanded client-side via generateSlots.
-import { generateSlots, type SlotOption } from '@/lib/booking-slots';
+// Real slots come from GET /api/doctors/[id]/slots?date=: the server resolves
+// the doctor's windows in the clinic zone and returns absolute instants, so the
+// grid only ever offers times the booking gate accepts.
+import type { BookingSlot } from '@/lib/doctor-availability';
 
 interface Doctor {
   id: string;
@@ -51,7 +52,7 @@ export function BookAppointment({ open, onOpenChange }: Props) {
   const [reason, setReason] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [step, setStep] = React.useState<Step>('list');
-  const [slots, setSlots] = React.useState<SlotOption[]>([]);
+  const [slots, setSlots] = React.useState<BookingSlot[]>([]);
   const [loadingSlots, setLoadingSlots] = React.useState(false);
 
   React.useEffect(() => {
@@ -79,24 +80,28 @@ export function BookAppointment({ open, onOpenChange }: Props) {
     }
   }, [open]);
 
-  // FIX #6: fetch the doctor's real availability + booked times whenever the
-  // selected doctor or date changes, and rebuild the slot grid from them.
+  // Fetch the doctor's bookable instants for this date; `time` holds the chosen
+  // instant (ISO) that is submitted as-is.
   React.useEffect(() => {
     if (step !== 'form' || !selectedDoctor || !date) return;
     let cancelled = false;
     setLoadingSlots(true);
-    fetch(`/api/doctors/${selectedDoctor.id}/slots?date=${encodeURIComponent(date)}`, { cache: 'no-store' })
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    fetch(
+      `/api/doctors/${selectedDoctor.id}/slots?date=${encodeURIComponent(date)}&timeZone=${encodeURIComponent(timeZone)}`,
+      { cache: 'no-store' },
+    )
       .then(r => (r.ok ? r.json() : Promise.reject(new Error('slots unavailable'))))
-      .then((data: { windows?: Parameters<typeof generateSlots>[0]; booked?: string[] }) => {
+      .then((data: { slots?: BookingSlot[] }) => {
         if (cancelled) return;
-        const next = generateSlots(data.windows ?? [], date, { booked: data.booked ?? [] });
+        const next = data.slots ?? [];
         setSlots(next);
-        setTime(prev => (prev && next.some(s => s.value === prev && s.available) ? prev : ''));
+        setTime(prev => (prev && next.some(s => s.at === prev && s.available) ? prev : ''));
         setLoadingSlots(false);
       })
       .catch(() => {
         if (cancelled) return;
-        setSlots(generateSlots([], date));
+        setSlots([]);
         setLoadingSlots(false);
       });
     return () => {
@@ -116,16 +121,14 @@ export function BookAppointment({ open, onOpenChange }: Props) {
     if (!selectedDoctor || !date || !time) return;
     setSubmitting(true);
     try {
-      // `time` is an HH:MM value from the slot grid — construct the local
-      // instant directly (the old AM/PM string parsing is no longer needed).
-      const scheduledAt = new Date(`${date}T${time}:00`).toISOString();
-
+      // `time` is a server-issued slot instant; submitting it verbatim is what
+      // keeps the gate and the grid in agreement.
       const res = await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           doctorId: selectedDoctor.id,
-          scheduledAt,
+          scheduledAt: time,
           appointmentType: 'video',
           reason: reason.trim() || 'Video consultation',
         }),
@@ -250,9 +253,9 @@ export function BookAppointment({ open, onOpenChange }: Props) {
                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {slots.map(s => (
                       <button
-                        key={s.value}
+                        key={s.at}
                         type="button"
-                        onClick={() => s.available && setTime(s.value)}
+                        onClick={() => s.available && setTime(s.at)}
                         disabled={!s.available}
                         title={
                           s.available
@@ -264,7 +267,7 @@ export function BookAppointment({ open, onOpenChange }: Props) {
                         className={cn(
                           // FIX #17: 44px minimum tap target.
                           'min-h-[44px] rounded-lg border text-xs font-medium transition-all',
-                          time === s.value
+                          time === s.at
                             ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                             : s.available
                               ? 'border-border hover:border-emerald-500/40'
@@ -328,7 +331,7 @@ export function BookAppointment({ open, onOpenChange }: Props) {
                   Your appointment with {selectedDoctor.name || 'Provider'} has been booked.
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {date} at {time} · Video consultation
+                  {date} at {slots.find(s => s.at === time)?.label ?? ''} · Video consultation
                 </p>
               </div>
               <Button

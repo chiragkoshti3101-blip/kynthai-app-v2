@@ -25,8 +25,13 @@ export interface PatientVerificationStatus {
   overallLevel: 'unverified' | 'email_verified' | 'identity_confirmed' | 'id_verified' | 'pending_review' | 'rejected';
 }
 
+export type VerificationLevel = PatientVerificationStatus['overallLevel'];
+
 /**
  * Computes overall verification level from individual flags.
+ *
+ * `rejected` is a decision rather than a missing step, so a provider review
+ * that turned a patient down must not read as "still unverified" — it blocks.
  */
 export function computeVerificationLevel(status: {
   emailVerified: boolean;
@@ -34,12 +39,42 @@ export function computeVerificationLevel(status: {
   identityConfirmed: boolean;
   idDocumentUploaded: boolean;
   idDocumentVerified: boolean;
-}): PatientVerificationStatus['overallLevel'] {
+  /** Set when an admin rejected the uploaded identity evidence. */
+  rejected?: boolean;
+}): VerificationLevel {
+  if (status.rejected) return 'rejected';
   if (status.idDocumentVerified) return 'id_verified';
   if (status.idDocumentUploaded) return 'pending_review';
   if (status.identityConfirmed && status.phoneVerified) return 'identity_confirmed';
   if (status.emailVerified) return 'email_verified';
   return 'unverified';
+}
+
+/**
+ * Ordered ladder, lowest first. `rejected` sits below `unverified` because it
+ * is a decision to deny, not a step not yet taken. `pending_review` shares a
+ * rung with `identity_confirmed`: a submitted document is provisional identity
+ * evidence and should not be locked out while a reviewer catches up.
+ */
+const VERIFICATION_RANK: Record<VerificationLevel, number> = {
+  rejected: -1,
+  unverified: 0,
+  email_verified: 1,
+  pending_review: 2,
+  identity_confirmed: 2,
+  id_verified: 3,
+};
+
+export function verificationRank(level: VerificationLevel | string | null | undefined): number {
+  return VERIFICATION_RANK[(level ?? 'unverified') as VerificationLevel] ?? 0;
+}
+
+/** Does `current` clear the `required` bar? Unknown levels fail closed. */
+export function meetsVerificationLevel(
+  current: VerificationLevel | string | null | undefined,
+  required: VerificationLevel
+): boolean {
+  return verificationRank(current) >= verificationRank(required);
 }
 
 /**

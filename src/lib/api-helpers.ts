@@ -373,11 +373,14 @@ export async function requireAuth(
     emailVerificationToken: null,
     emailVerificationToken_enc: null,
     emailVerificationExpires: null,
-    phoneVerified: false,
-    identityConfirmed: false,
-    identityConfirmedAt: null,
-    idDocumentUploaded: false,
-    idDocumentVerified: false,
+    // Real identity evidence, not placeholders: `computeVerificationLevel`
+    // must be answerable from the session object, otherwise every gate that
+    // needs a level re-reads the user row.
+    phoneVerified: Boolean(profile.phoneVerified),
+    identityConfirmed: Boolean(profile.identityConfirmed),
+    identityConfirmedAt: profile.identityConfirmedAt ?? null,
+    idDocumentUploaded: Boolean(profile.idDocumentUploaded),
+    idDocumentVerified: Boolean(profile.idDocumentVerified),
     verificationLevel: profile.verificationLevel ?? 'unverified',
     verificationRejectedReason: profile.verificationRejectedReason ?? null,
     idDocumentRef: null,

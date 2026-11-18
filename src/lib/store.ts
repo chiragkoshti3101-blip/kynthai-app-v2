@@ -39,6 +39,17 @@ export interface AuthUser {
   stripeCustomerId?: string | null;
   /** Account verification level: 'unverified', 'verified', or 'blocked'. */
   verificationLevel?: string;
+  /**
+   * Identity evidence carried on every authenticated request so level checks
+   * (`computeVerificationLevel`) need no second read. `emailVerified` is the
+   * timestamp the mailbox was confirmed, or null.
+   */
+  emailVerified?: string | Date | null;
+  phoneVerified?: boolean;
+  identityConfirmed?: boolean;
+  idDocumentUploaded?: boolean;
+  idDocumentVerified?: boolean;
+  verificationRejectedReason?: string | null;
   /** True for one-tap demo logins. Demo users skip backend verification
    *  (doctor/lab) and get seeded sample data so the dashboards render
    *  immediately without a real DB session. */

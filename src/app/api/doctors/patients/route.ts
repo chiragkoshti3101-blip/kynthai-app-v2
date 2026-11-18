@@ -3,6 +3,13 @@ import { db } from '@/lib/db'
 import { logAudit } from '@/lib/auth'
 import { sanitizeText, rateLimit } from '@/lib/security'
 import { requireAuth, requireAuthWithCsrf, jsonError, jsonOk, readJson, audit } from '@/lib/api-helpers'
+import {
+  DEFAULT_APPOINTMENT_MINUTES,
+  MAX_APPOINTMENT_MINUTES,
+  clinicTimeZone,
+  findNextBookableSlot,
+  isSlotConflictError,
+} from '@/lib/doctor-availability'
 export const dynamic = 'force-dynamic'
 
 // POST /api/doctors/patients
@@ -16,7 +23,10 @@ export async function POST(req: NextRequest) {
   const u = user!
   if (u.role !== 'doctor') return jsonError('Only doctors may add patients', 403)
 
-  const profile = await db.doctorProfile.findUnique({ where: { userId: u.id } })
+  const profile = await db.doctorProfile.findUnique({
+    where: { userId: u.id },
+    include: { user: { select: { timezone: true } } },
+  })
   if (!profile) return jsonError('Doctor profile not found. Submit verification first.', 404)
   if (!profile.verified) return jsonError('Only verified doctors may add patients', 403)
 
@@ -76,19 +86,64 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Create an initial appointment so the patient shows up on the panel.
-    await db.appointment.create({
-      data: {
-        doctorId: profile.id,
-        patientId: patient.id,
-        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        type: 'video',
-        status: 'pending',
-        price: profile.consultationFee,
-        commission: 0,
-        reason: sanitizeText(body.reason, 500) || 'Initial consultation',
-      },
+    // The panel is driven by appointments, so an initial one has to exist — but
+    // at a real bookable instant, under the same clinic-zone hours and overlap
+    // rules as POST /api/appointments. Parking it at now+24h could land outside
+    // the doctor's hours or on top of a booked consultation and hold that slot.
+    const from = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const [windows, live] = await Promise.all([
+      db.doctorAvailabilitySlot.findMany({
+        where: { doctorId: profile.id, active: true },
+        select: { day: true, start: true, end: true },
+      }),
+      db.appointment.findMany({
+        where: {
+          doctorId: profile.id,
+          status: { in: ['pending', 'confirmed', 'rescheduled'] },
+          deletedAt: null,
+          scheduledAt: {
+            gte: new Date(from.getTime() - MAX_APPOINTMENT_MINUTES * 60_000),
+            lt: new Date(from.getTime() + 15 * 24 * 60 * 60 * 1000),
+          },
+        },
+        select: { scheduledAt: true, durationMinutes: true },
+      }),
+    ])
+    const scheduledAt = findNextBookableSlot({
+      windows,
+      clinicTimeZone: clinicTimeZone(profile.user?.timezone),
+      from,
+      appointmentMinutes: DEFAULT_APPOINTMENT_MINUTES,
+      booked: live.map((a) => ({ at: a.scheduledAt, durationMinutes: a.durationMinutes })),
     })
+    if (!scheduledAt) {
+      return jsonError(
+        'No open slot in your availability over the next 14 days. Set your clinic hours and try again.',
+        409,
+        'NO_AVAILABILITY',
+      )
+    }
+
+    try {
+      await db.appointment.create({
+        data: {
+          doctorId: profile.id,
+          patientId: patient.id,
+          scheduledAt,
+          durationMinutes: DEFAULT_APPOINTMENT_MINUTES,
+          type: 'video',
+          status: 'pending',
+          price: profile.consultationFee,
+          commission: 0,
+          reason: sanitizeText(body.reason, 500) || 'Initial consultation',
+        },
+      })
+    } catch (error) {
+      if (isSlotConflictError(error)) {
+        return jsonError('That slot was just taken. Try adding the patient again.', 409, 'SLOT_UNAVAILABLE')
+      }
+      throw error
+    }
   }
 
   await logAudit(u.id, 'doctor.patient.add', `patient=${patient.id}`)

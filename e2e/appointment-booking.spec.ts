@@ -375,7 +375,14 @@ test.describe('Scenario 6: Rescheduling / Cancelling', () => {
       return;
     }
 
-    const scheduledAt = new Date(Date.now() + 172800000).toISOString();
+    // Booking now enforces the doctor's hours (declared windows, or the
+    // 09:00–12:30 / 14:00–18:00 clinic-grid fallback), so the fixture must land
+    // inside a window: next weekday at 10:00 local is always bookable.
+    const slot = new Date();
+    slot.setDate(slot.getDate() + 2);
+    while (slot.getDay() === 0 || slot.getDay() === 6) slot.setDate(slot.getDate() + 1);
+    slot.setHours(10, 0, 0, 0);
+    const scheduledAt = slot.toISOString();
     const createResp = await page.request.post('/api/appointments', {
       data: {
         doctorId: doctors[0].id,

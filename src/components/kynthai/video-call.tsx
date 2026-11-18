@@ -74,7 +74,7 @@ export function VideoCall({
   const postSignal = React.useCallback(
     async (type: string, payload: Record<string, unknown>) => {
       try {
-        await fetch('/api/webrtc-signaling', {
+        const res = await fetch('/api/webrtc-signaling', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -86,6 +86,14 @@ export function VideoCall({
             payload,
           }),
         });
+        if (!res.ok) {
+          // The server gates joining on the patient's identity level. Swallowing
+          // this left the call stuck on "joining" with no explanation.
+          const body = await res.json().catch(() => null);
+          if (res.status === 403 && body?.code === 'IDENTITY_VERIFICATION_REQUIRED') {
+            setError('Verify your email address before joining this consultation.');
+          }
+        }
       } catch (e) {
         logger.phiSafeError(e, 'VideoCall');
       }

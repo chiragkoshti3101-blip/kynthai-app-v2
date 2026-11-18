@@ -1,4 +1,4 @@
-import { canJoinAppointment } from '@/lib/video-authorization';
+import { joinAuthorization, joinDenialResponse } from '@/lib/video-authorization';
 import { NextRequest } from 'next/server';
 import { sanitizeText, rateLimit } from '@/lib/security';
 import { logAudit } from '@/lib/auth';
@@ -33,7 +33,17 @@ export async function POST(req: NextRequest) {
   if (!body) return jsonError('Invalid JSON', 400);
 
   if (!body.appointmentId || typeof body.appointmentId !== 'string') return jsonError('appointmentId is required', 400);
-  if (!(await canJoinAppointment(u, body.appointmentId))) return jsonError('Forbidden — not an authorized appointment participant', 403);
+  const join = await joinAuthorization(u, body.appointmentId);
+  const denied = joinDenialResponse(join);
+  if (denied) {
+    if (join.reason === 'identity_required') {
+      await logAudit(u.id, 'video-call.identity_required', {
+        resourceType: 'VideoCall',
+        metadata: { appointmentId: body.appointmentId, level: join.currentLevel },
+      });
+    }
+    return jsonError(denied.message, denied.status, denied.code, denied.details);
+  }
   const roomName = `kynthai-${body.appointmentId}`;
   const expiresAt = Date.now() + 60 * 60 * 1000;
   const payload = JSON.stringify({ uid: u.id, name: u.name, room: roomName, exp: expiresAt });

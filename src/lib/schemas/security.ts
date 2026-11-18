@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { dbId, dbIdOptional } from './ids'
+import { isValidTimeZone } from '../doctor-availability'
 
 // ── Lab bookings ─────────────────────────────────────────────────────
 
@@ -41,6 +42,15 @@ export const availabilitySlotSchema = z.object({
 })
 
 export const availabilityUpdateSchema = z.object({
+  // The zone the weekly windows below are wall-clock times in. Null clears it
+  // and the clinic falls back to America/New_York.
+  timeZone: z
+    .string()
+    .trim()
+    .max(64)
+    .refine(isValidTimeZone, 'timeZone must be an IANA zone, e.g. America/New_York')
+    .nullable()
+    .optional(),
   schedule: z.array(
     z.object({
       day:   z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday']),

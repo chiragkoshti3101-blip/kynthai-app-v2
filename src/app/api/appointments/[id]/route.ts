@@ -12,6 +12,14 @@ import { logAudit } from '@/lib/auth';
 import { sendNotification } from '@/lib/notifications';
 import { formatNotificationDate } from '@/lib/notification-time';
 import { computeCommission } from '@/lib/commission';
+import {
+  availabilityRejection,
+  checkAvailability,
+  clinicTimeZone,
+  isSlotConflictError,
+  timeRangesOverlap,
+  MAX_APPOINTMENT_MINUTES,
+} from '@/lib/doctor-availability';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -64,11 +72,61 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Only doctor or patient can reschedule
     if (!isDoctor && !isPatient) return jsonError('Forbidden', 403);
 
-    const updated = await db.appointment.update({
-      where: { id },
-      data: { scheduledAt: newDate },
-      include: { doctor: { include: { user: true } }, patient: true },
+    // ─── Same rules as POST /api/appointments ───────────────────────────
+    // Rescheduling moves scheduledAt, so it has to obey the clinic-zone
+    // windows (never the rescheduler's browser zone) and may not overlap a
+    // live appointment — including the one being moved, which is excluded.
+    const durationMinutes = Math.max(5, appt.durationMinutes || 15);
+    const timeZone = clinicTimeZone(appt.doctor.user?.timezone);
+    const availabilitySlots = await db.doctorAvailabilitySlot.findMany({
+      where: { doctorId: appt.doctorId, active: true },
+      select: { day: true, start: true, end: true },
     });
+    const availability = checkAvailability({
+      slots: availabilitySlots,
+      instant: newDate,
+      durationMinutes,
+      timeZone,
+    });
+    if (!availability.allowed) {
+      const { message, details } = availabilityRejection(availability, durationMinutes);
+      return jsonError(message, 409, 'OUTSIDE_AVAILABILITY', details);
+    }
+
+    const nearby = await db.appointment.findMany({
+      where: {
+        doctorId: appt.doctorId,
+        id: { not: appt.id },
+        status: { in: ['pending', 'confirmed', 'rescheduled'] },
+        deletedAt: null,
+        scheduledAt: {
+          gte: new Date(newDate.getTime() - MAX_APPOINTMENT_MINUTES * 60_000),
+          lt: new Date(newDate.getTime() + durationMinutes * 60_000),
+        },
+      },
+      select: { id: true, scheduledAt: true, durationMinutes: true },
+    });
+    const conflict = nearby.find((a: any) =>
+      timeRangesOverlap(newDate, durationMinutes, a.scheduledAt, a.durationMinutes ?? 15),
+    );
+    if (conflict) {
+      return jsonError('That time has just been taken. Pick another slot.', 409, 'SLOT_UNAVAILABLE');
+    }
+
+    let updated;
+    try {
+      updated = await db.appointment.update({
+        where: { id },
+        data: { scheduledAt: newDate },
+        include: { doctor: { include: { user: true } }, patient: true },
+      });
+    } catch (updateError) {
+      // Another reschedule won the race between our check and this update.
+      if (isSlotConflictError(updateError)) {
+        return jsonError('That time has just been taken. Pick another slot.', 409, 'SLOT_UNAVAILABLE');
+      }
+      throw updateError;
+    }
 
     await logAudit(u.id, 'appointment.reschedule', `appt=${appt.id} newTime=${newDate.toISOString()}`);
 
