@@ -111,7 +111,7 @@ describe('findNextBookableSlot', () => {
       from: new Date('2026-11-23T14:00:00.000Z'),
       booked: [{ at: '2026-11-23T14:00:00.000Z', durationMinutes: 15 }],
     })
-    expect(next?.toISOString()).toBe('2026-11-23T14:15:00.000Z')
+    expect(next?.toISOString()).toBe('2026-11-23T14:30:00.000Z')
   })
 
   it('skips unconfigured days instead of borrowing the clinic grid', () => {

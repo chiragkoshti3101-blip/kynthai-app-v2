@@ -18,6 +18,7 @@ import {
   checkAvailability,
   isSlotConflictError,
   MAX_APPOINTMENT_MINUTES,
+  DEFAULT_APPOINTMENT_MINUTES,
   clinicTimeZone,
   timeRangesOverlap,
 } from '@/lib/doctor-availability';
@@ -187,7 +188,7 @@ export async function POST(req: NextRequest) {
     const timeZone = clinicTimeZone(doctor.user?.timezone);
     const durationMinutes = Math.min(
       MAX_APPOINTMENT_MINUTES,
-      Math.max(5, Number(rawBody.durationMinutes) || 15),
+      Math.max(5, Number(rawBody.durationMinutes) || DEFAULT_APPOINTMENT_MINUTES),
     );
 
     const availabilitySlots = await db.doctorAvailabilitySlot.findMany({
@@ -223,7 +224,7 @@ export async function POST(req: NextRequest) {
       select: { id: true, scheduledAt: true, durationMinutes: true },
     });
     const conflict = nearby.find((a: any) =>
-      timeRangesOverlap(date, durationMinutes, a.scheduledAt, a.durationMinutes ?? 15),
+      timeRangesOverlap(date, durationMinutes, a.scheduledAt, a.durationMinutes ?? DEFAULT_APPOINTMENT_MINUTES),
     );
     if (conflict) {
       return jsonError('That time has just been taken. Pick another slot.', 409, 'SLOT_UNAVAILABLE');

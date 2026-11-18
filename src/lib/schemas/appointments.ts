@@ -10,7 +10,7 @@ export const createAppointmentSchema = z.object({
   reason: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   consultationConsent: z.boolean().optional().default(false),
-  durationMinutes: z.coerce.number().int().min(5).max(120).optional().default(15),
+  durationMinutes: z.coerce.number().int().min(5).max(120).optional().default(30),
 });
 
 /** PUT /api/appointments — update status */

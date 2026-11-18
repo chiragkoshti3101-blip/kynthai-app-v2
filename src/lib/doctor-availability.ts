@@ -37,7 +37,7 @@ export const DEFAULT_CLINIC_WINDOWS: ReadonlyArray<{ start: string; end: string 
 ]
 
 export const MAX_APPOINTMENT_MINUTES = 120
-export const DEFAULT_APPOINTMENT_MINUTES = 15
+export const DEFAULT_APPOINTMENT_MINUTES = 30
 /** Spacing of the bookable grid inside a window. */
 export const SLOT_MINUTES = 30
 

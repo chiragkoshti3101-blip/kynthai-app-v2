@@ -98,7 +98,7 @@ describe('POST /api/appointments — availability gate', () => {
     expect(created()).toMatchObject({
       doctorId: 'doc-1',
       patientId: 'patient-1',
-      durationMinutes: 15,
+      durationMinutes: 30,
       status: 'pending',
     })
   })
@@ -185,7 +185,7 @@ describe('POST /api/appointments — slot collisions', () => {
 
   it('allows a back-to-back appointment that only touches', async () => {
     mocks.appointmentFindMany.mockResolvedValue([
-      { id: 'a1', scheduledAt: new Date('2026-11-23T15:15:00.000Z'), durationMinutes: 15 },
+      { id: 'a1', scheduledAt: new Date('2026-11-23T15:30:00.000Z'), durationMinutes: 15 },
     ])
     const res = await POST(book({ scheduledAt: MONDAY_10AM_NY }))
     expect(res.status).toBe(201)

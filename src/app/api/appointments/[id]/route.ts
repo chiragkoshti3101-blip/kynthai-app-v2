@@ -19,6 +19,7 @@ import {
   isSlotConflictError,
   timeRangesOverlap,
   MAX_APPOINTMENT_MINUTES,
+  DEFAULT_APPOINTMENT_MINUTES,
 } from '@/lib/doctor-availability';
 import { logger } from '@/lib/logger';
 
@@ -76,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Rescheduling moves scheduledAt, so it has to obey the clinic-zone
     // windows (never the rescheduler's browser zone) and may not overlap a
     // live appointment — including the one being moved, which is excluded.
-    const durationMinutes = Math.max(5, appt.durationMinutes || 15);
+    const durationMinutes = Math.max(5, appt.durationMinutes || DEFAULT_APPOINTMENT_MINUTES);
     const timeZone = clinicTimeZone(appt.doctor.user?.timezone);
     const availabilitySlots = await db.doctorAvailabilitySlot.findMany({
       where: { doctorId: appt.doctorId, active: true },
@@ -107,7 +108,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       select: { id: true, scheduledAt: true, durationMinutes: true },
     });
     const conflict = nearby.find((a: any) =>
-      timeRangesOverlap(newDate, durationMinutes, a.scheduledAt, a.durationMinutes ?? 15),
+      timeRangesOverlap(newDate, durationMinutes, a.scheduledAt, a.durationMinutes ?? DEFAULT_APPOINTMENT_MINUTES),
     );
     if (conflict) {
       return jsonError('That time has just been taken. Pick another slot.', 409, 'SLOT_UNAVAILABLE');
