@@ -154,17 +154,28 @@ function addDays(date: { year: number; month: number; day: number }, days: numbe
 
 // ── Windows ──────────────────────────────────────────────────────────────────
 
-/** The doctor's usable windows for one weekday, with the clinic-grid fallback. */
+/**
+ * The doctor's usable windows for one weekday.
+ *
+ * The clinic-grid fallback only applies when the doctor has configured no
+ * valid windows at all (a brand-new profile). Once any day is configured,
+ * an unconfigured weekday is closed, so a Monday-only doctor is not
+ * bookable on Tuesday.
+ */
+function isValidWindow(slot: AvailabilityWindow): boolean {
+  const start = toMinutes(slot.start)
+  const end = toMinutes(slot.end)
+  return Number.isFinite(start) && Number.isFinite(end) && end > start
+}
+
 function windowsForDay(
   slots: ReadonlyArray<AvailabilityWindow>,
   day: string
 ): AvailabilityWindow[] {
-  const forDay = slots.filter((s) => {
-    const start = toMinutes(s.start)
-    const end = toMinutes(s.end)
-    return s.day === day && Number.isFinite(start) && Number.isFinite(end) && end > start
-  })
+  const forDay = slots.filter((s) => s.day === day && isValidWindow(s))
   if (forDay.length > 0) return forDay
+  // Only an entirely unconfigured doctor falls back to the clinic grid.
+  if (slots.some(isValidWindow)) return []
   return DEFAULT_CLINIC_WINDOWS.map((w) => ({ day, ...w }))
 }
 

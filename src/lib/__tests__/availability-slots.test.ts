@@ -46,8 +46,9 @@ describe('buildDaySlots', () => {
 
   it('keeps the clinic hours fixed when the viewer is in another zone', () => {
     // Tokyo's 24 Nov runs 23 Nov 15:00Z – 24 Nov 15:00Z. The doctor's Monday
-    // morning (14:00–17:30Z) therefore only partly lands inside it, and the
-    // Tuesday fallback grid supplies the rest.
+    // morning (14:00–17:30Z) therefore only partly lands inside it. Tuesday is
+    // not configured, so (with a Monday-only schedule) it stays closed instead
+    // of borrowing the clinic grid.
     const slots = buildDaySlots({
       windows: MONDAY_MORNING,
       viewerDate: '2026-11-24',
@@ -61,8 +62,6 @@ describe('buildDaySlots', () => {
       '01:00',
       '01:30',
       '02:00',
-      '23:00',
-      '23:30',
     ])
     const midnight = slots.find((s) => s.label === '00:00')
     expect(midnight?.at).toBe('2026-11-23T15:00:00.000Z')
@@ -115,14 +114,15 @@ describe('findNextBookableSlot', () => {
     expect(next?.toISOString()).toBe('2026-11-23T14:15:00.000Z')
   })
 
-  it('falls back to the clinic grid on days with no configured hours', () => {
-    // Saturday 21 Nov 2026.
+  it('skips unconfigured days instead of borrowing the clinic grid', () => {
+    // Saturday 21 Nov 2026 has no configured hours, so the Monday-only
+    // doctor is closed until Monday 23 Nov.
     const next = findNextBookableSlot({
       windows: MONDAY_MORNING,
       clinicTimeZone: NY,
       from: new Date('2026-11-21T14:00:00.000Z'),
     })
-    expect(next?.toISOString()).toBe('2026-11-21T14:00:00.000Z')
+    expect(next?.toISOString()).toBe('2026-11-23T14:00:00.000Z')
   })
 
   it('treats a backwards window as unconfigured and uses the clinic grid', () => {
