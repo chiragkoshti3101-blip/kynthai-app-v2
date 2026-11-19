@@ -64,20 +64,27 @@ describe('GET /api/doctors/[id]/slots — duration', () => {
     ])
   })
 
-  it('spaces the grid by a 60-minute visit', async () => {
-    expect(await labels('&duration=60')).toEqual(['09:00', '10:00', '11:00'])
+  it('offers every 30-minute start that fits a 60-minute visit', async () => {
+    expect(await labels('&duration=60')).toEqual([
+      '09:00',
+      '09:30',
+      '10:00',
+      '10:30',
+      '11:00',
+      '11:30',
+    ])
   })
 
   it('drops a start that would run past the window for a 60-minute visit', async () => {
-    // 11:30 fits a 30-minute visit but must not be offered for a full hour
+    // 12:00 fits a 30-minute visit but must not be offered for a full hour
     // when the window closes at 12:30.
-    expect(await labels()).toContain('11:30')
-    expect(await labels('&duration=60')).not.toContain('11:30')
+    expect(await labels()).toContain('12:00')
+    expect(await labels('&duration=60')).not.toContain('12:00')
   })
 
   it('clamps an oversized duration to the 120-minute maximum', async () => {
     expect(await labels('&duration=600')).toEqual(await labels('&duration=120'))
-    expect(await labels('&duration=120')).toEqual(['09:00'])
+    expect(await labels('&duration=120')).toEqual(['09:00', '09:30', '10:00', '10:30'])
   })
 
   it('falls back to the default grid for a non-positive or unparsable duration', async () => {

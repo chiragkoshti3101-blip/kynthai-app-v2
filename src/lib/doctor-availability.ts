@@ -280,7 +280,10 @@ export function buildDaySlots(input: {
   slotMinutes?: number
   now?: Date
 }): BookingSlot[] {
-  const slotMinutes = input.slotMinutes ?? SLOT_MINUTES
+  // `slotMinutes` is the appointment length used for the fit check and the
+  // booked-overlap test. Candidate starts are spaced by SLOT_MINUTES (30) so
+  // the grid offers every half-hour regardless of how long the visit is.
+  const appointmentMinutes = input.slotMinutes ?? SLOT_MINUTES
   const now = input.now ?? new Date()
   const [year, month, day] = input.viewerDate.split('-').map(Number)
   if (!year || !month || !day) return []
@@ -298,7 +301,7 @@ export function buildDaySlots(input: {
     for (const window of windowsForDay(input.windows, weekday)) {
       const startMin = toMinutes(window.start)
       const endMin = toMinutes(window.end)
-      for (let t = startMin; t + slotMinutes <= endMin; t += slotMinutes) {
+      for (let t = startMin; t + appointmentMinutes <= endMin; t += SLOT_MINUTES) {
         const instant = zonedTimeToUtc(
           clinicDate.year,
           clinicDate.month,
@@ -312,7 +315,7 @@ export function buildDaySlots(input: {
         const at = instant.toISOString()
         if (slots.has(at)) continue
         const past = ms <= now.getTime()
-        const taken = booked.some((b) => overlaps(instant, slotMinutes, b))
+        const taken = booked.some((b) => overlaps(instant, appointmentMinutes, b))
         slots.set(at, {
           at,
           label: wallClock(instant, input.viewerTimeZone).label,
@@ -347,7 +350,7 @@ export function findNextBookableSlot(input: {
     for (const window of windowsForDay(input.windows, weekday)) {
       const startMin = toMinutes(window.start)
       const endMin = toMinutes(window.end)
-      for (let t = startMin; t + appointment <= endMin; t += appointment) {
+      for (let t = startMin; t + appointment <= endMin; t += SLOT_MINUTES) {
         const instant = zonedTimeToUtc(
           date.year,
           date.month,

@@ -117,35 +117,15 @@ export async function POST(req: NextRequest) {
   }
 
   // Replace every window for each submitted day. A day may carry more than one
-  // window (e.g. morning and afternoon), so the previous "first window only"
-  // upsert is replaced by delete-then-create per day.
+  // window (e.g. morning and afternoon), so delete the day's rows and recreate
+  // one row per submitted window.
   for (const entry of body.schedule) {
     const day = entry.day
     const slots = entry.slots
-    if (typeof db.doctorAvailabilitySlot.deleteMany === 'function') {
-      await db.doctorAvailabilitySlot.deleteMany({ where: { doctorId: profile.id, day } })
-    } else if (typeof db.doctorAvailabilitySlot.updateMany === 'function') {
-      await db.doctorAvailabilitySlot.updateMany({
-        where: { doctorId: profile.id, day },
-        data: { active: false },
-      })
-    }
-    if (slots.length === 0) continue
-    if (typeof db.doctorAvailabilitySlot.create === 'function') {
-      for (const slot of slots) {
-        await db.doctorAvailabilitySlot.create({
-          data: { doctorId: profile.id, day, start: slot.start, end: slot.end, active: true },
-        })
-      }
-    } else if (typeof db.doctorAvailabilitySlot.createMany === 'function') {
-      await db.doctorAvailabilitySlot.createMany({
-        data: slots.map((slot) => ({
-          doctorId: profile.id,
-          day,
-          start: slot.start,
-          end: slot.end,
-          active: true,
-        })),
+    await db.doctorAvailabilitySlot.deleteMany({ where: { doctorId: profile.id, day } })
+    for (const slot of slots) {
+      await db.doctorAvailabilitySlot.create({
+        data: { doctorId: profile.id, day, start: slot.start, end: slot.end, active: true },
       })
     }
   }
