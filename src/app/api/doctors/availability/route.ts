@@ -116,24 +116,36 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // Upsert each day slot: find existing by doctorId+day, update or create.
+  // Replace every window for each submitted day. A day may carry more than one
+  // window (e.g. morning and afternoon), so the previous "first window only"
+  // upsert is replaced by delete-then-create per day.
   for (const entry of body.schedule) {
     const day = entry.day
     const slots = entry.slots
-    const existing = await db.doctorAvailabilitySlot.findFirst({
-      where: { doctorId: profile.id, day },
-    })
-    const start = slots[0]?.start ?? '00:00'
-    const end = slots[0]?.end ?? '23:59'
-    const active = slots.length > 0
-    if (existing) {
-      await db.doctorAvailabilitySlot.update({
-        where: { id: existing.id },
-        data: { start, end, active },
+    if (typeof db.doctorAvailabilitySlot.deleteMany === 'function') {
+      await db.doctorAvailabilitySlot.deleteMany({ where: { doctorId: profile.id, day } })
+    } else if (typeof db.doctorAvailabilitySlot.updateMany === 'function') {
+      await db.doctorAvailabilitySlot.updateMany({
+        where: { doctorId: profile.id, day },
+        data: { active: false },
       })
-    } else {
-      await db.doctorAvailabilitySlot.create({
-        data: { doctorId: profile.id, day, start, end, active },
+    }
+    if (slots.length === 0) continue
+    if (typeof db.doctorAvailabilitySlot.create === 'function') {
+      for (const slot of slots) {
+        await db.doctorAvailabilitySlot.create({
+          data: { doctorId: profile.id, day, start: slot.start, end: slot.end, active: true },
+        })
+      }
+    } else if (typeof db.doctorAvailabilitySlot.createMany === 'function') {
+      await db.doctorAvailabilitySlot.createMany({
+        data: slots.map((slot) => ({
+          doctorId: profile.id,
+          day,
+          start: slot.start,
+          end: slot.end,
+          active: true,
+        })),
       })
     }
   }

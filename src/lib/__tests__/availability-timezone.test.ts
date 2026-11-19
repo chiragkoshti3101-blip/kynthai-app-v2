@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   doctorFindUnique: vi.fn(),
   slotFindFirst: vi.fn(),
   slotFindMany: vi.fn(),
+  slotDeleteMany: vi.fn(),
   slotCreate: vi.fn(),
   slotUpdate: vi.fn(),
   slotUpdateMany: vi.fn(),
@@ -19,6 +20,7 @@ vi.mock('@/lib/db', () => ({
     doctorAvailabilitySlot: {
       findFirst: mocks.slotFindFirst,
       findMany: mocks.slotFindMany,
+      deleteMany: mocks.slotDeleteMany,
       create: mocks.slotCreate,
       update: mocks.slotUpdate,
       updateMany: mocks.slotUpdateMany,
@@ -66,6 +68,7 @@ beforeEach(() => {
   mocks.authUser = { id: 'doc-user-1', role: 'doctor', timezone: 'America/Chicago' }
   mocks.doctorFindUnique.mockResolvedValue({ id: 'doc-1', userId: 'doc-user-1' })
   mocks.slotFindFirst.mockResolvedValue(null)
+  mocks.slotDeleteMany.mockResolvedValue({ count: 0 })
   mocks.slotCreate.mockResolvedValue({})
   mocks.slotUpdate.mockResolvedValue({})
   mocks.slotUpdateMany.mockResolvedValue({ count: 0 })
@@ -102,6 +105,7 @@ describe('POST /api/doctors/availability — clinic timezone', () => {
     expect(body.code).toBe('VALIDATION_ERROR')
     expect(body.details.fields.timeZone).toContain('IANA')
     expect(mocks.userUpdate).not.toHaveBeenCalled()
+    expect(mocks.slotDeleteMany).not.toHaveBeenCalled()
     expect(mocks.slotCreate).not.toHaveBeenCalled()
     expect(mocks.slotUpdateMany).not.toHaveBeenCalled()
   })
@@ -116,6 +120,33 @@ describe('POST /api/doctors/availability — clinic timezone', () => {
     const body = await res.json()
     expect(body.timeZone).toBeNull()
     expect(body.clinicTimeZone).toBe('America/New_York')
+  })
+
+  it('stores every window for a day instead of only the first', async () => {
+    const res = await POST(
+      post({
+        schedule: [
+          {
+            day: 'monday',
+            slots: [
+              { start: '09:00', end: '12:00' },
+              { start: '14:00', end: '17:00' },
+            ],
+          },
+        ],
+      })
+    )
+    expect(res.status).toBe(200)
+    expect(mocks.slotDeleteMany).toHaveBeenCalledWith({
+      where: { doctorId: 'doc-1', day: 'monday' },
+    })
+    expect(mocks.slotCreate).toHaveBeenCalledTimes(2)
+    expect(mocks.slotCreate).toHaveBeenNthCalledWith(1, {
+      data: { doctorId: 'doc-1', day: 'monday', start: '09:00', end: '12:00', active: true },
+    })
+    expect(mocks.slotCreate).toHaveBeenNthCalledWith(2, {
+      data: { doctorId: 'doc-1', day: 'monday', start: '14:00', end: '17:00', active: true },
+    })
   })
 
   it('leaves the stored zone alone when the payload omits it', async () => {
