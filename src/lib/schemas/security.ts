@@ -35,11 +35,25 @@ export const createDoctorNoteSchema = z.object({
 
 // ── Doctor: availability ─────────────────────────────────────────────
 
+const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/
+
 export const availabilitySlotSchema = z.object({
   day:   z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday']),
-  start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'start must be HH:MM'),
-  end:   z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'end must be HH:MM'),
-})
+  start: z.string().regex(timeRegex, 'start must be HH:MM'),
+  end:   z.string().regex(timeRegex, 'end must be HH:MM'),
+}).refine(
+  (slot) => slot.start < slot.end,
+  { message: 'start must be before end', path: ['end'] }
+)
+
+// A single wall-clock window. Zero-length and inverted windows are rejected.
+const availabilityWindowSchema = z.object({
+  start: z.string().regex(timeRegex, 'start must be HH:MM'),
+  end:   z.string().regex(timeRegex, 'end must be HH:MM'),
+}).refine(
+  (window) => window.start < window.end,
+  { message: 'end must be after start', path: ['end'] }
+)
 
 export const availabilityUpdateSchema = z.object({
   // The zone the weekly windows below are wall-clock times in. Null clears it
@@ -54,13 +68,17 @@ export const availabilityUpdateSchema = z.object({
   schedule: z.array(
     z.object({
       day:   z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday']),
-      slots: z.array(
-        z.object({
-          start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-          end:   z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-        })
-      ),
-    })
+      slots: z.array(availabilityWindowSchema),
+    }).refine(
+      (entry) => {
+        const sorted = [...entry.slots].sort((a, b) => a.start.localeCompare(b.start))
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i].start < sorted[i - 1].end) return false
+        }
+        return true
+      },
+      { message: 'availability windows must not overlap', path: ['slots'] }
+    )
   ).min(1, 'Schedule array must not be empty'),
 })
 

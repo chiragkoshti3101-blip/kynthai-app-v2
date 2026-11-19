@@ -511,6 +511,32 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   const [availOpen, setAvailOpen] = React.useState(false);
   const [editSchedule, setEditSchedule] = React.useState<WeeklySchedule>(defaultSchedule);
 
+  // Client-side validation for the availability editor: a day may not be saved
+  // with inverted, zero-length, or overlapping windows. Errors are surfaced
+  // inline next to the offending window/day and block submission.
+  const availabilityValidation = React.useMemo(() => {
+    const errors: Record<string, string> = {};
+    let valid = true;
+    for (const [day, slots] of Object.entries(editSchedule)) {
+      slots.forEach((slot, idx) => {
+        if (!slot.start || !slot.end) return;
+        if (slot.start >= slot.end) {
+          errors[`${day}-${idx}`] = 'End time must be after start time.';
+          valid = false;
+        }
+      });
+      const sorted = [...slots].sort((a, b) => a.start.localeCompare(b.start));
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i].start < sorted[i - 1].end) {
+          errors[`${day}-overlap`] = 'Windows for this day must not overlap.';
+          valid = false;
+          break;
+        }
+      }
+    }
+    return { errors, valid };
+  }, [editSchedule]);
+
   // Doctor-side Pro flag. The DEMO_PROFILE in doctor-app.tsx doesn't carry a
   // subscriptionTier for the doctor (the user.subscriptionTier field is the
   // patient-side tier), so we keep a local flag and let the doctor flip it
@@ -2442,9 +2468,11 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                     {slots.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground">Off</p>
                     ) : (
+                                            <>
                       <div className="space-y-1.5">
                         {slots.map((slot, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
+                          <React.Fragment key={idx}>
+                            <div className="flex items-center gap-2">
                             <Input
                               type="time"
                               value={slot.start}
@@ -2488,8 +2516,20 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                               <X className="h-3.5 w-3.5" />
                             </Button>
                           </div>
+                          {availabilityValidation.errors[`${day}-${idx}`] && (
+                            <p className="text-[10px] text-destructive">
+                              {availabilityValidation.errors[`${day}-${idx}`]}
+                            </p>
+                          )}
+                          </React.Fragment>
                         ))}
                       </div>
+                      {availabilityValidation.errors[`${day}-overlap`] && (
+                        <p className="text-[10px] text-destructive">
+                          {availabilityValidation.errors[`${day}-overlap`]}
+                        </p>
+                      )}
+                      </>
                     )}
                   </div>
                 );
@@ -2500,7 +2540,16 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                 Cancel
               </Button>
               <Button
+                disabled={!availabilityValidation.valid}
                 onClick={async () => {
+                  if (!availabilityValidation.valid) {
+                    toast({
+                      title: 'Fix availability errors',
+                      description: 'Some windows are invalid or overlap.',
+                      variant: 'destructive',
+                    });
+                    return;
+                  }
                   try {
                     const entries = Object.entries(editSchedule).map(([day, slots]) => ({
                       day,

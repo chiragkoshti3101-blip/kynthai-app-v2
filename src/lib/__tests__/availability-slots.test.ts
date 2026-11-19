@@ -158,6 +158,26 @@ describe('availabilityUpdateSchema — clinic timezone', () => {
     expect(parsed.success).toBe(false)
     if (!parsed.success) expect(parsed.error.issues[0]?.path).toEqual(['timeZone'])
   })
+
+  it('rejects an inverted window (end before start)', () => {
+    const bad = [{ day: 'monday' as const, slots: [{ start: '17:00', end: '09:00' }] }]
+    expect(availabilityUpdateSchema.safeParse({ schedule: bad }).success).toBe(false)
+  })
+
+  it('rejects a zero-length window', () => {
+    const bad = [{ day: 'monday' as const, slots: [{ start: '09:00', end: '09:00' }] }]
+    expect(availabilityUpdateSchema.safeParse({ schedule: bad }).success).toBe(false)
+  })
+
+  it('rejects overlapping windows on the same day', () => {
+    const bad = [{ day: 'monday' as const, slots: [{ start: '09:00', end: '12:00' }, { start: '11:00', end: '14:00' }] }]
+    expect(availabilityUpdateSchema.safeParse({ schedule: bad }).success).toBe(false)
+  })
+
+  it('accepts adjacent (non-overlapping) windows', () => {
+    const ok = [{ day: 'monday' as const, slots: [{ start: '09:00', end: '12:00' }, { start: '12:00', end: '17:00' }] }]
+    expect(availabilityUpdateSchema.safeParse({ schedule: ok }).success).toBe(true)
+  })
 })
 
 describe('checkAvailability', () => {
