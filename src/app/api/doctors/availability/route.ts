@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
   for (const day of DAYS) schedule[day] = []
   for (const s of slots) {
     if (s.day in schedule) {
-      ;(schedule[s.day] as { start: string; end: string }[]).push({ start: s.start, end: s.end })
+      schedule[s.day].push({ start: s.start, end: s.end })
     }
   }
 
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Mark days not in the submitted schedule as inactive.
-  const submittedDays = new Set(body.schedule.map((s) => (s as { day: string }).day))
+  const submittedDays = new Set(body.schedule.map((s) => s.day))
   await db.doctorAvailabilitySlot.updateMany({
     where: { doctorId: profile.id, day: { notIn: Array.from(submittedDays) } },
     data: { active: false },
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
   for (const day of DAYS) schedule[day] = []
   for (const s of slots) {
     if (s.day in schedule) {
-      ;(schedule[s.day] as { start: string; end: string }[]).push({ start: s.start, end: s.end })
+      schedule[s.day].push({ start: s.start, end: s.end })
     }
   }
 

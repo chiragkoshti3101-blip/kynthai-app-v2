@@ -186,9 +186,13 @@ export async function POST(req: NextRequest) {
     // zone. Never the requester's: a caller-supplied zone would let anyone book
     // any hour by claiming to be in another part of the world.
     const timeZone = clinicTimeZone(doctor.user?.timezone);
+    const rawDuration = Number(rawBody.durationMinutes);
     const durationMinutes = Math.min(
       MAX_APPOINTMENT_MINUTES,
-      Math.max(5, Number(rawBody.durationMinutes) || DEFAULT_APPOINTMENT_MINUTES),
+      Math.max(
+        5,
+        Number.isFinite(rawDuration) && rawDuration > 0 ? rawDuration : DEFAULT_APPOINTMENT_MINUTES,
+      ),
     );
 
     const availabilitySlots = await db.doctorAvailabilitySlot.findMany({

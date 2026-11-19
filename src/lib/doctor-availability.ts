@@ -174,9 +174,12 @@ function windowsForDay(
 ): AvailabilityWindow[] {
   const forDay = slots.filter((s) => s.day === day && isValidWindow(s))
   if (forDay.length > 0) return forDay
-  // Only an entirely unconfigured doctor falls back to the clinic grid.
-  if (slots.some(isValidWindow)) return []
-  return DEFAULT_CLINIC_WINDOWS.map((w) => ({ day, ...w }))
+  // A doctor with no valid windows anywhere borrows the clinic grid;
+  // a partially configured doctor is simply closed on unconfigured days.
+  if (!slots.some(isValidWindow)) {
+    return DEFAULT_CLINIC_WINDOWS.map((w) => ({ day, ...w }))
+  }
+  return []
 }
 
 // ── Bookings ─────────────────────────────────────────────────────────────────
@@ -340,17 +343,17 @@ export function findNextBookableSlot(input: {
   booked?: ReadonlyArray<BookedInterval>
   maxDays?: number
 }): Date | null {
-  const appointment = input.appointmentMinutes ?? DEFAULT_APPOINTMENT_MINUTES
+  const appointmentMinutes = input.appointmentMinutes ?? DEFAULT_APPOINTMENT_MINUTES
   const booked = toIntervals(input.booked ?? [])
-  const start = zonedParts(input.from, input.clinicTimeZone)
+  const fromParts = zonedParts(input.from, input.clinicTimeZone)
 
   for (let offset = 0; offset <= (input.maxDays ?? 14); offset++) {
-    const date = addDays(start, offset)
+    const date = addDays(fromParts, offset)
     const weekday = DAY_NAMES[new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay()] ?? 'monday'
     for (const window of windowsForDay(input.windows, weekday)) {
       const startMin = toMinutes(window.start)
       const endMin = toMinutes(window.end)
-      for (let t = startMin; t + appointment <= endMin; t += SLOT_MINUTES) {
+      for (let t = startMin; t + appointmentMinutes <= endMin; t += SLOT_MINUTES) {
         const instant = zonedTimeToUtc(
           date.year,
           date.month,
@@ -360,7 +363,7 @@ export function findNextBookableSlot(input: {
           input.clinicTimeZone
         )
         if (instant.getTime() < input.from.getTime()) continue
-        if (booked.some((b) => overlaps(instant, appointment, b))) continue
+        if (booked.some((b) => overlaps(instant, appointmentMinutes, b))) continue
         return instant
       }
     }

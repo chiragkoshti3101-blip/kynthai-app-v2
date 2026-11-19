@@ -37,8 +37,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Number(null) is 0, so a missing or malformed value falls through to the
   // default 30-minute grid; out-of-range values are clamped, never rejected.
   const durationParam = Number(url.searchParams.get('duration'))
-  const slotMinutes =
-    durationParam > 0 ? Math.min(MAX_APPOINTMENT_MINUTES, Math.max(5, durationParam)) : undefined
+  const slotMinutes = Number.isFinite(durationParam) && durationParam > 0
+    ? Math.min(MAX_APPOINTMENT_MINUTES, Math.max(5, durationParam))
+    : undefined
 
   const doctor = await db.doctorProfile.findUnique({
     where: { id: doctorId },

@@ -37,15 +37,6 @@ export const createDoctorNoteSchema = z.object({
 
 const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/
 
-export const availabilitySlotSchema = z.object({
-  day:   z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday']),
-  start: z.string().regex(timeRegex, 'start must be HH:MM'),
-  end:   z.string().regex(timeRegex, 'end must be HH:MM'),
-}).refine(
-  (slot) => slot.start < slot.end,
-  { message: 'start must be before end', path: ['end'] }
-)
-
 // A single wall-clock window. Zero-length and inverted windows are rejected.
 const availabilityWindowSchema = z.object({
   start: z.string().regex(timeRegex, 'start must be HH:MM'),
