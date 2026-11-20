@@ -386,48 +386,62 @@ function ApptRow({
     completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
     cancelled: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
   };
+  // Phone widths: three actions on one line overflowed the card, so the actions
+  // get their own wrapped row until there is room to sit beside the details.
+  const showJoin = appt.type === 'video' && appt.status === 'confirmed' && !!onJoinCall;
+  const showReschedule = appt.status === 'confirmed' && !!onReschedule;
+  const showCancel = appt.status === 'confirmed' && !!onCancel;
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/60 p-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white">
-        <CalendarDays className="h-5 w-5" />
+    <div className="flex flex-col gap-2.5 rounded-xl border border-border/60 p-3 sm:flex-row sm:items-center sm:gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white">
+          <CalendarDays className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-medium line-clamp-2 break-words">
+            {appt.doctor}{' '}
+            <span className="text-muted-foreground font-normal">· {appt.specialty}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {formatApptDay(appt.date)}
+            {appt.time ? ` · ${appt.time}` : ''} · {appt.type === 'video' ? '📹 Video' : '📍 In-person'}
+          </p>
+        </div>
+        <Badge
+          variant="secondary"
+          className={`text-[0.625rem] shrink-0 ${sc[appt.status] ?? sc.pending}`}
+        >
+          {appt.status}
+        </Badge>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-base font-medium line-clamp-2 break-words">
-          {appt.doctor}{' '}
-          <span className="text-muted-foreground font-normal">· {appt.specialty}</span>
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {formatApptDay(appt.date)}
-          {appt.time ? ` · ${appt.time}` : ''} · {appt.type === 'video' ? '📹 Video' : '📍 In-person'}
-        </p>
-      </div>
-      <Badge variant="secondary" className={`text-[0.625rem] shrink-0 ${sc[appt.status] ?? sc.pending}`}>
-        {appt.status}
-      </Badge>
-      {appt.type === 'video' && appt.status === 'confirmed' && onJoinCall && (
-        <button
-          onClick={() => onJoinCall(appt.id)}
-          className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
-        >
-          Join
-        </button>
-      )}
-      {appt.status === 'confirmed' && onReschedule && (
-        <button
-          onClick={() => onReschedule(appt.id)}
-          className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium min-h-11 text-muted-foreground hover:bg-accent"
-        >
-          Reschedule
-        </button>
-      )}
-      {appt.status === 'confirmed' && onCancel && (
-        <button
-          onClick={() => onCancel(appt.id)}
-          disabled={cancellingId === appt.id}
-          className="shrink-0 rounded-lg border border-rose-300 px-4 py-1.5 text-xs font-medium min-h-11 text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 disabled:opacity-50"
-        >
-          {cancellingId === appt.id ? '...' : 'Cancel'}
-        </button>
+      {(showJoin || showReschedule || showCancel) && (
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
+          {showJoin && (
+            <button
+              onClick={() => onJoinCall!(appt.id)}
+              className="min-h-11 rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+            >
+              Join
+            </button>
+          )}
+          {showReschedule && (
+            <button
+              onClick={() => onReschedule!(appt.id)}
+              className="min-h-11 rounded-lg border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent"
+            >
+              Reschedule
+            </button>
+          )}
+          {showCancel && (
+            <button
+              onClick={() => onCancel!(appt.id)}
+              disabled={cancellingId === appt.id}
+              className="min-h-11 rounded-lg border border-rose-300 px-4 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 disabled:opacity-50"
+            >
+              {cancellingId === appt.id ? '...' : 'Cancel'}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
