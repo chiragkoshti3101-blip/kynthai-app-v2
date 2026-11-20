@@ -119,6 +119,9 @@ export async function GET(req: NextRequest) {
       doctorName: a.doctor?.user?.name ?? 'Your doctor',
       specialization: a.doctor?.specialization ?? 'General Care',
       scheduledAt: a.scheduledAt,
+      // Length drives the reschedule grid spacing in the portals, so the grid
+      // offers exactly the instants the PATCH gate accepts.
+      durationMinutes: a.durationMinutes,
       type: a.type,
       status: a.status,
       price: a.price,

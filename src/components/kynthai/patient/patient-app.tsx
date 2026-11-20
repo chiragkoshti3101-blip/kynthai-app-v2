@@ -29,6 +29,7 @@ import {
   FlaskConical,
   LayoutGrid,
   Download,
+  CalendarClock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,7 +53,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import type { BookingSlot } from '@/lib/doctor-availability';
 import { cn } from '@/lib/utils';
 import { useAppStore, type AuthUser } from '@/lib/store';
 import { KynthaiBrand } from '@/components/kynthai/logo';
@@ -80,6 +83,10 @@ import { BookAppointment } from '@/components/kynthai/patient/book-appointment';
 import { formatAppointmentTime } from '@/lib/appointment-time';
 import dynamic from 'next/dynamic';
 import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
+
+// Appointment length fallback: the reschedule grid is spaced by it so it offers
+// exactly the instants the PATCH gate will accept (POST books the same default).
+const DEFAULT_APPOINTMENT_MINUTES = 30;
 
 // ── dynamic video-call load ───────────────────────────────────────────────
 const VideoCall = dynamic(
@@ -230,6 +237,8 @@ const DEMO_JOURNAL: JournalEntry[] = [
 
 interface Appointment {
   id: string;
+  doctorId?: string;
+  durationMinutes?: number;
   doctor: string;
   specialty: string;
   date: string;
@@ -358,11 +367,13 @@ function ApptRow({
   appt,
   onJoinCall,
   onCancel,
+  onReschedule,
   cancellingId,
 }: {
   appt: Appointment;
   onJoinCall?: (id: string) => void;
   onCancel?: (id: string) => void;
+  onReschedule?: (id: string) => void;
   cancellingId?: string | null;
 }) {
   // Demo rows carry fictional ids (a1/a3/...) — actions that would PATCH
@@ -401,6 +412,14 @@ function ApptRow({
           Join
         </button>
       )}
+      {appt.status === 'confirmed' && onReschedule && (
+        <button
+          onClick={() => onReschedule(appt.id)}
+          className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium min-h-11 text-muted-foreground hover:bg-accent"
+        >
+          Reschedule
+        </button>
+      )}
       {appt.status === 'confirmed' && onCancel && (
         <button
           onClick={() => onCancel(appt.id)}
@@ -428,6 +447,7 @@ function HomeTab({
   onNavigate,
   onJoinCall,
   onCancelAppointment,
+  onRescheduleAppointment,
   cancellingApptId,
   appointmentsVersion,
 }: {
@@ -437,6 +457,7 @@ function HomeTab({
   onNavigate: (t: Tab) => void;
   onJoinCall: (id: string) => void;
   onCancelAppointment?: (id: string) => void;
+  onRescheduleAppointment?: (appt: { id: string; doctorId?: string; durationMinutes?: number }) => void;
   cancellingApptId?: string | null;
   appointmentsVersion?: number;
 }) {
@@ -480,6 +501,11 @@ function HomeTab({
           .slice(0, 5)
           .map(r => ({
             id: String(r.id),
+            // doctorId + length are what the reschedule grid asks the slots API
+            // for; both come straight from the appointment row.
+            doctorId: typeof r.doctorId === 'string' ? r.doctorId : undefined,
+            durationMinutes:
+              typeof r.durationMinutes === 'number' ? r.durationMinutes : undefined,
             doctor: String(r.doctorName ?? 'Your doctor'),
             specialty: String(r.specialization ?? 'General Care'),
             date: String(r.scheduledAt ?? ''),
@@ -667,6 +693,14 @@ function HomeTab({
                 appt={a}
                 onJoinCall={isDemo ? undefined : onJoinCall}
                 onCancel={isDemo ? undefined : onCancelAppointment}
+                onReschedule={
+                  isDemo
+                    ? undefined
+                    : (id: string) => {
+                        const row = appointments.find(a => a.id === id);
+                        if (row) onRescheduleAppointment?.(row);
+                      }
+                }
                 cancellingId={cancellingApptId}
               />
             ))
@@ -1547,6 +1581,23 @@ export function PatientApp({ user }: { user: AuthUser }) {
   const [joiningCallApptId, setJoiningCallApptId] = React.useState<string | null>(null);
   const [cancellingApptId, setCancellingApptId] = React.useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = React.useState<string | null>(null);
+  // Reschedule: the grid is built by the server's slots endpoint (the same one
+  // the doctor dashboard uses) and the chosen instant is PATCHed verbatim.
+  const [rescheduleTarget, setRescheduleTarget] = React.useState<{
+    id: string;
+    doctorId?: string;
+    durationMinutes?: number;
+  } | null>(null);
+  const [rescheduleDate, setRescheduleDate] = React.useState('');
+  const [rescheduleTime, setRescheduleTime] = React.useState('');
+  const [rescheduleSlots, setRescheduleSlots] = React.useState<BookingSlot[]>([]);
+  const [rescheduleSlotsLoading, setRescheduleSlotsLoading] = React.useState(false);
+  const [rescheduleSlotsError, setRescheduleSlotsError] = React.useState<string | null>(null);
+  const [rescheduleRetry, setRescheduleRetry] = React.useState(0);
+  const [rescheduling, setRescheduling] = React.useState(false);
+  const [rescheduleZone, setRescheduleZone] = React.useState<string>(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
   // Bumped after a successful cancel so HomeTab refetches live appointments.
   const [apptsVersion, setApptsVersion] = React.useState(0);
   // null = unknown (assume working); false = server has no funded AI key.
@@ -1639,6 +1690,98 @@ export function PatientApp({ user }: { user: AuthUser }) {
     [toast]
   );
 
+  // Open the reschedule dialog with the next day pre-selected, mirroring the
+  // booking sheet so a patient sees open times immediately.
+  const openReschedule = React.useCallback(
+    (appt: { id: string; doctorId?: string; durationMinutes?: number }) => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setRescheduleTarget(appt);
+      setRescheduleDate(tomorrow.toISOString().slice(0, 10));
+      setRescheduleTime('');
+      setRescheduleSlots([]);
+      setRescheduleSlotsError(null);
+      setRescheduleZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    },
+    [],
+  );
+
+  // Same server-built grid as doctor reschedule / patient booking: only
+  // instants the PATCH gate accepts are offered, spaced by this visit's length.
+  React.useEffect(() => {
+    if (!rescheduleTarget || !rescheduleTarget.doctorId || !rescheduleDate) {
+      setRescheduleSlots([]);
+      setRescheduleSlotsError(null);
+      setRescheduleSlotsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({ date: rescheduleDate, timeZone: rescheduleZone });
+    params.set(
+      'duration',
+      String(rescheduleTarget.durationMinutes ?? DEFAULT_APPOINTMENT_MINUTES),
+    );
+    setRescheduleSlotsLoading(true);
+    setRescheduleSlotsError(null);
+    fetch(
+      `/api/doctors/${encodeURIComponent(rescheduleTarget.doctorId)}/slots?${params.toString()}`,
+      { cache: 'no-store', credentials: 'include' },
+    )
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('slots unavailable'))))
+      .then((data: { slots?: BookingSlot[] }) => {
+        if (cancelled) return;
+        const next = (data.slots ?? []).filter(s => s.available);
+        setRescheduleSlots(next);
+        setRescheduleTime(prev => (prev && next.some(s => s.at === prev) ? prev : ''));
+        setRescheduleSlotsLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // A failed lookup is not an empty day — say so instead of "no slots".
+        setRescheduleSlots([]);
+        setRescheduleTime('');
+        setRescheduleSlotsError('Could not load open times for this date.');
+        setRescheduleSlotsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rescheduleTarget, rescheduleDate, rescheduleZone, rescheduleRetry]);
+
+  const handleRescheduleAppointment = React.useCallback(async () => {
+    if (!rescheduleTarget || !rescheduleTime) {
+      toast({ title: 'Please choose an available time', variant: 'destructive' });
+      return;
+    }
+    setRescheduling(true);
+    try {
+      // `rescheduleTime` is a server-issued slot instant; submitting it as-is
+      // is what keeps the dialog and the availability gate in agreement.
+      const res = await fetch(`/api/appointments/${rescheduleTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt: rescheduleTime }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Failed to reschedule');
+      }
+      setApptsVersion(v => v + 1);
+      setRescheduleTarget(null);
+      setRescheduleSlots([]);
+      setRescheduleTime('');
+      toast({ title: 'Appointment rescheduled' });
+    } catch (error) {
+      toast({
+        title: 'Reschedule failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setRescheduling(false);
+    }
+  }, [rescheduleTarget, rescheduleTime, toast]);
+
   const isFree = (user?.subscriptionTier ?? 'free') === 'free';
   const isDemo = isDemoUser(user);
   // QA debug tools exist only for demo accounts in non-production builds.
@@ -1707,6 +1850,7 @@ export function PatientApp({ user }: { user: AuthUser }) {
                 onNavigate={setTab}
                 onJoinCall={setJoiningCallApptId}
                 onCancelAppointment={(id) => setCancelConfirmId(id)}
+                onRescheduleAppointment={openReschedule}
                 cancellingApptId={cancellingApptId}
                 appointmentsVersion={apptsVersion}
               />
@@ -1828,6 +1972,113 @@ export function PatientApp({ user }: { user: AuthUser }) {
               onClick={() => cancelConfirmId && handleCancelAppointment(cancelConfirmId)}
             >
               {cancellingApptId === cancelConfirmId ? 'Cancelling...' : 'Cancel Appointment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule dialog — patient-side twin of the doctor dashboard's, same
+          slots endpoint and same PATCH gate. */}
+      <Dialog
+        open={!!rescheduleTarget}
+        onOpenChange={open => {
+          if (!open) {
+            setRescheduleTarget(null);
+            setRescheduleSlots([]);
+            setRescheduleTime('');
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+            <DialogDescription>Select a new date and time for this appointment.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="patient-reschedule-date">Date</Label>
+              <Input
+                id="patient-reschedule-date"
+                type="date"
+                value={rescheduleDate}
+                onChange={e => {
+                  setRescheduleDate(e.target.value);
+                  setRescheduleTime('');
+                }}
+                min={new Date().toISOString().slice(0, 10)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Time</Label>
+              {!rescheduleDate ? (
+                <p className="text-xs text-muted-foreground">Pick a date to see open times.</p>
+              ) : rescheduleSlotsLoading ? (
+                <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading open times…
+                </div>
+              ) : rescheduleSlotsError ? (
+                <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {rescheduleSlotsError}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="min-h-11"
+                    onClick={() => setRescheduleRetry(n => n + 1)}
+                  >
+                    Try again
+                  </Button>
+                </div>
+              ) : rescheduleSlots.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No open times this day — try another date.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {rescheduleSlots.map(slot => (
+                    <Button
+                      key={slot.at}
+                      type="button"
+                      size="sm"
+                      className="min-h-11"
+                      variant={rescheduleTime === slot.at ? 'default' : 'outline'}
+                      onClick={() => setRescheduleTime(slot.at)}
+                    >
+                      {slot.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Times shown in your time zone ({rescheduleZone}). Only times your doctor&apos;s
+                schedule accepts are listed.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => {
+                setRescheduleTarget(null);
+                setRescheduleSlots([]);
+                setRescheduleTime('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="min-h-11"
+              disabled={!rescheduleDate || !rescheduleTime || rescheduling}
+              onClick={handleRescheduleAppointment}
+            >
+              {rescheduling ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CalendarClock className="mr-2 h-4 w-4" />
+              )}
+              Reschedule
             </Button>
           </DialogFooter>
         </DialogContent>
