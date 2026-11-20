@@ -345,7 +345,11 @@ export function VideoCall({
     setVideoOn(v => !v);
   }, [videoOn]);
 
-  if (showConsent && !consentGiven) {
+  // Keep the consent screen mounted until the user presses "Accept & Join".
+  // Keying this on `consentGiven` used to unmount the dialog the moment the
+  // checkbox was ticked, while `showConsent` stayed true — so the call screen
+  // rendered and `init()` never ran, leaving both sides stuck with no media.
+  if (showConsent) {
     return (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4">
         <div className="w-full max-w-md rounded-2xl bg-background p-6 shadow-2xl">
