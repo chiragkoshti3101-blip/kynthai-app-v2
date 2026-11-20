@@ -187,9 +187,14 @@ export function VideoCall({
         ).messages || [];
       if (!messages.length) return;
 
-      for (const msg of messages) {
-        if (msg.id) lastMsgIdRef.current = msg.id;
+      // The server returns newest-first. Apply oldest-first so a peer's offer is
+      // handled before the ICE candidates that follow it, and advance the cursor
+      // to the newest id — otherwise every poll replayed the whole room and the
+      // client kept rolling back its own SDP, so no connection ever stabilised.
+      const newestId = messages[0]?.id;
+      const ordered = [...messages].reverse();
 
+      for (const msg of ordered) {
         if (msg.type === 'offer' && msg.role !== role && pcRef.current) {
           const pc = pcRef.current;
           if (pc.signalingState === 'have-local-offer') {
@@ -235,6 +240,7 @@ export function VideoCall({
           return;
         }
       }
+      if (newestId) lastMsgIdRef.current = newestId;
     } catch (e) {
       logger.phiSafeError(e, 'VideoCall');
     }
@@ -262,13 +268,18 @@ export function VideoCall({
         pcRef.current = pc;
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
-        const offer = await pc.createOffer();
-        // Do NOT wait for a stable signaling state here: setting a local offer
-        // moves the connection to `have-local-offer`, so the previous wait
-        // always timed out and the offer was never posted — init aborted before
-        // polling started, leaving the call permanently disconnected.
-        await pc.setLocalDescription(offer);
-        await postSignal('offer', { sdp: pc.localDescription });
+        // One initiator: the patient always offers, the doctor answers. When
+        // both sides offered they collided (glare), rolled each other back and
+        // never reached a matching SDP pair. Joining order does not matter — a
+        // doctor who arrives first just waits for the patient's offer.
+        // Do NOT wait for a stable signaling state after setting the offer:
+        // `have-local-offer` is not stable, so that wait always timed out and
+        // the offer was never posted at all.
+        if (role !== 'doctor') {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          await postSignal('offer', { sdp: pc.localDescription });
+        }
         setJoining(false);
 
         pollTimerRef.current = window.setInterval(poll, 800);
