@@ -263,8 +263,11 @@ export function VideoCall({
         stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
         const offer = await pc.createOffer();
+        // Do NOT wait for a stable signaling state here: setting a local offer
+        // moves the connection to `have-local-offer`, so the previous wait
+        // always timed out and the offer was never posted — init aborted before
+        // polling started, leaving the call permanently disconnected.
         await pc.setLocalDescription(offer);
-        await waitForStableSignaling(pc);
         await postSignal('offer', { sdp: pc.localDescription });
         setJoining(false);
 
