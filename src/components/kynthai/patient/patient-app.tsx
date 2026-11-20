@@ -438,6 +438,11 @@ function ApptRow({
             {formatApptDay(appt.date)}
             {appt.time ? ` · ${appt.time}` : ''} · {appt.type === 'video' ? '📹 Video' : '📍 In-person'}
           </p>
+          {showJoinLocked && (
+            <p className="mt-0.5 text-[0.6875rem] text-muted-foreground">
+              Join opens {joinOpensLabel} — 10 min before your visit
+            </p>
+          )}
           {isPending && (
             // Inside the text column and wrapping: a long "awaiting
             // confirmation" chip pinned to the right ran off the card at 390px.
@@ -465,11 +470,6 @@ function ApptRow({
       </div>
       {(showJoin || showJoinLocked || showReschedule || showCancel || showWithdraw) && (
         <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
-          {showJoinLocked && (
-            <span className="text-[0.6875rem] text-muted-foreground sm:text-right">
-              Join opens {joinOpensLabel}
-            </span>
-          )}
           {(showJoin || showJoinLocked) && (
             <button
               onClick={() => onJoinCall!(appt.id)}
