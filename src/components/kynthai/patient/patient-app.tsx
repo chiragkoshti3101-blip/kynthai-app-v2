@@ -439,17 +439,29 @@ function ApptRow({
             {appt.time ? ` · ${appt.time}` : ''} · {appt.type === 'video' ? '📹 Video' : '📍 In-person'}
           </p>
           {isPending && (
-            <p className="mt-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
-              Awaiting confirmation from {appt.doctor}
-            </p>
+            // Inside the text column and wrapping: a long "awaiting
+            // confirmation" chip pinned to the right ran off the card at 390px.
+            <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              <Badge
+                variant="secondary"
+                className={`text-[0.625rem] ${sc.pending}`}
+              >
+                awaiting confirmation
+              </Badge>
+              <span className="text-xs text-amber-700 dark:text-amber-400">
+                from {appt.doctor}
+              </span>
+            </div>
           )}
         </div>
-        <Badge
-          variant="secondary"
-          className={`text-[0.625rem] shrink-0 ${sc[appt.status] ?? sc.pending}`}
-        >
-          {isPending ? 'awaiting confirmation' : appt.status}
-        </Badge>
+        {!isPending && (
+          <Badge
+            variant="secondary"
+            className={`text-[0.625rem] shrink-0 ${sc[appt.status] ?? sc.pending}`}
+          >
+            {appt.status}
+          </Badge>
+        )}
       </div>
       {(showJoin || showJoinLocked || showReschedule || showCancel || showWithdraw) && (
         <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
