@@ -741,7 +741,7 @@ export function TermsOfService() {
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
         <p className="text-sm">
           <strong>Fee-splitting disclosure:</strong> The platform fee charged
-          to doctors (15%) and labs (18%) is a flat technology and services fee
+          to doctors (12%) and labs (15%) is a flat technology and services fee
           for the use of Kynthai's platform — including scheduling, messaging,
           payment processing, video connectivity, and patient-acquisition
           infrastructure. It is not a referral fee, commission, or division of
@@ -757,11 +757,11 @@ export function TermsOfService() {
         </p>
       </div>
       <p>
-        Doctors pay a 15% platform fee on every consultation and medicine order
-        routed through Kynthai (you keep 85%). Labs pay an 18% platform fee on
-        every test booking fulfilled through the platform (you keep 82%).
+        Doctors pay a 12% platform fee on every consultation and medicine order
+        routed through Kynthai (you keep 88%). Labs pay a 15% platform fee on
+        every test booking fulfilled through the platform (you keep 85%).
         Platform fees are calculated on the pre-tax amount and deducted before
-        payout. Loyalty tiers (Bronze → Platinum) reduce the fee by up to 3%.
+        payout. Loyalty tiers (Bronze → Platinum) reduce the fee by up to 5%.
       </p>
       <p>
         Payouts are made weekly, every Friday, for cleared earnings subject

@@ -144,7 +144,7 @@ const TIERS: Tier[] = [
       'No monthly fee — pay only platform fee',
       `Doctors: ${DOCTOR_BASE_FEE_PCT}% fee · you keep ${100 - DOCTOR_BASE_FEE_PCT}%`,
       `Labs: ${LAB_BASE_FEE_PCT}% fee · you keep ${100 - LAB_BASE_FEE_PCT}%`,
-      'Loyalty discounts up to 3% off',
+      'Loyalty discounts up to 5% off',
       'Verified profile badge',
       'Digital prescriptions with invite links',
       'Patient adherence tracking dashboard',
@@ -469,7 +469,7 @@ export function PricingPage() {
                         Doctors — {DOCTOR_BASE_FEE_PCT}% platform fee
                       </h3>
                       <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        keep 85%
+                        keep 88%
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -492,7 +492,7 @@ export function PricingPage() {
                         Labs — {LAB_BASE_FEE_PCT}% platform fee
                       </h3>
                       <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        keep 82%
+                        keep 85%
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">

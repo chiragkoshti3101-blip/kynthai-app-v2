@@ -95,8 +95,7 @@ const STATUS_CFG: Record<string, { label: string; icon: any; bg: string; color: 
   },
 }
 
-// Demo commissions use the same 18% platform fee as production (LAB_BASE_FEE_PCT)
-// so the demo dashboard never shows stale 15% numbers.
+// Demo commissions use LAB_BASE_FEE_PCT so the demo dashboard never shows stale numbers.
 const DEMO_COMMISSION_PCT = LAB_BASE_FEE_PCT
 const DEMO_BOOKINGS: BookingRow[] = [
   { id: 'demo_booking_1', patientName: 'Sarah Johnson', tests: [{ name: 'Complete Blood Count', price: 3500 }], scheduledAt: '2026-07-20T09:00:00Z', status: 'pending', price: 3500, commission: Math.round(3500 * DEMO_COMMISSION_PCT / 100), homeCollection: false },

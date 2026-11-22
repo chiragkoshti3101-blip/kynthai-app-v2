@@ -192,7 +192,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return jsonError('Appointment has no price set — contact admin', 400);
     }
 
-    // Calculate Kynthai's commission (15% base, adjusted by loyalty)
+    // Calculate Kynthai's commission (12% base, adjusted by loyalty)
     const completedCount = await db.appointment.count({
       where: { doctorId: appt.doctorId, status: 'completed' },
     });

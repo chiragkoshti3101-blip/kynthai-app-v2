@@ -153,9 +153,9 @@ describe('POST /api/appointments — availability gate', () => {
   })
 
   it('rejects a weekday with no configured windows now that the clinic grid is not borrowed', async () => {
-    // Saturday 21 Nov 2026, 10:00 New York = 15:00Z. The doctor only saved
+    // Saturday 28 Nov 2026, 10:00 New York = 15:00Z. The doctor only saved
     // Monday, so Saturday is closed rather than inheriting the default hours.
-    const res = await POST(book({ scheduledAt: '2026-11-21T15:00:00.000Z' }))
+    const res = await POST(book({ scheduledAt: '2026-11-28T15:00:00.000Z' }))
     expect(res.status).toBe(409)
     expect((await res.json()).code).toBe('OUTSIDE_AVAILABILITY')
     expect(mocks.appointmentCreate).not.toHaveBeenCalled()
