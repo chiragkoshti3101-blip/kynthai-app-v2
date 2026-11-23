@@ -22,6 +22,7 @@ import {
   Shield,
   UserCircle,
   Mail,
+  Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -148,6 +149,20 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
   const [overview, setOverview] = React.useState<OverviewData | null>(null);
   const [overviewError, setOverviewError] = React.useState<string | null>(null);
 
+  // Video-call telemetry — surfaced as a card on the dashboard.
+  interface VideoTelemetry {
+    windowDays: number;
+    totalCalls: number;
+    byStatus: Record<string, number>;
+    callsLast30Days: number;
+    avgDurationSec: number;
+    avgQuality: number | null;
+    relayCalls: number;
+    relaySharePct: number;
+    poorQualityCalls: number;
+  }
+  const [videoTelemetry, setVideoTelemetry] = React.useState<VideoTelemetry | null>(null);
+
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -161,6 +176,23 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
         }
       } catch (e) {
         if (!cancelled) setOverviewError(e instanceof Error ? e.message : 'Failed to load');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refetchTick]);
+
+  // Video-call telemetry for the dashboard card.
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/video-telemetry', { credentials: 'include', cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && !cancelled) setVideoTelemetry(data as VideoTelemetry);
+      } catch {
+        /* non-fatal: card shows loading/empty */
       }
     })();
     return () => {
@@ -315,6 +347,50 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
             tint="rose"
           />
         </div>
+
+        {/* Video-call telemetry card */}
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <Video className="h-4 w-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold">Video calls</h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Last {videoTelemetry?.windowDays ?? 30} days · {videoTelemetry?.totalCalls ?? 0} total
+                </p>
+              </div>
+            </div>
+            {videoTelemetry ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-border/60 p-3">
+                  <p className="text-[11px] text-muted-foreground">Calls (30d)</p>
+                  <p className="text-lg font-bold">{videoTelemetry.callsLast30Days}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 p-3">
+                  <p className="text-[11px] text-muted-foreground">Avg duration</p>
+                  <p className="text-lg font-bold">{videoTelemetry.avgDurationSec}s</p>
+                </div>
+                <div className="rounded-xl border border-border/60 p-3">
+                  <p className="text-[11px] text-muted-foreground">Avg quality</p>
+                  <p className="text-lg font-bold">{videoTelemetry.avgQuality ?? '—'}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 p-3">
+                  <p className="text-[11px] text-muted-foreground">Relay (TURN)</p>
+                  <p className="text-lg font-bold">{videoTelemetry.relaySharePct}%</p>
+                </div>
+              </div>
+            ) : (
+              <LoadingCard />
+            )}
+            {videoTelemetry && videoTelemetry.poorQualityCalls > 0 && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-3">
+                {videoTelemetry.poorQualityCalls} poor-quality call{videoTelemetry.poorQualityCalls === 1 ? '' : 's'} flagged.
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         <Tabs value={tab} onValueChange={v => setTab(v as AdminTab)} className="w-full">
           {/* Mobile: 2-col grid so labels stay readable; sm+: 6-col strip */}
