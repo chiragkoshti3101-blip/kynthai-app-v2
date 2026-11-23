@@ -83,7 +83,7 @@ export function LabApp({ user }: { user: AuthUser }) {
       setProfile({ ...data, tests: data.tests ?? data.testsOffered ?? [] });
       setState('exists');
     } catch {
-      // Backend not implemented — show the verification form by default
+      // No lab profile yet (or the lookup failed) — show the verification form.
       setState('none');
     }
   }, [user.id, isDemo]);

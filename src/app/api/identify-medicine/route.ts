@@ -6,6 +6,7 @@ import { withAiTimeout, AiTimeoutError, AI_TIMEOUTS } from '@/lib/ai-timeout'
 import { sanitizeText, rateLimit } from '@/lib/security'
 import { sanitizeForAi, PROMPT_BOUNDARY_OPEN, PROMPT_BOUNDARY_CLOSE } from '@/lib/validations/sanitize'
 import { logger } from '@/lib/logger'
+import { safeAIResponse } from '@/lib/ai-output-filter'
 export const dynamic = 'force-dynamic'
 
 // SECURITY: cap image payload to ~5 MB encoded base64 to prevent memory
@@ -122,6 +123,11 @@ export async function POST(req: NextRequest) {
         raw: content,
       }
     }
+
+    // Redact any true PII/PHI identifiers the model echoed back. Drug names
+    // and dosages are product content and are never redacted by this filter.
+    if (typeof parsed.description === 'string') parsed.description = safeAIResponse(parsed.description)
+    if (typeof parsed.safetyNote === 'string') parsed.safetyNote = safeAIResponse(parsed.safetyNote)
 
     return NextResponse.json({ result: parsed })
   } catch (error) {

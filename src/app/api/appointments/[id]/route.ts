@@ -197,7 +197,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { doctorId: appt.doctorId, status: 'completed' },
     });
     const patientTier = (appt.patient as { subscriptionTier?: string }).subscriptionTier || 'free';
-    const commissionResult = computeCommission(patientTier, completedCount, appt.price);
+    const doctorTier = (appt.doctor as { subscriptionTier?: string }).subscriptionTier || 'free';
+    const commissionResult = computeCommission(patientTier, completedCount, appt.price, doctorTier);
     commission = commissionResult.commission;
     paymentCaptured = true;
 

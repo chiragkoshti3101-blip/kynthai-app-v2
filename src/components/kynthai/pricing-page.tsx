@@ -454,6 +454,71 @@ export function PricingPage() {
           ))}
         </StaggerGroup>
 
+        {/* Doctor Pro subscription */}
+        <Reveal>
+          <Card className="mt-6 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-card to-orange-500/5">
+            <CardContent className="p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+                    <Stethoscope className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-baseline gap-x-2">
+                      <h3 className="text-base font-semibold">Doctor Pro</h3>
+                      <Badge className="bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+                        New
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      For verified doctors: unlock unlimited patients, priority placement in search,
+                      advanced analytics, and a lower platform commission.
+                    </p>
+                    <ul className="mt-3 grid gap-1.5 sm:grid-cols-2 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        Unlimited patients (free tier caps at 5)
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        Priority placement in patient search
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        Advanced analytics dashboard
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        Lower platform commission rate
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <div className="text-right">
+                    <span className="text-3xl font-bold">
+                      {cycle === 'yearly' ? '$299.99' : '$29.99'}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {cycle === 'yearly' ? '/yr' : '/mo'}
+                    </span>
+                  </div>
+                  <Button
+                    className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white"
+                    onClick={() => router.push('/login')}
+                  >
+                    Start Pro upgrade
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">
+                    Verified doctors only · cancel anytime
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Reveal>
+
         {/* Platform fee transparency cards */}
         <Reveal>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -474,7 +539,7 @@ export function PricingPage() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Charged on every consult and medicine order routed through your practice.
-                      Loyalty tier discounts reduce it by up to 3%.
+                      Loyalty tier discounts reduce it by up to 5%.
                     </p>
                   </div>
                 </div>
@@ -497,7 +562,7 @@ export function PricingPage() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Charged on every test booking fulfilled through Kynthai&apos;s network. Loyalty
-                      tier discounts reduce it by up to 3%.
+                      tier discounts reduce it by up to 5%.
                     </p>
                   </div>
                 </div>

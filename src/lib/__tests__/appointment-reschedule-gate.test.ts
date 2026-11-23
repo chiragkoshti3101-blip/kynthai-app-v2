@@ -84,6 +84,10 @@ const patch = (body: Record<string, unknown> = { scheduledAt: MONDAY_10AM_NY }) 
   )
 
 beforeEach(() => {
+  // Freeze the clock before the fixture dates (Nov 2026) so the route's
+  // "cannot book in the past" guard never turns these gate assertions into a
+  // 400 as real time advances.
+  vi.useFakeTimers({ now: new Date('2026-11-16T00:00:00.000Z') })
   vi.resetAllMocks()
   mocks.appointmentFindUnique.mockResolvedValue(APPOINTMENT)
   mocks.appointmentFindMany.mockResolvedValue([])

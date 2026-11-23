@@ -62,6 +62,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { VideoCall } from '@/components/kynthai/video-call';
+import { StripeCardElement } from '@/components/kynthai/stripe-card-element';
 import {
   DOCTOR_BASE_FEE_PCT,
   LOYALTY_TIERS,
@@ -104,6 +105,8 @@ interface Appointment {
   scheduledAt?: string;
   /** Visit length; the reschedule grid is spaced by it so every slot fits. */
   durationMinutes?: number;
+  /** Patient user id, used to persist post-call notes. */
+  patientId?: string;
 }
 
 // ponytail: dashboard API returns raw scheduledAt ISO strings; format once here instead of per-render.
@@ -275,6 +278,14 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   const greeting = useGreeting();
   const { toast } = useToast();
 
+  // Keep the dashboard clock fresh so the Join button can time-gate itself
+  // symmetrically with the patient portal (JOIN_OPENS_MINUTES_BEFORE).
+  const [now, setNow] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
   // ── Consultation fee edit ──────────────────────────────────────────────────
   const [editingFee, setEditingFee] = React.useState(false);
   // The fee editor works in DOLLARS; the DB stores CENTS.
@@ -425,6 +436,11 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   const [patientChartLoading, setPatientChartLoading] = React.useState(false);
   const [patientChartError, setPatientChartError] = React.useState<string | null>(null);
   const [joiningCallApptId, setJoiningCallApptId] = React.useState<string | null>(null);
+  const [upgradeOpen, setUpgradeOpen] = React.useState(false);
+  const [upgradeAnnual, setUpgradeAnnual] = React.useState(false);
+  const [upgradeClientSecret, setUpgradeClientSecret] = React.useState<string | null>(null);
+  const [upgradePaymentId, setUpgradePaymentId] = React.useState<string | null>(null);
+  const [upgradeLoading, setUpgradeLoading] = React.useState(false);
   const [updatingApptId, setUpdatingApptId] = React.useState<string | null>(null);
   const [rescheduleApptId, setRescheduleApptId] = React.useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = React.useState('');
@@ -633,6 +649,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
             fee: Number(rec.fee ?? rec.price ?? 0),
             scheduledAt: rec.scheduledAt ? String(rec.scheduledAt) : undefined,
             durationMinutes: rec.durationMinutes ? Number(rec.durationMinutes) : undefined,
+            patientId: String((rec.patient as Record<string, string>)?.id ?? rec.patientId ?? ''),
           };
         }
       );
@@ -747,6 +764,57 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
   React.useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
+
+  const startUpgrade = React.useCallback(async () => {
+    setUpgradeLoading(true);
+    setUpgradeClientSecret(null);
+    setUpgradePaymentId(null);
+    try {
+      const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
+      const csrfData = await csrfRes.json().catch(() => ({}));
+      const csrf = csrfData.token || '';
+      const amount = upgradeAnnual ? 29999 : 2999; // cents
+      const res = await fetch('/api/doctors/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+        credentials: 'include',
+        body: JSON.stringify({ plan: 'pro', amount, currency: 'USD' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast({ title: 'Upgrade failed', description: data.error || 'Please try again.', variant: 'destructive' });
+        setUpgradeLoading(false);
+        return;
+      }
+      setUpgradePaymentId(data.paymentId || null);
+      if (data.clientSecret && !String(data.clientSecret).startsWith('mock_secret_')) {
+        setUpgradeClientSecret(data.clientSecret);
+      } else {
+        // Mock mode: confirm immediately.
+        const confirmRes = await fetch('/api/doctors/subscribe/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+          credentials: 'include',
+          body: JSON.stringify({ paymentId: data.paymentId }),
+        });
+        const confirmData = await confirmRes.json().catch(() => ({}));
+        if (confirmRes.ok) {
+          toast({
+            title: 'Upgraded',
+            description: 'You are now on Pro. Demo mode — no card was charged.',
+          });
+          setUpgradeOpen(false);
+          fetchDashboardData(true);
+        } else {
+          toast({ title: 'Confirmation failed', description: confirmData.error || 'Please try again.', variant: 'destructive' });
+        }
+      }
+    } catch (err) {
+      toast({ title: 'Upgrade failed', description: err instanceof Error ? err.message : 'Please try again.', variant: 'destructive' });
+    } finally {
+      setUpgradeLoading(false);
+    }
+  }, [upgradeAnnual, toast, fetchDashboardData]);
 
   const handleAppointmentAction = React.useCallback(
     async (appointmentId: string, newStatus: 'confirmed' | 'completed' | 'cancelled') => {
@@ -1372,7 +1440,7 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                         </div>
 
                         <Button
-                          onClick={() => router.push('/pricing')}
+                          onClick={() => setUpgradeOpen(true)}
                           className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:opacity-95"
                         >
                           <Crown className="h-4 w-4" />
@@ -1809,15 +1877,36 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
                                   </>
                                 )}
                               </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="flex-1 min-h-11 text-xs"
-                                onClick={() => setJoiningCallApptId(a.id)}
-                              >
-                                <Video className="h-3 w-3" />
-                                {t('join')}
-                              </Button>
+                              {(() => {
+                                const JOIN_OPENS_MINUTES_BEFORE = 10;
+                                const startsAt = a.scheduledAt ? new Date(a.scheduledAt).getTime() : NaN;
+                                const duration = Math.max(a.durationMinutes ?? 30, 30);
+                                const joinOpensAt = startsAt - JOIN_OPENS_MINUTES_BEFORE * 60_000;
+                                const joinClosesAt = startsAt + duration * 60_000;
+                                const joinTooEarly = !isNaN(startsAt) && now < joinOpensAt;
+                                const joinOpen = !isNaN(startsAt) && now >= joinOpensAt && now <= joinClosesAt;
+                                const joinOpensLabel = isNaN(joinOpensAt)
+                                  ? ''
+                                  : new Date(joinOpensAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+                                if (!joinOpen && !joinTooEarly) return null;
+                                return (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex-1 min-h-11 text-xs"
+                                    disabled={!joinOpen}
+                                    title={
+                                      joinOpen
+                                        ? 'Join the video visit'
+                                        : `Join opens ${joinOpensLabel} — ${JOIN_OPENS_MINUTES_BEFORE} minutes before the visit`
+                                    }
+                                    onClick={() => setJoiningCallApptId(a.id)}
+                                  >
+                                    <Video className="h-3 w-3" />
+                                    {joinOpen ? t('join') : `Join opens ${joinOpensLabel}`}
+                                  </Button>
+                                );
+                              })()}
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -2658,10 +2747,72 @@ export function DoctorDashboard({ user, profile, isDemo = false }: { user: AuthU
           roomName={joiningCallApptId}
           displayName={resolveDisplayName(user, 'Doctor')}
           identity={user.id}
+          patientId={dashboardData?.appointments?.find((a: any) => a.id === joiningCallApptId)?.patientId}
           role="doctor"
           onEndCall={() => setJoiningCallApptId(null)}
         />
       )}
+
+      <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upgrade to Pro</DialogTitle>
+            <DialogDescription>
+              Unlimited patients, priority placement, advanced analytics, and lower commission.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-semibold">{upgradeAnnual ? 'Annual' : 'Monthly'} plan</p>
+                <p className="text-xs text-muted-foreground">
+                  {upgradeAnnual ? '$299.99 / year' : '$29.99 / month'}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setUpgradeAnnual(v => !v)}>
+                Switch to {upgradeAnnual ? 'monthly' : 'annual'}
+              </Button>
+            </div>
+            {!upgradeClientSecret && (
+              <Button
+                className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white"
+                onClick={startUpgrade}
+                disabled={upgradeLoading}
+              >
+                {upgradeLoading ? 'Processing…' : 'Continue to payment'}
+              </Button>
+            )}
+            {upgradeClientSecret && (
+              <StripeCardElement
+                clientSecret={upgradeClientSecret}
+                onSuccess={async () => {
+                  // Confirm on our backend (mock) / refresh after Stripe success.
+                  try {
+                    const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
+                    const csrfData = await csrfRes.json().catch(() => ({}));
+                    const csrf = csrfData.token || '';
+                    if (upgradePaymentId) {
+                      await fetch('/api/doctors/subscribe/confirm', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', ...(csrf ? { 'X-CSRF-Token': csrf } : {}) },
+                        credentials: 'include',
+                        body: JSON.stringify({ paymentId: upgradePaymentId }),
+                      });
+                    }
+                  } catch {
+                    // best-effort
+                  }
+                  toast({ title: 'Upgraded', description: 'You are now on Pro.' });
+                  setUpgradeOpen(false);
+                  setUpgradeClientSecret(null);
+                  fetchDashboardData(true);
+                }}
+                onError={(msg) => toast({ title: 'Payment failed', description: msg, variant: 'destructive' })}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

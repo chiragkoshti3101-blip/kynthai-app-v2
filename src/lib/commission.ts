@@ -12,6 +12,8 @@
  * this file so the numbers never drift again.
  */
 
+import { getDoctorTierConfig } from './doctor-subscription'
+
 export type LoyaltyTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum'
 
 export interface TierConfig {
@@ -141,18 +143,44 @@ export const EARLY_ADOPTER_TIERS = {
 } as const
 
 /** Platform commission for appointments — uses DOCTOR_BASE_FEE_PCT as base,
- *  adjusted by patient subscription tier and doctor loyalty. */
+ *  adjusted by patient subscription tier, doctor loyalty, and the doctor's own
+ *  Kynthai Pro/Enterprise subscription (the "lower commission" advertised on
+ *  /pricing). The 7% floor always applies last. */
 export function computeCommission(
   patientTier: string,
   doctorCompletedAppointments: number,
   baseAmount: number,
+  doctorSubscriptionTier: string = 'free',
 ): { commission: number; net: number; ratePct: number } {
   const tierRate = patientTier === 'family_pro' ? 0.1 : patientTier === 'plus' ? 0.08 : DOCTOR_BASE_FEE_PCT / 100
   const loyaltyTier = resolveTier(doctorCompletedAppointments)
   const loyaltyDiscount = LOYALTY_TIERS[loyaltyTier].feeDiscountPct / 100
-  let ratePct = Math.max(DOCTOR_MIN_FEE_PCT / 100, tierRate - loyaltyDiscount)
+  const subscriptionDiscount = getDoctorTierConfig(doctorSubscriptionTier).commissionDiscountPct / 100
+  const ratePct = Math.max(DOCTOR_MIN_FEE_PCT / 100, tierRate - loyaltyDiscount - subscriptionDiscount)
   const commission = Math.round(baseAmount * ratePct)
   return { commission, net: baseAmount - commission, ratePct }
+}
+
+/**
+ * No-show / cancellation commission policy — the single explicit rule set.
+ * Money values are percentages. Kept next to the rates so the customer-facing
+ * copy and the refund engine cannot drift apart.
+ */
+export const NO_SHOW_POLICY = {
+  doctorNoShow: { patientRefundPct: 100, commissionClawbackPct: 100 },
+  labNoShow: { patientRefundPct: 100, travelFeeRefunded: true, commissionClawbackPct: 100 },
+  patientCancel: {
+    fullRefundHoursBefore: 24,
+    partialRefundHoursBefore: 2,
+    partialRefundPct: 50,
+    noRefundWithinHours: 2,
+  },
+} as const
+
+/** Commission to claw back when a paid booking is reversed. */
+export function commissionReversal(commission: number): number {
+  const rounded = Math.round(commission)
+  return rounded === 0 ? 0 : -Math.abs(rounded)
 }
 
 /** Compute doctor loyalty tier from lifetime completed appointments. */

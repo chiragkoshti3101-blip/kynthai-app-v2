@@ -76,6 +76,10 @@ const book = (body: Record<string, unknown>) =>
 const created = () => mocks.appointmentCreate.mock.calls[0][0].data
 
 beforeEach(() => {
+  // Freeze the clock before the fixture dates (Nov 2026) so the route's
+  // "cannot book in the past" guard never turns these gate assertions into a
+  // 400 as real time advances.
+  vi.useFakeTimers({ now: new Date('2026-11-16T00:00:00.000Z') })
   vi.resetAllMocks()
   mocks.doctorFindUnique.mockResolvedValue(DOCTOR)
   mocks.slotFindMany.mockResolvedValue([{ day: 'monday', start: '09:00', end: '12:30' }])
