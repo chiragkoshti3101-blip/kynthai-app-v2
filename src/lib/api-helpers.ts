@@ -1,7 +1,7 @@
 import { z, ZodError } from 'zod';
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { verifySessionToken } from './session-signing';
+import { verifySessionToken, sessionIssuedAt } from './session-signing';
 import { logAudit, getSessionUser } from './auth';
 import { withTimeout } from './with-timeout';
 import { recordAudit, recordAuditSync, AuditContext, AuditCategory } from './audit-logger';
@@ -281,7 +281,7 @@ export async function requireAuth(
         try {
           const { db } = await import('@/lib/db')
           const revoked = await db.revokedSession.findFirst({
-            where: { userId, expiresAt: { gt: new Date() } },
+            where: { userId, expiresAt: { gt: new Date() }, revokedAt: { gte: sessionIssuedAt(kynthaiSession.value) } },
             orderBy: { revokedAt: 'desc' },
             take: 1,
           })
@@ -307,6 +307,12 @@ export async function requireAuth(
     // Local session fallback: look up user by ID directly
     const { db } = await import('@/lib/db')
     profile = await db.user.findUnique({ where: { id: userId } })
+  }
+
+  // A session can outlive its user row (deleted account, or a fixture removed
+  // out-of-band). Treat that as signed out — 401 JSON, never a crash.
+  if (!profile) {
+    return { response: jsonError('Unauthorized', 401), user: null }
   }
 
   // C3: load the patient's allergies (plain JSON string or comma list) so the
@@ -345,7 +351,7 @@ export async function requireAuth(
     password: null,
     emailVerified: profile.emailVerified ?? null,
     subscriptionTier: (profile.subscriptionTier ?? 'free') as any,
-    stripeCustomerId: null,
+    stripeCustomerId: profile.stripeCustomerId ?? null,
     sessionToken: null,
     sessionExpiry: null,
     consentAccepted: profile.consentAccepted ?? false,
@@ -367,11 +373,14 @@ export async function requireAuth(
     emailVerificationToken: null,
     emailVerificationToken_enc: null,
     emailVerificationExpires: null,
-    phoneVerified: false,
-    identityConfirmed: false,
-    identityConfirmedAt: null,
-    idDocumentUploaded: false,
-    idDocumentVerified: false,
+    // Real identity evidence, not placeholders: `computeVerificationLevel`
+    // must be answerable from the session object, otherwise every gate that
+    // needs a level re-reads the user row.
+    phoneVerified: Boolean(profile.phoneVerified),
+    identityConfirmed: Boolean(profile.identityConfirmed),
+    identityConfirmedAt: profile.identityConfirmedAt ?? null,
+    idDocumentUploaded: Boolean(profile.idDocumentUploaded),
+    idDocumentVerified: Boolean(profile.idDocumentVerified),
     verificationLevel: profile.verificationLevel ?? 'unverified',
     verificationRejectedReason: profile.verificationRejectedReason ?? null,
     idDocumentRef: null,
@@ -613,6 +622,21 @@ export function assertOwnership(sessionUserId: string, resourceUserId?: string |
  * Returns a NextResponse error (400/403) if consent is missing, or null if OK.
  * Call this in any endpoint that returns or processes sensitive health data.
  */
+export function checkAiConsent(
+  user: { aiTrainingConsent: boolean; isDemo?: boolean },
+): NextResponse | null {
+  if (user.isDemo && process.env.NODE_ENV !== 'production') return null;
+  if (!user.aiTrainingConsent) {
+    return applyStandardHeaders(
+      NextResponse.json(
+        { error: 'You must consent to AI data processing to use AI-powered features.' },
+        { status: 403 }
+      )
+    );
+  }
+  return null;
+}
+
 export function checkConsent(
   user: {
     consentAccepted: boolean;
@@ -642,53 +666,19 @@ export function checkConsent(
       )
     );
   }
-  if (!user.aiTrainingConsent) {
-    return applyStandardHeaders(
-      NextResponse.json(
-        { error: 'You must consent to AI data processing to use AI-powered features.' },
-        { status: 403 }
-      )
-    );
-  }
   return null;
 }
 
-/**
- * Enforce AI feature tier limits. Free users get 3 AI-powered feature calls per day
- * (chat, symptom analysis, interactions, insights, identify, scan, voice, etc.).
- * Plus/Family Pro users get unlimited.
- *
- * Returns a NextResponse error (403) if the limit is exceeded, or null if OK.
- * Uses the same daily counter as the chat route (counts 'llm' source messages).
- */
+/** Reserve one free AI operation atomically across all AI endpoints, in UTC. */
 export async function checkAiTier(user: User, featureName: string): Promise<NextResponse | null> {
-  const tier = user.subscriptionTier;
-  if (tier === 'plus' || tier === 'family_pro' || tier === 'pro') return null; // unlimited
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
-
-  const usedToday = await db.chatMessage.count({
-    where: { userId: user.id, source: 'llm', createdAt: { gte: todayStart, lte: todayEnd } },
-  });
-
-  const FREE_DAILY_LIMIT = 3;
-  if (usedToday >= FREE_DAILY_LIMIT) {
-    return applyStandardHeaders(
-      NextResponse.json(
-        {
-          error: `Free tier allows ${FREE_DAILY_LIMIT} AI ${featureName} per day. Upgrade to Plus for unlimited access.`,
-          limitReached: true,
-          dailyLimit: FREE_DAILY_LIMIT,
-          usedToday,
-        },
-        { status: 403 }
-      )
-    );
-  }
-  return null;
+  const { FREE_TIER_AI_LIMIT, TIERS_UNLOCKED } = await import('./free-tier-guard');
+  if (TIERS_UNLOCKED.has(user.subscriptionTier)) return null;
+  const { reserveAiUsage } = await import('./supabase-db');
+  if (await reserveAiUsage(user.id, FREE_TIER_AI_LIMIT)) return null;
+  return applyStandardHeaders(NextResponse.json({
+    error: `Free tier allows ${FREE_TIER_AI_LIMIT} AI operations per UTC day. Upgrade for more access.`,
+    limitReached: true, dailyLimit: FREE_TIER_AI_LIMIT, usedToday: FREE_TIER_AI_LIMIT,
+  }, { status: 403 }));
 }
 
 /** Read JSON body safely; returns null on parse error. */

@@ -223,7 +223,7 @@ export function FamilyHealthPulse({ onDataLoaded }: { onDataLoaded?: (members: F
               <div key={member.id} className={`flex items-center gap-3 p-3 rounded-lg ${cfg.bg}`}>
                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-medium"
                   style={{ backgroundColor: member.color || '#10b981' }}>
-                  {member.name.charAt(0)}
+                  {(member.name || '?').charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -253,7 +253,7 @@ export function FamilyHealthPulse({ onDataLoaded }: { onDataLoaded?: (members: F
           </Button>
           <Button variant="outline" size="sm" className="flex-1">
             <AlertTriangle className="h-4 w-4 mr-1" />
-            SOS
+            SOS (Beta)
           </Button>
         </div>
       </CardContent>

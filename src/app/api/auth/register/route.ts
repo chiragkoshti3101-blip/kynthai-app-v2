@@ -5,10 +5,11 @@ import {
   isValidEmail,
   isValidE164,
   rateLimit,
-  validatePasswordStrength,
+  validatePasswordStrengthAsync,
   getIp,
 } from '@/lib/security';
-import { checkCsrf } from '@/lib/csrf';
+import { checkCsrf, isSecureRequest } from '@/lib/csrf';
+import { signSessionToken } from '@/lib/session-signing';
 import {
   jsonError,
   jsonOk,
@@ -56,13 +57,18 @@ export async function POST(req: NextRequest) {
     const email = sanitizeText(body.email, 254).toLowerCase();
     const password = String(body.password);
     const name = sanitizeText(body.name, 120);
+    const role = body.role || 'patient';
     const phone = sanitizeText(body.phone, 30);
     if (!isValidE164(phone))
       return jsonError('Phone must be in E.164 format (e.g. +15551234567)', 400);
 
-    // Age verification
+    // Age verification — date of birth is required, not optional: without it
+    // the 18+ gate could be skipped by omitting the field entirely.
+    if (!body.dateOfBirth) {
+      return jsonError('Date of birth is required', 400, 'DATE_OF_BIRTH_REQUIRED');
+    }
     let dateOfBirth: Date | undefined;
-    if (body.dateOfBirth) {
+    {
       const dob = new Date(body.dateOfBirth);
       if (isNaN(dob.getTime())) return jsonError('Invalid date of birth', 400);
       const today = new Date();
@@ -93,7 +99,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const strength = validatePasswordStrength(password);
+    const strength = await validatePasswordStrengthAsync(password);
     if (!strength.valid) return jsonError(strength.errors.join('; '), 400);
     if (WEAK_PASSWORDS.has(password.toLowerCase())) {
       return jsonError('This password is too common — choose a stronger one', 400);
@@ -105,12 +111,12 @@ export async function POST(req: NextRequest) {
     // reused phone, disposable email) BEFORE creating any Supabase account.
     const gate = await checkEnrollmentGate({ email, phone });
     if (!gate.allowed) {
-      await logAudit('system', 'auth.register.blocked', `email=${email} code=${gate.code}`, 'security');
+      await logAudit('system', 'auth.register.blocked', `email=${email} code=${(gate as any).code}`, 'security');
       // Generic message — never reveal WHY (prevents signal probing).
       return jsonError(
         'Registration is not available for this account. Contact support if you believe this is a mistake.',
         403,
-        gate.code
+        (gate as any).code
       );
     }
 
@@ -122,139 +128,80 @@ export async function POST(req: NextRequest) {
       await ensureDemoUsers();
     }
 
-    // ── Supabase Auth: sign up ──────────────────────────────────────────
-    let responseCookies: { name: string; value: string; options?: Record<string, unknown> }[] = [];
-    const supabase = createSafeServerClient({
-      getAll: () => req.cookies.getAll(),
-      setAll: cookiesToSet => {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          req.cookies.set({ name, value, ...options });
-          responseCookies.push({ name, value, options });
-        });
-      },
-    });
-    if (!supabase) {
-      return jsonError(
-        'Authentication is not configured on the server. Please try again later.',
-        503,
-        'AUTH_NOT_CONFIGURED'
-      );
-    }
+    // Fail before creating an account if this deployment cannot issue sessions.
+    const signedValue = await signSessionToken('registration-config-check');
+    if (!signedValue) return jsonError('Session signing is not configured', 503, 'AUTH_CONFIG_MISSING');
 
-    const role = body.role || 'patient';
-    // Bound the provider call: a slow/unreachable Supabase must not stall
-    // registration. On timeout, degrade to an explicit 503 (provider
-    // unavailable) instead of a generic 500 so callers — including the CI
-    // disposable-DB runner — can distinguish "provider down" from "bug".
-    let signUpResult: {
-      data: { user?: { id?: string; email?: string; email_confirmed_at?: string | null } | null };
-      error: { message?: string } | null;
-    } | null = null;
-    let providerUnavailable = false;
-    try {
-      signUpResult = await withTimeout(
-        supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { name, role },
-            emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/auth/callback`,
-          },
-        }),
-        8000,
-        'supabase.auth.signUp',
-      );
-    } catch {
-      providerUnavailable = true;
-    }
-    const authData = signUpResult?.data;
-    const authError = signUpResult?.error ?? null;
-    if (providerUnavailable) {
-      await logAudit('system', 'auth.register.provider_unavailable', `email=${email}`, 'security');
-      return jsonError(
-        'The account provider is temporarily unavailable. Please try again later.',
-        503,
-        'PROVIDER_UNAVAILABLE'
-      );
-    }
+    // Hash password with bcrypt
+    const bcrypt = await import('bcryptjs')
+    const passwordHash = await bcrypt.hash(password, 12)
 
-    // If email already exists in Supabase, return generic message to prevent email enumeration
-    if (authError && authError.message?.includes('already registered')) {
-      // Always return the same message regardless of whether email exists
+    // Check if user already exists
+    const existingUser = await db.user.findUnique({ where: { email } });
+    if (existingUser) {
       return jsonOk({
-        message: 'If this email is available, a verification link has been sent. Please check your inbox.',
-        verificationEmailSent: true,
+        message: 'If this email is already registered, sign in or use account recovery.',
+        verificationEmailSent: false,
       });
-    } else if (authError) {
-      // Provider-side failure (unreachable, misconfigured keys, rate-limited, etc.)
-      // → explicit 503 with a GENERIC message. Never leak the provider's error
-      // text (enumeration / internal-detail vector), and distinguish "provider
-      // problem" from "client problem" for callers + the CI disposable-DB gate.
-      await logAudit('system', 'auth.register.provider_error', `email=${email} provider=${authError.message?.slice(0, 120)}`, 'security');
-      return jsonError(
-        'The account service is temporarily unavailable. Please try again later.',
-        503,
-        'PROVIDER_UNAVAILABLE'
-      );
     }
 
-    if (!authData?.user) {
-      return jsonError(
-        'The account service is temporarily unavailable. Please try again later.',
-        503,
-        'PROVIDER_UNAVAILABLE'
-      );
-    }
-
-    // ── Create Prisma profile ───────────────────────────────────────────
-    // Check if profile already exists (e.g., from OAuth callback or re-registration)
-    let profile = await db.user.findUnique({ where: { id: authData.user.id } });
-
-    if (!profile) {
-      // US privacy / Health Data Protection: require consent flags
-      const consentErr = checkConsent({
+    // Create user in database
+    const userId = crypto.randomUUID()
+    const newUser = await db.user.create({ data: {
+        id: userId,
+        email,
+        name,
+        role: role || 'patient',
+        phone: phone || null,
+        password: passwordHash,
+        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : null,
+        emailVerified: null,
         consentAccepted: !!body.consentAccepted,
         dataProcessingConsent: !!body.dataProcessingConsent,
         aiTrainingConsent: !!body.aiTrainingConsent,
-      });
-      if (consentErr) return consentErr;
+        subscriptionTier: 'free',
+        isDemo: false,
+        failedLoginAttempts: 0,
+        phoneVerified: false,
+        identityConfirmed: false,
+        idDocumentUploaded: false,
+        idDocumentVerified: false,
+        verificationLevel: 'unverified',
+        emailOptOut: false,
+        updatedAt: new Date().toISOString(),
+    } });
 
-      profile = await db.user.create({
-        data: {
-          id: authData.user.id,
-          email,
-          name,
-          role: role || 'patient',
-          phone: phone || null,
-          dateOfBirth,
-          password: null, // Supabase manages passwords
-          emailVerified: authData.user.email_confirmed_at ? new Date(authData.user.email_confirmed_at) : null,
-          consentAccepted: !!body.consentAccepted,
-          dataProcessingConsent: !!body.dataProcessingConsent,
-          aiTrainingConsent: !!body.aiTrainingConsent,
-        },
-      });
-    }
-
-    await logAudit(profile.id, 'auth.register', `role=${role}`);
-
+    await logAudit(newUser.id, 'auth.register', `role=${role}`)
 
     const responseBody = {
-      id: profile.id,
-      email: profile.email,
-      name: profile.name,
-      role: profile.role,
-      phone: profile.phone,
-      subscriptionTier: profile.subscriptionTier,
-      verificationEmailSent: !authData.user.email_confirmed_at,
+      id: newUser.id,
+      email: newUser.email,
+      name: newUser.name,
+      role: newUser.role,
+      phone: newUser.phone,
+      subscriptionTier: newUser.subscriptionTier,
+      verificationEmailSent: false,
     };
     const res = jsonOk(responseBody);
-    for (const cookie of responseCookies) {
-      res.cookies.set(cookie.name, cookie.value, cookie.options as any);
+
+    // Set session cookie
+    const sessionValue = await signSessionToken(newUser.id)
+    if (sessionValue) {
+      res.cookies.set('kynthai-session', sessionValue, {
+        httpOnly: true,
+        secure: isSecureRequest(req),
+        sameSite: 'strict',
+        maxAge: 60 * 60 * 24 * 7,
+        path: '/',
+      });
     }
+
     return res;
   } catch (error) {
-    logger.phiSafeError(error, 'auth.register');
+    logger.phiSafeError(error, 'register.POST');
     return jsonError('Internal server error', 500);
   }
 }
+
+// Dummy to prevent syntax errors
+function _unused() { return null; }

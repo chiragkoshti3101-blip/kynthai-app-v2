@@ -67,22 +67,27 @@ interface Tier {
 
 const TIERS: Tier[] = [
   {
-    id: 'free',
-    name: 'Free',
-    tagline: 'Start your health journey — free plan available',
-    icon: Heart,
-    accent: 'from-emerald-500 to-emerald-600',
-    cta: 'Start Free',
+    id: 'plus',
+    name: 'Plus',
+    tagline: 'Unlimited AI for your health — zero limits',
+    icon: Sparkles,
+    accent: 'from-emerald-500 to-teal-600',
+    cta: 'Get Plus',
+    featured: true,
     features: [
       '1 member profile',
-      'Up to 10 medications',
-      'AI Health Chat (3 / day)',
-      'Smart reminders & streaks',
-      'Medicine identification (2 / day)',
-      'Prescription scanning (1 / week)',
-      'Book doctor consults',
-      'Order medicines & lab tests',
-      'CCPA/CPRA-oriented privacy controls',
+      'Unlimited medications',
+      'Unlimited AI Health Chat',
+      'Unlimited medicine identification',
+      'Unlimited prescription scanning',
+      'Drug & food interaction checks',
+      'AI symptom analyzer with red flags',
+      'Weekly AI insights report',
+      'Chronic condition tracker',
+      'Priority support (24h response)',
+      'No ads, ever',
+      'AI Health Chat: 100 chats/month',
+      'Prescription scans: 10/month',
     ],
   },
   {
@@ -139,7 +144,7 @@ const TIERS: Tier[] = [
       'No monthly fee — pay only platform fee',
       `Doctors: ${DOCTOR_BASE_FEE_PCT}% fee · you keep ${100 - DOCTOR_BASE_FEE_PCT}%`,
       `Labs: ${LAB_BASE_FEE_PCT}% fee · you keep ${100 - LAB_BASE_FEE_PCT}%`,
-      'Loyalty discounts up to 3% off',
+      'Loyalty discounts up to 5% off',
       'Verified profile badge',
       'Digital prescriptions with invite links',
       'Patient adherence tracking dashboard',
@@ -208,7 +213,7 @@ export function PricingPage() {
   /** Subtle USD subtitle, e.g. "$9.99/mo · cancel anytime". */
   function inrSubtitle(tierId: string, billingCycle: 'monthly' | 'yearly'): string {
     const price = tierPrice(tierId) ?? 0;
-    if (billingCycle === 'yearly' && tierId !== 'free') {
+    if (billingCycle === 'yearly') {
       return `${formatPrice(price, currency)}/year · cancel anytime`;
     }
     return `${formatPrice(price, currency)}/mo · cancel anytime`;
@@ -256,7 +261,7 @@ export function PricingPage() {
           <Reveal>
             <Badge
               variant="secondary"
-              className="mb-4 border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              className="mb-4 border-emerald-500/20 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
             >
               <Zap className="h-3 w-3" />
               Simple, transparent pricing
@@ -276,7 +281,7 @@ export function PricingPage() {
               <span
                 className={cn(
                   'text-xs sm:text-sm font-medium transition-colors',
-                  cycle === 'monthly' ? 'text-foreground' : 'text-muted-foreground'
+                  cycle === 'yearly' ? 'text-foreground' : 'text-muted-foreground'
                 )}
               >
                 Monthly
@@ -449,6 +454,71 @@ export function PricingPage() {
           ))}
         </StaggerGroup>
 
+        {/* Doctor Pro subscription */}
+        <Reveal>
+          <Card className="mt-6 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-card to-orange-500/5">
+            <CardContent className="p-5 sm:p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white">
+                    <Stethoscope className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-baseline gap-x-2">
+                      <h3 className="text-base font-semibold">Doctor Pro</h3>
+                      <Badge className="bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+                        New
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      For verified doctors: unlock unlimited patients, priority placement in search,
+                      advanced analytics, and a lower platform commission.
+                    </p>
+                    <ul className="mt-3 grid gap-1.5 sm:grid-cols-2 text-xs text-muted-foreground">
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        Unlimited patients (free tier caps at 5)
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        Priority placement in patient search
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        Advanced analytics dashboard
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                        Lower platform commission rate
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <div className="text-right">
+                    <span className="text-3xl font-bold">
+                      {cycle === 'yearly' ? '$299.99' : '$29.99'}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {cycle === 'yearly' ? '/yr' : '/mo'}
+                    </span>
+                  </div>
+                  <Button
+                    className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 text-white"
+                    onClick={() => router.push('/login')}
+                  >
+                    Start Pro upgrade
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                  <p className="text-[11px] text-muted-foreground">
+                    Verified doctors only · cancel anytime
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Reveal>
+
         {/* Platform fee transparency cards */}
         <Reveal>
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
@@ -464,12 +534,12 @@ export function PricingPage() {
                         Doctors — {DOCTOR_BASE_FEE_PCT}% platform fee
                       </h3>
                       <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        keep 85%
+                        keep 88%
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Charged on every consult and medicine order routed through your practice.
-                      Loyalty tier discounts reduce it by up to 3%.
+                      Loyalty tier discounts reduce it by up to 5%.
                     </p>
                   </div>
                 </div>
@@ -487,12 +557,12 @@ export function PricingPage() {
                         Labs — {LAB_BASE_FEE_PCT}% platform fee
                       </h3>
                       <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                        keep 82%
+                        keep 85%
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Charged on every test booking fulfilled through Kynthai&apos;s network. Loyalty
-                      tier discounts reduce it by up to 3%.
+                      tier discounts reduce it by up to 5%.
                     </p>
                   </div>
                 </div>

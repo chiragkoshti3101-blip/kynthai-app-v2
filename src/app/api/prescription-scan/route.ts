@@ -7,6 +7,7 @@ import { getIp, rateLimit } from '@/lib/security'
 import { withAiTimeout, AiTimeoutError, AI_TIMEOUTS } from '@/lib/ai-timeout'
 import { sanitizeForAi, PROMPT_BOUNDARY_OPEN, PROMPT_BOUNDARY_CLOSE } from '@/lib/validations/sanitize'
 import { logger } from '@/lib/logger'
+import { safeAIResponse } from '@/lib/ai-output-filter'
 export const dynamic = 'force-dynamic'
 
 // end POST handler
@@ -164,6 +165,9 @@ export async function POST(req: NextRequest) {
   if (!['plus','family_pro','pro'].includes(user.subscriptionTier)) {
     await recordPrescriptionScanUsage(user.id)
   }
+
+  // Redact any true PII/PHI identifiers the model echoed in the free-text notes.
+  if (typeof parsed.notes === 'string') parsed.notes = safeAIResponse(parsed.notes)
 
   return NextResponse.json({ result: parsed })
   } catch (error) {

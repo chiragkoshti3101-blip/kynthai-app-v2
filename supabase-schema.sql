@@ -728,7 +728,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Apply to all tables with updated_at
-DO $$ DECLACE
+DO $$ DECLARE
   t TEXT;
 BEGIN
   FOR t IN
@@ -778,7 +778,7 @@ END $$;
 CREATE POLICY "users_select_own" ON users FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "users_update_own" ON users FOR UPDATE USING (auth.uid() = id);
 CREATE POLICY "admins_select_all_users" ON users FOR SELECT USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Doctor profiles
@@ -786,7 +786,7 @@ CREATE POLICY "doctor_profiles_select" ON doctor_profiles FOR SELECT USING (true
 CREATE POLICY "doctor_profiles_insert_own" ON doctor_profiles FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "doctor_profiles_update_own" ON doctor_profiles FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "admins_manage_doctor_profiles" ON doctor_profiles FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Lab profiles
@@ -794,7 +794,7 @@ CREATE POLICY "lab_profiles_select" ON lab_profiles FOR SELECT USING (true);
 CREATE POLICY "lab_profiles_insert_own" ON lab_profiles FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "lab_profiles_update_own" ON lab_profiles FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "admins_manage_lab_profiles" ON lab_profiles FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Appointments
@@ -807,7 +807,7 @@ CREATE POLICY "appointments_doctor_update" ON appointments FOR UPDATE USING (
   doctor_id IN (SELECT id FROM doctor_profiles WHERE user_id = auth.uid())
 );
 CREATE POLICY "admins_manage_appointments" ON appointments FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Lab bookings
@@ -820,7 +820,7 @@ CREATE POLICY "lab_bookings_lab_update" ON lab_bookings FOR UPDATE USING (
   lab_id IN (SELECT id FROM lab_profiles WHERE user_id = auth.uid())
 );
 CREATE POLICY "admins_manage_lab_bookings" ON lab_bookings FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Prescriptions
@@ -832,7 +832,7 @@ CREATE POLICY "prescriptions_doctor_insert" ON prescriptions FOR INSERT WITH CHE
   doctor_id IN (SELECT id FROM doctor_profiles WHERE user_id = auth.uid())
 );
 CREATE POLICY "admins_manage_prescriptions" ON prescriptions FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Medications
@@ -880,14 +880,14 @@ CREATE POLICY "emergency_alerts_insert" ON emergency_alerts FOR INSERT WITH CHEC
 -- Payments
 CREATE POLICY "payments_user_view" ON payments FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "admins_manage_payments" ON payments FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Refunds
 CREATE POLICY "refunds_user_view" ON refunds FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "refunds_user_insert" ON refunds FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "admins_manage_refunds" ON refunds FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Payouts
@@ -898,13 +898,13 @@ CREATE POLICY "payouts_lab_view" ON payouts FOR SELECT USING (
   lab_id IN (SELECT id FROM lab_profiles WHERE user_id = auth.uid())
 );
 CREATE POLICY "admins_manage_payouts" ON payouts FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 
 -- Audit logs (read-only, admin can read all)
 CREATE POLICY "audit_logs_user_view" ON audit_logs FOR SELECT USING (user_id = auth.uid());
 CREATE POLICY "audit_logs_admin_view" ON audit_logs FOR SELECT USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 CREATE POLICY "audit_logs_insert_service" ON audit_logs FOR INSERT WITH CHECK (true);
 
@@ -934,7 +934,7 @@ CREATE POLICY "doctor_availability_doctor" ON doctor_availability_slots FOR ALL 
 CREATE POLICY "notification_logs_user" ON notification_logs FOR ALL USING (user_id = auth.uid());
 CREATE POLICY "complaints_user" ON complaints FOR ALL USING (user_id = auth.uid());
 CREATE POLICY "admins_manage_complaints" ON complaints FOR ALL USING (
-  EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin')
+  auth.jwt() ->> 'role' = 'admin'
 );
 CREATE POLICY "referrals_user" ON referrals FOR ALL USING (referrer_id = auth.uid());
 CREATE POLICY "consult_messages_user" ON consult_messages FOR ALL USING (
@@ -1000,6 +1000,114 @@ CREATE POLICY "medicine-images_owner" ON storage.objects FOR INSERT WITH CHECK (
   bucket_id = 'medicine-images'
   AND auth.uid()::text = (storage.foldername(name))[1]
 );
+
+-- ============================================================================
+-- Missing tables from Prisma schema (schema drift fix)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS feedback (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'general',
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS free_tier_usage (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id UUID NOT NULL,
+  feature TEXT NOT NULL,
+  date TIMESTAMPTZ NOT NULL DEFAULT now(),
+  count INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, feature, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_free_tier_usage_user_feature_date ON free_tier_usage(user_id, feature, date);
+
+CREATE TABLE IF NOT EXISTS free_tier_usage_audit (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id UUID NOT NULL,
+  feature TEXT NOT NULL,
+  action TEXT NOT NULL,
+  count INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_free_tier_usage_audit_user_id ON free_tier_usage_audit(user_id);
+CREATE INDEX IF NOT EXISTS idx_free_tier_usage_audit_feature ON free_tier_usage_audit(feature);
+
+CREATE TABLE IF NOT EXISTS medical_document (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id UUID NOT NULL,
+  uploaded_by_id UUID NOT NULL,
+  family_id UUID,
+  type TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'CLINICAL',
+  title TEXT NOT NULL DEFAULT '',
+  title_enc TEXT,
+  description TEXT,
+  description_enc TEXT,
+  mime_type TEXT NOT NULL,
+  file_size INTEGER NOT NULL,
+  storage_path TEXT NOT NULL,
+  bucket TEXT NOT NULL DEFAULT 'medical-documents',
+  encrypted BOOLEAN NOT NULL DEFAULT true,
+  encryption_key TEXT,
+  visibility TEXT NOT NULL DEFAULT 'PRIVATE',
+  shared_with TEXT[] NOT NULL DEFAULT '{}',
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  accessed_at TIMESTAMPTZ,
+  downloaded_at TIMESTAMPTZ,
+  CONSTRAINT fk_medical_document_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_medical_document_uploaded_by FOREIGN KEY (uploaded_by_id) REFERENCES users(id),
+  CONSTRAINT fk_medical_document_family FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_medical_document_user_type ON medical_document(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_medical_document_family_id ON medical_document(family_id);
+CREATE INDEX IF NOT EXISTS idx_medical_document_uploaded_by_id ON medical_document(uploaded_by_id);
+CREATE INDEX IF NOT EXISTS idx_medical_document_uploaded_at ON medical_document(uploaded_at);
+
+CREATE TABLE IF NOT EXISTS newsletter_subscriber (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  email TEXT NOT NULL UNIQUE,
+  source TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_newsletter_subscriber_created_at ON newsletter_subscriber(created_at);
+
+CREATE TABLE IF NOT EXISTS push_subscription (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id UUID NOT NULL,
+  endpoint TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'webpush',
+  token TEXT,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_push_subscription_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subscription_user_endpoint_type ON push_subscription(user_id, endpoint, type);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subscription_user_type_token ON push_subscription(user_id, type, token);
+
+CREATE TABLE IF NOT EXISTS revoked_session (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id UUID NOT NULL,
+  session_jti TEXT NOT NULL UNIQUE,
+  reason TEXT NOT NULL DEFAULT 'user_initiated',
+  revoked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  CONSTRAINT fk_revoked_session_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_revoked_session_session_jti ON revoked_session(session_jti);
+CREATE INDEX IF NOT EXISTS idx_revoked_session_user_id ON revoked_session(user_id);
+CREATE INDEX IF NOT EXISTS idx_revoked_session_expires_at ON revoked_session(expires_at);
 
 -- ============================================================================
 -- SEED DATA (for development with ENABLE_DEMO=true)

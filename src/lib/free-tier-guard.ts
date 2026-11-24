@@ -13,6 +13,7 @@
  */
 
 import { db } from './db';
+import { recordUsageAtomically } from './supabase-db';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -130,24 +131,9 @@ export async function getRemainingPrescriptionScans(userId: string): Promise<num
  * Record a prescription scan usage (call after a successful scan).
  */
 export async function recordPrescriptionScanUsage(userId: string): Promise<void> {
-  const todayStart = todayUtcStart();
   const feature = FEATURE_PRESCRIPTION_SCAN;
 
-  // Audit trail
-  await db.freeTierUsageAudit.create({
-    data: { userId, feature, action: 'prescription_scan', count: 1 },
-  });
-
-  // Upsert today's counter
-  const existing = await db.freeTierUsage.findFirst({
-    where: { userId, feature, date: todayStart },
-    select: { id: true },
-  });
-  await db.freeTierUsage.upsert({
-    where: { id: existing?.id ?? '' },
-    create: { userId, feature, date: todayStart, count: 1 },
-    update: { count: { increment: 1 } },
-  });
+  await recordUsageAtomically(userId, feature, 'prescription_scan');
 }
 
 /**
@@ -223,40 +209,8 @@ export async function incrementUsage(
   userId: string,
   action: 'medicine_add' | 'ai_chat'
 ): Promise<void> {
-  const dayStart = todayUtcStart();
   const feature = action === 'medicine_add' ? FEATURE_MEDICINE : FEATURE_AI_CHAT;
-
-  // Audit trail (immutable)
-  await db.freeTierUsageAudit.create({
-    data: {
-      userId,
-      feature,
-      action,
-      count: 1,
-    },
-  });
-
-  // Upsert the daily counter
-  await db.freeTierUsage.upsert({
-    where: {
-      id:
-        (
-          await db.freeTierUsage.findFirst({
-            where: { userId, feature, date: { gte: dayStart, lt: todayUtcEnd() } },
-            select: { id: true },
-          })
-        )?.id ?? '',
-    },
-    create: {
-      userId,
-      feature,
-      date: new Date(),
-      count: 1,
-    },
-    update: {
-      count: { increment: 1 },
-    },
-  });
+  await recordUsageAtomically(userId, feature, action);
 }
 
 // ── Client-side gating helpers (no DB access — used in components) ───────────

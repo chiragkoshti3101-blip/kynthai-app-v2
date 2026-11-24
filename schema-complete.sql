@@ -503,3 +503,111 @@ CREATE INDEX IF NOT EXISTS idx_user_badges_user_id ON user_badges(user_id);
 CREATE INDEX IF NOT EXISTS idx_family_health_alerts_family_id ON family_health_alerts(family_id);
 CREATE INDEX IF NOT EXISTS idx_referrals_referrer_id ON referrals(referrer_id);
 CREATE INDEX IF NOT EXISTS idx_complaints_user_id ON complaints(user_id);
+
+-- ============================================================================
+-- Missing tables from Prisma schema (schema drift fix)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS feedback (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'general',
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS free_tier_usage (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id TEXT NOT NULL,
+  feature TEXT NOT NULL,
+  date TIMESTAMPTZ NOT NULL DEFAULT now(),
+  count INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(user_id, feature, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_free_tier_usage_user_feature_date ON free_tier_usage(user_id, feature, date);
+
+CREATE TABLE IF NOT EXISTS free_tier_usage_audit (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id TEXT NOT NULL,
+  feature TEXT NOT NULL,
+  action TEXT NOT NULL,
+  count INTEGER NOT NULL DEFAULT 1,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_free_tier_usage_audit_user_id ON free_tier_usage_audit(user_id);
+CREATE INDEX IF NOT EXISTS idx_free_tier_usage_audit_feature ON free_tier_usage_audit(feature);
+
+CREATE TABLE IF NOT EXISTS medical_document (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id TEXT NOT NULL,
+  uploaded_by_id TEXT NOT NULL,
+  family_id TEXT,
+  type TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'CLINICAL',
+  title TEXT NOT NULL DEFAULT '',
+  title_enc TEXT,
+  description TEXT,
+  description_enc TEXT,
+  mime_type TEXT NOT NULL,
+  file_size INTEGER NOT NULL,
+  storage_path TEXT NOT NULL,
+  bucket TEXT NOT NULL DEFAULT 'medical-documents',
+  encrypted BOOLEAN NOT NULL DEFAULT true,
+  encryption_key TEXT,
+  visibility TEXT NOT NULL DEFAULT 'PRIVATE',
+  shared_with TEXT[] NOT NULL DEFAULT '{}',
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  accessed_at TIMESTAMPTZ,
+  downloaded_at TIMESTAMPTZ,
+  CONSTRAINT fk_medical_document_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_medical_document_uploaded_by FOREIGN KEY (uploaded_by_id) REFERENCES users(id),
+  CONSTRAINT fk_medical_document_family FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_medical_document_user_type ON medical_document(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_medical_document_family_id ON medical_document(family_id);
+CREATE INDEX IF NOT EXISTS idx_medical_document_uploaded_by_id ON medical_document(uploaded_by_id);
+CREATE INDEX IF NOT EXISTS idx_medical_document_uploaded_at ON medical_document(uploaded_at);
+
+CREATE TABLE IF NOT EXISTS newsletter_subscriber (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  email TEXT NOT NULL UNIQUE,
+  source TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_newsletter_subscriber_created_at ON newsletter_subscriber(created_at);
+
+CREATE TABLE IF NOT EXISTS push_subscription (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'webpush',
+  token TEXT,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CONSTRAINT fk_push_subscription_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subscription_user_endpoint_type ON push_subscription(user_id, endpoint, type);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_push_subscription_user_type_token ON push_subscription(user_id, type, token);
+
+CREATE TABLE IF NOT EXISTS revoked_session (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  user_id TEXT NOT NULL,
+  session_jti TEXT NOT NULL UNIQUE,
+  reason TEXT NOT NULL DEFAULT 'user_initiated',
+  revoked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  CONSTRAINT fk_revoked_session_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_revoked_session_session_jti ON revoked_session(session_jti);
+CREATE INDEX IF NOT EXISTS idx_revoked_session_user_id ON revoked_session(user_id);
+CREATE INDEX IF NOT EXISTS idx_revoked_session_expires_at ON revoked_session(expires_at);

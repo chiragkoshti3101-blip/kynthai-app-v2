@@ -58,6 +58,16 @@ export async function POST(req: NextRequest) {
     return jsonError('A refund request for this is already under review', 400, 'ALREADY_PENDING');
   }
 
+  // Outer window: refunds are only accepted within 7 days of the appointment.
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  if (Date.now() > appt.scheduledAt.getTime() + SEVEN_DAYS_MS) {
+    return jsonError(
+      'Refund requests must be raised within 7 days of the appointment. This window has passed.',
+      400,
+      'REFUND_WINDOW_EXPIRED',
+    );
+  }
+
   // Eligibility check
   const scheduledAt = appt.scheduledAt.toISOString();
   const hoursBefore = Math.max(0, (appt.scheduledAt.getTime() - Date.now()) / (1000 * 60 * 60));
@@ -111,7 +121,7 @@ export async function POST(req: NextRequest) {
 
   await logAudit(u.id, 'refund.request', `refund=${refund.id} amount=${eligibility.refundAmount}`);
 
-  const reviewDeadlineDate = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
+  const reviewDeadlineDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const deadline = reviewDeadlineDate.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -151,7 +161,7 @@ export async function POST(req: NextRequest) {
       reason: eligibility.reason,
       policy: eligibility.policy,
       reviewDeadline: reviewDeadlineDate.toISOString(),
-      message: 'Your refund request is under review. You will hear back within 10 business days.',
+      message: 'Your refund request is under review. You will hear back within 7 days.',
     },
     201
   );
@@ -202,14 +212,14 @@ export async function GET(req: NextRequest) {
   }
 
   if (overdue === 'true') {
-    // ponytail: 'overdue' = still pending past the 7-business-day review
-    // window. Computed from createdAt because the Refund table has no
-    // reviewDeadline column; the deadline promise is sent to patients at
-    // request time (createdAt + 7 days), so this stays consistent with it.
+    // 'overdue' = still pending past the 7-day review window. Computed from
+    // createdAt because the Refund table has no reviewDeadline column; the
+    // deadline promise is sent to patients at request time (createdAt + 7
+    // days), so this stays consistent with it.
     // Overdue overrides any ?status= filter (pending is the only state that
     // can be overdue).
     where.status = 'pending';
-    where.createdAt = { lt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) };
+    where.createdAt = { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) };
   } else if (statusFilter) {
     where.status = statusFilter;
   }

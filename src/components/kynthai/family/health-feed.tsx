@@ -153,7 +153,7 @@ export function FamilyHealthFeed() {
                     className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-medium shrink-0"
                     style={{ backgroundColor: item.memberColor || '#10b981' }}
                   >
-                    {item.memberName.charAt(0)}
+                    {(item.memberName || '?').charAt(0)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

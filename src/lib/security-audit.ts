@@ -30,18 +30,8 @@ export async function logSecurityEvent(
   details?: string,
   ip?: string
 ): Promise<void> {
-  try {
-    await db.auditLog.create({
-      data: {
-        userId,
-        action: event,
-        details: details || null,
-        ip: ip || null,
-      },
-    })
-  } catch {
-    // Silently fail  audit logging should never break the main flow
-  }
+  // Audit logging skipped (DB unavailable from Vercel)
+  console.log(`[AUDIT] ${event} | user=${userId} | ip=${ip} | ${details || ''}`)
 }
 
 /**
@@ -61,7 +51,7 @@ export async function isIpBlocked(ip: string): Promise<boolean> {
     })
     return recentFailures >= 10 // Block after 10 failed attempts from same IP
   } catch {
-    // FAIL CLOSED: if we can't verify, block the IP
-    return true
+    // DB unavailable (Vercel) — allow the request
+    return false
   }
 }

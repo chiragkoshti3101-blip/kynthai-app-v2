@@ -147,10 +147,13 @@ export function AuthGuard({ redirectTo = '/login', onUnauthorized, disableMountC
         // Best-effort: sync the browser's IANA timezone so the reminder cron
         // fires doses on the user's local wall clock (not New York time).
         // Runs at most once per session; silent on any failure.
+        // Doctors are skipped: their stored zone is the clinic zone their
+        // weekly availability is read in, so it has to stay a deliberate
+        // setting instead of being overwritten by the browser they sign in from.
         try {
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
           const key = 'kynthai_tz_synced'
-          if (tz && userData.id && sessionStorage.getItem(key) !== userData.id) {
+          if (tz && userData.role !== 'doctor' && userData.id && sessionStorage.getItem(key) !== userData.id) {
             const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' })
             const csrf = (await csrfRes.json().catch(() => null))?.token
             if (csrf) {

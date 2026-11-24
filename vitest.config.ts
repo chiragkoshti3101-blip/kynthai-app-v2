@@ -15,6 +15,14 @@ export default defineConfig({
     },
     // Fail loudly if DATABASE_URL is missing (prevents silent test passes)
     setupFiles: process.env.DATABASE_URL ? [] : undefined,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      include: ['src/lib/**/*.ts'],
+      // Conservative floor so coverage cannot silently regress; raise as the
+      // lib layer gains tests. Only enforced by `npm run test:coverage`.
+      thresholds: { lines: 10, functions: 10, branches: 10, statements: 10 },
+    },
   },
   resolve: {
     alias: {

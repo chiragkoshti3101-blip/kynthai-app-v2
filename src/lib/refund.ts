@@ -14,8 +14,8 @@
  */
 
 import { db } from '@/lib/db';
-import { computeCommission } from './commission';
 import { sendNotification } from './notifications';
+import { reverseCommissionForAppointment } from './payout-service';
 
 export type RefundReason =
   | 'doctor_no_show'
@@ -226,12 +226,11 @@ export async function processRefund(
       }
     }
 
-    // Reverse commission on related appointment
+    // Reverse commission on the related appointment. This writes an idempotent
+    // `clawback` payout row that nets against the doctor's next payout, so the
+    // reversal actually follows the money — not just zeroing the stored field.
     if (refund.appointmentId) {
-      await db.appointment.update({
-        where: { id: refund.appointmentId },
-        data: { commission: 0 },
-      });
+      await reverseCommissionForAppointment(refund.appointmentId, refund.reason || 'refund');
     }
 
     await db.refund.update({

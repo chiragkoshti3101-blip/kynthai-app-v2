@@ -49,6 +49,7 @@ interface LabDashboardProps {
     labName: string
     city: string
     verified: boolean
+    verificationStatus?: string
     homeCollection: boolean
     longDistanceTravelFeeCents?: number | null
   }
@@ -94,8 +95,7 @@ const STATUS_CFG: Record<string, { label: string; icon: any; bg: string; color: 
   },
 }
 
-// Demo commissions use the same 18% platform fee as production (LAB_BASE_FEE_PCT)
-// so the demo dashboard never shows stale 15% numbers.
+// Demo commissions use LAB_BASE_FEE_PCT so the demo dashboard never shows stale numbers.
 const DEMO_COMMISSION_PCT = LAB_BASE_FEE_PCT
 const DEMO_BOOKINGS: BookingRow[] = [
   { id: 'demo_booking_1', patientName: 'Sarah Johnson', tests: [{ name: 'Complete Blood Count', price: 3500 }], scheduledAt: '2026-07-20T09:00:00Z', status: 'pending', price: 3500, commission: Math.round(3500 * DEMO_COMMISSION_PCT / 100), homeCollection: false },
@@ -341,10 +341,24 @@ export function LabDashboard({ user, profile, onLogout }: LabDashboardProps) {
               )}
             </div>
             <OfflineIndicator />
-            <Badge variant="secondary"
-              className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hidden sm:inline-flex">
-              <CheckCircle2 className="h-3 w-3" /> Verified Lab
-            </Badge>
+            {profile.verified ? (
+              <Badge variant="secondary"
+                className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hidden sm:inline-flex">
+                <CheckCircle2 className="h-3 w-3" /> Verified Lab
+              </Badge>
+            ) : (
+              <Badge variant="secondary"
+                className={cn(
+                  'hidden sm:inline-flex',
+                  profile.verificationStatus === 'rejected'
+                    ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    : 'bg-amber-500/10 text-amber-700 dark:text-amber-400',
+                )}>
+                {profile.verificationStatus === 'rejected'
+                  ? <><XCircle className="h-3 w-3" /> Changes needed</>
+                  : <><Clock className="h-3 w-3" /> Pending review</>}
+              </Badge>
+            )}
           </div>
         </div>
       </header>

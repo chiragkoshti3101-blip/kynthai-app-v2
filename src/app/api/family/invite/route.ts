@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
     if (!family)
       family = await db.family.create({ data: { name: `${u.name}'s Family`, ownerId: u.id } });
 
-    const count = await db.familyMember.count({ where: { familyId: family.id } });
+    const count = await db.familyMember.count({ where: { familyId: family.id, userId: { not: u.id } } });
     if (count >= 4) return jsonError('Maximum 4 family members', 400);
 
     const existing = await db.familyMember.findFirst({
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
 
     // SECURITY: verify the invite is addressed to the caller's email — even without
     // a verification token, the invite must be for this specific user.
-    if (pending.inviteEmail && pending.inviteEmail !== u.email) {
+    if (!pending.inviteEmail || pending.inviteEmail.toLowerCase() !== u.email.toLowerCase()) {
       return jsonError(
         'This invite is not addressed to your email address. ' +
           'You can only accept invites sent to you.',

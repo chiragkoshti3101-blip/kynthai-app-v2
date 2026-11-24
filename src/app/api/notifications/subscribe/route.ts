@@ -7,50 +7,6 @@ import { requireAuthWithCsrf, jsonOk, jsonError } from '@/lib/api-helpers'
 export const dynamic = 'force-dynamic'
 
 /**
- * Idempotent bootstrap — creates the push_subscriptions table if it's missing
- * (e.g. first deploy before migrations are applied in the DB). Safe: the SQL
- * is a fixed, non-destructive CREATE TABLE IF NOT EXISTS with no user input.
- */
-async function ensurePushTable(): Promise<boolean> {
-  try {
-    await db.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS "push_subscriptions" (
-        "id" TEXT NOT NULL,
-        "userId" TEXT NOT NULL,
-        "endpoint" TEXT NOT NULL,
-        "type" TEXT NOT NULL DEFAULT 'webpush',
-        "token" TEXT,
-        "p256dh" TEXT NOT NULL,
-        "auth" TEXT NOT NULL,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "push_subscriptions_pkey" PRIMARY KEY ("id")
-      );
-    `)
-    // Idempotent: upgrade an existing table created before FCM support.
-    const upgradeStatements = [
-      `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "type" TEXT NOT NULL DEFAULT 'webpush'`,
-      `ALTER TABLE "push_subscriptions" ADD COLUMN IF NOT EXISTS "token" TEXT`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_endpoint_type_key" ON "push_subscriptions"("userId", "endpoint", "type")`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS "push_subscriptions_userId_type_token_key" ON "push_subscriptions"("userId", "type", "token")`,
-      `CREATE INDEX IF NOT EXISTS "push_subscriptions_userId_idx" ON "push_subscriptions"("userId")`,
-    ]
-    for (const sql of upgradeStatements) {
-      await db.$executeRawUnsafe(sql).catch(() => {})
-    }
-    // Drop the old single-column unique index if present (replaced by the
-    // composite one above) so upserts by (userId, endpoint, type) work.
-    await db
-      .$executeRawUnsafe(
-        `DROP INDEX IF EXISTS "push_subscriptions_userId_endpoint_key"`,
-      )
-      .catch(() => {})
-    return true
-  } catch {
-    return false
-  }
-}
-
-/**
  * POST /api/notifications/subscribe — store a push subscription
  * for the authenticated user.  The browser's Service Worker calls this
  * after registering for push notifications.
@@ -88,27 +44,7 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch {
-    // Table missing (migration not yet applied) → bootstrap then retry once.
-    const ok = await ensurePushTable()
-    if (!ok) return jsonError('Failed to store subscription', 500)
-    try {
-      await db.pushSubscription.upsert({
-        where: { userId_endpoint_type: { userId: user.id, endpoint: body.endpoint, type: 'webpush' } },
-        create: {
-          userId: user.id,
-          endpoint: body.endpoint,
-          type: 'webpush',
-          p256dh: body.keys?.p256dh ?? '',
-          auth: body.keys?.auth ?? '',
-        },
-        update: {
-          p256dh: body.keys?.p256dh ?? '',
-          auth: body.keys?.auth ?? '',
-        },
-      })
-    } catch {
-      return jsonError('Failed to store subscription', 500)
-    }
+    return jsonError('Failed to store subscription', 500)
   }
 
   if (previousEndpoint && previousEndpoint !== body.endpoint) {

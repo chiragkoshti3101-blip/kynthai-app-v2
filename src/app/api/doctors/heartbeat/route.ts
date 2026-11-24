@@ -11,7 +11,7 @@ const ONLINE_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
 const AWAY_THRESHOLD_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // ── Derive display status from last_active timestamp ─────────────────────────
-export function derivePresenceStatus(lastActiveAt: Date | null): 'online' | 'away' | 'offline' {
+function derivePresenceStatus(lastActiveAt: Date | null): 'online' | 'away' | 'offline' {
   if (!lastActiveAt) return 'offline';
   const age = Date.now() - lastActiveAt.getTime();
   if (age <= ONLINE_THRESHOLD_MS) return 'online';

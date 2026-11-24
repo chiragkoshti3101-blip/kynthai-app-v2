@@ -29,6 +29,7 @@ import {
   FlaskConical,
   LayoutGrid,
   Download,
+  CalendarClock,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -52,7 +53,9 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import type { BookingSlot } from '@/lib/doctor-availability';
 import { cn } from '@/lib/utils';
 import { useAppStore, type AuthUser } from '@/lib/store';
 import { KynthaiBrand } from '@/components/kynthai/logo';
@@ -80,6 +83,10 @@ import { BookAppointment } from '@/components/kynthai/patient/book-appointment';
 import { formatAppointmentTime } from '@/lib/appointment-time';
 import dynamic from 'next/dynamic';
 import { resolveDisplayName, resolveInitial } from '@/lib/display-name';
+
+// Appointment length fallback: the reschedule grid is spaced by it so it offers
+// exactly the instants the PATCH gate will accept (POST books the same default).
+const DEFAULT_APPOINTMENT_MINUTES = 30;
 
 // ── dynamic video-call load ───────────────────────────────────────────────
 const VideoCall = dynamic(
@@ -142,7 +149,7 @@ const MORE_ITEMS: { id: Tab; label: string; desc: string; icon: React.ComponentT
   { id: 'ai', label: 'AI Assistant', desc: 'Ask about meds, symptoms & health', icon: Sparkles },
   { id: 'journal', label: 'Health Journal', desc: 'Track how you feel each day', icon: BookOpen },
   { id: 'tools', label: 'Care Tools', desc: 'Family care & health checks', icon: HeartPulse },
-  { id: 'sos', label: 'Emergency SOS', desc: 'Alert your trusted contacts', icon: Siren },
+  { id: 'sos', label: 'Emergency SOS (Beta)', desc: 'Alert your trusted contacts', icon: Siren },
 ];
 
 interface HealthMetric {
@@ -230,6 +237,8 @@ const DEMO_JOURNAL: JournalEntry[] = [
 
 interface Appointment {
   id: string;
+  doctorId?: string;
+  durationMinutes?: number;
   doctor: string;
   specialty: string;
   date: string;
@@ -354,16 +363,24 @@ function MetricCard({ m, index }: { m: HealthMetric; index: number }) {
   );
 }
 
+// A video visit's Join button is useless days early and presses a room that
+// doesn't exist yet, so it only unlocks shortly before the start time.
+const JOIN_OPENS_MINUTES_BEFORE = 10;
+
 function ApptRow({
   appt,
   onJoinCall,
   onCancel,
-  cancellingId,
+  onReschedule,
+  onWithdraw,
+  busyId,
 }: {
   appt: Appointment;
   onJoinCall?: (id: string) => void;
   onCancel?: (id: string) => void;
-  cancellingId?: string | null;
+  onReschedule?: (id: string) => void;
+  onWithdraw?: (id: string) => void;
+  busyId?: string | null;
 }) {
   // Demo rows carry fictional ids (a1/a3/...) — actions that would PATCH
   // /api/appointments/{demo-id} or open a fake WebRTC room are simply not
@@ -375,40 +392,125 @@ function ApptRow({
     completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
     cancelled: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
   };
+  // A request the doctor hasn't answered yet is not a booking: it gets an
+  // amber card, plain-language status and its own action (withdraw) so it can
+  // never be mistaken for a confirmed visit.
+  const isPending = appt.status === 'pending';
+  const startsAt = new Date(appt.date).getTime();
+  const [now, setNow] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const joinOpensAt = startsAt - JOIN_OPENS_MINUTES_BEFORE * 60_000;
+  const joinClosesAt = startsAt + Math.max(appt.durationMinutes ?? 30, 30) * 60_000;
+  const joinTooEarly = !isNaN(startsAt) && now < joinOpensAt;
+  const joinOpen = !isNaN(startsAt) && now >= joinOpensAt && now <= joinClosesAt;
+  const isVideoConfirmed = appt.type === 'video' && appt.status === 'confirmed';
+  // Phone widths: three actions on one line overflowed the card, so the actions
+  // get their own wrapped row until there is room to sit beside the details.
+  const showJoin = isVideoConfirmed && !!onJoinCall && joinOpen;
+  const showJoinLocked = isVideoConfirmed && !!onJoinCall && joinTooEarly;
+  const showReschedule = appt.status === 'confirmed' && !!onReschedule;
+  const showCancel = appt.status === 'confirmed' && !!onCancel;
+  const showWithdraw = isPending && !!onWithdraw;
+  const joinOpensLabel = isNaN(joinOpensAt)
+    ? ''
+    : new Date(joinOpensAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/60 p-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white">
-        <CalendarDays className="h-5 w-5" />
+    <div
+      className={`flex flex-col gap-2.5 rounded-xl border p-3 sm:flex-row sm:items-center sm:gap-3 ${
+        isPending
+          ? 'border-amber-300/70 bg-amber-50/60 dark:border-amber-800/60 dark:bg-amber-950/15'
+          : 'border-border/60'
+      }`}
+    >
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white">
+          <CalendarDays className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-base font-medium line-clamp-2 break-words">
+            {appt.doctor}{' '}
+            <span className="text-muted-foreground font-normal">· {appt.specialty}</span>
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {formatApptDay(appt.date)}
+            {appt.time ? ` · ${appt.time}` : ''} · {appt.type === 'video' ? '📹 Video' : '📍 In-person'}
+          </p>
+          {showJoinLocked && (
+            <p className="mt-0.5 text-[0.6875rem] text-muted-foreground">
+              Join opens {joinOpensLabel} — 10 min before your visit
+            </p>
+          )}
+          {isPending && (
+            // Inside the text column and wrapping: a long "awaiting
+            // confirmation" chip pinned to the right ran off the card at 390px.
+            <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+              <Badge
+                variant="secondary"
+                className={`text-[0.625rem] ${sc.pending}`}
+              >
+                awaiting confirmation
+              </Badge>
+              <span className="text-xs text-amber-700 dark:text-amber-400">
+                from {appt.doctor}
+              </span>
+            </div>
+          )}
+        </div>
+        {!isPending && (
+          <Badge
+            variant="secondary"
+            className={`text-[0.625rem] shrink-0 ${sc[appt.status] ?? sc.pending}`}
+          >
+            {appt.status}
+          </Badge>
+        )}
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-base font-medium line-clamp-2 break-words">
-          {appt.doctor}{' '}
-          <span className="text-muted-foreground font-normal">· {appt.specialty}</span>
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {formatApptDay(appt.date)}
-          {appt.time ? ` · ${appt.time}` : ''} · {appt.type === 'video' ? '📹 Video' : '📍 In-person'}
-        </p>
-      </div>
-      <Badge variant="secondary" className={`text-[0.625rem] shrink-0 ${sc[appt.status] ?? sc.pending}`}>
-        {appt.status}
-      </Badge>
-      {appt.type === 'video' && appt.status === 'confirmed' && onJoinCall && (
-        <button
-          onClick={() => onJoinCall(appt.id)}
-          className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
-        >
-          Join
-        </button>
-      )}
-      {appt.status === 'confirmed' && onCancel && (
-        <button
-          onClick={() => onCancel(appt.id)}
-          disabled={cancellingId === appt.id}
-          className="shrink-0 rounded-lg border border-rose-300 px-4 py-1.5 text-xs font-medium min-h-11 text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 disabled:opacity-50"
-        >
-          {cancellingId === appt.id ? '...' : 'Cancel'}
-        </button>
+      {(showJoin || showJoinLocked || showReschedule || showCancel || showWithdraw) && (
+        <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
+          {(showJoin || showJoinLocked) && (
+            <button
+              onClick={() => onJoinCall!(appt.id)}
+              disabled={!showJoin}
+              title={
+                showJoin
+                  ? 'Join your video visit'
+                  : `Join opens ${joinOpensLabel} — ${JOIN_OPENS_MINUTES_BEFORE} minutes before your visit`
+              }
+              className="min-h-11 rounded-lg bg-emerald-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-600/40 disabled:hover:bg-emerald-600/40"
+            >
+              Join
+            </button>
+          )}
+          {showReschedule && (
+            <button
+              onClick={() => onReschedule!(appt.id)}
+              className="min-h-11 rounded-lg border border-border px-4 py-1.5 text-xs font-medium text-muted-foreground hover:bg-accent"
+            >
+              Reschedule
+            </button>
+          )}
+          {showCancel && (
+            <button
+              onClick={() => onCancel!(appt.id)}
+              disabled={busyId === appt.id}
+              className="min-h-11 rounded-lg border border-rose-300 px-4 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 disabled:opacity-50"
+            >
+              {busyId === appt.id ? '...' : 'Cancel'}
+            </button>
+          )}
+          {showWithdraw && (
+            <button
+              onClick={() => onWithdraw!(appt.id)}
+              disabled={busyId === appt.id}
+              className="min-h-11 rounded-lg border border-amber-400/70 px-4 py-1.5 text-xs font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30 disabled:opacity-50"
+            >
+              {busyId === appt.id ? '...' : 'Withdraw'}
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -428,6 +530,8 @@ function HomeTab({
   onNavigate,
   onJoinCall,
   onCancelAppointment,
+  onRescheduleAppointment,
+  onWithdrawAppointment,
   cancellingApptId,
   appointmentsVersion,
 }: {
@@ -437,6 +541,8 @@ function HomeTab({
   onNavigate: (t: Tab) => void;
   onJoinCall: (id: string) => void;
   onCancelAppointment?: (id: string) => void;
+  onRescheduleAppointment?: (appt: { id: string; doctorId?: string; durationMinutes?: number }) => void;
+  onWithdrawAppointment?: (id: string) => void;
   cancellingApptId?: string | null;
   appointmentsVersion?: number;
 }) {
@@ -480,6 +586,11 @@ function HomeTab({
           .slice(0, 5)
           .map(r => ({
             id: String(r.id),
+            // doctorId + length are what the reschedule grid asks the slots API
+            // for; both come straight from the appointment row.
+            doctorId: typeof r.doctorId === 'string' ? r.doctorId : undefined,
+            durationMinutes:
+              typeof r.durationMinutes === 'number' ? r.durationMinutes : undefined,
             doctor: String(r.doctorName ?? 'Your doctor'),
             specialty: String(r.specialization ?? 'General Care'),
             date: String(r.scheduledAt ?? ''),
@@ -526,6 +637,20 @@ function HomeTab({
 
   const demoAppointments = DEMO_APPOINTMENTS.filter(a => a.status !== 'completed');
   const appointments = isDemo ? demoAppointments : liveAppointments;
+  // Requests the doctor hasn't answered are shown apart from real bookings —
+  // they are not visits yet, so they don't get booked-only actions.
+  const pendingAppts = appointments.filter(a => a.status === 'pending');
+  const bookedAppts = appointments.filter(a => a.status !== 'pending');
+  const appointmentSummary = [
+    bookedAppts.length
+      ? `${bookedAppts.length} upcoming appointment${bookedAppts.length > 1 ? 's' : ''}`
+      : null,
+    pendingAppts.length
+      ? `${pendingAppts.length} awaiting confirmation`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   // Achievement celebration state (defined before JSX for proper closure)
   const achievementState = React.useState({ show: false, type: 'adherence' as const, milestone: 0 });
@@ -576,11 +701,9 @@ function HomeTab({
               {greeting}, {displayName.split(' ')[0]}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {appointments.length > 0
-                ? `${appointments.length} upcoming appointment${appointments.length > 1 ? 's' : ''}`
-                : apptsLoaded
-                  ? 'All clear — no upcoming appointments'
-                  : 'Loading appointments…'}
+              {!apptsLoaded
+                ? 'Loading appointments…'
+                : appointmentSummary || 'All clear — no upcoming appointments'}
             </p>
             {appointments.length === 0 && (
               <button
@@ -659,18 +782,49 @@ function HomeTab({
             </button>
           </div>
         </div>
-        <div className="space-y-2.5">
-          {appointments.length > 0 ? (
-            appointments.map(a => (
-              <ApptRow
-                key={a.id}
-                appt={a}
-                onJoinCall={isDemo ? undefined : onJoinCall}
-                onCancel={isDemo ? undefined : onCancelAppointment}
-                cancellingId={cancellingApptId}
-              />
-            ))
-          ) : (
+        <div className="space-y-3">
+          {pendingAppts.length > 0 && (
+            <div className="space-y-2.5">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+                Awaiting confirmation · {pendingAppts.length}
+              </p>
+              {pendingAppts.map(a => (
+                <ApptRow
+                  key={a.id}
+                  appt={a}
+                  onWithdraw={isDemo ? undefined : onWithdrawAppointment}
+                  busyId={cancellingApptId}
+                />
+              ))}
+            </div>
+          )}
+          {bookedAppts.length > 0 && (
+            <div className="space-y-2.5">
+              {pendingAppts.length > 0 && (
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Booked
+                </p>
+              )}
+              {bookedAppts.map(a => (
+                <ApptRow
+                  key={a.id}
+                  appt={a}
+                  onJoinCall={isDemo ? undefined : onJoinCall}
+                  onCancel={isDemo ? undefined : onCancelAppointment}
+                  onReschedule={
+                    isDemo
+                      ? undefined
+                      : (id: string) => {
+                          const row = appointments.find(a => a.id === id);
+                          if (row) onRescheduleAppointment?.(row);
+                        }
+                  }
+                  busyId={cancellingApptId}
+                />
+              ))}
+            </div>
+          )}
+          {pendingAppts.length === 0 && bookedAppts.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-4">
               {apptsLoaded ? 'No upcoming appointments' : 'Loading…'}
             </p>
@@ -1428,7 +1582,7 @@ function SosTab({ phone }: { phone?: string | null }) {
   };
   return (
     <div className="space-y-5">
-      <h2 className="text-xl font-bold text-rose-600 dark:text-rose-400">Emergency SOS</h2>
+      <h2 className="text-xl font-bold text-rose-600 dark:text-rose-400">Emergency SOS (Beta)</h2>
       <Card className="border-rose-500/30 bg-rose-500/5">
         <CardContent className="p-5 space-y-4">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/10">
@@ -1482,7 +1636,7 @@ function SosTab({ phone }: { phone?: string | null }) {
               onClick={trigger}
               className="w-full h-12 text-sm border-rose-500/40 text-rose-700 dark:text-rose-400 hover:bg-rose-500/10"
             >
-              <Siren className="h-4 w-4" /> Trigger SOS alert to family
+              <Siren className="h-4 w-4" /> Trigger SOS alert to family (Beta)
             </Button>
           )}
           {stage === 'triggering' && (
@@ -1547,6 +1701,26 @@ export function PatientApp({ user }: { user: AuthUser }) {
   const [joiningCallApptId, setJoiningCallApptId] = React.useState<string | null>(null);
   const [cancellingApptId, setCancellingApptId] = React.useState<string | null>(null);
   const [cancelConfirmId, setCancelConfirmId] = React.useState<string | null>(null);
+  // Withdrawing a pending request is not a cancellation — nothing is booked
+  // yet — so it asks with its own wording and reports its own toast.
+  const [withdrawConfirmId, setWithdrawConfirmId] = React.useState<string | null>(null);
+  // Reschedule: the grid is built by the server's slots endpoint (the same one
+  // the doctor dashboard uses) and the chosen instant is PATCHed verbatim.
+  const [rescheduleTarget, setRescheduleTarget] = React.useState<{
+    id: string;
+    doctorId?: string;
+    durationMinutes?: number;
+  } | null>(null);
+  const [rescheduleDate, setRescheduleDate] = React.useState('');
+  const [rescheduleTime, setRescheduleTime] = React.useState('');
+  const [rescheduleSlots, setRescheduleSlots] = React.useState<BookingSlot[]>([]);
+  const [rescheduleSlotsLoading, setRescheduleSlotsLoading] = React.useState(false);
+  const [rescheduleSlotsError, setRescheduleSlotsError] = React.useState<string | null>(null);
+  const [rescheduleRetry, setRescheduleRetry] = React.useState(0);
+  const [rescheduling, setRescheduling] = React.useState(false);
+  const [rescheduleZone, setRescheduleZone] = React.useState<string>(
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+  );
   // Bumped after a successful cancel so HomeTab refetches live appointments.
   const [apptsVersion, setApptsVersion] = React.useState(0);
   // null = unknown (assume working); false = server has no funded AI key.
@@ -1639,6 +1813,133 @@ export function PatientApp({ user }: { user: AuthUser }) {
     [toast]
   );
 
+  // Withdrawing a request the doctor hasn't answered: the same PATCH the cancel
+  // path uses (pending → cancelled is allowed for patients server-side), with
+  // copy that makes clear no appointment was ever booked.
+  const handleWithdrawRequest = React.useCallback(
+    async (appointmentId: string) => {
+      setWithdrawConfirmId(null);
+      setCancellingApptId(appointmentId);
+      try {
+        const res = await fetch(`/api/appointments/${appointmentId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'cancelled' }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || 'Failed to withdraw request');
+        }
+        setApptsVersion(v => v + 1);
+        toast({
+          title: 'Request withdrawn',
+          description: 'Your doctor has been notified. Nothing was charged.',
+        });
+      } catch (error) {
+        toast({
+          title: 'Could not withdraw request',
+          description: error instanceof Error ? error.message : 'Unknown error',
+          variant: 'destructive',
+        });
+      } finally {
+        setCancellingApptId(null);
+      }
+    },
+    [toast]
+  );
+
+  // Open the reschedule dialog with the next day pre-selected, mirroring the
+  // booking sheet so a patient sees open times immediately.
+  const openReschedule = React.useCallback(
+    (appt: { id: string; doctorId?: string; durationMinutes?: number }) => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setRescheduleTarget(appt);
+      setRescheduleDate(tomorrow.toISOString().slice(0, 10));
+      setRescheduleTime('');
+      setRescheduleSlots([]);
+      setRescheduleSlotsError(null);
+      setRescheduleZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    },
+    [],
+  );
+
+  // Same server-built grid as doctor reschedule / patient booking: only
+  // instants the PATCH gate accepts are offered, spaced by this visit's length.
+  React.useEffect(() => {
+    if (!rescheduleTarget || !rescheduleTarget.doctorId || !rescheduleDate) {
+      setRescheduleSlots([]);
+      setRescheduleSlotsError(null);
+      setRescheduleSlotsLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const params = new URLSearchParams({ date: rescheduleDate, timeZone: rescheduleZone });
+    params.set(
+      'duration',
+      String(rescheduleTarget.durationMinutes ?? DEFAULT_APPOINTMENT_MINUTES),
+    );
+    setRescheduleSlotsLoading(true);
+    setRescheduleSlotsError(null);
+    fetch(
+      `/api/doctors/${encodeURIComponent(rescheduleTarget.doctorId)}/slots?${params.toString()}`,
+      { cache: 'no-store', credentials: 'include' },
+    )
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error('slots unavailable'))))
+      .then((data: { slots?: BookingSlot[] }) => {
+        if (cancelled) return;
+        const next = (data.slots ?? []).filter(s => s.available);
+        setRescheduleSlots(next);
+        setRescheduleTime(prev => (prev && next.some(s => s.at === prev) ? prev : ''));
+        setRescheduleSlotsLoading(false);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // A failed lookup is not an empty day — say so instead of "no slots".
+        setRescheduleSlots([]);
+        setRescheduleTime('');
+        setRescheduleSlotsError('Could not load open times for this date.');
+        setRescheduleSlotsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rescheduleTarget, rescheduleDate, rescheduleZone, rescheduleRetry]);
+
+  const handleRescheduleAppointment = React.useCallback(async () => {
+    if (!rescheduleTarget || !rescheduleTime) {
+      toast({ title: 'Please choose an available time', variant: 'destructive' });
+      return;
+    }
+    setRescheduling(true);
+    try {
+      // `rescheduleTime` is a server-issued slot instant; submitting it as-is
+      // is what keeps the dialog and the availability gate in agreement.
+      const res = await fetch(`/api/appointments/${rescheduleTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduledAt: rescheduleTime }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || 'Failed to reschedule');
+      }
+      setApptsVersion(v => v + 1);
+      setRescheduleTarget(null);
+      setRescheduleSlots([]);
+      setRescheduleTime('');
+      toast({ title: 'Appointment rescheduled' });
+    } catch (error) {
+      toast({
+        title: 'Reschedule failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setRescheduling(false);
+    }
+  }, [rescheduleTarget, rescheduleTime, toast]);
+
   const isFree = (user?.subscriptionTier ?? 'free') === 'free';
   const isDemo = isDemoUser(user);
   // QA debug tools exist only for demo accounts in non-production builds.
@@ -1646,11 +1947,13 @@ export function PatientApp({ user }: { user: AuthUser }) {
   const initial = resolveInitial(user);
 
   const handleLogout = React.useCallback(async () => {
-    router.replace('/login');
+    // Clear the server session before navigating, or the login page's auth
+    // check can bounce the user straight back into this portal.
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch { /* ignore */ }
     logout();
+    router.replace('/login');
   }, [logout, router]);
 
   return (
@@ -1705,6 +2008,8 @@ export function PatientApp({ user }: { user: AuthUser }) {
                 onNavigate={setTab}
                 onJoinCall={setJoiningCallApptId}
                 onCancelAppointment={(id) => setCancelConfirmId(id)}
+                onRescheduleAppointment={openReschedule}
+                onWithdrawAppointment={(id) => setWithdrawConfirmId(id)}
                 cancellingApptId={cancellingApptId}
                 appointmentsVersion={apptsVersion}
               />
@@ -1762,10 +2067,11 @@ export function PatientApp({ user }: { user: AuthUser }) {
         <button
           type="button"
           onClick={() => setTab('sos')}
-          aria-label="Emergency SOS"
-          className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-40 flex h-14 w-14 items-center justify-center rounded-full bg-rose-600 text-white shadow-lg shadow-rose-600/40 transition-transform active:scale-95"
+          aria-label="Emergency SOS (Beta)"
+          className="fixed right-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] z-40 flex h-14 w-14 flex-col gap-0.5 items-center justify-center rounded-full bg-rose-600 text-white shadow-lg shadow-rose-600/40 transition-transform active:scale-95"
         >
-          <Siren className="h-6 w-6" aria-hidden />
+          <Siren className="h-5 w-5" aria-hidden />
+          <span className="text-[10px] font-semibold leading-none">Beta</span>
         </button>
       )}
 
@@ -1825,6 +2131,145 @@ export function PatientApp({ user }: { user: AuthUser }) {
               onClick={() => cancelConfirmId && handleCancelAppointment(cancelConfirmId)}
             >
               {cancellingApptId === cancelConfirmId ? 'Cancelling...' : 'Cancel Appointment'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Withdraw a pending request — separate wording from Cancel because no
+          appointment exists yet. */}
+      <Dialog
+        open={!!withdrawConfirmId}
+        onOpenChange={open => {
+          if (!open) setWithdrawConfirmId(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Withdraw this request?</DialogTitle>
+            <DialogDescription>
+              Your doctor hasn&apos;t accepted this appointment yet. Withdrawing it
+              removes the request — you won&apos;t be booked or charged, and you can
+              request another time whenever you like.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setWithdrawConfirmId(null)}>
+              Keep request
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancellingApptId === withdrawConfirmId}
+              onClick={() => withdrawConfirmId && handleWithdrawRequest(withdrawConfirmId)}
+            >
+              {cancellingApptId === withdrawConfirmId ? 'Withdrawing...' : 'Withdraw request'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reschedule dialog — patient-side twin of the doctor dashboard's, same
+          slots endpoint and same PATCH gate. */}
+      <Dialog
+        open={!!rescheduleTarget}
+        onOpenChange={open => {
+          if (!open) {
+            setRescheduleTarget(null);
+            setRescheduleSlots([]);
+            setRescheduleTime('');
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Reschedule Appointment</DialogTitle>
+            <DialogDescription>Select a new date and time for this appointment.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="patient-reschedule-date">Date</Label>
+              <Input
+                id="patient-reschedule-date"
+                type="date"
+                value={rescheduleDate}
+                onChange={e => {
+                  setRescheduleDate(e.target.value);
+                  setRescheduleTime('');
+                }}
+                min={new Date().toISOString().slice(0, 10)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Time</Label>
+              {!rescheduleDate ? (
+                <p className="text-xs text-muted-foreground">Pick a date to see open times.</p>
+              ) : rescheduleSlotsLoading ? (
+                <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading open times…
+                </div>
+              ) : rescheduleSlotsError ? (
+                <div className="space-y-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    {rescheduleSlotsError}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="min-h-11"
+                    onClick={() => setRescheduleRetry(n => n + 1)}
+                  >
+                    Try again
+                  </Button>
+                </div>
+              ) : rescheduleSlots.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No open times this day — try another date.
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {rescheduleSlots.map(slot => (
+                    <Button
+                      key={slot.at}
+                      type="button"
+                      size="sm"
+                      className="min-h-11"
+                      variant={rescheduleTime === slot.at ? 'default' : 'outline'}
+                      onClick={() => setRescheduleTime(slot.at)}
+                    >
+                      {slot.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Times shown in your time zone ({rescheduleZone}). Only times your doctor&apos;s
+                schedule accepts are listed.
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              className="min-h-11"
+              onClick={() => {
+                setRescheduleTarget(null);
+                setRescheduleSlots([]);
+                setRescheduleTime('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              className="min-h-11"
+              disabled={!rescheduleDate || !rescheduleTime || rescheduling}
+              onClick={handleRescheduleAppointment}
+            >
+              {rescheduling ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <CalendarClock className="mr-2 h-4 w-4" />
+              )}
+              Reschedule
             </Button>
           </DialogFooter>
         </DialogContent>

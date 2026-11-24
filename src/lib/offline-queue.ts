@@ -108,9 +108,36 @@ export function removeQueuedAction(id: string): void {
 
 // ── Sync Engine ────────────────────────────────────────────────────
 
-export async function syncQueue(): Promise<{ synced: number; failed: number }> {
+/**
+ * How a replayed mutation's HTTP status should be handled.
+ *
+ * A 409/412 means the server state moved on while we were offline (the slot
+ * was taken, the record changed). Retrying the same stale payload can never
+ * succeed and would loop forever, so it is treated as a terminal *conflict*:
+ * dropped from the queue and surfaced to the UI instead.
+ */
+export type SyncOutcome = 'ok' | 'conflict' | 'retry'
+
+export function classifySyncResponse(status: number): SyncOutcome {
+  if (status >= 200 && status < 300) return 'ok'
+  if (status === 409 || status === 412) return 'conflict'
+  return 'retry'
+}
+
+const MAX_CONFLICTS_KEPT = 10
+let recentConflicts: Array<{ url: string; method: string; status: number; at: number }> = []
+
+export function getRecentConflicts() {
+  return [...recentConflicts]
+}
+
+export function clearRecentConflicts(): void {
+  recentConflicts = []
+}
+
+export async function syncQueue(): Promise<{ synced: number; failed: number; conflicts: number }> {
   const queue = getQueue()
-  if (queue.length === 0) return { synced: 0, failed: 0 }
+  if (queue.length === 0) return { synced: 0, failed: 0, conflicts: 0 }
 
   // Every replayed mutation must carry a fresh CSRF token or the server
   // rejects it with 403 (token lives in a cookie set by GET /api/auth/csrf,
@@ -126,10 +153,11 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
   } catch {
     // Offline still — keep queue as-is.
   }
-  if (!csrfToken) return { synced: 0, failed: 0 }
+  if (!csrfToken) return { synced: 0, failed: 0, conflicts: 0 }
 
   let synced = 0
   let failed = 0
+  let conflicts = 0
   const remaining: QueuedAction[] = []
 
   for (const action of queue) {
@@ -147,8 +175,16 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
         cache: 'no-store',
       })
 
-      if (res.ok) {
+      const outcome = classifySyncResponse(res.status)
+      if (outcome === 'ok') {
         synced++
+      } else if (outcome === 'conflict') {
+        // Stale payload — drop it and record the conflict for the UI.
+        conflicts++
+        recentConflicts = [
+          ...recentConflicts.slice(-(MAX_CONFLICTS_KEPT - 1)),
+          { url: action.url, method: action.method, status: res.status, at: Date.now() },
+        ]
       } else {
         action.retries++
         if (action.retries < MAX_RETRIES) {
@@ -168,7 +204,7 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
   }
 
   saveQueue(remaining)
-  return { synced, failed }
+  return { synced, failed, conflicts }
 }
 
 // ── Role-specific cache helpers ────────────────────────────────────

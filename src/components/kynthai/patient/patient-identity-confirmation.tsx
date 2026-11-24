@@ -41,7 +41,7 @@ import {
   InputOTPSlot,
 } from '@/components/ui/input-otp';
 import { VerificationBadge, getNextVerificationStep } from '@/components/kynthai/verification-badge';
-import { ID_DOCUMENT_TYPES } from '@/lib/patient-verify';
+import { ID_DOCUMENT_TYPES } from '@/lib/identity-document-types';
 import type { VerificationLevel } from '@/components/kynthai/verification-badge';
 
 interface IdentityConfirmationProps {

@@ -10,19 +10,19 @@ import { StructuredData } from '@/components/structured-data';
 const geistSans = Geist({
   variable: '--font-geist-sans',
   subsets: ['latin'],
-  display: 'swap',
+  display: 'optional',
 });
 
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
-  display: 'swap',
+  display: 'optional',
 });
 const playfair = Playfair_Display({
   weight: ['600','700','800'],
   variable: '--font-playfair-display',
   subsets: ['latin'],
-  display: 'swap',
+  display: 'optional',
 });
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kynthai.app';
@@ -37,15 +37,25 @@ export const metadata: Metadata = {
     'AI-powered medicine reminders, doctor consults, lab tests & family health management — families around the world. Free to start. Privacy-first.',
   keywords: [
     'Kynthai',
-    'family health management',
+    'family health management app',
     'medication reminder app',
+    'pill reminder app',
+    'medication tracker',
+    'family caregiver app',
     'health companion',
-    'doctor consultation',
+    'doctor consultation app',
+    'online doctor consultation',
+    'telemedicine app',
     'lab test booking',
+    'book lab tests online',
     'family medication management',
+    'care coordination app',
+    'health reminder app',
     'privacy-first health app',
     'AI health assistant',
-    'care coordination',
+    'medication adherence',
+    'family health tracker',
+    'patient portal app',
   ],
   authors: [{ name: 'Kynthai' }],
   manifest: '/manifest.json',
@@ -108,7 +118,14 @@ export default function RootLayout({
       <head>
         <StructuredData />
         {/* Instant first paint — prevents black/white flash on PWA cold start */}
-        <style dangerouslySetInnerHTML={{ __html: 'html,body{background:#f9fdfb!important;margin:0;min-height:100%;background-color:#f9fdfb}html.dark,html.dark body{background:#070f0c!important;background-color:#070f0c}#kynthai-boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#f9fdfb;color:#064e3b;font-family:system-ui,sans-serif;font-weight:600;font-size:18px;letter-spacing:0.02em;transition:opacity .2s}html.dark #kynthai-boot{background:#070f0c;color:#ecfdf5}#kynthai-boot.done{opacity:0;pointer-events:none;transition:opacity .25s}' }} />
+        {/* The `prefers-color-scheme` fallbacks matter: next-themes strips the
+            theme class and re-applies it a few frames later while it resolves
+            `system`, and without them that gap painted the light background for
+            a dark-mode visitor (the iOS light↔dark flash). `html:not(.light)`
+            keeps an explicit light choice light while the class is missing.
+            `-webkit-overflow-scrolling:auto` cancels the legacy override at the
+            bottom of globals.css that makes WKWebView flicker while scrolling. */}
+        <style dangerouslySetInnerHTML={{ __html: 'html,body{background:#f9fdfb!important;margin:0;min-height:100%;background-color:#f9fdfb;color-scheme:light;-webkit-overflow-scrolling:auto!important}html.dark,html.dark body{background:#070f0c!important;background-color:#070f0c;color-scheme:dark}@media (prefers-color-scheme:dark){html:not(.light),html:not(.light) body{background:#070f0c!important;background-color:#070f0c;color-scheme:dark}}#kynthai-boot{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#f9fdfb;color:#064e3b;font-family:system-ui,sans-serif;font-weight:600;font-size:18px;letter-spacing:0.02em;transition:opacity .18s ease-out,visibility 0s linear .18s}html.dark #kynthai-boot{background:#070f0c;color:#ecfdf5}@media (prefers-color-scheme:dark){html:not(.light) #kynthai-boot{background:#070f0c;color:#ecfdf5}}#kynthai-boot.done{opacity:0;visibility:hidden;pointer-events:none}' }} />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Preconnect to critical origins for faster DNS + TLS */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -120,7 +137,7 @@ export default function RootLayout({
             default. Matches next-themes' 'theme' localStorage key. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('theme')||'system';var d=document.documentElement;var dark=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark)d.classList.add('dark');}catch(e){}function dismissBoot(){var b=document.getElementById('kynthai-boot');if(b&&!b.classList.contains('done')){requestAnimationFrame(function(){b.classList.add('done');});}}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',dismissBoot);}else{dismissBoot();}})();`,
+            __html: `(function(){var d=document.documentElement;try{var t=localStorage.getItem('theme')||'system';var dark=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(dark)d.classList.add('dark');}catch(e){}var started=0,everThemed=false;function themed(){return d.classList.contains('dark')||d.classList.contains('light');}function fade(){var b=document.getElementById('kynthai-boot');if(!b||b.classList.contains('done'))return;if(!started)started=Date.now();if(themed())everThemed=true;if(!everThemed&&Date.now()-started<1500)return;b.classList.add('done');}function start(){if(!started)started=Date.now();requestAnimationFrame(function(){requestAnimationFrame(fade);});if(window.MutationObserver){var mo=new MutationObserver(function(){if(!document.getElementById('kynthai-boot-shell')){try{mo.disconnect()}catch(e){}return;}fade();});mo.observe(d,{childList:true,subtree:true});setTimeout(function(){try{mo.disconnect()}catch(e){}},8000);}var iv=setInterval(function(){if(!document.getElementById('kynthai-boot-shell')){clearInterval(iv);return;}fade();},50);setTimeout(function(){clearInterval(iv)},3000);}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',start);}else{start();}})();`,
           }}
         />
         {/* ponytail: switch sizing is now handled entirely by inline styles
@@ -159,7 +176,18 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        <div id="kynthai-boot" aria-hidden="true" suppressHydrationWarning>Kynthai</div>
+        {/* Raw HTML inside a React-owned shell on purpose: React rewrites
+            `className` on the elements it manages, which re-opaqued the splash
+            mid-fade (a full-screen white/dark blink on iOS). Markup parsed from
+            innerHTML is never reconciled, so the fade survives hydration.
+            BootSplashCleanup removes the shell after the fade has finished. */}
+        <div id="kynthai-boot-shell">
+          <div
+            dangerouslySetInnerHTML={{
+              __html: '<div id="kynthai-boot" aria-hidden="true">Kynthai</div>',
+            }}
+          />
+        </div>
         <Providers>
           <PortalShell>{children}</PortalShell>
         </Providers>

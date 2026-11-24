@@ -7,7 +7,22 @@
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
-const prisma = new PrismaClient();
+let prisma;
+if (process.env.DATABASE_BACKEND === 'ci-prisma') {
+  // Reuse the application's encryption and isolation policy, not a second copy.
+  const ts = require('typescript');
+  require.extensions['.ts'] = (module, filename) => {
+    const source = require('fs').readFileSync(filename, 'utf8');
+    module._compile(ts.transpileModule(source, { compilerOptions: {
+      module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022,
+    } }).outputText, filename);
+  };
+  require('../src/lib/ci-fixture.ts').isCiFixture();
+  prisma = require('../src/lib/prisma-encryption-middleware.ts').installEncryptionMiddleware(new PrismaClient());
+} else {
+  if (process.env.CI === 'true') throw new Error('CI seed requires isolated fixture backend');
+  prisma = new PrismaClient();
+}
 
 async function main() {
   console.log('🌱 Seeding Kynthai demo database...\n');
@@ -47,7 +62,7 @@ async function main() {
   await prisma.labProfile.deleteMany();
   await prisma.user.deleteMany();
 
-  const password = await bcrypt.hash('Demo@2024', 10);
+  const password = await bcrypt.hash(process.env.E2E_FIXTURE_PASSWORD || 'Demo@2024', 10);
 
   // ── 1. PATIENT ──
   const patient = await prisma.user.create({
@@ -379,7 +394,7 @@ async function main() {
   console.log('🎉  SEED COMPLETE');
   console.log('═══════════════════════════════════════════');
   console.log('\n📋  DEMO LOGIN CREDENTIALS:');
-  console.log('   Password for all:  Demo@2024');
+  console.log('   Password supplied separately; never logged.');
   console.log('   ────');
   console.log('   👤 Patient:   patient@demo.kynthai.app');
   console.log('   👨‍⚕️  Doctor:    priya@demo.kynthai.app');

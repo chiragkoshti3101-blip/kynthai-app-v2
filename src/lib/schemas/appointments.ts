@@ -10,12 +10,15 @@ export const createAppointmentSchema = z.object({
   reason: z.string().max(500).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
   consultationConsent: z.boolean().optional().default(false),
-  durationMinutes: z.coerce.number().int().min(5).max(120).optional().default(15),
+  durationMinutes: z.coerce.number().int().min(5).max(120).optional().default(30),
 });
 
 /** PUT /api/appointments — update status */
 export const updateAppointmentSchema = z.object({
-  id: z.string().uuid('id must be a valid UUID'),
+  // Appointment ids are not always UUIDs: the Prisma fixture path issues
+  // cuid()s while the production REST layer issues UUIDs. A uuid-only check
+  // rejected every cuid appointment, so accept both shapes.
+  id: dbIdWithMessage('id must be a valid id'),
   status: z.enum(['pending', 'confirmed', 'completed', 'cancelled', 'no-show', 'rescheduled'], {
     error: 'Status must be one of: pending, confirmed, completed, cancelled, no-show, rescheduled',
   }),

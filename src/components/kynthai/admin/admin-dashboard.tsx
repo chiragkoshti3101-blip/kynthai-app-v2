@@ -22,6 +22,7 @@ import {
   Shield,
   UserCircle,
   Mail,
+  Video,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -76,7 +77,17 @@ interface DoctorApp {
   fee: number;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
-  documents: { name: string; type: string }[];
+  documents: { id?: string; name: string; type: string }[];
+  aiVerdict?: 'auto_reject' | 'manual_review' | 'strong_match' | null;
+  aiReview?: VerificationReview | null;
+}
+
+interface VerificationReview {
+  verdict: string;
+  score: number;
+  aiAssisted: boolean;
+  reasons: string[];
+  checks: { id: string; label: string; status: 'pass' | 'warn' | 'fail'; detail: string }[];
 }
 
 interface LabApp {
@@ -88,7 +99,9 @@ interface LabApp {
   testCount: number;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
-  documents: { name: string; type: string }[];
+  documents: { id?: string; name: string; type: string }[];
+  aiVerdict?: 'auto_reject' | 'manual_review' | 'strong_match' | null;
+  aiReview?: VerificationReview | null;
 }
 
 /* Partner leaderboard row — filled from the real /api/admin/overview
@@ -109,11 +122,13 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
   // /api/auth/me check would otherwise re-authenticate and bounce straight
   // back into the portal (the old onLogout={logout} only cleared the store).
   const handleLogout = React.useCallback(async () => {
-    router.replace('/login');
+    // Clear the server session first: navigating while still authenticated
+    // lets the login page's auth check bounce the user back into the portal.
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch { /* ignore */ }
     logout();
+    router.replace('/login');
   }, [logout, router]);
   const [tab, setTab] = React.useState<AdminTab>('overview');
   const [profileOpen, setProfileOpen] = React.useState(false);
@@ -134,6 +149,20 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
   const [overview, setOverview] = React.useState<OverviewData | null>(null);
   const [overviewError, setOverviewError] = React.useState<string | null>(null);
 
+  // Video-call telemetry — surfaced as a card on the dashboard.
+  interface VideoTelemetry {
+    windowDays: number;
+    totalCalls: number;
+    byStatus: Record<string, number>;
+    callsLast30Days: number;
+    avgDurationSec: number;
+    avgQuality: number | null;
+    relayCalls: number;
+    relaySharePct: number;
+    poorQualityCalls: number;
+  }
+  const [videoTelemetry, setVideoTelemetry] = React.useState<VideoTelemetry | null>(null);
+
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -147,6 +176,23 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
         }
       } catch (e) {
         if (!cancelled) setOverviewError(e instanceof Error ? e.message : 'Failed to load');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refetchTick]);
+
+  // Video-call telemetry for the dashboard card.
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/video-telemetry', { credentials: 'include', cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && !cancelled) setVideoTelemetry(data as VideoTelemetry);
+      } catch {
+        /* non-fatal: card shows loading/empty */
       }
     })();
     return () => {
@@ -302,6 +348,50 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
           />
         </div>
 
+        {/* Video-call telemetry card */}
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                <Video className="h-4 w-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold">Video calls</h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Last {videoTelemetry?.windowDays ?? 30} days · {videoTelemetry?.totalCalls ?? 0} total
+                </p>
+              </div>
+            </div>
+            {videoTelemetry ? (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-border/60 p-3">
+                  <p className="text-[11px] text-muted-foreground">Calls (30d)</p>
+                  <p className="text-lg font-bold">{videoTelemetry.callsLast30Days}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 p-3">
+                  <p className="text-[11px] text-muted-foreground">Avg duration</p>
+                  <p className="text-lg font-bold">{videoTelemetry.avgDurationSec}s</p>
+                </div>
+                <div className="rounded-xl border border-border/60 p-3">
+                  <p className="text-[11px] text-muted-foreground">Avg quality</p>
+                  <p className="text-lg font-bold">{videoTelemetry.avgQuality ?? '—'}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 p-3">
+                  <p className="text-[11px] text-muted-foreground">Relay (TURN)</p>
+                  <p className="text-lg font-bold">{videoTelemetry.relaySharePct}%</p>
+                </div>
+              </div>
+            ) : (
+              <LoadingCard />
+            )}
+            {videoTelemetry && videoTelemetry.poorQualityCalls > 0 && (
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-3">
+                {videoTelemetry.poorQualityCalls} poor-quality call{videoTelemetry.poorQualityCalls === 1 ? '' : 's'} flagged.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         <Tabs value={tab} onValueChange={v => setTab(v as AdminTab)} className="w-full">
           {/* Mobile: 2-col grid so labels stay readable; sm+: 6-col strip */}
           <TabsList className="grid w-full grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 h-auto p-1 gap-1">
@@ -375,6 +465,8 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
                   status: d.status,
                   submittedAt: d.submittedAt,
                   documents: d.documents,
+                  aiVerdict: d.aiVerdict ?? null,
+                  aiReview: d.aiReview ?? null,
                 }))}
                 onReview={id => {
                   const app = doctorApps.find(d => d.id === id);
@@ -396,11 +488,13 @@ export function AdminDashboard({ user }: { user: AuthUser }) {
                   id: l.id,
                   name: l.labName,
                   subtitle: `${l.testCount} tests`,
-                  meta: `${l.city} · NABL: ${l.licenseNumber}`,
+                  meta: `${l.city} · License: ${l.licenseNumber}`,
                   license: l.licenseNumber,
                   status: l.status,
                   submittedAt: l.submittedAt,
                   documents: l.documents,
+                  aiVerdict: l.aiVerdict ?? null,
+                  aiReview: l.aiReview ?? null,
                 }))}
                 onReview={id => {
                   const app = labApps.find(l => l.id === id);
@@ -835,7 +929,7 @@ interface AppRow {
   license: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: string;
-  documents: { name: string; type: string }[];
+  documents: { id?: string; name: string; type: string }[];
 }
 
 function ApplicationsTab({
@@ -1353,6 +1447,58 @@ function ReviewDialog({
             </CardContent>
           </Card>
 
+          {/* Automated pre-screen (rules + optional AI) */}
+          {app.aiReview && (
+            <Card className="border-border/60">
+              <CardContent className="p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold">Automated pre-screen</p>
+                  <Badge
+                    variant="outline"
+                    className={
+                      app.aiReview.verdict === 'strong_match'
+                        ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
+                        : app.aiReview.verdict === 'auto_reject'
+                          ? 'border-rose-500/40 text-rose-600 dark:text-rose-400'
+                          : 'border-amber-500/40 text-amber-600 dark:text-amber-400'
+                    }
+                  >
+                    {app.aiReview.verdict === 'strong_match'
+                      ? 'Strong match'
+                      : app.aiReview.verdict === 'auto_reject'
+                        ? 'Failed checks'
+                        : 'Needs manual review'}
+                  </Badge>
+                </div>
+                <p className="text-muted-foreground">
+                  Score {app.aiReview.score}/100 ·{' '}
+                  {app.aiReview.aiAssisted ? 'rule checks + AI review' : 'rule checks only'}
+                </p>
+                <ul className="space-y-1">
+                  {app.aiReview.checks.map(c => (
+                    <li key={c.id} className="flex items-start gap-1.5">
+                      <span
+                        className={
+                          c.status === 'pass'
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : c.status === 'warn'
+                              ? 'text-amber-600 dark:text-amber-400'
+                              : 'text-rose-600 dark:text-rose-400'
+                        }
+                      >
+                        {c.status === 'pass' ? '✓' : c.status === 'warn' ? '!' : '✕'}
+                      </span>
+                      <span>
+                        <span className="font-medium">{c.label}:</span>{' '}
+                        <span className="text-muted-foreground">{c.detail}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Documents */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
@@ -1362,14 +1508,19 @@ function ReviewDialog({
               {documents.map((d, i) => (
                 <button
                   key={i}
-                  className="flex items-center gap-2 rounded-xl border border-border/60 p-2.5 text-left hover:border-emerald-500/40 transition-all"
+                  type="button"
+                  onClick={() => {
+                    if (d.id) window.open(`/api/documents/${d.id}/download`, '_blank', 'noopener');
+                  }}
+                  disabled={!d.id}
+                  className="flex items-center gap-2 rounded-xl border border-border/60 p-2.5 text-left hover:border-emerald-500/40 transition-all disabled:opacity-60"
                 >
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                     <FileText className="h-4 w-4" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-xs font-medium truncate">{d.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{d.type} · preview</p>
+                    <p className="text-[10px] text-muted-foreground">{d.type} · open document</p>
                   </div>
                 </button>
               ))}
@@ -1530,6 +1681,8 @@ function toDoctorApp(x: any): DoctorApp {
     status,
     submittedAt: x.submittedAt ? timeAgo(x.submittedAt) : 'unknown',
     documents: x.documents ?? [],
+    aiVerdict: x.aiVerdict ?? null,
+    aiReview: x.aiReview ?? null,
   };
 }
 
@@ -1550,6 +1703,8 @@ function toLabApp(x: any): LabApp {
     status,
     submittedAt: x.submittedAt ? timeAgo(x.submittedAt) : 'unknown',
     documents: x.documents ?? [],
+    aiVerdict: x.aiVerdict ?? null,
+    aiReview: x.aiReview ?? null,
   };
 }
 

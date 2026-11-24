@@ -1,10 +1,12 @@
 import { z } from 'zod'
+import { dbId, dbIdOptional } from './ids'
+import { isValidTimeZone } from '../doctor-availability'
 
 // ── Lab bookings ─────────────────────────────────────────────────────
 
 export const createLabBookingSchema = z.object({
-  labId:       z.string().uuid('labId must be a valid UUID'),
-  patientId:   z.string().uuid().optional().nullable(),
+  labId:       dbId,
+  patientId:   dbIdOptional,
   scheduledAt: z.string().datetime('scheduledAt must be an ISO date/time'),
   tests: z.array(
     z.object({
@@ -26,37 +28,55 @@ export const emergencySosSchema = z.object({
 // ── Doctor: notes ────────────────────────────────────────────────────
 
 export const createDoctorNoteSchema = z.object({
-  patientId: z.string().uuid('patientId must be a valid UUID'),
+  patientId: dbId,
   content:   z.string().min(1, 'content is required').max(5000),
   type:      z.enum(['observation', 'diagnosis', 'follow-up']).default('observation'),
 })
 
 // ── Doctor: availability ─────────────────────────────────────────────
 
-export const availabilitySlotSchema = z.object({
-  day:   z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday']),
-  start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'start must be HH:MM'),
-  end:   z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'end must be HH:MM'),
-})
+const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/
+
+// A single wall-clock window. Zero-length and inverted windows are rejected.
+const availabilityWindowSchema = z.object({
+  start: z.string().regex(timeRegex, 'start must be HH:MM'),
+  end:   z.string().regex(timeRegex, 'end must be HH:MM'),
+}).refine(
+  (window) => window.start < window.end,
+  { message: 'end must be after start', path: ['end'] }
+)
 
 export const availabilityUpdateSchema = z.object({
+  // The zone the weekly windows below are wall-clock times in. Null clears it
+  // and the clinic falls back to America/New_York.
+  timeZone: z
+    .string()
+    .trim()
+    .max(64)
+    .refine(isValidTimeZone, 'timeZone must be an IANA zone, e.g. America/New_York')
+    .nullable()
+    .optional(),
   schedule: z.array(
     z.object({
       day:   z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday']),
-      slots: z.array(
-        z.object({
-          start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-          end:   z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-        })
-      ),
-    })
+      slots: z.array(availabilityWindowSchema),
+    }).refine(
+      (entry) => {
+        const sorted = [...entry.slots].sort((a, b) => a.start.localeCompare(b.start))
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i].start < sorted[i - 1].end) return false
+        }
+        return true
+      },
+      { message: 'availability windows must not overlap', path: ['slots'] }
+    )
   ).min(1, 'Schedule array must not be empty'),
 })
 
 // ── Doctor: prescribe ────────────────────────────────────────────────
 
 export const prescribeSchema = z.object({
-  patientId:    z.string().uuid().optional().nullable(),
+  patientId:    dbIdOptional,
   patientEmail: z.string().email().max(254).optional().nullable(),
   medications: z.array(
     z.object({
@@ -85,7 +105,7 @@ export const adminActionSchema = z.object({
 // ── Consult messages ─────────────────────────────────────────────────
 
 export const consultMessageSchema = z.object({
-  appointmentId: z.string().uuid('appointmentId must be a valid UUID'),
+  appointmentId: dbId,
   content:       z.string().min(1, 'content is required').max(5000),
 })
 

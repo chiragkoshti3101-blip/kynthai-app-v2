@@ -94,6 +94,60 @@ export function validatePasswordStrength(password: string): { valid: boolean; er
   return { valid: errors.length === 0, errors }
 }
 
+/**
+ * Check a password against the HaveIBeenPwned k-anonymity API.
+ * Uses SHA-1 prefix (first 5 hex chars) so the full hash is never sent.
+ * Returns true when the password appears in breach data.
+ */
+export async function checkBreachedPassword(password: string): Promise<boolean> {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+    const prefix = hashHex.slice(0, 5);
+    const suffix = hashHex.slice(5);
+
+    const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
+      headers: { 'User-Agent': 'Kynthai-Security-Check' },
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!response.ok) return false;
+
+    const text = await response.text();
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const parts = line.split(':');
+      const hashSuffix = parts[0];
+      const count = parts[1];
+      if (hashSuffix && hashSuffix === suffix) {
+        return parseInt(count ?? '0', 10) > 0;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Async password strength validation including breach check.
+ * Use this on registration where a network call is acceptable.
+ */
+export async function validatePasswordStrengthAsync(password: string): Promise<{ valid: boolean; errors: string[] }> {
+  const result = validatePasswordStrength(password);
+  if (!result.valid) return result;
+
+  const breached = await checkBreachedPassword(password);
+  if (breached) {
+    result.errors.push('This password has appeared in data breaches. Please choose a different one.');
+    result.valid = false;
+  }
+  return result;
+}
+
 // ── PII masking ──────────────────────────────────────────────────────
 export function maskIdLike(value: string | null | undefined): string {
   if (!value) return '—'

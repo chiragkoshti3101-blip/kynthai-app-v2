@@ -14,9 +14,7 @@ import { isDemoEnabled } from '@/lib/demo-mode'
 
 import { usePathname, useRouter } from 'next/navigation';
 import { useAppStore, selectors, type AuthUser } from '@/lib/store';
-import { Suspense, useEffect } from 'react';
-import { loadPortal } from './portal-loaders';
-import { LandingPage } from '@/components/kynthai/landing-page';
+import { useEffect } from 'react';
 import { LoginPage } from '@/components/kynthai/login-page';
 import { PricingPage } from '@/components/kynthai/pricing-page';
 import { CheckoutPage } from '@/components/kynthai/checkout-page';
@@ -64,8 +62,15 @@ const PUBLIC_SCREENS = [
 // ── Main routing component ─────────────────────────────────────────────────
 export function PortalClient({ children }: { children: React.ReactNode }) {
   const rawPathname = usePathname(); // updates reactively on every nav
+  // SSR safety: usePathname() can be null during server rendering. Treat a
+  // missing pathname as the root route so the landing page renders on the
+  // first paint instead of falling through to the SEO children (which caused
+  // the whole-page swap/flash on iOS Safari).
+  const resolvedPathname = rawPathname || '/';
   const pathname =
-    rawPathname.endsWith('/') && rawPathname.length > 1 ? rawPathname.slice(0, -1) : rawPathname;
+    resolvedPathname.endsWith('/') && resolvedPathname.length > 1
+      ? resolvedPathname.slice(0, -1)
+      : resolvedPathname;
   const isKnownPath =
     pathname === '/' ||
     pathname in ROUTE_SCREEN ||
@@ -260,78 +265,9 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
       window.location.replace('/');
       return;
     }
-    // ponytail: opt-in demo mode. When NEXT_PUBLIC_ENABLE_DEMO=true the
-    // app auto-signs the user in as a real demo account (patient /
-    // doctor / lab / caretaker / admin @kynthai.app, password
-    // Demo@2024). These accounts have a real Supabase auth + public.users
-    // row, so the session is real and every API call works exactly as it
-    // would for a real user — the world-class AI (patient record,
-    // verified interaction/contraindication checking, streaming) all
-    // activates. The client-side store.login mock is gone.
-    if (isDemoEnabled() && !user && !onboardingComplete) {
-      // ponytail: do a real sign-in via the login API. The chosen
-      // demo account is the patient (most seeded: meds, conditions,
-      // allergies) so the patient portal demos the full world-class
-      // experience. cycle through the 5 roles in order so testers can
-      // log out and see each portal.
-      const demoAccounts: Array<{ email: string; role: 'patient' | 'doctor' | 'lab' | 'caretaker' | 'admin' }> = [
-        { email: 'patient@kynthai.app',   role: 'patient'   },
-        { email: 'doctor@kynthai.app',    role: 'doctor'    },
-        { email: 'caretaker@kynthai.app', role: 'caretaker' },
-        { email: 'lab@kynthai.app',       role: 'lab'       },
-        { email: 'admin@kynthai.app',     role: 'admin'     },
-      ];
-      const pick: { email: string; role: 'patient' | 'doctor' | 'lab' | 'caretaker' | 'admin' } = (() => {
-        if (typeof window !== 'undefined') {
-          const fromHash = (window.location.hash || '').replace('#', '').toLowerCase();
-          const found = demoAccounts.find(a => a.role === fromHash);
-          if (found) return found as { email: string; role: 'patient' | 'doctor' | 'lab' | 'caretaker' | 'admin' };
-        }
-        return demoAccounts[0]!;
-      })();
-      (async () => {
-        try {
-          // 1. Get CSRF (sets the cookie + returns the token)
-          const csrfRes = await fetch('/api/auth/csrf', { credentials: 'include' });
-          const { token: csrf } = await csrfRes.json();
-          // 2. Real sign-in — sets the kynthai-session cookie on success
-          const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
-            body: JSON.stringify({
-              email: pick.email,
-              password: 'Demo@2024',
-              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            }),
-          });
-          if (res.ok) {
-            // 3. Client-side navigation (no hard reload) — the store already
-            //    has the user from runDemoLogin, and portal clients recover
-            //    via /api/auth/me. This avoids the triple-loading-state flash
-            //    (login AppLoader → portal chunk AppLoader → portal-app AppLoader).
-            router.push(pathname === '/' ? `/${pick.role}` : pathname);
-            return;
-          }
-        } catch { /* fall through to the client-side fallback below */ }
+    // Demo authentication is explicit on the login screen. Never embed
+    // production account credentials or fabricate a client-only session here.
 
-        // Fallback: client-side store login (no real session). Keeps the
-        // demo usable even if the network call to /api/auth/login fails.
-        const fallback: AuthUser = {
-          id: 'demo-caretaker',
-          email: 'caretaker@kynthai.app',
-          name: 'Demo Family',
-          role: 'caretaker',
-          consentAccepted: true,
-          dataProcessingConsent: true,
-          aiTrainingConsent: true,
-          isDemo: true,
-        };
-        login(fallback);
-        completeOnboarding('caretaker');
-        if (pathname === '/') router.replace('/caretaker');
-      })();
-    }
   }, [user, onboardingComplete, completeOnboarding, pathname, router]);
 
   // Prefetch auth routes so Get Started / Sign in feel instant.
@@ -361,6 +297,14 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
     PROTECTED_PATHS.has(pathname) || pathname.startsWith('/family/members/');
   const isLandingPage = pathname === '/';
 
+  // The landing is server-rendered by app/page.tsx (LandingRoute), so `/` must
+  // render that page rather than mounting a second copy here: swapping the
+  // server's short fallback for the full landing after hydration moved the
+  // hero ~190px and re-laid out the whole page (the iOS "content jumps" report).
+  if (isLandingPage) {
+    return <ErrorBoundary>{children}</ErrorBoundary>;
+  }
+
   // Public pages (marketing, legal, auth helpers) always render their real page.
   if (isPublicPath) {
     return <ErrorBoundary>{children}</ErrorBoundary>;
@@ -371,8 +315,11 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   // the store hydrates. This gives anonymous crawlers and no-JS users complete
   // marketing content instead of an empty loader; authenticated users are
   // redirected by the auth-aware branch immediately after hydration.
+  // Landing page renders the interactive LandingPage on the very first paint
+  // (server + client) so there is no SEO-fallback -> interactive swap that
+  // flashed/blurred the whole page on iOS Safari.
   if (!hydrated) {
-    if (isLandingPage || isPortalPath || isProtectedPath) {
+    if (isPortalPath || isProtectedPath) {
       return <ErrorBoundary>{children}</ErrorBoundary>;
     }
   }
@@ -456,97 +403,5 @@ export function PortalClient({ children }: { children: React.ReactNode }) {
   }
 
   // Unknown paths: render the server page (404), not the landing page.
-  if (!isLandingPage) {
-    return <ErrorBoundary>{children}</ErrorBoundary>;
-  }
-
-  // ─── Screen resolution logic ──────────────────────────────────────────────
-  // URL wins if it corresponds to a known public page
-  const routeScreen = ROUTE_SCREEN[pathname] ?? screen;
-  const resolvedScreen = [...PORTAL_SCREENS, ...PUBLIC_SCREENS].includes(routeScreen as any)
-    ? routeScreen
-    : 'landing';
-
-  // Logged-in user hitting `/` or `/login` → hard-redirect to their portal path.
-  // Avoids rendering the portal under the `/` URL (which caused a Landing flash
-  // on reopen and left the address bar on the marketing route).
-  if (user && (routeScreen === 'landing' || routeScreen === 'login')) {
-    const portalFromRole: Record<string, string> = {
-      caretaker: 'caretaker',
-      family: 'caretaker',
-      patient: 'patient',
-      doctor: 'doctor',
-      lab: 'lab',
-      admin: 'admin',
-    };
-    const dest = '/' + (portalFromRole[user.role] ?? 'caretaker');
-    router.replace(dest);
-    return (
-      <ErrorBoundary>
-        <AppLoader label="Opening your portal…" />
-      </ErrorBoundary>
-    );
-  }
-
-  // Auth-aware screen resolution
-  let effectiveScreen: AppScreen = resolvedScreen;
-  if (!user && PORTAL_SCREENS.includes(routeScreen as any)) {
-    effectiveScreen = 'landing';
-  }
-
-  // ── Portal apps — loaded via portal-loaders.tsx ───────────────────────────
-  const { key, node } = loadPortal(effectiveScreen, user);
-  if (node) {
-    return (
-      <Suspense fallback={<AppLoader label="Loading…" />}>
-        <div key={key}>{node}</div>
-      </Suspense>
-    );
-  }
-
-  // SECURITY: User is authenticated but attempting to access a portal
-  // they don't have the correct role for. Redirect to their own portal or login.
-  if (user && PORTAL_PATHS.has(pathname)) {
-    const userPortal = user.role as string;
-    // Map 'caretaker' (DB role) to the 'family' client portal path, and
-    // 'family' to 'caretaker' (the actual DB role). All other roles map 1:1.
-    const portalFromRole: Record<string, string> = {
-      caretaker: 'caretaker',
-      family: 'caretaker',
-      patient: 'patient',
-      doctor: 'doctor',
-      lab: 'lab',
-      admin: 'admin',
-    };
-    const expectedPath = '/' + (portalFromRole[userPortal] ?? userPortal);
-    if (
-      pathname !== expectedPath &&
-      ['patient', 'doctor', 'lab', 'caretaker', 'family', 'admin'].includes(userPortal)
-    ) {
-      router.replace(expectedPath);
-      return (
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="text-sm text-muted-foreground">Redirecting to your portal...</div>
-        </div>
-      );
-    }
-  }
-
-  // ── Landing (default) ────────────────────────────────────────────────────
-  return (
-    <ErrorBoundary>
-      <LandingPage
-        onGetStarted={(type?: string) => {
-          const safePortal = (type ?? 'caretaker') as LoginPortal;
-          setLoginPortal(safePortal);
-          router.push('/login/');
-        }}
-        onPickPortal={(portal: LoginPortal) => {
-          setLoginPortal(portal);
-          router.push('/login/');
-        }}
-        currency={currency}
-      />
-    </ErrorBoundary>
-  );
+  return <ErrorBoundary>{children}</ErrorBoundary>;
 }

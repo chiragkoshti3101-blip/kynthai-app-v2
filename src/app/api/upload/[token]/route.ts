@@ -1,3 +1,4 @@
+import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { logAudit } from '@/lib/auth'
 import { rateLimit } from '@/lib/security'
@@ -49,7 +50,18 @@ export async function GET(
   // Ownership check: the prefix must be the requester's SHA-256 prefix
   const requesterPrefix = userPrefixFor(session.id)
   if (parts.userPrefix !== requesterPrefix) {
-    return jsonError('Forbidden — file does not belong to you', 403)
+    // A lab report belongs to its uploader (often the lab), but the patient
+    // and specifically selected doctor must be able to retrieve its bytes.
+    const booking = await db.labBooking.findFirst({
+      where: { resultsFile: token },
+      select: { patientId: true, shareExpiresAt: true, resultsSharedWith: true },
+    })
+    let allowed = booking?.patientId === session.id
+    if (!allowed && booking && session.role === 'doctor' && booking.shareExpiresAt && booking.shareExpiresAt > new Date()) {
+      const doctor = await db.doctorProfile.findUnique({ where: { userId: session.id }, select: { id: true, verified: true } })
+      allowed = Boolean(doctor?.verified && booking.resultsSharedWith.includes(doctor.id))
+    }
+    if (!allowed) return jsonError('Forbidden — file does not belong to you', 403)
   }
 
   try {

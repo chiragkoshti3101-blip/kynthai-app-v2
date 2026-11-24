@@ -64,38 +64,28 @@ export async function GET(req: NextRequest) {
     return jsonError('Forbidden — userId must match session', 403);
   }
 
-  // Build where clause — if familyMemberId is provided, ONLY return that member's meds
-  let where: any;
+  // Family reads must use the same ownership policy as writes (IDOR guard).
   if (familyMemberId) {
-    // IDOR: ensure family member belongs to a family owned by this user.
     const member = await db.familyMember.findUnique({
-      where: { id: familyMemberId },
-      include: { family: true },
+      where: { id: familyMemberId }, include: { family: true },
     });
-    if (!member || (member as any).family.ownerId !== u.id) {
+    if (!member || member.family?.ownerId !== u.id) {
       return jsonError('Forbidden — family member does not belong to your family', 403);
     }
-    // ONLY return this family member's medications
-    where = { familyMemberId };
-  } else {
-    // Return the user's own medications
-    where = { userId: u.id };
   }
-
-  const take = limit + 1; // fetch one extra to determine hasMore
-  const findArgs: any = { where, orderBy: { createdAt: 'desc' }, take };
-  if (cursor) {
-    findArgs.cursor = { id: cursor };
-    findArgs.skipCursor = true;
+  try {
+    const meds = await db.medication.findMany({
+      where: {
+        ...(familyMemberId ? { familyMemberId } : { userId: u.id }),
+        ...(_active === 'all' ? {} : { active: _active === 'true' }),
+      },
+      orderBy: { createdAt: 'desc' }, take: limit,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    });
+    return jsonOk(meds.map((m: any) => ({ ...m, times: parseTimes(m.times) })));
+  } catch {
+    return jsonError('Failed to fetch medications', 500);
   }
-  const meds = await db.medication.findMany(findArgs);
-  const hasMore = meds.length > limit;
-  const page = hasMore ? meds.slice(0, limit) : meds;
-  const nextCursor = hasMore && page.length > 0 ? page[page.length - 1]!.id : null;
-
-  const serialized = page.map((m: any) => ({ ...m, times: parseTimes(m.times) }));
-
-  return jsonPage(serialized, { cursor: nextCursor, limit, hasMore });
 }
 
 // POST /api/medications — create a medication

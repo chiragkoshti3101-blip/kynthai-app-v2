@@ -41,7 +41,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { generateSlots, type SlotOption } from '@/lib/booking-slots'
+import type { BookingSlot } from '@/lib/doctor-availability'
 import { useAppStore } from '@/lib/store'
 
 /* ----------------------------------- Data ----------------------------------- */
@@ -81,8 +81,8 @@ interface LabCard {
   tests: Array<{ name: string; price: number }>
 }
 
-// FIX #6: real slot options come from GET /api/doctors/[id]/slots?date= expanded
-// client-side via generateSlots (availability windows + booked instants).
+// Bookable slots come from GET /api/doctors/[id]/slots?date= as absolute
+// instants resolved in the doctor's clinic zone (see buildDaySlots).
 
 /* --------------------------------- Main view -------------------------------- */
 
@@ -290,7 +290,7 @@ function BookingDialog({
   const [reason, setReason] = React.useState('')
   const [loading, setLoading] = React.useState(false)
   // FIX #6: real slot options from availability windows + booked instants.
-  const [slots, setSlots] = React.useState<SlotOption[]>([])
+  const [slots, setSlots] = React.useState<BookingSlot[]>([])
   const [loadingSlots, setLoadingSlots] = React.useState(false)
 
   React.useEffect(() => {
@@ -307,18 +307,22 @@ function BookingDialog({
     if (!doctor?.id || !date) return
     let cancelled = false
     setLoadingSlots(true)
-    fetch(`/api/doctors/${doctor.id}/slots?date=${encodeURIComponent(date)}`, { cache: 'no-store' })
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    fetch(
+      `/api/doctors/${doctor.id}/slots?date=${encodeURIComponent(date)}&timeZone=${encodeURIComponent(timeZone)}`,
+      { cache: 'no-store' },
+    )
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error('slots unavailable'))))
-      .then((data: { windows?: Parameters<typeof generateSlots>[0]; booked?: string[] }) => {
+      .then((data: { slots?: BookingSlot[] }) => {
         if (cancelled) return
-        const next = generateSlots(data.windows ?? [], date, { booked: data.booked ?? [] })
+        const next = data.slots ?? []
         setSlots(next)
-        setSlot((prev) => (prev && next.some((s) => s.value === prev && s.available) ? prev : ''))
+        setSlot((prev) => (prev && next.some((s) => s.at === prev && s.available) ? prev : ''))
         setLoadingSlots(false)
       })
       .catch(() => {
         if (cancelled) return
-        setSlots(generateSlots([], date))
+        setSlots([])
         setLoadingSlots(false)
       })
     return () => {
@@ -341,8 +345,9 @@ function BookingDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           doctorId: doctor.id,
-          // `slot` is an HH:MM value from the availability-aware slot grid.
-          scheduledAt: new Date(`${date}T${slot}:00`).toISOString(),
+          // `slot` is a server-issued slot instant; submitting it verbatim keeps
+          // the grid and the gate in agreement.
+          scheduledAt: slot,
           type: 'video',
           reason: reason.trim() || 'Video consultation',
           consultationConsent: true,
@@ -392,9 +397,9 @@ function BookingDialog({
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {slots.map((s) => (
                   <button
-                    key={s.value}
+                    key={s.at}
                     type="button"
-                    onClick={() => s.available && setSlot(s.value)}
+                    onClick={() => s.available && setSlot(s.at)}
                     disabled={!s.available}
                     title={
                       s.available
@@ -405,7 +410,7 @@ function BookingDialog({
                     }
                     className={cn(
                       'min-h-[44px] rounded-lg border text-xs font-medium transition-all',
-                      slot === s.value
+                      slot === s.at
                         ? 'border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                         : s.available
                           ? 'border-border hover:border-emerald-500/40'

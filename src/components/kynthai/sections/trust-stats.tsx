@@ -20,11 +20,11 @@ export function TrustStats() {
   return (
     <section className="relative border-y border-border/60">
       <div
-        className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 h-40 blur-3xl"
+        className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 h-40"
         aria-hidden="true"
         style={{
           background:
-            'radial-gradient(ellipse at center, rgba(16,185,129,0.08) 0%, transparent 70%)',
+            'radial-gradient(ellipse at center, rgba(16,185,129,0.08) 0%, rgba(16,185,129,0.075) 15%, rgba(16,185,129,0.064) 30%, rgba(16,185,129,0.05) 45%, rgba(16,185,129,0.033) 60%, rgba(16,185,129,0.019) 75%, rgba(16,185,129,0.008) 88%, rgba(16,185,129,0) 100%)',
         }}
       />
       <div className="relative mx-auto grid max-w-7xl grid-cols-2 gap-3 px-4 py-10 sm:px-6 sm:gap-5 sm:py-14 lg:grid-cols-6 lg:px-8">

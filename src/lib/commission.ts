@@ -2,15 +2,17 @@
  * Kynthai Commission System — single source of truth
  * --------------------------------------------------
  * Owner-level model:
- *  - Doctors pay a 15% platform fee on every consult and medicine order
- *    routed through their practice (doctor keeps 85%).
- *  - Labs pay an 18% platform fee on every test booking fulfilled through
- *    Kynthai's network (lab keeps 82%).
+ *  - Doctors pay a 12% platform fee on every consult and medicine order
+ *    routed through their practice (doctor keeps 88%).
+ *  - Labs pay a 15% platform fee on every test booking fulfilled through
+ *    Kynthai's network (lab keeps 85%).
  *  - Loyalty tiers reduce the platform fee as partners grow with us.
  *
- * NOTE: previous versions of the dashboards used stale 15% / 10% numbers.
- * Always import from this file so the numbers never drift again.
+ * NOTE: previous versions used stale base-fee numbers; always import from
+ * this file so the numbers never drift again.
  */
+
+import { getDoctorTierConfig } from './doctor-subscription'
 
 export type LoyaltyTier = 'Bronze' | 'Silver' | 'Gold' | 'Platinum'
 
@@ -29,9 +31,11 @@ export interface TierConfig {
   blurb: string
 }
 
-export const DOCTOR_BASE_FEE_PCT = 15 // platform fee on consults + medicine orders
+export const DOCTOR_BASE_FEE_PCT = 12 // platform fee on consults + medicine orders
 export const DOCTOR_MIN_CONSULTATION_FEE_USD = 40 // Minimum consultation fee $40
-export const LAB_BASE_FEE_PCT = 18 // platform fee on test bookings
+export const DOCTOR_MIN_FEE_PCT = 7 // floor enforced by effectiveFeePct
+export const LAB_BASE_FEE_PCT = 15 // platform fee on test bookings
+export const LAB_MIN_FEE_PCT = 10 // floor enforced by effectiveFeePct
 
 export const LOYALTY_TIERS: Record<LoyaltyTier, TierConfig> = {
   Bronze: {
@@ -46,26 +50,26 @@ export const LOYALTY_TIERS: Record<LoyaltyTier, TierConfig> = {
   Silver: {
     min: 50,
     next: 'Gold',
-    feeDiscountPct: 1,
+    feeDiscountPct: 2,
     tint: 'from-slate-400 to-slate-600',
     icon: '○',
-    blurb: '50+ fulfilled orders — 1% fee discount unlocked.',
+    blurb: '50+ fulfilled orders — 2% fee discount unlocked.',
   },
   Gold: {
     min: 150,
     next: 'Platinum',
-    feeDiscountPct: 2,
+    feeDiscountPct: 3,
     tint: 'from-amber-400 to-amber-600',
     icon: '★',
-    blurb: '150+ fulfilled orders — 2% fee discount unlocked.',
+    blurb: '150+ fulfilled orders — 3% fee discount unlocked.',
   },
   Platinum: {
     min: 300,
     next: null,
-    feeDiscountPct: 3,
+    feeDiscountPct: 5,
     tint: 'from-violet-400 via-fuchsia-400 to-emerald-400',
     icon: '◆',
-    blurb: '300+ fulfilled orders — top tier, 3% fee discount.',
+    blurb: '300+ fulfilled orders — top tier, 5% fee discount.',
   },
 }
 
@@ -80,20 +84,20 @@ export function resolveTier(lifetimeFulfilled: number): LoyaltyTier {
 
 /** Effective platform fee for a doctor at a given loyalty tier. */
 export function doctorFeePct(lifetimeFulfilled: number): number {
-  const tier = resolveTier(lifetimeFulfilled)
-  return Math.max(5, DOCTOR_BASE_FEE_PCT - LOYALTY_TIERS[tier].feeDiscountPct)
+  return effectiveFeePct(DOCTOR_BASE_FEE_PCT, resolveTier(lifetimeFulfilled))
 }
 
 /** Effective platform fee for a lab at a given loyalty tier. */
 export function labFeePct(lifetimeFulfilled: number): number {
-  const tier = resolveTier(lifetimeFulfilled)
-  return Math.max(5, LAB_BASE_FEE_PCT - LOYALTY_TIERS[tier].feeDiscountPct)
+  return effectiveFeePct(LAB_BASE_FEE_PCT, resolveTier(lifetimeFulfilled))
 }
 
-/** Effective platform-fee percentage for a partner at a given tier. */
+/** Effective platform-fee percentage for a partner at a given tier.
+ *  Enforces the documented minimums: 7% for doctors, 10% for labs. */
 export function effectiveFeePct(base: number, tier: LoyaltyTier): number {
   const discount = LOYALTY_TIERS[tier].feeDiscountPct
-  return Math.max(0, base - discount)
+  const floor = base === LAB_BASE_FEE_PCT ? LAB_MIN_FEE_PCT : DOCTOR_MIN_FEE_PCT
+  return Math.max(floor, base - discount)
 }
 
 /** Money math helpers. */
@@ -139,18 +143,44 @@ export const EARLY_ADOPTER_TIERS = {
 } as const
 
 /** Platform commission for appointments — uses DOCTOR_BASE_FEE_PCT as base,
- *  adjusted by patient subscription tier and doctor loyalty. */
+ *  adjusted by patient subscription tier, doctor loyalty, and the doctor's own
+ *  Kynthai Pro/Enterprise subscription (the "lower commission" advertised on
+ *  /pricing). The 7% floor always applies last. */
 export function computeCommission(
   patientTier: string,
   doctorCompletedAppointments: number,
   baseAmount: number,
+  doctorSubscriptionTier: string = 'free',
 ): { commission: number; net: number; ratePct: number } {
-  const tierRate = patientTier === 'family_pro' ? 0.1 : patientTier === 'plus' ? 0.15 : DOCTOR_BASE_FEE_PCT / 100
+  const tierRate = patientTier === 'family_pro' ? 0.1 : patientTier === 'plus' ? 0.08 : DOCTOR_BASE_FEE_PCT / 100
   const loyaltyTier = resolveTier(doctorCompletedAppointments)
   const loyaltyDiscount = LOYALTY_TIERS[loyaltyTier].feeDiscountPct / 100
-  let ratePct = Math.max(0.05, tierRate - loyaltyDiscount)
+  const subscriptionDiscount = getDoctorTierConfig(doctorSubscriptionTier).commissionDiscountPct / 100
+  const ratePct = Math.max(DOCTOR_MIN_FEE_PCT / 100, tierRate - loyaltyDiscount - subscriptionDiscount)
   const commission = Math.round(baseAmount * ratePct)
   return { commission, net: baseAmount - commission, ratePct }
+}
+
+/**
+ * No-show / cancellation commission policy — the single explicit rule set.
+ * Money values are percentages. Kept next to the rates so the customer-facing
+ * copy and the refund engine cannot drift apart.
+ */
+export const NO_SHOW_POLICY = {
+  doctorNoShow: { patientRefundPct: 100, commissionClawbackPct: 100 },
+  labNoShow: { patientRefundPct: 100, travelFeeRefunded: true, commissionClawbackPct: 100 },
+  patientCancel: {
+    fullRefundHoursBefore: 24,
+    partialRefundHoursBefore: 2,
+    partialRefundPct: 50,
+    noRefundWithinHours: 2,
+  },
+} as const
+
+/** Commission to claw back when a paid booking is reversed. */
+export function commissionReversal(commission: number): number {
+  const rounded = Math.round(commission)
+  return rounded === 0 ? 0 : -Math.abs(rounded)
 }
 
 /** Compute doctor loyalty tier from lifetime completed appointments. */

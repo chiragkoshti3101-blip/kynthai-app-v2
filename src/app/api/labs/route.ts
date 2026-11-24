@@ -1,12 +1,11 @@
-import { NextRequest } from 'next/server'
-// import type { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
-import { logAudit } from '@/lib/auth'
+import { NextRequest } from 'next/server'
 import { sanitizeText, rateLimit } from '@/lib/security'
 import { checkCsrf } from '@/lib/csrf'
-import { jsonError, jsonOk, readJson, audit, parseJsonCol, requireAuth } from '@/lib/api-helpers'
+import { jsonError, jsonOk, readJson, parseJsonCol, requireAuth } from '@/lib/api-helpers'
 import { labProfileSchema } from '@/lib/schemas'
 import { validateProviderDocuments } from '@/lib/provider-documents'
+import { REQUIRED_DOCUMENTS, screenProviderWithAi, serializeScreen } from '@/lib/provider-verification'
 import { extractZip } from '@/lib/delivery-fee'
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +22,8 @@ export async function GET(req: NextRequest) {
   if (userId) {
     const { response, user: session } = await requireAuth(req)
     if (response || !session || session.id !== userId) return response || jsonError('Unauthorized', 401)
-    const profile = await db.labProfile.findUnique({ where: { userId }, include: { user: true } })
+    
+    const profile = await db.labProfile.findFirst({ where: { userId } })
     if (!profile) return jsonError('Not found', 404)
     return jsonOk({
       id: profile.id,
@@ -44,28 +44,18 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  const and: any[] = [{ verified: true }]
-  if (city) and.push({ city: { contains: city } })
-
-  // `labName` and `address` are encrypted with randomized ciphertext and
-  // cannot support SQL `contains`. Scope to verified labs/city first, then
-  // filter the decrypted values in memory before returning the public list.
-  const where: any = { AND: and }
-  const candidates = await db.labProfile.findMany({
-    where,
-    include: { user: true },
-    orderBy: { rating: 'desc' },
-    ...(search ? {} : { take: 100 }),
-  })
+  // Server-side adapter access: public RLS grants are not required.
+    const candidates = await db.labProfile.findMany({
+      where: { verified: true, ...(city ? { city: { contains: city, mode: 'insensitive' } } : {}) },
+      take: 100,
+    })
   const needle = search?.toLocaleLowerCase()
   const labs = needle
-    ? candidates
-        .filter((lab: any) =>
-          [lab.labName, lab.city, lab.address]
-            .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(needle)),
-        )
-        .slice(0, 100)
-    : candidates
+    ? candidates.filter((lab: any) =>
+        [lab.labName, lab.city, lab.address]
+          .some((value) => typeof value === 'string' && value.toLocaleLowerCase().includes(needle)),
+      ).slice(0, 100)
+    : candidates.slice(0, 100)
 
   return jsonOk(
     labs.map((l: any) => ({
@@ -84,7 +74,7 @@ export async function GET(req: NextRequest) {
   )
 }
 
-// POST /api/labs — create or update the caller's own lab profile (verificationStatus=pending).
+// POST /api/labs — create or update the caller's own lab profile
 export async function POST(req: NextRequest) {
   const csrfError = await checkCsrf(req)
   if (csrfError) return csrfError
@@ -117,61 +107,66 @@ export async function POST(req: NextRequest) {
   const address = sanitizeText(body.address, 500)
   const tests = Array.isArray(body.tests)
     ? body.tests
-        .filter((t) => t && t.name && Number(t.price) > 0)
-        .map((t) => ({ name: sanitizeText(t.name, 120), price: Number(t.price) || 0 }))
+        .filter((t: any) => t && t.name && Number(t.price) > 0)
+        .map((t: any) => ({ name: sanitizeText(t.name, 120), price: Number(t.price) || 0 }))
     : []
   if (!labName) return jsonError('Lab name is required', 400)
   if (!licenseNumber) return jsonError('License number is required', 400)
   if (!city) return jsonError('City is required', 400)
   if (tests.length === 0) return jsonError('Add at least one priced test', 400)
 
-  const docs = body.documents ?? {}
-
-  const docCheck = await validateProviderDocuments(docs, session.id, 'lab')
-  if (!docCheck.ok) return jsonError(docCheck.error, 400)
-  const docsJson = JSON.stringify(docCheck.documents.map(({ id, slot }) => ({ id, slot })))
-
-  const existing = await db.labProfile.findUnique({ where: { userId: session.id } })
-
-  // Fraud prevention: a hard-blocked user cannot submit a lab application.
-  if (session.verificationLevel === 'blocked') {
-    return jsonError('This account is not eligible to apply.', 403, 'ACCOUNT_BLOCKED')
+  // Documents must be real encrypted CERTIFICATE records owned by this account.
+  const docCheck = await validateProviderDocuments(body.documents ?? {}, session.id, 'lab')
+  if ('error' in docCheck) return jsonError(docCheck.error, 400, 'INVALID_DOCUMENTS')
+  const uploadedSlots = docCheck.documents.map((d) => d.slot)
+  const missingDocs = REQUIRED_DOCUMENTS.lab.filter((d) => !uploadedSlots.includes(d.id))
+  if (missingDocs.length > 0) {
+    return jsonError(
+      `Upload the required verification documents before submitting: ${missingDocs.map((d) => d.label).join(', ')}`,
+      400,
+      'DOCUMENTS_REQUIRED',
+      { missing: missingDocs.map((d) => d.id) },
+    )
   }
 
-  // Provider fraud: refuse a license already held by another approved lab.
-  if (licenseNumber) {
-    const dupLicense = await db.labProfile.findFirst({
-      where: { licenseNumber, verificationStatus: 'approved', userId: { not: session.id } },
-      select: { id: true },
-    })
-    if (dupLicense) {
-      await logAudit(session.id, 'lab.profile.duplicate_license', `license=${licenseNumber}`, 'security')
-      return jsonError('This license number is already registered to another lab.', 409, 'LICENSE_IN_USE')
-    }
-  }
+  const duplicate = await db.labProfile.findFirst({
+    where: { licenseNumber, NOT: { userId: session.id } },
+    select: { id: true },
+  })
+  const screen = await screenProviderWithAi({
+    role: 'lab',
+    licenseNumber,
+    documents: uploadedSlots,
+    state: null,
+    city,
+    duplicateLicense: Boolean(duplicate),
+  })
 
   const payload = {
+    userId: session.id,
     labName,
     licenseNumber,
     city,
     address,
     homeCollection: !!body.homeCollection,
     testsOffered: JSON.stringify(tests),
-    documents: docsJson,
+    documents: JSON.stringify(docCheck.documents.map(({ id, slot, name, type, size }) => ({ id, slot, name, type, size }))),
     verificationStatus: 'pending',
     verified: false,
     rejectionReason: null,
-    submittedAt: new Date(),
+    submittedAt: new Date().toISOString(),
+    aiReview: serializeScreen(screen),
+    aiVerdict: screen.verdict,
+    aiReviewAt: new Date(),
+    rating: 4.5,
+    reviewCount: 0,
   }
 
-  let profile
-  if (existing) {
-    profile = await db.labProfile.update({ where: { userId: session.id }, data: payload })
-  } else {
-    profile = await db.labProfile.create({ data: { userId: session.id, ...payload } })
-  }
+  const existing = await db.labProfile.findFirst({ where: { userId: session.id } })
+  const profile = existing
+    ? await db.labProfile.update({ where: { id: existing.id }, data: payload })
+    : await db.labProfile.create({ data: payload })
 
-  await logAudit(session.id, 'lab.profile.submit', `profile=${profile.id}`)
   return jsonOk({
     id: profile.id,
     userId: profile.userId,
@@ -187,5 +182,7 @@ export async function POST(req: NextRequest) {
     verificationStatus: profile.verificationStatus,
     rejectionReason: profile.rejectionReason,
     documents: parseJsonCol(profile.documents, []),
+    aiVerdict: profile.aiVerdict,
+    aiReview: parseJsonCol(profile.aiReview, null),
   })
 }

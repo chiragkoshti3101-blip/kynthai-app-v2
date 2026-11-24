@@ -78,7 +78,7 @@ export function AutoEnableNotifications() {
         }
 
         const result = await enablePushDetailed()
-        if (result.ok || result.reason === 'denied' || result.reason === 'ios_needs_install') {
+        if (result.ok === true || result.reason === 'denied' || result.reason === 'ios_needs_install') {
           try {
             localStorage.setItem(KEY, '1')
           } catch {

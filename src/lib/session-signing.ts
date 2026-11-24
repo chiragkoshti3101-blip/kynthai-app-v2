@@ -31,7 +31,13 @@ function getSigningSecret(): string | null {
 }
 
 /**
- * Sign a userId → returns "userId:hmacHex" or null if signing unavailable in prod.
+ * Session token lifetime — matches the cookie maxAge (7 days).
+ */
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Sign a userId → returns "userId:expiryMs:hmacHex" or null if signing unavailable in prod.
+ * The HMAC covers both userId and expiry so the expiry cannot be forged.
  */
 export async function signSessionToken(userId: string): Promise<string | null> {
   const secret = getSigningSecret();
@@ -44,29 +50,37 @@ export async function signSessionToken(userId: string): Promise<string | null> {
     }
     return null;
   }
+  const expiryMs = Date.now() + SESSION_TTL_MS;
+  const signingInput = `${userId}:${expiryMs}`;
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(userId));
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(signingInput));
   const hmac = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
-  return `${userId}:${hmac}`;
+  return `${signingInput}:${hmac}`;
 }
 
 /**
- * Verify a signed token → returns userId if valid, null if tampered or malformed.
+ * Verify a signed token → returns userId if valid and not expired, null otherwise.
  * Fails closed: any parsing/verification error returns null (unauthenticated).
  */
 export async function verifySessionToken(signed: string): Promise<string | null> {
   if (!signed || typeof signed !== 'string') return null;
-  const colonIdx = signed.indexOf(':');
-  if (colonIdx === -1) return null;
-  const userId = signed.slice(0, colonIdx);
-  const providedHmac = signed.slice(colonIdx + 1);
-  if (!userId || !providedHmac || providedHmac.length !== 64) return null;
+  const firstColon = signed.indexOf(':');
+  if (firstColon === -1) return null;
+  const secondColon = signed.indexOf(':', firstColon + 1);
+  if (secondColon === -1) return null;
+  const userId = signed.slice(0, firstColon);
+  const expiryStr = signed.slice(firstColon + 1, secondColon);
+  const providedHmac = signed.slice(secondColon + 1);
+  if (!userId || !expiryStr || !providedHmac || ! /^[a-f0-9]{64}$/i.test(providedHmac)) return null;
+  const expiryMs = Number(expiryStr);
+  if (!Number.isSafeInteger(expiryMs) || expiryMs <= Date.now() || expiryMs > Date.now() + SESSION_TTL_MS) return null;
   const secret = getSigningSecret();
   if (!secret) return null;
+  const signingInput = `${userId}:${expiryMs}`;
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(userId));
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(signingInput));
   const expectedHmac = Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
   // Constant-time comparison
   const providedHmacParts: string[] = (providedHmac.match(/.{2}/g) ?? []) as unknown as string[];
@@ -88,6 +102,11 @@ export async function verifySessionToken(signed: string): Promise<string | null>
   // Node-runtime callers instead: requireAuth() in lib/api-helpers.ts and
   // getSessionUser() in lib/auth.ts.
   return userId;
+}
+
+/** Only call after signature verification. Existing tokens encode issuance as expiry - TTL. */
+export function sessionIssuedAt(verifiedToken: string): Date {
+  return new Date(Number(verifiedToken.split(':')[1]) - SESSION_TTL_MS);
 }
 
 // ── Supabase auth-token cookie verification ─────────────────────────────────

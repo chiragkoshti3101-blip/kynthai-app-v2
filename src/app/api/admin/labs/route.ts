@@ -56,6 +56,9 @@ export async function GET(req: NextRequest) {
         documents: parseJsonCol(l.documents, []),
         rating: l.rating,
         reviewCount: l.reviewCount,
+        aiVerdict: l.aiVerdict,
+        aiReview: parseJsonCol(l.aiReview, null),
+        aiReviewAt: l.aiReviewAt?.toISOString() ?? null,
       }))
     );
   } catch (error) {

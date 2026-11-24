@@ -19,8 +19,7 @@ export const dynamic = 'force-dynamic'
  *                                      //   timezone is NULL or empty
  *   }
  *
- * Exactly one of `email` / `allMissing` must be provided. SQL is fully
- * parameterized; the timezone value itself is validated as a real IANA zone
+ * Exactly one of `email` / `allMissing` must be provided. Writes use the database adapter; the timezone value itself is validated as a real IANA zone
  * before it ever reaches the database. Returns only counts — no PHI.
  *
  * Why: scheduling accuracy depends on each user's stored IANA zone. Users who
@@ -50,6 +49,7 @@ export async function POST(req: NextRequest) {
   let body: { timezone?: unknown; email?: unknown; allMissing?: unknown }
   try {
     body = await req.json()
+    if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('Invalid JSON')
   } catch {
     return Response.json({ ok: false, error: 'Invalid JSON' }, { status: 400 })
   }
@@ -72,32 +72,20 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await db.$executeRawUnsafe(
-      `ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "timezone" TEXT`
-    )
-
-    let updated: number
-    if (email) {
-      updated = await db.$executeRawUnsafe(
-        `UPDATE "users" SET "timezone" = $1 WHERE LOWER("email") = $2`,
-        tz,
-        email
-      )
-    } else {
-      updated = await db.$executeRawUnsafe(
-        `UPDATE "users" SET "timezone" = $1 WHERE "timezone" IS NULL OR "timezone" = ''`,
-        tz
-      )
-    }
-
-    const rows = await db.$queryRawUnsafe<Array<{ n: number }>>(
-      `SELECT COUNT(*)::int AS n FROM "users" WHERE "timezone" IS NOT NULL AND "timezone" <> ''`
-    )
+    const { count: updated } = await db.user.updateMany({
+      where: email
+        ? { email: { equals: email, mode: 'insensitive' } }
+        : { OR: [{ timezone: null }, { timezone: '' }] },
+      data: { timezone: tz },
+    })
+    const usersWithTimezone = await db.user.count({
+      where: { AND: [{ timezone: { not: null } }, { timezone: { not: '' } }] },
+    })
     return Response.json({
       ok: true,
       updated,
-      usersWithTimezone: rows?.[0]?.n ?? null,
-      scope: email ? `email:${email}` : 'allMissing',
+      usersWithTimezone,
+      scope: email ? 'email' : 'allMissing',
     })
   } catch (e) {
     return Response.json(

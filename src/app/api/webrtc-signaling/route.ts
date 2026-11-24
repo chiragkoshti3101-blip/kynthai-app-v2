@@ -5,39 +5,7 @@ import { signalingStore } from '@/lib/webrtc-store';
 import { db } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
-/**
- * IDOR guard: only participants of the appointment (patient, assigned doctor,
- * or a family member of the patient) may read/write its signaling channel.
- * Admin is allowed for support/debug.
- */
-async function isParticipant(user: { id: string; role: string }, appointmentId: string) {
-  const appointment = await db.appointment.findUnique({
-    where: { id: appointmentId },
-    select: { patientId: true, doctorId: true },
-  });
-  if (!appointment) return false;
-
-  if (user.role === 'admin') return true;
-  if (appointment.patientId === user.id) return true;
-
-  const docProfile = await db.doctorProfile.findUnique({
-    where: { userId: user.id },
-    select: { id: true },
-  });
-  if (docProfile && appointment.doctorId === docProfile.id) return true;
-
-  // Family caretaker: shares a Family with the patient.
-  const myFamilies: { familyId: string }[] = await db.familyMember.findMany({
-    where: { userId: user.id },
-    select: { familyId: true },
-  });
-  if (myFamilies.length === 0) return false;
-  return (
-    (await db.familyMember.count({
-      where: { familyId: { in: myFamilies.map(f => f.familyId) }, userId: appointment.patientId },
-    })) > 0
-  );
-}
+import { isAppointmentParticipant, joinAuthorization, joinDenialResponse } from '@/lib/video-authorization';
 
 export async function GET(req: NextRequest) {
   const { response, user } = await requireAuth(req);
@@ -48,7 +16,10 @@ export async function GET(req: NextRequest) {
 
   const appointmentId = req.nextUrl.searchParams.get('appointmentId');
   if (!appointmentId) return jsonError('appointmentId is required', 400);
-  if (!(await isParticipant(user, appointmentId)))
+  // Read/poll path: participant check only. The identity gate sits on the
+  // signaling write and token issuance, which are what actually join a call;
+  // this loop runs every ~800ms and must not add a per-poll user lookup.
+  if (!(await isAppointmentParticipant(user, appointmentId)))
     return jsonError('Forbidden — not a participant of this appointment', 403);
 
   const afterId = req.nextUrl.searchParams.get('afterId') || undefined;
@@ -73,8 +44,17 @@ export async function POST(req: NextRequest) {
   if (!body?.appointmentId || !body?.type) {
     return jsonError('appointmentId and type are required', 400);
   }
-  if (!(await isParticipant(u, body.appointmentId)))
-    return jsonError('Forbidden — not a participant of this appointment', 403);
+  const join = await joinAuthorization(u, body.appointmentId);
+  const denied = joinDenialResponse(join);
+  if (denied) {
+    if (join.reason === 'identity_required') {
+      await logAudit(u.id, 'webrtc.join_identity_required', {
+        resourceType: 'VideoCall',
+        metadata: { appointmentId: body.appointmentId, level: join.currentLevel },
+      });
+    }
+    return jsonError(denied.message, denied.status, denied.code, denied.details);
+  }
 
   const role = (user.role === 'doctor' ? 'doctor' : user.role === 'lab' ? 'doctor' : 'patient') as
     'doctor' | 'patient' | 'unknown';

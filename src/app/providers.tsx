@@ -45,14 +45,36 @@ function DeferredAuthGuard() {
 }
 
 function BootSplashCleanup() {
-  // The boot splash is server-rendered INSIDE the React tree. The inline
-  // pre-paint script only fades it (adds .done); it must never remove the
-  // node itself — React owns this DOM, and a hydration regeneration would
-  // resurrect the splash opaque and stuck (the intermittent full-page
-  // lockup). Removal happens here instead: after hydration commits.
+  // The splash is raw HTML inside a React-owned shell (layout.tsx) so React's
+  // className rewrites cannot re-opaque it during hydration. The inline
+  // pre-paint script fades it once the theme class has settled (never reveal
+  // the page while next-themes has no theme applied). Drop the shell after the
+  // fade finishes — removing it mid-transition is itself a visible pop — and
+  // force the fade if the inline script never got there.
   useEffect(() => {
-    const b = document.getElementById('kynthai-boot')
-    if (b) b.remove()
+    const shell = document.getElementById('kynthai-boot-shell')
+    if (!shell) return
+    const boot = document.getElementById('kynthai-boot')
+    const started = Date.now()
+    let cancelled = false
+    let timer = 0
+    const finish = () => {
+      boot?.classList.add('done')
+      timer = window.setTimeout(() => shell.remove(), 260)
+    }
+    const tick = () => {
+      if (cancelled) return
+      if (boot?.classList.contains('done') || Date.now() - started > 1600) {
+        finish()
+        return
+      }
+      timer = window.setTimeout(tick, 60)
+    }
+    tick()
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
   }, [])
   return null
 }

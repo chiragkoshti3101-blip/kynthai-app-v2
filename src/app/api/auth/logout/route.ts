@@ -47,6 +47,10 @@ export async function POST(req: NextRequest) {
   const cookiePairs = cookieHeader.split(';');
   for (const pair of cookiePairs) {
     const name = pair.trim().split('=')[0];
+    // Keep the CSRF token: it is not a credential, only a double-submit
+    // value. Clearing it while the browser still holds the matching token
+    // makes the very next sign-in fail with "CSRF token mismatch".
+    if (name?.trim() === 'kynthai-csrf') continue;
     if (name && name.trim()) {
       // Use append to add multiple Set-Cookie headers
       res.headers.append('Set-Cookie', `${name}=; Path=/; Max-Age=0`);

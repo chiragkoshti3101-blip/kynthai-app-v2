@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { createRecordsAtomically } from '@/lib/supabase-db'
 import { requireAuthWithCsrf, requireAuth, jsonError, readJson, isUserMinor } from '@/lib/api-helpers'
 import { logAudit } from '@/lib/auth'
 import { sanitizeText } from '@/lib/security'
@@ -55,8 +56,8 @@ export async function POST(req: NextRequest) {
 
     // Get user's family memberships
     const memberships = await db.familyMember.findMany({
-      where: { userId: user.id },
-      include: { family: true },
+      where: { userId: user.id, inviteStatus: 'accepted' },
+      include: { family: { include: { owner: { select: { id: true, name: true, phone: true } } } } },
     })
 
     if (memberships.length === 0) {
@@ -69,72 +70,47 @@ export async function POST(req: NextRequest) {
     // Phone targets collected inside the transaction (linked user accounts) —
     // SMS reminders go out AFTER commit below, best-effort.
     const smsTargets: { name: string; phone: string }[] = []
-    const alerts = await db.$transaction(async (tx): Promise<any[]> => {
-      const created: any[] = []
-      for (const membership of memberships) {
-        const alert = await tx.emergencyAlert.create({
-          data: {
-            familyId: membership.familyId,
-            familyMemberId: membership.id as string, // the member this alert is about
-            memberName: user.name,
-            reporterId: user.id,
-            type: 'sos',
-            tier: 'critical',
-            location: location || null,
-            notes: notes || null,
-            status: 'active',
-          } as any,
-        })
-
-        const familyMembers = await tx.familyMember.findMany({
-          where: {
-            familyId: membership.familyId,
-            userId: { not: user.id },
-          },
-          include: { user: { select: { id: true, name: true, phone: true } } },
-        })
-
-        for (const fm of familyMembers) {
-          if (fm.userId) {
-            notifiedNames.push(fm.user?.name || 'A family member')
-            if (fm.user?.phone) {
-              smsTargets.push({ name: fm.user.name || 'Family member', phone: fm.user.phone })
-            }
-            await tx.familyHealthAlert.create({
-              data: {
-                familyId: membership.familyId,
-                memberId: membership.id,
-                type: 'emergency',
-                title: `SOS: ${user.name} needs help`,
-                message: notes || `${user.name} has triggered an emergency SOS alert. Please check on them immediately.${location ? ` Location: ${location}` : ''}`,
-                severity: 'critical',
-              },
-            })
-          }
+    const recipientIds = new Set<string>()
+    const phoneNumbers = new Set<string>()
+    const seenFamilies = new Set<string>()
+    const records: { model: string; data: Record<string, unknown> }[] = []
+    for (const membership of memberships) {
+      if (seenFamilies.has(membership.familyId)) continue
+      seenFamilies.add(membership.familyId)
+      records.push({ model: 'emergencyAlert', data: {
+        familyId: membership.familyId, familyMemberId: membership.id,
+        memberName: user.name, reporterId: user.id, type: 'sos', tier: 'critical',
+        location: location || null, notes: notes || null, status: 'active',
+      } })
+      const familyMembers = await db.familyMember.findMany({
+        where: { familyId: membership.familyId, userId: { not: user.id }, inviteStatus: 'accepted' },
+        include: { user: { select: { id: true, name: true, phone: true } } },
+      })
+      // A health alert belongs to the family, not to each recipient.
+      records.push({ model: 'familyHealthAlert', data: {
+        familyId: membership.familyId, memberId: membership.id, type: 'emergency',
+        title: `SOS: ${user.name} needs help`,
+        message: notes || `${user.name} has triggered an SOS. Please check on them immediately.`,
+        severity: 'critical',
+      } })
+      const recipients = [...familyMembers.map((fm) => fm.user), membership.family?.owner]
+      for (const recipient of recipients) {
+        if (!recipient || recipient.id === user.id || recipientIds.has(recipient.id)) continue
+        recipientIds.add(recipient.id)
+        notifiedNames.push(recipient.name || 'A family member')
+        if (recipient.phone && !phoneNumbers.has(recipient.phone)) {
+          phoneNumbers.add(recipient.phone)
+          smsTargets.push({ name: recipient.name || 'Family member', phone: recipient.phone })
         }
-
-        created.push(alert)
       }
-      return created
-    })
+    }
+    const committed = await createRecordsAtomically(records)
+    const alerts = committed.filter((_, index) => records[index].model === 'emergencyAlert')
 
     // Deliver one shared-router notification per accepted family recipient.
     // This covers in-app, Web Push, and native FCM without creating a second
     // inbox row in the transaction. Provider failures remain visible in the
     // push audit log and never roll back the persisted SOS.
-    const recipientIds = new Set<string>()
-    try {
-      const familyMembers = await db.familyMember.findMany({
-        where: {
-          familyId: { in: memberships.map((m) => m.familyId) },
-          userId: { not: user.id },
-        },
-        select: { userId: true },
-      })
-      for (const member of familyMembers) if (member.userId) recipientIds.add(member.userId)
-    } catch (lookupError) {
-      logger.phiSafeError(lookupError, 'emergency-sos.recipient-lookup')
-    }
     await Promise.all(Array.from(recipientIds).map(async (recipientId) => {
       try {
         await sendNotification(
@@ -205,7 +181,7 @@ export async function POST(req: NextRequest) {
       notifiedDoctors: [],
       notifiedContacts,
       smsSent,
-      summary: `${user.name} — SOS alert sent to your family and listed contacts${smsSent > 0 ? ` (${smsSent} reminder text sent)` : ''}. Contact emergency services at ${emergencyNumber} if this is life-threatening.`,
+      summary: `${user.name} — SOS alert sent to your family and listed contacts${smsSent > 0 ? ` (${smsSent} reminder text sent)` : ''}. ${emergencyContactText} if this is life-threatening.`,
       ...(isMinor
         ? { minorNotice: 'Guardian notification attempted. A minor has triggered a SOS alert — guardian should respond immediately and contact emergency services if needed.' }
         : {}),
@@ -227,7 +203,7 @@ export async function GET(req: NextRequest) {
   try {
     // Get families where the user is a member
     const memberships = await db.familyMember.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, inviteStatus: 'accepted' },
     })
 
     const familyIds = memberships.map((m: any) => m.familyId)

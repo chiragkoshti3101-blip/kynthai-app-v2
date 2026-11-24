@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { HeroCarePreview } from './hero-care-preview';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, ShieldCheck } from 'lucide-react';
-import { motion, useReducedMotion } from 'framer-motion';
 
 /**
  * Above-the-fold hero entrance: elements start hidden and cascade in on first
@@ -25,41 +24,21 @@ function HeroReveal({
   y?: number;
   className?: string;
 }) {
-  const reduced = useReducedMotion();
-  const [started, setStarted] = React.useState(false);
-  React.useEffect(() => {
-    const raf = requestAnimationFrame(() => setStarted(true));
-    return () => cancelAnimationFrame(raf);
-  }, []);
+  // Render content at full opacity on the first paint. Entrance fades caused a
+  // visible flash/blink on iOS Safari (especially combined with font swap).
   return (
-    <motion.div
-      initial={reduced ? { opacity: 0.001 } : { opacity: 0, y }}
-      animate={started ? { opacity: 1, y: 0 } : undefined}
-      transition={{ duration: reduced ? 0.3 : 0.75, delay, ease: [0.16, 1, 0.3, 1] }}
-      className={className}
-      suppressHydrationWarning
-    >
+    <div className={className} suppressHydrationWarning>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
 /** Gentle floating loop for the hero care preview card (desktop-only, reduced-motion-safe). */
 function FloatingCard({ children, className }: { children: React.ReactNode; className?: string }) {
-  const reduced = useReducedMotion();
   return (
-    <motion.div
-      className={className}
-      animate={reduced ? undefined : { y: [0, -10, 0] }}
-      transition={
-        reduced
-          ? undefined
-          : { duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }
-      }
-      suppressHydrationWarning
-    >
+    <div className={className} suppressHydrationWarning>
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -82,25 +61,40 @@ export function HeroSection({ onGetStarted }: HeroSectionProps) {
      * and zero the hero gutters (env() is 0 outside notched iOS). The section
      * has no padding of its own, so they apply cleanly here.
      */
-    <section className="relative pl-safe pr-safe">
-      {/* Multi-layer soft gradient orbs — clipped by this backdrop layer only */}
+    <section className="relative isolate pl-safe pr-safe">
+      {/* Multi-layer soft gradient orbs — clipped by this backdrop layer only.
+          No `blur-*`: the gradients already fade to transparent, and a 64px
+          filter on 400–700px elements made iOS Safari repaint the layer while
+          scrolling (flickering/blank patches over the hero copy).
+
+          `isolate` on the section is required: without a stacking context here
+          the `-z-10` layer paints BEHIND the page's opaque `bg-background`, so
+          the whole glow was invisible (verified by pixel-diffing the page with
+          this layer removed: zero change on desktop and at 390px).
+
+          Stops are an eased ramp out to 100% of the box. The old `…, transparent
+          70%` died a third of the way out with an abrupt end to the falloff;
+          the blur used to hide that, and this dense ramp replaces it. */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <div
-          className="absolute -top-48 left-1/2 h-[44rem] w-[44rem] -translate-x-1/2 rounded-full opacity-60 blur-3xl"
+          className="absolute -top-48 left-1/2 h-[44rem] w-[44rem] -translate-x-1/2 rounded-full opacity-60"
           style={{
-            background: 'radial-gradient(closest-side, rgba(16,185,129,0.32), transparent 70%)',
+            background:
+              'radial-gradient(closest-side, rgba(16,185,129,0.32) 0%, rgba(16,185,129,0.30) 15%, rgba(16,185,129,0.26) 30%, rgba(16,185,129,0.20) 45%, rgba(16,185,129,0.13) 60%, rgba(16,185,129,0.08) 75%, rgba(16,185,129,0.03) 88%, rgba(16,185,129,0) 100%)',
           }}
         />
         <div
-          className="absolute -top-20 -left-48 h-[26rem] w-[26rem] rounded-full opacity-40 blur-3xl"
+          className="absolute -top-20 -left-48 h-[26rem] w-[26rem] rounded-full opacity-40"
           style={{
-            background: 'radial-gradient(closest-side, rgba(13,148,136,0.32), transparent 70%)',
+            background:
+              'radial-gradient(closest-side, rgba(13,148,136,0.32) 0%, rgba(13,148,136,0.30) 15%, rgba(13,148,136,0.26) 30%, rgba(13,148,136,0.20) 45%, rgba(13,148,136,0.13) 60%, rgba(13,148,136,0.08) 75%, rgba(13,148,136,0.03) 88%, rgba(13,148,136,0) 100%)',
           }}
         />
         <div
-          className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full opacity-35 blur-3xl"
+          className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full opacity-35"
           style={{
-            background: 'radial-gradient(closest-side, rgba(16,185,129,0.22), transparent 70%)',
+            background:
+              'radial-gradient(closest-side, rgba(16,185,129,0.22) 0%, rgba(16,185,129,0.21) 15%, rgba(16,185,129,0.18) 30%, rgba(16,185,129,0.14) 45%, rgba(16,185,129,0.09) 60%, rgba(16,185,129,0.05) 75%, rgba(16,185,129,0.02) 88%, rgba(16,185,129,0) 100%)',
           }}
         />
       </div>

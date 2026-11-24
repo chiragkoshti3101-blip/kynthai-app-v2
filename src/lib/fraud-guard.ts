@@ -71,6 +71,19 @@ export type EnrollmentVerdict =
  * Enrollment gate — run BEFORE creating a new account.
  * Returns a block verdict when the person looks like a fraudster.
  */
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || ''
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || ''
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || ''
+
+function sbHeaders() {
+  const key = SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY
+  return {
+    'apikey': key,
+    'Authorization': `Bearer ${key}`,
+    'Content-Type': 'application/json',
+  }
+}
+
 export async function checkEnrollmentGate(input: {
   email: string;
   phone?: string | null;
@@ -88,38 +101,44 @@ export async function checkEnrollmentGate(input: {
   }
 
   // 2. Blocked identity — email or phone already tied to a hard-blocked account.
-  const blockedMatch = await db.user.findFirst({
-    where: {
-      deletedAt: null,
-      verificationLevel: BLOCK_LEVEL,
-      OR: [{ email }, ...(input.phone ? [{ phone: input.phone }] : [])],
-    },
-    select: { id: true, email: true, phone: true },
-  });
-  if (blockedMatch) {
-    await logAudit('system', 'fraud.gate', `email=${email} rule=blocked_identity`, 'security');
-    return {
-      allowed: false,
-      code: 'ACCOUNT_BLOCKED',
-      message: 'This account is not eligible to register.',
-    };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/users?verificationLevel=eq.blocked&select=id,email,phone&or=(email.eq.${encodeURIComponent(email)},phone.eq.${encodeURIComponent(input.phone || '')})`, {
+      headers: sbHeaders(),
+    })
+    if (res.ok) {
+      const blocked = await res.json()
+      if (blocked && blocked.length > 0) {
+        await logAudit('system', 'fraud.gate', `email=${email} rule=blocked_identity`, 'security');
+        return {
+          allowed: false,
+          code: 'ACCOUNT_BLOCKED',
+          message: 'This account is not eligible to register.',
+        };
+      }
+    }
+  } catch (e) {
+    console.error('Fraud gate check failed:', e)
   }
 
-  // 3. Duplicate phone on an active account — the classic multi-account fraud
-  //    signal (same phone, many accounts). Reject new registrations that reuse
-  //    a phone already in use.
+  // 3. Duplicate phone on an active account
   if (input.phone) {
-    const phoneUser = await db.user.findFirst({
-      where: { deletedAt: null, phone: input.phone, verificationLevel: { not: BLOCK_LEVEL } },
-      select: { id: true, email: true },
-    });
-    if (phoneUser && phoneUser.email !== email) {
-      await logAudit('system', 'fraud.gate', `email=${email} rule=duplicate_phone`, 'security');
-      return {
-        allowed: false,
-        code: 'PHONE_IN_USE',
-        message: 'This phone number is already in use on another account.',
-      };
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/users?phone=eq.${encodeURIComponent(input.phone)}&verificationLevel=neq.blocked&select=id,email`, {
+        headers: sbHeaders(),
+      })
+      if (res.ok) {
+        const phoneUsers = await res.json()
+        if (phoneUsers && phoneUsers.length > 0 && phoneUsers[0].email !== email) {
+          await logAudit('system', 'fraud.gate', `email=${email} rule=duplicate_phone`, 'security');
+          return {
+            allowed: false,
+            code: 'PHONE_IN_USE',
+            message: 'This phone number is already in use on another account.',
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Phone check failed:', e)
     }
   }
 

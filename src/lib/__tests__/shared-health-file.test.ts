@@ -1,0 +1,16 @@
+import { beforeEach, expect, it, vi } from 'vitest'
+const m = vi.hoisted(() => ({ auth: vi.fn(), booking: vi.fn(), doctor: vi.fn(), load: vi.fn() }))
+vi.mock('@/lib/db', () => ({ db: { labBooking: { findFirst: m.booking }, doctorProfile: { findUnique: m.doctor } } }))
+vi.mock('@/lib/auth', () => ({ logAudit: vi.fn() }))
+vi.mock('@/lib/security', () => ({ rateLimit: () => null }))
+vi.mock('@/lib/api-helpers', () => ({ requireAuth: m.auth, jsonError: (error: string, status: number) => Response.json({ error }, { status }), applyStandardHeaders: (r: Response) => r }))
+vi.mock('@/lib/health-files', () => ({ parseFileToken: () => ({ userPrefix: 'lab', fileId: 'file' }), userPrefixFor: (id: string) => id, loadEncryptedHealthFile: m.load, decryptHealthFile: () => Buffer.from('report'), contentTypeForExt: () => 'application/pdf', HealthFileStorageError: class extends Error {} }))
+import { GET } from '@/app/api/upload/[token]/route'
+const get = () => GET({} as any, { params: Promise.resolve({ token: 'lab_file' }) })
+beforeEach(() => { vi.resetAllMocks(); m.auth.mockResolvedValue({ user: { id: 'doctor-user', role: 'doctor' } }); m.booking.mockResolvedValue({ patientId: 'patient', shareExpiresAt: new Date(Date.now() + 60000), resultsSharedWith: ['doctor-profile'] }); m.doctor.mockResolvedValue({ id: 'doctor-profile', verified: true }); m.load.mockResolvedValue({ stored: {}, ext: 'pdf' }) })
+it('allows a specifically selected verified doctor to download the report bytes', async () => { const res = await get(); expect(res.status).toBe(200); expect(await res.text()).toBe('report') })
+it('denies a different doctor before reading storage', async () => { m.doctor.mockResolvedValue({ id: 'other', verified: true }); expect((await get()).status).toBe(403); expect(m.load).not.toHaveBeenCalled() })
+it('denies expired grants before reading storage', async () => { m.booking.mockResolvedValue({ patientId: 'patient', shareExpiresAt: new Date(0), resultsSharedWith: ['doctor-profile'] }); expect((await get()).status).toBe(403); expect(m.load).not.toHaveBeenCalled() })
+it('allows the patient to retrieve a lab-uploaded report without a doctor grant', async () => { m.auth.mockResolvedValue({ user: { id: 'patient', role: 'patient' } }); expect((await get()).status).toBe(200) })
+it('denies an unverified selected doctor', async () => { m.doctor.mockResolvedValue({ id: 'doctor-profile', verified: false }); expect((await get()).status).toBe(403) })
+it('preserves original uploader access', async () => { m.auth.mockResolvedValue({ user: { id: 'lab', role: 'lab' } }); expect((await get()).status).toBe(200); expect(m.booking).not.toHaveBeenCalled() })

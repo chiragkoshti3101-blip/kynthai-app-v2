@@ -129,7 +129,7 @@ export default function FamilyMemberDetailClient({ memberId, user }: { memberId:
         <CardContent className="p-6">
           <div className="flex items-start gap-4">
             <div className={`h-16 w-16 rounded-full ${avatarColor} flex items-center justify-center text-white text-2xl font-bold shrink-0`}>
-              {data.name.charAt(0).toUpperCase()}
+              {(data.name || '?').charAt(0).toUpperCase()}
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">

@@ -71,15 +71,18 @@ export function BentoFeatures() {
   return (
     <section
       id="bento-features"
-      className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-20"
+      className="relative isolate mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8 lg:py-20"
     >
-      {/* Section background accent */}
+      {/* Section background accent.
+          `isolate` keeps the `-z-10` layer above the page background instead of
+          behind it (same trap the hero orbs were in). Stops are an eased ramp
+          out to 100% so the falloff has no abrupt end once the blur is gone. */}
       <div
         className="pointer-events-none absolute inset-0 -z-10 opacity-50"
         aria-hidden="true"
         style={{
           background:
-            'radial-gradient(ellipse 80% 60% at center, rgba(16,185,129,0.06) 0%, transparent 70%)',
+            'radial-gradient(ellipse 80% 60% at center, rgba(16,185,129,0.06) 0%, rgba(16,185,129,0.056) 15%, rgba(16,185,129,0.048) 30%, rgba(16,185,129,0.037) 45%, rgba(16,185,129,0.025) 60%, rgba(16,185,129,0.014) 75%, rgba(16,185,129,0.006) 88%, rgba(16,185,129,0) 100%)',
         }}
       />
 
@@ -108,10 +111,10 @@ export function BentoFeatures() {
           <div className="h-full">
             <Card className="relative h-full overflow-hidden border-emerald-500/20 bg-gradient-to-br from-emerald-500/10 via-card to-teal-500/5">
               <div
-                className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full opacity-40 blur-3xl"
+                className="pointer-events-none absolute -right-20 -top-20 h-60 w-60 rounded-full opacity-40"
                 style={{
                   background:
-                    'radial-gradient(closest-side, rgba(16,185,129,0.5), transparent 70%)',
+                    'radial-gradient(closest-side, rgba(16,185,129,0.5) 0%, rgba(16,185,129,0.47) 15%, rgba(16,185,129,0.40) 30%, rgba(16,185,129,0.31) 45%, rgba(16,185,129,0.21) 60%, rgba(16,185,129,0.12) 75%, rgba(16,185,129,0.05) 88%, rgba(16,185,129,0) 100%)',
                 }}
               />
               <CardContent className="flex flex-col gap-3 p-4 sm:p-8">

@@ -3,7 +3,6 @@
 
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
-import { supabaseAdmin } from './storage';
 import { db } from './db';
 import { recordAuditSync } from './audit-logger';
 
@@ -48,13 +47,10 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       const { data: { user }, error } = await supabase.auth.getUser();
       if (!error && user) {
         // Get user profile for role
-        const { data: profile } = await supabaseAdmin()
-          .from('users')
-          .select('id, email, role, name')
-          .eq('id', user.id)
-          .single();
-
-        const p = profile as any;
+        const p = await db.user.findUnique({
+          where: { id: user.id },
+          select: { id: true, email: true, role: true, name: true },
+        });
         if (p) {
           return {
             id: p.id,
@@ -69,7 +65,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
     }
 
     // ── 2. Fallback: local HMAC session cookie ──────────────────────────
-    const { verifySessionToken } = await import('./session-signing');
+    const { verifySessionToken, sessionIssuedAt } = await import('./session-signing');
     const localSessionCookie = cookieStore.get('kynthai-session');
     if (localSessionCookie?.value) {
       const userId = await verifySessionToken(localSessionCookie.value);
@@ -79,7 +75,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
       if (userId) {
         try {
           const revoked = await db.revokedSession.findFirst({
-            where: { userId, expiresAt: { gt: new Date() } },
+            where: { userId, expiresAt: { gt: new Date() }, revokedAt: { gte: sessionIssuedAt(localSessionCookie.value) } },
             orderBy: { revokedAt: 'desc' },
             take: 1,
           });
@@ -250,6 +246,7 @@ export async function canAccessDocument(
     userId: string;
     uploadedById: string;
     familyId: string | null;
+    type: string;
     category: string;
     visibility: string;
     sharedWith: string[];
@@ -257,6 +254,12 @@ export async function canAccessDocument(
 ): Promise<boolean> {
   // Owner can always access their own document.
   if (user.id === document.userId) return true;
+
+  // Admins must be able to open the licence/degree/CLIA documents submitted
+  // with a doctor or lab application, otherwise verification is impossible.
+  // This is deliberately limited to provider CERTIFICATE uploads: patient
+  // clinical records stay closed to admins.
+  if (user.role === 'admin' && document.type === 'CERTIFICATE') return true;
 
   // Uploader can access the document they uploaded.
   if (user.id === document.uploadedById) return true;

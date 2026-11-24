@@ -169,26 +169,9 @@ async function logNotification(input: {
   }
 }
 
-// The deploy pipeline generates Prisma but does not run migrations. Keep the
-// dedupe storage self-healing so the first reminder after deploy cannot fall
-// back to the old body-only behavior. The unique index is per user/channel:
-// one in-app row and one push audit row are valid, but two push sends are not.
-let notificationDedupeReady: boolean | null = null
-export async function ensureNotificationDedupeStorage(): Promise<void> {
-  if (notificationDedupeReady === true) return
-  try {
-    await db.$executeRawUnsafe(
-      `ALTER TABLE "notification_logs" ADD COLUMN IF NOT EXISTS "dedupeKey" TEXT`,
-    )
-    await db.$executeRawUnsafe(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "notification_logs_user_channel_dedupe_key" ON "notification_logs" ("userId", "channel", "dedupeKey") WHERE "dedupeKey" IS NOT NULL`,
-    )
-    notificationDedupeReady = true
-  } catch (e) {
-    notificationDedupeReady = false
-    console.warn('[notifications] Dedupe storage bootstrap failed', e)
-  }
-}
+// Schema and unique indexes are installed by trusted migrations, never requests.
+// Kept as a compatibility hook for callers; a failed claim always suppresses send.
+export async function ensureNotificationDedupeStorage(): Promise<void> {}
 
 async function claimPushDelivery(input: {
   userId: string
@@ -335,7 +318,8 @@ export async function sendNotification(
         return { delivered: false, channel: 'none', cost: 0, results: [] }
       }
     } catch {
-      /* best-effort — preserve delivery when the preference column is unavailable */
+      // Do not bypass opt-outs when preference storage is unavailable.
+      return { delivered: false, channel: 'none', cost: 0, results: [] }
     }
   }
 

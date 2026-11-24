@@ -206,6 +206,10 @@ model DoctorProfile {
   verificationStatus  String                   @default("pending")
   rejectionReason     String?
   rejectionReason_enc String?                  @map("rejectionReason_enc")
+  // Automated pre-screen result (JSON) + verdict, computed on submission.
+  aiReview            String?
+  aiVerdict           String?
+  aiReviewAt          DateTime?
   npiNumber           String?
   submittedAt         DateTime?
   // US compliance: doctor SSN and federal Tax ID (EIN), encrypted at rest.
@@ -251,6 +255,10 @@ model LabProfile {
   verificationStatus           String       @default("pending")
   rejectionReason     String?
   rejectionReason_enc String?      @map("rejectionReason_enc")
+  // Automated pre-screen result (JSON) + verdict, computed on submission.
+  aiReview            String?
+  aiVerdict           String?
+  aiReviewAt          DateTime?
   submittedAt         DateTime?
   bookings            LabBooking[]
 

@@ -92,7 +92,7 @@ export function SosToast({ alert, onDismiss, onNavigate }: SosToastProps) {
                 className="flex-1 gap-1.5 bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/25"
               >
                 <Siren className="h-3.5 w-3.5" />
-                View Details
+                View Details (Beta)
               </Button>
               <Button
                 variant="outline"

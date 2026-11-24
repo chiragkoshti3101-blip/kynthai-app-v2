@@ -317,7 +317,7 @@ export function LabVerification({ user, onSubmitted, onLogout }: LabVerification
               <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
                 By submitting, you confirm all information is accurate. Kynthai
-                verifies every lab before activation (24-48 hours).
+                verifies every lab before activation (20–48 hours).
               </p>
             </div>
 

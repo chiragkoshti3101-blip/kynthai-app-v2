@@ -1,3 +1,4 @@
+import { joinAuthorization, joinDenialResponse } from '@/lib/video-authorization';
 import { NextRequest } from 'next/server';
 import { sanitizeText, rateLimit } from '@/lib/security';
 import { logAudit } from '@/lib/auth';
@@ -12,25 +13,6 @@ function getVideoTokenSecret(): string | null {
   const secret = process.env.VIDEO_TOKEN_SECRET;
   if (!secret) return null;
   return secret;
-}
-
-export function verifyVideoToken(
-  token: string
-): { uid: string; name: string; room: string; exp: number } | null {
-  const secret = process.env.VIDEO_TOKEN_SECRET;
-  if (!secret) return null;
-  const [payloadB64, sig] = token.split('.');
-  if (!payloadB64 || !sig) return null;
-  try {
-    const payload = Buffer.from(payloadB64, 'base64url').toString('utf-8');
-    const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('hex');
-    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) return null;
-    const data = JSON.parse(payload);
-    if (data.exp && Date.now() > data.exp) return null;
-    return data;
-  } catch {
-    return null;
-  }
 }
 
 // POST /api/video-call/token — generate a room name + mock token.
@@ -50,9 +32,19 @@ export async function POST(req: NextRequest) {
   const body = await readJson<{ appointmentId?: string; roomName?: string }>(req);
   if (!body) return jsonError('Invalid JSON', 400);
 
-  const roomName =
-    sanitizeText(body.roomName, 80) ||
-    `kynthai-${body.appointmentId || crypto.randomUUID().slice(0, 8)}`;
+  if (!body.appointmentId || typeof body.appointmentId !== 'string') return jsonError('appointmentId is required', 400);
+  const join = await joinAuthorization(u, body.appointmentId);
+  const denied = joinDenialResponse(join);
+  if (denied) {
+    if (join.reason === 'identity_required') {
+      await logAudit(u.id, 'video-call.identity_required', {
+        resourceType: 'VideoCall',
+        metadata: { appointmentId: body.appointmentId, level: join.currentLevel },
+      });
+    }
+    return jsonError(denied.message, denied.status, denied.code, denied.details);
+  }
+  const roomName = `kynthai-${body.appointmentId}`;
   const expiresAt = Date.now() + 60 * 60 * 1000;
   const payload = JSON.stringify({ uid: u.id, name: u.name, room: roomName, exp: expiresAt });
   const signature = crypto.createHmac('sha256', secret).update(payload).digest('hex');

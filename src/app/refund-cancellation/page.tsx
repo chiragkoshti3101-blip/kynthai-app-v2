@@ -70,7 +70,7 @@ export default function RefundCancellationPage() {
                 <h3 className="font-semibold">Need a refund?</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   Email us at <ContactEmailText address="privacy@kynthai.app" className="font-medium text-foreground" /> with your account email and reason.
-                  Eligible refund requests are reviewed and processed within 10 business days.
+                  Refund requests must be raised within 7 days of the appointment, and are reviewed and answered within 7 days.
                 </p>
               </div>
               <ContactEmail
@@ -96,8 +96,10 @@ export default function RefundCancellationPage() {
             <section>
               <h2 className="text-lg font-semibold text-foreground">2. Consultations</h2>
               <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>Refund requests must be raised within 7 days of the appointment — no requests are accepted after that window.</li>
                 <li>Full refund if cancelled more than 24 hours before the appointment.</li>
-                <li>No refund for no-shows.</li>
+                <li>50% refund if cancelled between 2 and 24 hours before the appointment; no refund within 2 hours.</li>
+                <li>Full refund if the doctor or lab does not show up.</li>
                 <li>Partial refund for technical issues on either side.</li>
               </ul>
             </section>

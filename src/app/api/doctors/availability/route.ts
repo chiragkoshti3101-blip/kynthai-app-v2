@@ -5,6 +5,7 @@ import { rateLimit } from '@/lib/security'
 import { requireAuth, requireAuthWithCsrf, jsonError, jsonOk, readJson } from '@/lib/api-helpers'
 import { logAudit } from '@/lib/auth'
 import { availabilityUpdateSchema } from '@/lib/schemas/security'
+import { clinicTimeZone } from '@/lib/doctor-availability'
 export const dynamic = 'force-dynamic'
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
@@ -34,18 +35,36 @@ export async function GET(req: NextRequest) {
   if (!doctorId && user.role === 'doctor' && !me) {
     const schedule: Record<string, { start: string; end: string }[]> = {}
     for (const day of DAYS) schedule[day] = []
-    return jsonOk({ doctorId: null, schedule })
+    return jsonOk({
+      doctorId: null,
+      schedule,
+      timeZone: user.timezone ?? null,
+      clinicTimeZone: clinicTimeZone(user.timezone),
+    })
   }
 
   if (!doctorId) return jsonError('doctorId is required', 400)
 
-  // Allow doctors to view their own availability, or any authenticated user to view a doctor's public availability.
+  // Allow doctors to view their own availability, or any authenticated user to
+  // view a doctor's public availability. The stored clinic zone comes back
+  // with the profile lookup this check already needs, so there is no third
+  // query just to read it. `timeZone` stays null when never set;
+  // `clinicTimeZone` is the zone the windows are actually interpreted in.
+  let timeZone: string | null = null
   if (user.role !== 'doctor') {
-    const profile = await db.doctorProfile.findUnique({ where: { id: doctorId } })
+    const profile = await db.doctorProfile.findUnique({
+      where: { id: doctorId },
+      select: { verified: true, user: { select: { timezone: true } } },
+    })
     if (!profile?.verified) return jsonError('Doctor not found or not verified', 404)
+    timeZone = profile.user?.timezone ?? null
   } else {
-    const me = await db.doctorProfile.findUnique({ where: { userId: user.id } })
-    if (me && me.id !== doctorId) return jsonError('Forbidden', 403)
+    const own = await db.doctorProfile.findUnique({
+      where: { userId: user.id },
+      select: { id: true, user: { select: { timezone: true } } },
+    })
+    if (own && own.id !== doctorId) return jsonError('Forbidden', 403)
+    timeZone = own?.user?.timezone ?? null
   }
 
   const slots = await db.doctorAvailabilitySlot.findMany({ where: { doctorId, active: true }, orderBy: { day: 'asc' } })
@@ -54,11 +73,11 @@ export async function GET(req: NextRequest) {
   for (const day of DAYS) schedule[day] = []
   for (const s of slots) {
     if (s.day in schedule) {
-      ;(schedule[s.day] as { start: string; end: string }[]).push({ start: s.start, end: s.end })
+      schedule[s.day].push({ start: s.start, end: s.end })
     }
   }
 
-  return jsonOk({ doctorId, schedule })
+  return jsonOk({ doctorId, schedule, timeZone, clinicTimeZone: clinicTimeZone(timeZone) })
 }
 
 // POST /api/doctors/availability
@@ -88,30 +107,31 @@ export async function POST(req: NextRequest) {
   }
   const body = parsed.data
 
-  // Upsert each day slot: find existing by doctorId+day, update or create.
+  // Clinic zone for the weekly windows. Writing it on the doctor's own user
+  // row is what makes the booking gate read the hours in the right zone.
+  if (body.timeZone !== undefined) {
+    await db.user.update({
+      where: { id: user.id },
+      data: { timezone: body.timeZone },
+    })
+  }
+
+  // Replace every window for each submitted day. A day may carry more than one
+  // window (e.g. morning and afternoon), so delete the day's rows and recreate
+  // one row per submitted window.
   for (const entry of body.schedule) {
     const day = entry.day
     const slots = entry.slots
-    const existing = await db.doctorAvailabilitySlot.findFirst({
-      where: { doctorId: profile.id, day },
-    })
-    const start = slots[0]?.start ?? '00:00'
-    const end = slots[0]?.end ?? '23:59'
-    const active = slots.length > 0
-    if (existing) {
-      await db.doctorAvailabilitySlot.update({
-        where: { id: existing.id },
-        data: { start, end, active },
-      })
-    } else {
+    await db.doctorAvailabilitySlot.deleteMany({ where: { doctorId: profile.id, day } })
+    for (const slot of slots) {
       await db.doctorAvailabilitySlot.create({
-        data: { doctorId: profile.id, day, start, end, active },
+        data: { doctorId: profile.id, day, start: slot.start, end: slot.end, active: true },
       })
     }
   }
 
   // Mark days not in the submitted schedule as inactive.
-  const submittedDays = new Set(body.schedule.map((s) => (s as { day: string }).day))
+  const submittedDays = new Set(body.schedule.map((s) => s.day))
   await db.doctorAvailabilitySlot.updateMany({
     where: { doctorId: profile.id, day: { notIn: Array.from(submittedDays) } },
     data: { active: false },
@@ -122,9 +142,14 @@ export async function POST(req: NextRequest) {
   for (const day of DAYS) schedule[day] = []
   for (const s of slots) {
     if (s.day in schedule) {
-      ;(schedule[s.day] as { start: string; end: string }[]).push({ start: s.start, end: s.end })
+      schedule[s.day].push({ start: s.start, end: s.end })
     }
   }
 
-  return jsonOk({ doctorId: profile.id, schedule })
+  return jsonOk({
+    doctorId: profile.id,
+    schedule,
+    timeZone: body.timeZone !== undefined ? body.timeZone : user.timezone ?? null,
+    clinicTimeZone: clinicTimeZone(body.timeZone !== undefined ? body.timeZone : user.timezone),
+  })
 }
