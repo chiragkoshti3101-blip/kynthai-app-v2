@@ -4,7 +4,7 @@
 -- and avoid per-row seq scans as row counts grow.
 -- Table names follow the @@map snake_case mapping in schema.prisma.
 
-CREATE INDEX IF NOT EXISTS "Reminder_medicationId_idx" ON "reminders"("medicationId");
+CREATE INDEX IF NOT EXISTS "Reminder_medicationId_idx" ON "Reminder"("medicationId");
 CREATE INDEX IF NOT EXISTS "NotificationLog_userId_idx" ON "notification_logs"("userId");
 CREATE INDEX IF NOT EXISTS "Payment_userId_idx" ON "payments"("userId");
 CREATE INDEX IF NOT EXISTS "LabBooking_patientId_idx" ON "lab_bookings"("patientId");
